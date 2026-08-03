@@ -414,7 +414,7 @@ textarea {
   opacity: 0.82;
 }
 .corpo {
-  padding: 8px 22px calc(40px + var(--sb));
+  padding: 8px 22px calc(104px + env(safe-area-inset-bottom, 0px));
   animation: ap 0.32s;
 }
 .sect {
@@ -759,6 +759,303 @@ textarea.campo {
   font-weight: 700;
 }
 
+/* ── bloco de cor (as tuas funções) ── */
+.blococor {
+  background: var(--agua);
+  border-radius: 24px;
+  padding: 4px 18px 14px;
+  margin-top: 20px;
+}
+.blococor .cabecalho {
+  border: 0;
+  margin-bottom: 0;
+  padding-top: 14px;
+}
+.blococor .linha {
+  border-bottom: 1px solid rgba(10, 15, 46, 0.09);
+}
+.blococor .linha:last-child {
+  border-bottom: 0;
+}
+
+/* ── cabeçalho de fase ── */
+.fasecab {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 22px 0 2px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--tinta);
+}
+.fasecab h4 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.fasecab span {
+  font-size: 11.5px;
+  color: var(--cinza);
+  font-weight: 500;
+}
+.fasecab em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cinza);
+}
+
+/* ── frase do líder de escala ── */
+.frase {
+  background: var(--lima);
+  border-radius: 22px;
+  padding: 20px;
+  margin-top: 20px;
+}
+.frase p.txt {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+}
+.frase p.aut {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 10px;
+  opacity: 0.7;
+}
+.convite {
+  border: 1.5px dashed var(--fio);
+  border-radius: 22px;
+  padding: 20px;
+  margin-top: 20px;
+  cursor: pointer;
+}
+.convite:active {
+  background: var(--agua);
+}
+
+/* ── progresso ── */
+.barra {
+  height: 9px;
+  border-radius: 6px;
+  background: var(--agua);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.barra i {
+  display: block;
+  height: 100%;
+  background: var(--verde);
+  border-radius: 6px;
+  transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.semescala {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--agua);
+  font-size: 13px;
+  color: var(--cinza);
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ── calendário ── */
+.cal {
+  margin-top: 14px;
+}
+.calcab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.calcab b {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.calgrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.cald {
+  aspect-ratio: 1;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cinza);
+  background: #fff;
+}
+.cald.vazio {
+  background: none;
+}
+.calsem {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cinza);
+  text-align: center;
+  padding-bottom: 4px;
+}
+.cald.culto {
+  background: var(--agua);
+  color: var(--azul);
+  font-weight: 700;
+}
+.cald.sirvo {
+  background: var(--grad);
+  color: #fff;
+  font-weight: 800;
+}
+.cald.hoje {
+  box-shadow: inset 0 0 0 2.5px var(--lima);
+}
+.legenda {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.lg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--cinza);
+}
+.lg s {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  text-decoration: none;
+  display: block;
+}
+
+/* ── tabela da escala ── */
+.tabwrap {
+  overflow-x: auto;
+  margin-top: 14px;
+  padding-bottom: 4px;
+}
+.tabwrap::-webkit-scrollbar {
+  height: 6px;
+}
+.tabwrap::-webkit-scrollbar-thumb {
+  background: var(--fio);
+  border-radius: 6px;
+}
+.tab {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 540px;
+  font-size: 13.5px;
+}
+.tab th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cinza);
+  padding: 11px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--tinta);
+  white-space: nowrap;
+}
+.tab th.hj {
+  color: var(--azul);
+}
+.tab td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--fio);
+  white-space: nowrap;
+  font-weight: 500;
+}
+.tab tr.lid td {
+  background: var(--grad);
+  color: #fff;
+  font-weight: 700;
+}
+.tab td.mim {
+  color: var(--azul);
+  font-weight: 800;
+}
+.tab tr.lid td.mim {
+  color: var(--lima);
+}
+.tab td.papel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cinza);
+}
+.tab tr.lid td.papel {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── navegação inferior ── */
+.navb {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+  background: var(--grad);
+  display: none;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 11px 4px calc(11px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 30px rgba(0, 20, 120, 0.18);
+}
+.navb.on {
+  display: grid;
+}
+.navb button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  transition: 0.18s;
+  position: relative;
+  min-height: 56px;
+}
+.navb button svg {
+  display: block;
+}
+.navb button::before {
+  content: "";
+  position: absolute;
+  top: -11px;
+  width: 22px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--lima);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.navb button[data-on="1"] {
+  color: #fff;
+}
+.navb button[data-on="1"]::before {
+  opacity: 1;
+}
+
 @media (min-width: 900px) {
   .login {
     display: grid;
@@ -825,7 +1122,7 @@ textarea.campo {
     padding: 26px 46px 0;
   }
   .corpo {
-    padding: 8px 46px 60px;
+    padding: 8px 46px 124px;
     max-width: 1120px;
     margin: 0 auto;
   }
@@ -834,6 +1131,11 @@ textarea.campo {
     grid-template-columns: 1.3fr 0.7fr;
     gap: 0 50px;
     align-items: start;
+  }
+  .navb {
+    max-width: 560px;
+    margin: 0 auto;
+    border-radius: 26px 26px 0 0;
   }
 }
 

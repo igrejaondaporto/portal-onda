@@ -3,18 +3,25 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { TorradaProvider } from "../lib/TorradaContext";
 import MenuEu from "../components/MenuEu";
+import NavBar from "../components/NavBar";
 import PainelLider from "./PainelLider";
+import Inicio from "./Inicio";
+import Escala from "./Escala";
 
 /**
- * Casca da app depois de entrar. Início, Escala, Funções, Culto e
- * Inventário ainda não existem (passos 3 a 5) — por agora só há o
- * Painel do líder, alcançável pelo menu do avatar.
+ * Casca da app depois de entrar: cabeçalho + corpo + navegação.
+ * Cada página (Início, Escala, Painel) define o próprio cabeçalho via
+ * definirCabecalho — o mesmo padrão do cabeca() do protótipo, só que
+ * como estado em vez de mexer direto no DOM.
  */
 export default function Sessao({ uid, papel, baseId }) {
   const [pessoa, setPessoa] = useState(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const [pagina, setPagina] = useState("inicio");
-  const [cabPainel, setCabPainel] = useState(null);
+  const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
+  const hoje = new Date();
+  const [mes, setMes] = useState(hoje.getMonth());
+  const [ano] = useState(hoje.getFullYear());
 
   useEffect(() => {
     getDoc(doc(db, `bases/${baseId}/pessoas/${uid}`)).then((s) => setPessoa(s.exists() ? s.data() : null));
@@ -25,13 +32,12 @@ export default function Sessao({ uid, papel, baseId }) {
   function irPara(p) {
     setPagina(p);
     setMenuAberto(false);
-    if (p === "inicio") setCabPainel(null);
   }
 
   return (
     <TorradaProvider>
       <div className="app">
-        <div className="crista topo" style={{ paddingBottom: pagina === "inicio" ? 32 : 20 }}>
+        <div className="crista topo" style={{ paddingBottom: 20 }}>
           <div className="lin">
             <span className="logo">
               <i>igreja</i>
@@ -54,37 +60,32 @@ export default function Sessao({ uid, papel, baseId }) {
               </span>
             </div>
           </div>
-          {pagina === "inicio" ? (
-            <>
-              <h1 style={{ marginTop: 22 }}>
-                Olá,
-                <br />
-                <em>{pessoa?.nome ?? "…"}</em>
-              </h1>
-              <p className="sob">O resto do portal ainda não existe nesta versão.</p>
-            </>
-          ) : (
-            cabPainel && (
-              <>
-                <h1 style={{ marginTop: 22 }}>{cabPainel.titulo}</h1>
-                <p className="sob">{cabPainel.subtitulo}</p>
-                {cabPainel.chips?.length > 0 && (
-                  <div className="chips">
-                    {cabPainel.chips.map((c, i) => (
-                      <span className="chip" key={i}>{c}</span>
-                    ))}
-                  </div>
-                )}
-              </>
-            )
+          <h1 style={{ marginTop: 22 }}>{cab.titulo}</h1>
+          {cab.subtitulo && <p className="sob">{cab.subtitulo}</p>}
+          {cab.chips?.length > 0 && (
+            <div className="chips">
+              {cab.chips.map((c, i) => (
+                <span className="chip" key={i}>{c}</span>
+              ))}
+            </div>
           )}
         </div>
         <div className="corpo">
+          {pagina === "inicio" && (
+            <Inicio
+              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
+              definirCabecalho={setCab} onIrEscala={() => irPara("escala")}
+            />
+          )}
+          {pagina === "escala" && (
+            <Escala uid={uid} mes={mes} ano={ano} definirMes={setMes} definirCabecalho={setCab} />
+          )}
           {pagina === "painel" && (
-            <PainelLider baseId={baseId} definirCabecalho={setCabPainel} aoVoltar={() => irPara("inicio")} />
+            <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
           )}
         </div>
       </div>
+      <NavBar pagina={pagina} onIr={irPara} />
       {menuAberto && (
         <MenuEu
           pessoa={pessoa}

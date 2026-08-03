@@ -232,27 +232,44 @@ export const removerVoluntario = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── ATRIBUIR FUNÇÃO — a regra da data vive aqui ──────────── */
-export const atribuirFuncao = onCall(async (req) => {
+/** Confirma que quem chama é líder da base ou líder de escala do culto.
+ *  Devolve a escala (já lida) para quem precisar dela a seguir. */
+async function exigeLiderDoCulto(req, eventoId) {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-
-  const { eventoId, funcaoId, pessoas } = req.data || {};
-  if (!eventoId || !funcaoId || !Array.isArray(pessoas)) {
-    throw new HttpsError("invalid-argument", "Dados inválidos.");
-  }
 
   const escala = await db.doc(`eventos/${eventoId}/escalas/${baseId}`).get();
   if (!escala.exists) throw new HttpsError("not-found", "Este culto não tem escala.");
 
   const souLiderBase = req.auth.token.papel === "lider_base";
   const souLiderEscala = escala.data().liderEscala === uid;
-
-  // ESTA é a regra toda: o líder de escala só manda no dia dele
   if (!souLiderBase && !souLiderEscala) {
     throw new HttpsError("permission-denied",
-      "Só o líder de escala deste culto distribui as funções.");
+      "Só o líder de escala deste culto pode fazer isto.");
   }
+  return { uid, baseId, escala };
+}
+
+/* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────
+ * O documento do evento é global (a igreja toda) e write:false para o
+ * cliente — só assim é que a data e o tipo do culto não podem ser
+ * mexidos por engano. A frase passa por aqui por causa disso. */
+export const definirFrase = onCall(async (req) => {
+  const { eventoId, frase } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  await exigeLiderDoCulto(req, eventoId);
+  await db.doc(`eventos/${eventoId}`).set({ frase: String(frase ?? "").trim() }, { merge: true });
+  return { ok: true };
+});
+
+/* ── ATRIBUIR FUNÇÃO — a regra da data vive aqui ──────────── */
+export const atribuirFuncao = onCall(async (req) => {
+  const { eventoId, funcaoId, pessoas } = req.data || {};
+  if (!eventoId || !funcaoId || !Array.isArray(pessoas)) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const { baseId, uid, escala } = await exigeLiderDoCulto(req, eventoId);
+
   const naEscala = escala.data().pessoas || [];
   if (pessoas.some((p) => !naEscala.includes(p))) {
     throw new HttpsError("failed-precondition", "Só podes atribuir a quem está escalado.");
