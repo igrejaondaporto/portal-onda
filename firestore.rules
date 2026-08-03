@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────
+//  REGRA DE OURO
+//  O hash do PIN NUNCA vive no documento da pessoa. Vive em
+//  bases/{b}/pessoas/{p}/privado/auth, que nenhum cliente lê.
+//  As Cloud Functions usam o Admin SDK e ignoram estas regras.
+// ─────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado()      { return request.auth != null; }
+    function minhaBase(b)       { return autenticado() && request.auth.token.baseId == b; }
+    function souLiderBase(b)    { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
+    function euSou(p)           { return autenticado() && request.auth.uid == p; }
+
+    match /bases/{base} {
+      allow read:  if minhaBase(base);
+      allow write: if false;                       // só por função
+
+      // ── pessoas ──────────────────────────────────────────
+      match /pessoas/{pessoa} {
+        // toda a base se vê (é a grelha de login e as escalas)
+        allow read: if minhaBase(base);
+        // cada um edita o seu perfil, menos o papel
+        allow update: if euSou(pessoa)
+                      && request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['nome','foto','telefone','atualizadoEm']);
+        allow create, delete: if false;            // só por função
+        // o segredo
+        match /privado/{doc} { allow read, write: if false; }
+      }
+
+      // ── catálogo de funções ──────────────────────────────
+      match /funcoes/{funcao} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+
+      // ── inventário: qualquer voluntário mexe ─────────────
+      match /inventario/{item} {
+        allow read:   if minhaBase(base);
+        allow update: if minhaBase(base)
+                      && request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['quantidade','atualizadoEm','atualizadoPor']);
+        allow create, delete: if souLiderBase(base);
+        match /movimentos/{mov} {
+          allow read:   if minhaBase(base);
+          allow create: if minhaBase(base) && request.resource.data.pessoaId == request.auth.uid;
+          allow update, delete: if false;          // histórico é imutável
+        }
+      }
+
+      // ── reembolsos ───────────────────────────────────────
+      match /reembolsos/{r} {
+        allow read:   if souLiderBase(base) || resource.data.pessoaId == request.auth.uid;
+        allow create: if minhaBase(base)
+                      && request.resource.data.pessoaId == request.auth.uid
+                      && request.resource.data.estado == 'submetido'
+                      && request.resource.data.valor is number
+                      && request.resource.data.valor > 0;
+        allow update: if souLiderBase(base);
+        allow delete: if false;
+      }
+    }
+
+    // ── eventos: o culto é da IGREJA, não da base ──────────
+    match /eventos/{evento} {
+      allow read:  if autenticado();
+      allow write: if false;                       // só por função
+
+      match /escalas/{base} {
+        allow read:  if autenticado();
+        allow write: if souLiderBase(base);
+      }
+
+      // as atribuições passam SEMPRE pela função atribuirFuncao,
+      // que confirma a data antes de gravar
+      match /atribuicoes/{a} { allow read: if autenticado(); allow write: if false; }
+
+      match /checklist/{c} {
+        allow read: if autenticado();
+        allow write: if autenticado()
+                     && exists(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId))
+                     && request.auth.uid in
+                        get(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId)).data.pessoas;
+      }
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,1136 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Base de Apoio — igrejaonda</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+ --azul:#0019BE;--ciano:#0092D4;--lima:#D8F24B;--magenta:#FF2E88;--verde:#00A88F;--laranja:#F5A300;--violeta:#7B5CFF;
+ --agua:#EAEEFF;--tinta:#0A0F2E;--cinza:#6A7192;--fio:rgba(10,15,46,.11);
+ --o:'Outfit',system-ui,sans-serif;--sb:max(26px,env(safe-area-inset-bottom));
+ --grad:linear-gradient(118deg,#001ED1 0%,#0019BE 52%,#001594 100%);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--o);color:var(--tinta);background:#fff;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,select,textarea{font-family:inherit;color:inherit}
+.cap{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza)}
+.logo{font-size:19px;letter-spacing:-.035em;line-height:1;white-space:nowrap;color:#fff}
+.logo i{font-style:normal;font-weight:400}.logo b{font-weight:800}
+
+.crista{background:var(--grad);color:#fff;padding:24px 22px 0;position:relative;overflow:hidden}
+.crista::before{content:"";position:absolute;left:-60px;top:-90px;width:280px;height:280px;border-radius:50%;
+ background:radial-gradient(circle,rgba(120,150,255,.34),transparent 68%)}
+.crista>*{position:relative;z-index:1}
+.lin{display:flex;justify-content:space-between;align-items:center}
+.crista h1{font-size:clamp(40px,12vw,58px);font-weight:800;letter-spacing:-.045em;line-height:.98;margin-top:22px}
+.crista h1 em{font-style:normal;color:var(--lima)}
+.sob{font-size:14.5px;font-weight:400;opacity:.88;margin-top:11px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-bottom:32px}
+.chip{background:rgba(255,255,255,.17);border-radius:100px;padding:8px 14px;font-size:12.5px;font-weight:500}
+.curva{display:block;width:100%;height:46px;margin-bottom:-2px;position:relative;z-index:1}
+
+.folha{padding:6px 22px calc(36px + var(--sb))}
+.tit{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 2px}
+.tit h2{font-size:21px;font-weight:700;letter-spacing:-.03em}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:20px 8px;padding-top:18px}
+.p{background:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px;animation:ap .5s backwards}
+@keyframes ap{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.av{border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:700;position:relative;flex:none;
+ width:58px;height:58px;font-size:21px;transition:transform .24s cubic-bezier(.2,1.5,.4,1)}
+.p:hover .av{transform:translateY(-4px)}.p:active .av{transform:scale(.9)}
+.p:focus-visible{outline:3px solid var(--azul);outline-offset:4px;border-radius:12px}
+.av s{position:absolute;bottom:-1px;right:-1px;width:19px;height:19px;border-radius:50%;background:var(--lima);
+ color:var(--tinta);border:3px solid #fff;text-decoration:none;display:grid;place-items:center;font-size:9px;font-weight:800}
+.p b{font-size:12.5px;font-weight:600;text-align:center;line-height:1.2}
+.nota{margin-top:26px;font-size:12px;color:var(--cinza);line-height:1.65;max-width:430px}
+
+.app{display:none;background:#fff}.app.on{display:block}
+.eu{display:flex;align-items:center;gap:9px}
+.eu b{font-size:13.5px;font-weight:600}.eu p{font-size:10px;font-weight:400;opacity:.82}
+.menu{display:flex;gap:8px;padding:12px 22px;overflow-x:auto;white-space:nowrap;position:sticky;top:0;
+ background:rgba(255,255,255,.96);backdrop-filter:blur(14px);z-index:5;border-bottom:1px solid var(--fio)}
+.menu::-webkit-scrollbar{display:none}
+.menu button{background:var(--agua);border:0;border-radius:100px;cursor:pointer;padding:9px 15px;
+ font-size:13px;font-weight:600;color:var(--cinza);transition:.16s}
+.menu button[data-on="1"]{background:var(--azul);color:#fff}
+.corpo{padding:8px 22px calc(104px + env(safe-area-inset-bottom,0px));animation:ap .32s}
+.sect{padding-top:22px}
+.cabecalho{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:12px}
+.sect h3{font-size:19px;font-weight:700;letter-spacing:-.03em}
+.linha{display:flex;gap:13px;padding:15px 0;border-bottom:1px solid var(--fio);align-items:center;animation:ap .4s backwards}
+.bola{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-size:17px;font-weight:700}
+.nmt{font-size:16px;font-weight:700;letter-spacing:-.025em}
+.ds{font-size:12.5px;color:var(--cinza);margin-top:3px;line-height:1.45}
+.seta{margin-left:auto;color:#AEB4D0;font-size:19px;flex:none}
+.vaz{padding:22px 0;border-bottom:1px solid var(--fio);color:var(--cinza);font-size:13.5px;line-height:1.5}
+.tag{font-size:11px;font-weight:700;color:#fff;background:var(--magenta);padding:4px 10px;border-radius:100px;flex:none}
+.tag.cinz{background:var(--agua);color:var(--cinza)}
+.tag.verd{background:var(--verde)}
+.tag.lim{background:var(--lima);color:var(--tinta)}
+.destaque{background:var(--grad);color:#fff;border-radius:22px;padding:18px 20px;margin-top:22px;
+ display:flex;justify-content:space-between;align-items:center;gap:14px;cursor:pointer}
+.caixa{border:1px solid var(--fio);border-radius:20px;padding:18px;margin-top:14px}
+.btn{background:var(--azul);color:#fff;border:0;border-radius:100px;padding:13px 22px;font-size:14.5px;
+ font-weight:600;cursor:pointer;transition:.14s}
+.btn:active{transform:scale(.96)}
+.btn.sec{background:var(--agua);color:var(--azul)}
+.btn.full{width:100%}
+.campo{width:100%;border:1px solid var(--fio);border-radius:14px;padding:13px 15px;font-size:15px;
+ margin-top:8px;background:#fff}
+.campo:focus{outline:2px solid var(--azul);outline-offset:0;border-color:transparent}
+.rot{font-size:12.5px;font-weight:600;color:var(--cinza);margin-top:14px;display:block}
+.pilha{display:flex}
+.pilha em{width:32px;height:32px;border-radius:50%;border:2.5px solid #fff;display:grid;place-items:center;
+ font-style:normal;font-size:12px;font-weight:700;color:#fff;margin-left:-9px}
+.pilha em:first-child{margin-left:0}
+.qtd{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
+.qb{width:36px;height:36px;border-radius:50%;border:1px solid var(--fio);background:#fff;font-size:19px;
+ font-weight:600;cursor:pointer;line-height:1;transition:.12s}
+.qb:active{background:var(--azul);color:#fff;transform:scale(.9)}
+.qn{min-width:34px;text-align:center;font-size:17px;font-weight:700}
+.aberto{padding:0 0 16px;font-size:13.5px;color:var(--cinza);line-height:1.6;animation:ap .3s}
+.sair{margin-top:28px;background:none;border:0;color:var(--azul);font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 0}
+
+.veu{position:fixed;inset:0;background:rgba(4,8,40,.55);z-index:20;display:none}
+.veu.on{display:block;animation:fd .22s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.pin{position:fixed;left:0;right:0;bottom:0;z-index:21;background:#fff;border-radius:30px 30px 0 0;
+ padding:12px 22px var(--sb);display:none;max-height:88vh;overflow-y:auto}
+.pin.on{display:block;animation:up .34s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.pux{width:40px;height:5px;border-radius:3px;background:#DCE0F2;margin:0 auto 16px}
+.cara{width:64px;height:64px;border-radius:50%;margin:0 auto;color:#fff;display:grid;place-items:center;font-size:25px;font-weight:700}
+.pin h2{font-size:22px;font-weight:700;letter-spacing:-.035em;text-align:center;margin-top:14px}
+.sb2{text-align:center;font-size:13px;color:var(--cinza);margin-top:5px}
+.pts{display:flex;gap:12px;justify-content:center;margin:22px 0 2px}
+.pts i{width:14px;height:14px;border-radius:50%;background:#DEE2F4;transition:.18s}
+.pts i.on{background:var(--azul);transform:scale(1.16)}
+.pts.e i{background:var(--magenta)}
+.tr{animation:tr .4s}@keyframes tr{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.aviso{min-height:48px;text-align:center;padding-top:12px;font-size:13px;font-weight:600;color:var(--magenta);line-height:1.45}
+.tec{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:400px;margin:6px auto 14px}
+.k{height:64px;border:0;border-radius:100px;background:var(--agua);font-size:24px;font-weight:600;cursor:pointer;transition:.12s}
+.k:active{background:var(--azul);color:#fff;transform:scale(.94)}
+.k.g{background:none;font-size:13.5px;font-weight:600;color:var(--cinza)}
+.opcao{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--fio);
+ cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.opcao:active{background:var(--agua)}
+.torrada{position:fixed;left:50%;bottom:calc(24px + var(--sb));transform:translateX(-50%);z-index:40;
+ background:var(--tinta);color:#fff;padding:13px 20px;border-radius:100px;font-size:13.5px;font-weight:600;
+ box-shadow:0 8px 30px rgba(10,15,46,.3);display:none;white-space:nowrap;max-width:92vw}
+.torrada.on{display:block;animation:up2 .3s cubic-bezier(.2,.9,.3,1)}
+@keyframes up2{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+
+@media(min-width:900px){
+ .login{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+ .crista.entrada{padding:46px 46px 0;display:flex;flex-direction:column;justify-content:center}
+ .crista.entrada h1{font-size:clamp(64px,5.4vw,92px)}
+ .crista::before{width:520px;height:520px;left:-140px;top:-180px}
+ .login .curva{display:none}
+ .folha{padding:46px;display:flex;flex-direction:column;justify-content:center}
+ .g{grid-template-columns:repeat(5,1fr);gap:26px 10px}
+ .crista.topo{padding:26px 46px 0}
+ .menu{padding:14px 46px}
+ .corpo{padding:8px 46px 124px;max-width:1120px}
+ .duas{display:grid;grid-template-columns:1.3fr .7fr;gap:0 50px;align-items:start}
+ .pin{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);width:420px;border-radius:26px;padding:24px 26px 26px}
+ .pin.on{animation:zm .3s cubic-bezier(.2,.9,.3,1)}
+ @keyframes zm{from{opacity:0;transform:translate(-50%,-46%)}to{opacity:1;transform:translate(-50%,-50%)}}
+ .pux{display:none}
+ .logo{font-size:22px}
+ .navb{max-width:560px;margin:0 auto;border-radius:26px 26px 0 0}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.chk{width:34px;height:34px;border-radius:50%;border:2px solid var(--fio);background:#fff;
+ cursor:pointer;flex:none;font-size:16px;color:transparent;display:grid;place-items:center;
+ transition:.16s;font-weight:800}
+.chk:active{transform:scale(.88)}
+.chk.on{background:var(--verde);border-color:var(--verde);color:#fff}
+.feita .nmt{text-decoration:line-through;opacity:.45}
+.barra{height:9px;border-radius:6px;background:var(--agua);overflow:hidden;margin-top:12px}
+.barra i{display:block;height:100%;background:var(--verde);border-radius:6px;transition:width .45s cubic-bezier(.2,.9,.3,1)}
+.calnav{display:flex;align-items:center;gap:6px}
+.calbt{width:30px;height:30px;border-radius:50%;border:1px solid var(--fio);background:#fff;
+ cursor:pointer;font-size:15px;line-height:1;color:var(--cinza)}
+.calbt:active{background:var(--agua)}
+.semescala{margin-top:12px;padding:14px;border-radius:14px;background:var(--agua);
+ font-size:13px;color:var(--cinza);font-weight:500;text-align:center}
+
+.navb{position:fixed;left:0;right:0;bottom:0;z-index:12;background:var(--grad);
+ display:none;grid-template-columns:repeat(5,1fr);
+ padding:11px 4px calc(11px + env(safe-area-inset-bottom,0px));
+ box-shadow:0 -10px 30px rgba(0,20,120,.18)}
+.navb.on{display:grid}
+.navb button{background:none;border:0;cursor:pointer;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;gap:6px;padding:6px 0;color:rgba(255,255,255,.6);
+ font-size:11.5px;font-weight:600;letter-spacing:-.005em;transition:.18s;position:relative;min-height:56px}
+.navb button svg{display:block}
+.navb button::before{content:"";position:absolute;top:-11px;width:22px;height:3px;border-radius:3px;
+ background:var(--lima);opacity:0;transition:opacity .2s}
+.navb button[data-on="1"]{color:#fff}
+.navb button[data-on="1"]::before{opacity:1}
+.tabwrap{overflow-x:auto;margin-top:14px;padding-bottom:4px}
+.tabwrap::-webkit-scrollbar{height:6px}
+.tabwrap::-webkit-scrollbar-thumb{background:var(--fio);border-radius:6px}
+.tab{border-collapse:collapse;width:100%;min-width:540px;font-size:13.5px}
+.tab th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--cinza);
+ padding:11px 12px;text-align:left;border-bottom:2px solid var(--tinta);white-space:nowrap}
+.tab th.hj{color:var(--azul)}
+.tab td{padding:11px 12px;border-bottom:1px solid var(--fio);white-space:nowrap;font-weight:500}
+.tab tr.lid td{background:var(--grad);color:#fff;font-weight:700}
+.tab td.mim{color:var(--azul);font-weight:800}
+.tab tr.lid td.mim{color:var(--lima)}
+.tab td.papel{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza)}
+.tab tr.lid td.papel{color:rgba(255,255,255,.8)}
+.subtabs{display:flex;gap:8px;margin-top:16px}
+.subtabs button{background:var(--agua);border:0;border-radius:100px;cursor:pointer;padding:9px 16px;
+ font-size:13px;font-weight:600;color:var(--cinza)}
+.subtabs button[data-on="1"]{background:var(--azul);color:#fff}
+</style>
+<style>
+/* ── calendário ── */
+.cal{margin-top:14px}
+.calcab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.calcab b{font-size:16px;font-weight:700;letter-spacing:-.02em}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cald{aspect-ratio:1;border-radius:11px;display:grid;place-items:center;font-size:13.5px;
+ font-weight:600;color:var(--cinza);background:#fff}
+.cald.vazio{background:none}
+.calsem{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+ color:var(--cinza);text-align:center;padding-bottom:4px}
+.cald.culto{background:var(--agua);color:var(--azul);font-weight:700}
+.cald.sirvo{background:var(--grad);color:#fff;font-weight:800}
+.cald.hoje{box-shadow:inset 0 0 0 2.5px var(--lima)}
+.legenda{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+.lg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--cinza)}
+.lg s{width:14px;height:14px;border-radius:5px;text-decoration:none;display:block}
+
+/* ── frase do líder ── */
+.frase{background:var(--lima);border-radius:22px;padding:20px;margin-top:20px}
+.frase p.txt{font-size:18px;font-weight:600;letter-spacing:-.025em;line-height:1.35}
+.frase p.aut{font-size:12.5px;font-weight:600;margin-top:10px;opacity:.7}
+.convite{border:1.5px dashed var(--fio);border-radius:22px;padding:20px;margin-top:20px;cursor:pointer}
+.convite:active{background:var(--agua)}
+
+/* ── foto ── */
+.fotofn{width:100%;height:150px;border-radius:16px;object-fit:cover;margin:12px 0 4px;display:block}
+.avfoto{background-size:cover;background-position:center}
+.perfilav{width:96px;height:96px;border-radius:50%;margin:0 auto;display:grid;place-items:center;
+ color:#fff;font-size:38px;font-weight:700}
+</style>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login" id="login">
+ <div class="crista entrada">
+  <div>
+   <div class="lin"><span class="logo"><i>igreja</i><b>onda</b></span>
+    <span class="cap" style="color:rgba(255,255,255,.8)">Porto · Maia</span></div>
+   <h1>Base de <em>Apoio</em></h1>
+   <p class="sob">Hoje, domingo 2 de agosto · Rua do Cavaco, 290</p>
+   <div class="chips"><span class="chip">Chegada 08:00</span><span class="chip">Culto 10:30</span><span class="chip">5 na escala</span></div>
+  </div>
+  <svg class="curva" viewBox="0 0 400 46" preserveAspectRatio="none"><path d="M0,46 C110,4 290,4 400,46 L400,46 L0,46 Z" fill="#fff"/></svg>
+ </div>
+ <div class="folha">
+  <div class="tit"><h2>Toca no teu nome</h2><span class="cap" id="ct"></span></div>
+  <div class="g" id="grelha"></div>
+  <p class="nota">O teu nome e a tua foto ficam visíveis para as pessoas da tua base. Mais nada é partilhado.</p>
+ </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app" id="app">
+ <div class="crista topo" style="padding-bottom:0">
+  <div class="lin"><span class="logo"><i>igreja</i><b>onda</b></span>
+   <div class="eu">
+    <div style="text-align:right;cursor:pointer" onclick="ir('perfil')"><b id="eun">—</b>
+     <p id="eup">—</p>
+     <p style="font-size:10.5px;font-weight:600;opacity:.95;color:var(--lima)">Perfil ›</p></div>
+    <span class="av" id="eua" style="width:40px;height:40px;font-size:16px;cursor:pointer" onclick="menuEu()"></span></div></div>
+  <h1 id="ttl">—</h1>
+  <p class="sob" id="sub">—</p>
+  <div class="chips" id="chips"></div>
+  <svg class="curva" viewBox="0 0 400 46" preserveAspectRatio="none"><path d="M0,46 C110,4 290,4 400,46 L400,46 L0,46 Z" fill="#fff"/></svg>
+ </div>
+ <div class="corpo" id="corpo"></div>
+</div>
+
+<style>
+.blococor{background:var(--agua);border-radius:24px;padding:4px 18px 14px;margin-top:20px}
+.blococor .cabecalho{border:0;margin-bottom:0;padding-top:14px}
+.blococor .linha{border-bottom:1px solid rgba(10,15,46,.09)}
+.blococor .linha:last-child{border-bottom:0}
+.fasecab{display:flex;align-items:baseline;gap:10px;margin:22px 0 2px;padding-bottom:8px;
+ border-bottom:2px solid var(--tinta)}
+.fasecab h4{font-size:16px;font-weight:800;letter-spacing:-.025em}
+.fasecab span{font-size:11.5px;color:var(--cinza);font-weight:500}
+.fasecab em{margin-left:auto;font-style:normal;font-size:11px;font-weight:700;
+ letter-spacing:.08em;text-transform:uppercase;color:var(--cinza)}
+.dupla{display:flex;gap:0;align-items:center}
+.dupla .av{border:2.5px solid #fff;margin-left:-10px}
+.dupla .av:first-child{margin-left:0}
+.estrela{width:34px;height:34px;border-radius:50%;border:2px solid var(--fio);background:#fff;
+ cursor:pointer;flex:none;font-size:15px;color:#CDD4E8;display:grid;place-items:center;transition:.16s;padding:0}
+.estrela.on{background:var(--lima);border-color:var(--lima);color:var(--tinta)}
+.estrela:active{transform:scale(.88)}
+.opcao{gap:10px}
+.tag.esp{background:var(--magenta);font-size:9.5px;padding:3px 8px;vertical-align:middle;
+ margin-left:6px;display:inline-block;letter-spacing:.03em}
+.icgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
+.icbt{aspect-ratio:1;border:1px solid var(--fio);border-radius:12px;background:#fff;cursor:pointer;
+ display:grid;place-items:center;color:var(--cinza);transition:.14s;padding:0}
+.icbt:active{transform:scale(.9)}
+.icbt[data-on="1"]{background:var(--azul);border-color:var(--azul);color:#fff}
+.realce{animation:realce 1.6s ease}
+@keyframes realce{0%,100%{background:transparent}25%{background:var(--agua)}}
+</style>
+<nav class="navb" id="navb"></nav>
+<div class="veu" id="veu" onclick="fecharSheet()"></div>
+<div class="pin" id="sheet"></div>
+<div class="torrada" id="torrada"></div>
+<input type="file" accept="image/*" id="inpFoto" style="display:none">
+
+<script>
+/* ═══════════ DADOS ═══════════ */
+const COR=["#0019BE","#FF2E88","#7B5CFF","#00A88F","#F5A300","#0092D4"];
+const CHEGADA="08:00", CULTO="10:30";
+const FASES=[["pre","Pré-culto","Antes de abrir as portas"],
+             ["durante","Durante o culto","A partir das "+CULTO],
+             ["pos","Pós-culto","Depois de todos saírem"]];
+const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho",
+ "Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+let FUNCOES=[
+ {id:1,nome:"Entrada e corredores",fase:"pre",evento:null,cor:"#0019BE",ic:"porta",foto:null,desc:"Varrer o chão, limpar os vidros da porta, tapete alinhado. Verificar que não fica lixo à entrada."},
+ {id:2,nome:"WC Senhoras",fase:"pre",evento:null,cor:"#0092D4",ic:"gota",foto:null,desc:"Lavar sanitas e lavatórios, repor papel higiénico e sabonete, esvaziar os lixos, espelho sem marcas."},
+ {id:3,nome:"WC Homens",fase:"pre",evento:null,cor:"#0092D4",ic:"gota",foto:null,desc:"Lavar sanitas e lavatórios, repor papel higiénico e sabonete, esvaziar os lixos, espelho sem marcas."},
+ {id:4,nome:"Auditório — chão",fase:"pre",evento:null,cor:"#7B5CFF",ic:"mopa",foto:null,desc:"Varrer e passar mopa antes do culto. Atenção às zonas junto ao palco."},
+ {id:5,nome:"Auditório — cadeiras",fase:"pre",evento:null,cor:"#7B5CFF",ic:"cadeiras",foto:null,desc:"Alinhar as filas, retirar o lixo deixado, separar cadeiras partidas e avisar o líder."},
+ {id:6,nome:"Sala de amamentação",fase:"pre",evento:null,cor:"#FF2E88",ic:"coracao",foto:null,desc:"Passar pano no chão e nas cadeiras, limpar o trocador, repor fraldas e toalhitas, aromatizar."},
+ {id:7,nome:"Cozinha e copa",fase:"pre",evento:null,cor:"#00A88F",ic:"chavena",foto:null,desc:"Louça lavada e arrumada, bancadas limpas, lixo fora antes de começar."},
+ {id:8,nome:"Aromatização geral",fase:"pre",evento:null,cor:"#0019BE",ic:"spray",foto:null,desc:"Passar aromatizador nas salas e corredores mesmo antes de abrir as portas."},
+ {id:9,nome:"Ronda aos WC",fase:"durante",evento:null,cor:"#0092D4",ic:"ronda",foto:null,desc:"A meio do culto, verificar papel, sabonete e limpeza. Sem fazer barulho."},
+ {id:10,nome:"Apoio à entrada",fase:"durante",evento:null,cor:"#F5A300",ic:"pessoas",foto:null,desc:"Ficar atento a quem chega atrasado e ajudar a entrar sem perturbar."},
+ {id:11,nome:"Reposição de consumíveis",fase:"durante",evento:null,cor:"#F5A300",ic:"caixa",foto:null,desc:"Verificar papel, sabonete e sacos. Avisar no inventário o que ficar em falta."},
+ {id:12,nome:"Recolha de lixo final",fase:"pos",evento:null,cor:"#00A88F",ic:"lixo",foto:null,desc:"Recolher todos os sacos no fim e levar ao contentor da rua."},
+ {id:13,nome:"Arrumação final da sala",fase:"pos",evento:null,cor:"#F5A300",ic:"arrumar",foto:null,desc:"Devolver o espaço no estado em que foi entregue pela Casa do Povo."},
+ {id:14,nome:"Subir as coisas da Loja",fase:"pre",evento:6,cor:"#FF2E88",ic:"caixa",foto:null,desc:"Subir as caixas da loja da arrecadação e montar a banca à entrada antes de abrir as portas."},
+ {id:15,nome:"Arrumar a Loja",fase:"pos",evento:6,cor:"#FF2E88",ic:"arrumar",foto:null,desc:"Recolher tudo, contar o que sobrou e devolver as caixas à arrecadação."}
+];
+
+let PESSOAS=[
+ {id:1,n:"Alan",lider:true,dig:6,pin:"123456"},
+ {id:2,n:"L. Pessanha",dig:4,pin:"1234"},{id:3,n:"Diego",dig:4,pin:"1234"},
+ {id:4,n:"Clara",dig:4,pin:"1234"},{id:5,n:"Robson",dig:4,pin:"1234"},
+ {id:6,n:"Heitor",dig:4,pin:"1234"},{id:7,n:"João",dig:4,pin:"1234"},
+ {id:8,n:"Duarte",dig:4,pin:"1234"},{id:9,n:"Mariana",dig:4,pin:"1234"},
+ {id:10,n:"Breno",dig:4,pin:"1234"},{id:11,n:"Miqueias",dig:4,pin:"1234"},
+ {id:12,n:"Lucas",dig:4,pin:"1234"},{id:13,n:"Camila",dig:4,pin:"1234"},
+ {id:14,n:"Elton",dig:4,pin:"1234"},{id:15,n:"Selinger",dig:4,pin:"1234"},
+ {id:16,n:"Cezar",dig:4,pin:"1234"},{id:17,n:"Vitor",dig:4,pin:"1234"}
+];
+PESSOAS.forEach((p,i)=>{p.cor=COR[i%COR.length];p.foto=null;p.tel=""});
+
+let MES=7;
+let EVENTOS=[
+ {id:1,mes:7,dia:2,data:"2 de agosto",curto:"02 ago",hoje:true,escala:[2,3,1,4,5],liderDia:1,
+  frase:"Chegamos cedo para que ninguém repare no nosso trabalho. É esse o serviço.",
+  pdf:"ordem-culto-02-ago.pdf",feedback:null,
+  atrib:{1:[4],2:[2],3:[5],4:[3,5],5:[3],6:[4],7:[5],8:[1],9:[2],10:[1],11:[2],12:[5,3],13:[1,4]},
+  feito:{2:{por:2,hora:"08:21"},3:{por:5,hora:"08:34"},11:{por:2,hora:"08:40"}}},
+ {id:2,mes:7,dia:9,data:"9 de agosto",curto:"09 ago",escala:[6,7,8,9],liderDia:8,frase:"",pdf:null,
+  feedback:null,atrib:{2:[9],3:[6],6:[9],4:[7]},feito:{}},
+ {id:3,mes:7,dia:16,data:"16 de agosto",curto:"16 ago",escala:[10,5,11,1],liderDia:11,frase:"",pdf:null,feedback:null,atrib:{},feito:{}},
+ {id:4,mes:7,dia:23,data:"23 de agosto",curto:"23 ago",escala:[12,13,14,3],liderDia:14,frase:"",pdf:null,feedback:null,atrib:{},feito:{}},
+ {id:5,mes:7,dia:30,data:"30 de agosto",curto:"30 ago",escala:[4,15,16,17],liderDia:16,frase:"",pdf:null,feedback:null,atrib:{},feito:{}},
+ {id:6,mes:7,dia:14,data:"14 de agosto",curto:"14 ago",tipo:"Culto de Mulheres",hora:"20:00",chegada:"18:30",
+  escala:[4,9,13],liderDia:9,frase:"",pdf:null,feedback:null,atrib:{14:[13]},feito:{}}
+];
+
+(function gerarDomingos(){
+ let next=Math.max(...EVENTOS.map(e=>e.id))+1;
+ for(let m=0;m<12;m++){
+  const dias=new Date(2026,m+1,0).getDate();
+  for(let d=1;d<=dias;d++){
+   if(new Date(2026,m,d).getDay()!==0)continue;
+   if(EVENTOS.some(e=>e.mes===m&&e.dia===d))continue;
+   EVENTOS.push({id:next++,mes:m,dia:d,
+    data:`${d} de ${MESES[m].toLowerCase()}`,
+    curto:`${String(d).padStart(2,"0")} ${MESES[m].slice(0,3).toLowerCase()}`,
+    escala:[],liderDia:null,frase:"",pdf:null,feedback:null,atrib:{},feito:{}})}}
+ EVENTOS.sort((a,b)=>a.mes-b.mes||a.dia-b.dia)})();
+
+let INVENTARIO=[
+ {id:1,cat:"Limpeza",nome:"Detergente multiusos",q:4,un:"un",min:2},
+ {id:2,cat:"Limpeza",nome:"Lixívia",q:1,un:"L",min:2},
+ {id:3,cat:"Limpeza",nome:"Desengordurante",q:3,un:"un",min:1},
+ {id:4,cat:"Limpeza",nome:"Limpa-vidros",q:2,un:"un",min:1},
+ {id:5,cat:"Limpeza",nome:"Panos de microfibra",q:9,un:"un",min:4},
+ {id:6,cat:"Limpeza",nome:"Esfregões",q:6,un:"un",min:3},
+ {id:7,cat:"Limpeza",nome:"Mopa",q:2,un:"un",min:1},
+ {id:8,cat:"Limpeza",nome:"Vassoura",q:3,un:"un",min:2},
+ {id:9,cat:"WC",nome:"Papel higiénico",q:5,un:"rolos",min:12},
+ {id:10,cat:"WC",nome:"Papel de mãos",q:7,un:"pacotes",min:4},
+ {id:11,cat:"WC",nome:"Sabonete líquido",q:3,un:"un",min:2},
+ {id:12,cat:"WC",nome:"Escova de sanita",q:4,un:"un",min:2},
+ {id:13,cat:"WC",nome:"Ambientador spray",q:2,un:"un",min:2},
+ {id:14,cat:"Consumíveis",nome:"Sacos do lixo 30L",q:20,un:"un",min:10},
+ {id:15,cat:"Consumíveis",nome:"Sacos do lixo 100L",q:3,un:"un",min:10},
+ {id:16,cat:"Consumíveis",nome:"Luvas descartáveis",q:40,un:"un",min:20},
+ {id:17,cat:"Consumíveis",nome:"Toalhitas",q:5,un:"pacotes",min:3},
+ {id:18,cat:"Consumíveis",nome:"Álcool gel",q:2,un:"un",min:2},
+ {id:19,cat:"Consumíveis",nome:"Aromatizador de ambiente",q:3,un:"un",min:2}
+];
+
+let REEMBOLSOS=[
+ {id:1,pessoa:4,desc:"Produtos de limpeza · Continente",valor:18.40,data:"28 jul",estado:"submetido"},
+ {id:2,pessoa:5,desc:"Sacos do lixo 100L",valor:6.90,data:"20 jul",estado:"pago"}
+];
+
+
+/* ═══════════ ÍCONES DAS FUNÇÕES ═══════════ */
+const ICF={
+ porta:'<path d="M5 21h14"/><path d="M7 21V4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5V21"/><circle cx="14" cy="12.5" r=".9"/>',
+ gota:'<path d="M12 3.2c3.1 3.7 5.6 6.5 5.6 9.5a5.6 5.6 0 1 1-11.2 0c0-3 2.5-5.8 5.6-9.5z"/>',
+ mopa:'<path d="M12 3v8"/><path d="M8 11h8l-1 6.6a2 2 0 0 1-2 1.7h-2a2 2 0 0 1-2-1.7z"/><path d="M9.6 19.3V21M14.4 19.3V21"/>',
+ cadeiras:'<rect x="3" y="9.2" width="18" height="6.8" rx="2"/><path d="M5.6 9.2V6.6A2.6 2.6 0 0 1 8.2 4h7.6a2.6 2.6 0 0 1 2.6 2.6v2.6"/><path d="M6 16v3.4M18 16v3.4"/>',
+ coracao:'<path d="M12 20.2S3.8 15.4 3.8 9.7A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.2 2.7c0 5.7-8.2 10.5-8.2 10.5z"/>',
+ chavena:'<path d="M4 8.2h13v5.9a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 9.7h1.8a2.7 2.7 0 0 1 0 5.4H17"/><path d="M7.5 2.6v2.8M11.5 2.6v2.8"/>',
+ spray:'<rect x="6.8" y="8.4" width="7.6" height="12.4" rx="2"/><path d="M9 8.4V5.9A1.5 1.5 0 0 1 10.5 4.4h1.4"/><path d="M18 5.4h.01M20.6 7.9h.01M18 10.4h.01M20.6 12.9h.01"/>',
+ ronda:'<path d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><path d="M20.4 4.6v5.5h-5.5"/>',
+ pessoas:'<circle cx="9" cy="8" r="3.2"/><path d="M2.9 20a6.1 6.1 0 0 1 12.2 0"/><path d="M16.4 5.3a3.2 3.2 0 0 1 0 5.8"/><path d="M17.9 14.4a6.1 6.1 0 0 1 3.2 5.6"/>',
+ caixa:'<path d="M21 8.5 12 3.5 3 8.5v7L12 20.5l9-5z"/><path d="M3 8.5 12 13.5l9-5M12 13.5v7"/>',
+ lixo:'<path d="M4 6.5h16"/><path d="M9.6 6.5V4.9a1.3 1.3 0 0 1 1.3-1.3h2.2a1.3 1.3 0 0 1 1.3 1.3v1.6"/><path d="M6.3 6.5 7.1 19.3a1.8 1.8 0 0 0 1.8 1.7h6.2a1.8 1.8 0 0 0 1.8-1.7l.8-12.8"/><path d="M10.5 10.4v6.2M13.5 10.4v6.2"/>',
+ arrumar:'<path d="M20.5 11.4V19a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9.6"/><path d="M8 11.6l3.2 3.2L21 5"/>',
+ brilho:'<path d="M12 3.2l1.9 5.2 5.2 1.9-5.2 1.9L12 17.4l-1.9-5.2L4.9 10.3l5.2-1.9z"/><path d="M18.4 15.6l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+ janela:'<rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.2"/><path d="M12 3.4v17.2M3.4 12h17.2"/>',
+ som:'<path d="M11 5.5 6.5 9.2H3.4v5.6h3.1L11 18.5z"/><path d="M15.2 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.2a8 8 0 0 1 0 11.6"/>',
+ relogio:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>'
+};
+const ICF_NOMES={porta:"Porta",gota:"\u00c1gua",mopa:"Mopa",cadeiras:"Cadeiras",coracao:"Cora\u00e7\u00e3o",
+ chavena:"Ch\u00e1vena",spray:"Spray",ronda:"Ronda",pessoas:"Pessoas",caixa:"Caixa",lixo:"Lixo",
+ arrumar:"Arrumar",brilho:"Brilho",janela:"Janela",som:"Som",relogio:"Rel\u00f3gio"};
+function svgFn(k,tam){return `<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none"
+ stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICF[k]||ICF.brilho}</svg>`}
+function bola(f,tam){tam=tam||42;
+ const st=f.foto?`background-image:url(${f.foto})`:`background:${f.cor}`;
+ return `<span class="bola ${f.foto?"avfoto":""}" style="width:${tam}px;height:${tam}px;${st}">${f.foto?"":svgFn(f.ic,Math.round(tam*.47))}</span>`}
+
+/* ═══════════ AJUDAS ═══════════ */
+let EU=null, PAGINA="inicio", DIA=1, ABERTA=null, ABA_CULTO="ordem";
+const pessoa=id=>PESSOAS.find(p=>p.id===id);
+const funcao=id=>FUNCOES.find(f=>f.id===id);
+const evento=id=>EVENTOS.find(e=>e.id===id);
+const LIDER=()=>PESSOAS.find(p=>p.lider)||PESSOAS[0];
+const meuEvento=()=>EVENTOS.find(e=>e.escala.includes(EU.id))||EVENTOS[0];
+const podeEditar=ev=>EU.lider || ev.liderDia===EU.id;
+const ordenada=ev=>[ev.liderDia,...ev.escala.filter(i=>i!==ev.liderDia)].filter(Boolean);
+const eur=v=>v.toFixed(2).replace(".",",")+" €";
+const quem=(ev,fid)=>(ev.atrib[fid]||[]);
+const funcoesDe=ev=>FUNCOES.filter(f=>!f.evento||f.evento===ev.id);
+const especiaisDe=ev=>FUNCOES.filter(f=>f.evento===ev.id);
+const minhasDe=ev=>funcoesDe(ev).filter(f=>quem(ev,f.id).includes(EU.id));
+const chegadaDe=ev=>ev.chegada||CHEGADA;
+const nomeEv=ev=>ev.tipo?`${ev.tipo} · ${ev.curto}`:ev.data;
+const feitoDe=(ev,fid)=>!!ev.feito[fid];
+const nomeFase=k=>(FASES.find(x=>x[0]===k)||FASES[0])[1];
+
+function avatar(p,tam,fs){tam=tam||42;fs=fs||16;
+ const st=p.foto?`background-image:url(${p.foto})`:`background:${p.cor}`;
+ return `<span class="av ${p.foto?"avfoto":""}" style="width:${tam}px;height:${tam}px;font-size:${fs}px;${st}">${p.foto?"":p.n[0]}</span>`}
+function avatares(ids,tam,fs){
+ if(!ids.length)return '<span class="tag cinz">livre</span>';
+ return `<span class="dupla">${ids.map(i=>avatar(pessoa(i),tam||30,fs||12)).join("")}</span>`}
+function nomes(ids){return ids.map(i=>pessoa(i).n).join(" e ")}
+function torrada(txt){const t=document.getElementById("torrada");t.textContent=txt;t.classList.add("on");
+ clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("on"),2400)}
+function pedirFoto(cb){const inp=document.getElementById("inpFoto");inp.value="";
+ inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>cb(r.result);r.readAsDataURL(f)};inp.click()}
+function ordena(ev,lista){
+ return [...lista]
+  .sort((a,b)=>{const na=nomes(quem(ev,a.id))||"zzzz", nb=nomes(quem(ev,b.id))||"zzzz";
+   return na.localeCompare(nb,"pt")||a.nome.localeCompare(b.nome,"pt")})
+  .sort((a,b)=>feitoDe(ev,a.id)-feitoDe(ev,b.id))}
+
+/* ═══════════ LOGIN ═══════════ */
+grelha.innerHTML=PESSOAS.map((x,i)=>`<button class="p" style="animation-delay:${i*20}ms" onclick="abrirPin(${x.id})">
+<span class="av" style="background:${x.cor}">${x.n[0]}${x.lider?'<s>★</s>':''}</span><b>${x.n}</b></button>`).join("");
+ct.textContent=PESSOAS.length+" pessoas";
+
+let alvo=null,cod="",erros=0,travado=false;
+function abrirPin(id){alvo=pessoa(id);cod="";erros=0;travado=false;
+ sheet.innerHTML=`<div class="pux"></div>
+  <div class="cara" style="background:${alvo.cor}">${alvo.n[0]}</div>
+  <h2>Olá, ${alvo.n}</h2><p class="sb2">Introduz o teu código de ${alvo.dig} dígitos</p>
+  <div class="pts" id="bs"></div><p class="aviso" id="av"></p>
+  <div class="tec">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="k" onclick="tecla('${n}')">${n}</button>`).join("")}
+  <span></span><button class="k" onclick="tecla('0')">0</button><button class="k g" onclick="apagar()">Apagar</button></div>`;
+ desenhar();abrirSheet()}
+function abrirSheet(){veu.classList.add("on");sheet.classList.add("on")}
+function fecharSheet(){veu.classList.remove("on");sheet.classList.remove("on")}
+function desenhar(err){const bs=document.getElementById("bs");if(!bs)return;
+ bs.className="pts"+(err?" e tr":"");
+ bs.innerHTML=Array(alvo.dig).fill(0).map((_,i)=>`<i class="${i<cod.length?'on':''}"></i>`).join("");
+ if(err)setTimeout(()=>bs.classList.remove("tr"),400)}
+function tecla(n){if(travado||!alvo)return;document.getElementById("av").textContent="";
+ cod+=n;desenhar();if(cod.length===alvo.dig)setTimeout(validar,180)}
+function apagar(){if(alvo){cod=cod.slice(0,-1);desenhar()}}
+function validar(){const av=document.getElementById("av");
+ if(cod===alvo.pin){EU=alvo;fecharSheet();login.style.display="none";app.classList.add("on");
+  cabecaEu();DIA=meuEvento().id;montarMenu();ir("inicio")}
+ else{erros++;cod="";desenhar(true);travado=erros>=3;
+  av.innerHTML=erros>=3?`Conta bloqueada por 15 minutos. Depois disso tens 5 tentativas. Fala com o ${LIDER().n}.`
+   :(erros===2?"Código errado. Mais um erro e a conta fica bloqueada.":"Código errado. Restam "+(3-erros)+" tentativas.")}}
+function cabecaEu(){eun.textContent=EU.n;eup.textContent=EU.lider?"Líder da base":"Voluntário";
+ const a=document.getElementById("eua");
+ if(EU.foto){a.style.backgroundImage=`url(${EU.foto})`;a.classList.add("avfoto");a.textContent=""}
+ else{a.style.backgroundImage="";a.classList.remove("avfoto");a.style.background=EU.cor;a.textContent=EU.n[0]}}
+
+/* ═══════════ NAVEGAÇÃO ═══════════ */
+const ICO={
+ inicio:'<path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+ escalas:'<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+ funcoes:'<path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 6.2 4.3 7.5 6.8 4.8M3 12.2 4.3 13.5 6.8 10.8M3 18.2 4.3 19.5 6.8 16.8"/>',
+ culto:'<path d="M12 3.2l1.9 5.2 5.2 1.9-5.2 1.9L12 17.4l-1.9-5.2L4.9 10.3l5.2-1.9z"/><path d="M18.4 15.6l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+ inventario:'<path d="M21 8.5 12 3.5 3 8.5v7L12 20.5l9-5z"/><path d="M3 8.5 12 13.5l9-5M12 13.5v7"/>'};
+function icone(k){return `<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor"
+ stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`}
+function montarMenu(){
+ const its=[["inicio","Início"],["escalas","Escala"],["funcoes","Funções"],["culto","Culto"],["inventario","Inventário"]];
+ navb.innerHTML=its.map(([k,t])=>`<button data-k="${k}" data-on="${k===PAGINA?1:0}" onclick="ir('${k}')">
+  ${icone(k)}${t}</button>`).join("");
+ navb.classList.add("on")}
+function ir(k){PAGINA=k;ABERTA=null;
+ [...navb.children].forEach(b=>b.dataset.on=b.dataset.k===k?1:0);
+ ({inicio:pgInicio,escalas:pgEscalas,funcoes:pgFuncoes,inventario:pgInventario,culto:pgCulto,
+   feedbacks:pgCulto,reembolsos:pgReembolsos,painel:pgPainel,perfil:pgPerfil})[k]();
+ scrollTo(0,0)}
+function cabeca(t,sub,chips){ttl.innerHTML=t;document.getElementById("sub").textContent=sub;
+ document.getElementById("chips").innerHTML=(chips||[]).map(c=>`<span class="chip">${c}</span>`).join("")}
+
+/* ═══════════ CALENDÁRIO ═══════════ */
+function calendario(){
+ const primeiro=(new Date(2026,MES,1).getDay()+6)%7;
+ const dias=new Date(2026,MES+1,0).getDate();
+ const doMes=EVENTOS.filter(e=>e.mes===MES);
+ const cels=[];
+ for(let i=0;i<primeiro;i++)cels.push('<div class="cald vazio"></div>');
+ for(let d=1;d<=dias;d++){
+  const ev=doMes.find(e=>e.dia===d); let cl="cald";
+  if(ev)cl+=ev.escala.includes(EU.id)?" sirvo":" culto";
+  if(MES===7&&d===2)cl+=" hoje";
+  cels.push(`<div class="${cl}" ${ev?`onclick="abrirDia(${ev.id})" style="cursor:pointer"`:""}>${d}</div>`)}
+ return `<div class="cal">
+  <div class="calcab"><b>${MESES[MES]} 2026</b><span class="calnav">
+   <button class="calbt" onclick="mudarMes(-1)" ${MES===0?"disabled style=opacity:.35":""}>‹</button>
+   <button class="calbt" onclick="mudarMes(1)" ${MES===11?"disabled style=opacity:.35":""}>›</button></span></div>
+  <div class="calgrid">${["S","T","Q","Q","S","S","D"].map(x=>`<div class="calsem">${x}</div>`).join("")}</div>
+  <div class="calgrid" style="margin-top:5px">${cels.join("")}</div>
+  ${doMes.some(e=>e.escala.length)?`<div class="legenda">
+   <span class="lg"><s style="background:linear-gradient(118deg,#001ED1,#001594)"></s>Serves</span>
+   <span class="lg"><s style="background:var(--agua)"></s>Culto</span>
+   <span class="lg"><s style="box-shadow:inset 0 0 0 2.5px var(--lima)"></s>Hoje</span></div>`
+  :`<div class="semescala">Sem escala ainda para ${MESES[MES].toLowerCase()}${EU.lider?" — define no Painel do líder":""}</div>`}
+  </div>`}
+function mudarMes(d){MES=Math.min(11,Math.max(0,MES+d));PAGINA==="escalas"?pgEscalas():pgInicio()}
+function abrirDia(id){
+ ir("escalas");
+ setTimeout(()=>{const el=document.getElementById("ev"+id);
+  if(el){el.scrollIntoView({behavior:"smooth",block:"start"});el.classList.add("realce");
+   setTimeout(()=>el.classList.remove("realce"),1700)}},90)}
+
+/* ═══════════ INÍCIO ═══════════ */
+function pgInicio(){
+ const ev=meuEvento(), minhas=minhasDe(ev), souLider=ev.liderDia===EU.id;
+ const FS=funcoesDe(ev), feitas=Object.keys(ev.feito).length, total=FS.length;
+ const pct=total?Math.round(feitas/total*100):0;
+ cabeca(`Bom domingo,<br><em>${EU.n}</em>`,
+  ev.hoje?`Serves hoje, ${ev.data}`:(ev.tipo?`Serves no ${ev.tipo}, ${ev.data}`:`Serves no domingo, ${ev.data}`),
+  [`Chegada ${chegadaDe(ev)}`,`Líder de escala · ${ev.liderDia?pessoa(ev.liderDia).n:"por definir"}`,
+   minhas.length?`${minhas.length} funções`:"Funções por distribuir"]);
+ const pend=REEMBOLSOS.filter(r=>r.estado==="submetido");
+ const ultimoFb=[...EVENTOS].reverse().find(e=>e.feedback);
+
+ corpo.innerHTML=`
+ ${EU.lider&&pend.length?`<div class="destaque" onclick="ir('reembolsos')">
+   <div><p style="font-size:11px;font-weight:600;opacity:.85">A precisar de ti</p>
+   <p style="font-size:17px;font-weight:700;margin-top:5px;letter-spacing:-.03em">${pend.length} pedido${pend.length>1?"s":""} de reembolso</p>
+   <p style="font-size:12.5px;opacity:.9;margin-top:3px">${pessoa(pend[0].pessoa).n} · ${eur(pend[0].valor)}</p></div>
+   <span style="font-size:24px">›</span></div>`:""}
+ ${souLider?(ev.frase
+   ?`<div class="frase"><p class="cap" style="color:rgba(10,15,46,.6)">A tua palavra para a equipa</p>
+     <p class="txt" style="margin-top:8px">${ev.frase}</p>
+     <button class="btn sec" style="margin-top:14px;padding:9px 16px;font-size:13px;background:rgba(10,15,46,.09);color:var(--tinta)" onclick="editarFrase(${ev.id})">Alterar</button></div>`
+   :`<div class="convite" onclick="editarFrase(${ev.id})"><p class="cap">És o líder de escala de ${ev.data}</p>
+     <p style="font-size:17px;font-weight:700;margin-top:7px;letter-spacing:-.03em">Deixa uma palavra à tua equipa</p>
+     <p class="ds" style="margin-top:5px">Aparece no Início de todos os que servem contigo.</p></div>`)
+  :(ev.frase?`<div class="frase"><p class="txt">“${ev.frase}”</p>
+     <p class="aut">${pessoa(ev.liderDia).n} · líder de escala de ${ev.data}</p></div>`:"")}
+ ${(souLider||EU.lider)&&ev.hoje&&!ev.feedback?`<div class="convite" onclick="editarFeedback(${ev.id})">
+   <p class="cap">Depois do culto</p>
+   <p style="font-size:17px;font-weight:700;margin-top:7px;letter-spacing:-.03em">Deixa o feedback deste domingo</p>
+   <p class="ds" style="margin-top:5px">O que correu bem, o que faltou. Fica registado para toda a base.</p></div>`:""}
+
+ <div class="duas"><div>
+  <div class="blococor">
+   <div class="cabecalho"><h3>As tuas funções</h3><span class="cap">${ev.curto}</span></div>
+   ${minhas.length?FASES.map(([k,t])=>{
+     const doF=ordena(ev,minhas.filter(f=>f.fase===k));
+     if(!doF.length)return "";
+     return `<div class="fasecab"><h4>${t}</h4><em>${doF.filter(x=>feitoDe(ev,x.id)).length}/${doF.length}</em></div>`+doF.map(f=>{const ok=feitoDe(ev,f.id);
+      return `<div class="linha ${ok?"feita":""}">
+       <button class="chk ${ok?"on":""}" onclick="event.stopPropagation();marcar(${ev.id},${f.id})">✓</button>
+       <div style="flex:1;cursor:pointer" onclick="DIA=${ev.id};ABERTA=${f.id};ir('funcoes')">
+        <p class="nmt">${f.nome}</p>
+        <p class="ds">${ok?`Feito às ${ev.feito[f.id].hora}`:(quem(ev,f.id).length>1?"Contigo: "+nomes(quem(ev,f.id).filter(i=>i!==EU.id)):f.desc.slice(0,52)+"…")}</p></div>
+       ${bola(f,34)}</div>`}).join("")}).join("")
+    :`<div class="vaz" style="border:0">${ev.liderDia?pessoa(ev.liderDia).n+" ainda não distribuiu as funções deste domingo.":"O líder de escala ainda não foi definido."}</div>`}
+  </div>
+
+  <div class="sect"><div class="cabecalho"><h3>Como está o domingo</h3><span class="cap">${feitas} de ${total}</span></div>
+   <div class="barra"><i style="width:${pct}%"></i></div>
+   <p class="ds" style="margin-top:10px">${feitas===total?"Está tudo feito. Podem abrir as portas.":`Faltam ${total-feitas} tarefas.`}</p>
+   <div style="display:flex;gap:8px;margin-top:14px">
+    <button class="btn sec" style="flex:1;padding:11px 8px;font-size:13px" onclick="todas(${ev.id},1)">Marcar tudo</button>
+    <button class="btn sec" style="flex:1;padding:11px 8px;font-size:13px" onclick="todas(${ev.id},0)">Limpar tudo</button></div>
+   ${FASES.map(([k,t,d])=>{const doF=ordena(ev,FS.filter(f=>f.fase===k));
+      if(!doF.length)return "";
+      const fe=doF.filter(f=>feitoDe(ev,f.id)).length;
+      return `<div class="fasecab"><h4>${t}</h4><em>${fe}/${doF.length}</em></div>`+doF.map(f=>linhaGeral(ev,f)).join("")}).join("")}
+  </div>
+ </div><div>
+  <div class="sect"><div class="cabecalho"><h3>Calendário</h3></div>${calendario()}</div>
+  ${ultimoFb?`<div class="sect"><div class="cabecalho"><h3>Último feedback</h3></div>
+   <div class="caixa"><p style="font-size:14.5px;line-height:1.55">${ultimoFb.feedback.txt}</p>
+   <p class="ds" style="margin-top:10px">${ultimoFb.feedback.autor} · ${ultimoFb.data}</p>
+   <button class="btn sec full" style="margin-top:14px" onclick="ABA_CULTO='feedbacks';ir('culto')">Ver todos</button></div></div>`:""}
+  <div class="sect"><div class="cabecalho"><h3>Servem contigo</h3></div>
+   ${ordenada(ev).filter(i=>i!==EU.id).map(i=>{const p=pessoa(i);
+     const fs=FS.filter(f=>quem(ev,f.id).includes(i));
+     const fe=fs.filter(f=>feitoDe(ev,f.id)).length;
+     return `<div class="linha">${avatar(p)}<div style="flex:1"><p class="nmt">${p.n}</p>
+     <p class="ds">${fs.length?`${fe} de ${fs.length} feitas`:"Sem funções atribuídas"}</p></div>
+     ${ev.liderDia===i?'<span class="tag lim">Líder de escala</span>':""}</div>`}).join("")}
+  </div>
+ </div></div>`}
+
+function linhaGeral(ev,f){const ok=feitoDe(ev,f.id), ids=quem(ev,f.id);
+ return `<div class="linha ${ok?"feita":""}">
+  <button class="chk ${ok?"on":""}" onclick="marcar(${ev.id},${f.id})">✓</button>
+  <div style="flex:1"><p class="nmt" style="font-size:15px">${f.nome}</p>
+   <p class="ds">${ok?`${pessoa(ev.feito[f.id].por).n} · ${ev.feito[f.id].hora}`:(ids.length?nomes(ids):"Por atribuir")}</p></div>
+  ${avatares(ids)}</div>`}
+
+function marcar(eid,fid){const ev=evento(eid);
+ if(ev.feito[fid]){delete ev.feito[fid];pgInicio();torrada(`${funcao(fid).nome} voltou a ficar por fazer`)}
+ else{const d=new Date();
+  ev.feito[fid]={por:EU.id,hora:String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
+  pgInicio();const n=Object.keys(ev.feito).length, tt=funcoesDe(ev).length;
+  torrada(n===tt?"Está tudo feito — boa equipa":`${funcao(fid).nome} ✓ · ${n} de ${tt}`)}}
+function todas(eid,m){const ev=evento(eid);
+ if(m){const d=new Date(),h=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  funcoesDe(ev).forEach(f=>{if(!ev.feito[f.id])ev.feito[f.id]={por:EU.id,hora:h}});pgInicio();torrada("Tudo marcado como feito")}
+ else{ev.feito={};pgInicio();torrada("Checklist limpo")}}
+function editarFrase(id){const ev=evento(id);
+ sheet.innerHTML=`<div class="pux"></div><h2>Palavra à equipa</h2>
+  <p class="sb2">${ev.data} · ${ev.escala.length} pessoas</p>
+  <textarea class="campo" id="fr" rows="4" placeholder="Uma frase curta que os anima antes de começar">${ev.frase}</textarea>
+  <button class="btn full" style="margin-top:16px" onclick="guardarFrase(${id})">Guardar</button>
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet()">Cancelar</button>`;abrirSheet()}
+function guardarFrase(id){evento(id).frase=document.getElementById("fr").value.trim();
+ fecharSheet();pgInicio();torrada("A tua equipa vai ver isto no Início")}
+
+/* ═══════════ ESCALA ═══════════ */
+function pgEscalas(){
+ const doMes=EVENTOS.filter(e=>e.mes===MES), temEscala=doMes.some(e=>e.escala.length);
+ cabeca("Escala",`Os cultos de ${MESES[MES].toLowerCase()}`,
+  [`${doMes.length} cultos`,temEscala?`Chegada ${CHEGADA}`:"Escala por definir"]);
+ const maxLin=Math.max(0,...doMes.map(e=>e.escala.length));
+ const linhas=[];
+ for(let i=0;i<maxLin-1;i++)
+  linhas.push(`<tr><td class="papel">${i===0?"Voluntários":""}</td>${doMes.map(ev=>{
+   const o=ev.escala.filter(x=>x!==ev.liderDia), p=o[i]?pessoa(o[i]):null;
+   return `<td class="${p&&p.id===EU.id?"mim":""}">${p?p.n:"—"}</td>`}).join("")}</tr>`);
+ const lid=`<tr class="lid"><td class="papel">Líder de escala</td>${doMes.map(ev=>{
+   const p=ev.liderDia?pessoa(ev.liderDia):null;
+   return `<td class="${p&&p.id===EU.id?"mim":""}">${p?p.n:"por definir"}</td>`}).join("")}</tr>`;
+ corpo.innerHTML=`
+ <div class="sect"><div class="cabecalho"><h3>${MESES[MES]} 2026</h3><span class="calnav">
+  <button class="calbt" onclick="mudarMes(-1)" ${MES===0?"disabled style=opacity:.35":""}>‹</button>
+  <button class="calbt" onclick="mudarMes(1)" ${MES===11?"disabled style=opacity:.35":""}>›</button></span></div>
+ ${temEscala?`<div class="tabwrap"><table class="tab">
+   <thead><tr><th>Apoio</th>${doMes.map(ev=>`<th class="${ev.hoje?"hj":""}">${ev.curto}${ev.hoje?" · hoje":""}</th>`).join("")}</tr></thead>
+   <tbody>${lid}${linhas.join("")}</tbody></table></div>
+  <p class="ds" style="margin-top:12px">O teu nome aparece a azul. Desliza a tabela se não couber.</p>`
+ :`<div class="semescala" style="margin-top:16px">Os ${doMes.length} cultos já existem, falta dizer quem serve.
+   ${EU.lider?"Define no Painel do líder.":`O ${LIDER().n} avisa quando publicar.`}</div>`}
+ </div>
+ ${doMes.map(ev=>{const feitas=Object.keys(ev.feito).length;
+  return `<div class="sect" id="ev${ev.id}"><div class="cabecalho">
+   <h3>${ev.tipo||ev.data}${ev.hoje?' <span class="tag lim" style="vertical-align:middle">hoje</span>':""}</h3>
+   ${ev.escala.includes(EU.id)?'<span class="tag verd">Serves</span>':`<span class="cap">${ev.escala.length} pessoas</span>`}</div>
+  ${ev.tipo?`<p class="ds" style="padding:6px 0 2px">${ev.data} · ${ev.hora} · chegada ${chegadaDe(ev)} · ${especiaisDe(ev).length} funções só deste culto</p>`:""}
+  ${ordenada(ev).map(i=>{const p=pessoa(i);
+   const fs=funcoesDe(ev).filter(f=>quem(ev,f.id).includes(i));
+   const fe=fs.filter(f=>feitoDe(ev,f.id)).length;
+   return `<div class="linha">${avatar(p)}<div style="flex:1"><p class="nmt">${p.n}${i===EU.id?" · tu":""}</p>
+   <p class="ds">${fs.length?(feitas?`${fe} de ${fs.length} feitas`:fs.length+" funções"):"sem funções atribuídas"}</p></div>
+   ${ev.liderDia===i?'<span class="tag lim">Líder de escala</span>':""}</div>`}).join("")}
+  ${ev.escala.length?`<button class="btn sec full" style="margin-top:12px" onclick="DIA=${ev.id};ir('funcoes')">Ver as funções deste culto</button>`
+   :`<div class="vaz">Ainda ninguém escalado.${EU.lider?` <button class="btn sec" style="margin-top:10px;padding:9px 16px;font-size:13px" onclick="editarEscala(${ev.id})">Definir escala</button>`:""}</div>`}
+  </div>`}).join("")}
+ <p class="nota">Quem não pode servir avisa pelo WhatsApp. O ${LIDER().n} atualiza a escala aqui.</p>`}
+
+/* ═══════════ FUNÇÕES ═══════════ */
+function pgFuncoes(){
+ const ev=evento(DIA), pode=podeEditar(ev), FS=funcoesDe(ev), esp=especiaisDe(ev);
+ cabeca("Funções",ev.tipo?`${ev.tipo} · ${ev.data}`:"Toca numa função para ver como se faz",
+  [ev.curto,ev.liderDia?`Líder de escala · ${pessoa(ev.liderDia).n}`:"Líder por definir",
+   `${FS.length} funções${esp.length?` · ${esp.length} só deste culto`:""}`]);
+ corpo.innerHTML=`
+ <div class="menu" style="position:static;border:0;padding:14px 0 4px;background:none;backdrop-filter:none">
+  ${EVENTOS.filter(e=>e.mes===evento(DIA).mes).map(e=>`<button data-on="${e.id===DIA?1:0}" onclick="DIA=${e.id};pgFuncoes()">${e.tipo?"✦ ":""}${e.curto}</button>`).join("")}</div>
+ ${pode?`<div class="caixa" style="background:var(--agua);border:0">
+   <p style="font-size:13.5px;font-weight:600">Podes distribuir as funções deste domingo</p>
+   <p class="ds" style="margin-top:4px">${EU.lider?"És líder da base, podes editar qualquer data.":"És o líder de escala de "+ev.data+". Só podes editar este domingo."}
+   Cada função aceita mais do que uma pessoa.</p></div>`
+  :`<div class="caixa"><p class="ds">${ev.liderDia?pessoa(ev.liderDia).n+" é o líder de escala deste domingo e é quem distribui as funções.":"O líder de escala ainda não foi definido."}</p></div>`}
+ ${pode?`<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+   ${EU.lider?`<button class="btn sec" style="flex:1;min-width:150px;padding:12px 10px;font-size:13.5px" onclick="editarFuncao(null,null)">Nova função do catálogo</button>`:""}
+   <button class="btn sec" style="flex:1;min-width:150px;padding:12px 10px;font-size:13.5px" onclick="editarFuncao(null,${ev.id})">Nova função só deste culto</button>
+  </div>`:""}
+ ${FASES.map(([k,t,d])=>{const doF=ordena(ev,FS.filter(f=>f.fase===k));
+    if(!doF.length)return "";
+    const semDono=doF.filter(f=>!quem(ev,f.id).length).length;
+    return `<div class="fasecab"><h4>${t}</h4><span>${d}</span><em>${semDono?semDono+" livres":"completo"}</em></div>
+     ${doF.map(f=>linhaFuncao(ev,f,pode)).join("")}`}).join("")}`}
+
+function linhaFuncao(ev,f,pode){
+ const ids=quem(ev,f.id), ab=ABERTA===f.id, ok=feitoDe(ev,f.id);
+ return `<div class="linha ${ok?"feita":""}" style="align-items:flex-start;cursor:pointer" onclick="abrirF(${f.id})">
+  ${bola(f)}
+  <div style="flex:1">
+   <p class="nmt">${f.nome}</p>
+   <p class="ds">${ids.length?`<b style="color:var(--azul)">${nomes(ids)}</b>${ids.includes(EU.id)?" · tu":""}`:"Por atribuir"}
+ </p>
+   ${ab?`<div class="aberto">
+     ${f.foto?`<img src="${f.foto}" class="fotofn" alt="">`:""}
+     <p style="margin-top:${f.foto?"8px":"2px"}">${f.desc||`Sem descrição. O ${LIDER().n} preenche isto no Painel.`}</p>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      ${pode?`<button class="btn" style="padding:10px 17px;font-size:13px" onclick="event.stopPropagation();escolher(${f.id})">Quem faz</button>`:""}
+      ${EU.lider?`<button class="btn sec" style="padding:10px 17px;font-size:13px" onclick="event.stopPropagation();editarFuncao(${f.id})">Editar</button>`:""}
+     </div></div>`:""}</div>
+  ${avatares(ids,32,13)}<span class="seta">${ab?"⌃":"⌄"}</span></div>`}
+
+function abrirF(id){ABERTA=ABERTA===id?null:id;pgFuncoes()}
+function escolher(fid){
+ const ev=evento(DIA), f=funcao(fid), ids=quem(ev,fid);
+ sheet.innerHTML=`<div class="pux"></div><h2>${f.nome}</h2>
+  <p class="sb2">${nomeFase(f.fase)} · ${ev.data}</p>
+  <p class="ds" style="text-align:center;margin-top:8px">Toca para juntar ou tirar. Podem ser várias pessoas.</p>
+  <div style="margin-top:16px">
+   ${ordenada(ev).map(i=>{const p=pessoa(i), sel=ids.includes(i);
+    return `<button class="opcao" onclick="alternar(${fid},${i})">${avatar(p,38,15)}
+     <span style="flex:1"><b style="font-size:15.5px;font-weight:700">${p.n}</b>
+     <span style="display:block;font-size:12px;color:var(--cinza)">${funcoesDe(ev).filter(x=>quem(ev,x.id).includes(i)).length} funções${ev.liderDia===i?" · líder de escala":""}</span></span>
+     <span class="chk ${sel?"on":""}">✓</span></button>`}).join("")}
+   <button class="opcao" onclick="limparFuncao(${fid})">
+    <span class="av" style="width:38px;height:38px;font-size:15px;background:var(--agua);color:var(--cinza)">—</span>
+    <span style="flex:1"><b style="font-size:15.5px;font-weight:700">Deixar por atribuir</b>
+    <span style="display:block;font-size:12px;color:var(--cinza)">Tira toda a gente desta função</span></span></button>
+  </div>
+  <button class="btn full" style="margin-top:20px" onclick="fecharSheet()">Concluir</button>`;
+ abrirSheet()}
+function alternar(fid,pid){const ev=evento(DIA);const l=ev.atrib[fid]||[];
+ ev.atrib[fid]=l.includes(pid)?l.filter(x=>x!==pid):[...l,pid];
+ escolher(fid);pgFuncoes();
+ torrada(ev.atrib[fid].includes(pid)?`${pessoa(pid).n} juntou-se a ${funcao(fid).nome}`:`${pessoa(pid).n} saiu de ${funcao(fid).nome}`)}
+function limparFuncao(fid){const ev=evento(DIA);ev.atrib[fid]=[];escolher(fid);pgFuncoes();
+ torrada(`${funcao(fid).nome} ficou por atribuir`)}
+
+let fotoTemp=null, faseTemp="pre", icTemp="brilho", escopoTemp=null;
+function editarFuncao(id,escopo){
+ const f=id?funcao(id):{nome:"",desc:"",cor:"#0019BE",ic:"brilho",foto:null,fase:"pre",evento:escopo||null};
+ fotoTemp=f.foto; faseTemp=f.fase; icTemp=f.ic;
+ escopoTemp=id?f.evento:(escopo||null);
+ if(!EU.lider)escopoTemp=DIA;
+ sheet.innerHTML=`<div class="pux"></div><h2>${id?"Editar função":"Nova função"}</h2>
+  <label class="rot">Nome curto</label><input class="campo" id="fn" value="${f.nome}" placeholder="Ex.: Sala de amamentação">
+  <label class="rot">Onde aparece</label>
+  ${EU.lider?`<div class="subtabs" id="escopos">
+    <button data-k="0" data-on="${escopoTemp?0:1}" onclick="setEscopo(null)">Todos os cultos</button>
+    <button data-k="1" data-on="${escopoTemp?1:0}" onclick="setEscopo(${DIA})">Só um culto</button></div>
+   <div id="qualEv" style="${escopoTemp?"":"display:none"}">
+    <div class="subtabs" style="flex-wrap:wrap" id="evs">${EVENTOS.map(e=>`<button data-k="${e.id}"
+     data-on="${e.id===escopoTemp?1:0}" onclick="setEscopo(${e.id})">${e.tipo?"✦ ":""}${e.curto}</button>`).join("")}</div></div>`
+   :`<div class="caixa" style="background:var(--agua);border:0;margin-top:8px"><p class="ds">
+    Como líder de escala, esta função entra só no culto de ${evento(DIA).tipo||evento(DIA).data}.</p></div>`}
+  <label class="rot">Quando se faz</label>
+  <div class="subtabs" id="fases">${FASES.map(([k,t])=>`<button data-k="${k}" data-on="${k===f.fase?1:0}" onclick="escolherFase('${k}')">${t}</button>`).join("")}</div>
+  <label class="rot">Símbolo</label>
+  <div class="icgrid" id="icg">${Object.keys(ICF).map(k=>`<button class="icbt" data-k="${k}" data-on="${k===f.ic?1:0}"
+   onclick="escolherIcone('${k}')" title="${ICF_NOMES[k]}">${svgFn(k,21)}</button>`).join("")}</div>
+  <label class="rot">Como se faz</label>
+  <textarea class="campo" id="fd" rows="5" placeholder="O passo a passo que a pessoa vê quando abre esta função">${f.desc}</textarea>
+  <label class="rot">Foto de exemplo</label>
+  <div id="prev">${f.foto?`<img src="${f.foto}" class="fotofn" alt="">`:""}</div>
+  <button class="btn sec full" style="margin-top:8px" onclick="fotoFuncao()">${f.foto?"Trocar foto":"Juntar foto"}</button>
+  <button class="btn full" style="margin-top:18px" onclick="guardarFuncao(${id||"null"})">Guardar</button>
+  ${id?`<button class="btn sec full" style="margin-top:9px" onclick="desativar(${id})">Desativar função</button>`:""}
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet()">Cancelar</button>`;
+ abrirSheet()}
+function setEscopo(id){escopoTemp=id;
+ const es=document.getElementById("escopos");
+ if(es)[...es.children].forEach(b=>b.dataset.on=((b.dataset.k==="1")===!!id)?1:0);
+ const qe=document.getElementById("qualEv");
+ if(qe){qe.style.display=id?"":"none";
+  [...document.getElementById("evs").children].forEach(b=>b.dataset.on=(+b.dataset.k===id)?1:0)}}
+function escolherFase(k){faseTemp=k;
+ [...document.getElementById("fases").children].forEach(b=>b.dataset.on=b.dataset.k===k?1:0)}
+function escolherIcone(k){icTemp=k;
+ [...document.getElementById("icg").children].forEach(b=>b.dataset.on=b.dataset.k===k?1:0)}
+function fotoFuncao(){pedirFoto(d=>{fotoTemp=d;
+ document.getElementById("prev").innerHTML=`<img src="${d}" class="fotofn" alt="">`})}
+function guardarFuncao(id){
+ const n=document.getElementById("fn").value.trim(), d=document.getElementById("fd").value.trim();
+ if(!n){torrada("A função precisa de um nome");return}
+ if(id){const f=funcao(id);f.nome=n;f.desc=d;f.foto=fotoTemp;f.fase=faseTemp;f.ic=icTemp;f.evento=escopoTemp}
+ else FUNCOES.push({id:Date.now(),nome:n,desc:d,cor:escopoTemp?"#FF2E88":"#0019BE",ic:icTemp,foto:fotoTemp,fase:faseTemp,evento:escopoTemp});
+ fecharSheet();pgFuncoes();torrada(escopoTemp?"Função criada só para este culto":(id?"Função atualizada":"Função criada no catálogo"))}
+function desativar(id){FUNCOES=FUNCOES.filter(f=>f.id!==id);fecharSheet();pgFuncoes();
+ torrada("Função desativada — o histórico mantém-se")}
+
+/* ═══════════ PERFIL ═══════════ */
+function pgPerfil(){
+ const meus=REEMBOLSOS.filter(r=>r.pessoa===EU.id);
+ const dias=EVENTOS.filter(e=>e.escala.includes(EU.id));
+ cabeca("Perfil","As tuas informações",[EU.lider?"Líder da base":"Voluntário",`${dias.length} domingos`]);
+ corpo.innerHTML=`
+ <div class="duas"><div>
+ <div class="sect" style="text-align:center">
+  <div class="perfilav ${EU.foto?"avfoto":""}" style="${EU.foto?`background-image:url(${EU.foto})`:`background:${EU.cor}`}">${EU.foto?"":EU.n[0]}</div>
+  <p style="font-size:22px;font-weight:700;letter-spacing:-.03em;margin-top:14px">${EU.n}</p>
+  <p class="ds">${EU.lider?"Líder da base de apoio":"Voluntário da base de apoio"}</p>
+  <button class="btn sec" style="margin-top:14px" onclick="trocarFoto()">${EU.foto?"Trocar foto":"Juntar foto"}</button>
+  ${EU.foto?`<button class="btn sec" style="margin-top:14px;margin-left:8px" onclick="EU.foto=null;cabecaEu();pgPerfil()">Remover</button>`:""}
+ </div>
+ <div class="sect"><div class="cabecalho"><h3>Dados</h3></div><div class="caixa">
+   <label class="rot" style="margin-top:0">Nome</label><input class="campo" id="pn" value="${EU.n}">
+   <label class="rot">Telemóvel</label><input class="campo" id="pt" value="${EU.tel}" placeholder="9xx xxx xxx">
+   <button class="btn full" style="margin-top:16px" onclick="guardarPerfil()">Guardar</button></div></div>
+ <div class="sect"><div class="cabecalho"><h3>Código de acesso</h3></div><div class="caixa">
+   <label class="rot" style="margin-top:0">Código atual</label><input class="campo" id="c1" inputmode="numeric" placeholder="${EU.dig} dígitos">
+   <label class="rot">Novo código</label><input class="campo" id="c2" inputmode="numeric" placeholder="${EU.dig} dígitos">
+   <label class="rot">Repetir novo código</label><input class="campo" id="c3" inputmode="numeric" placeholder="${EU.dig} dígitos">
+   <button class="btn full" style="margin-top:16px" onclick="trocarPin()">Alterar código</button>
+   <p class="ds" style="margin-top:10px">Ninguém consegue ver o teu código, nem o líder da base. Se o esqueceres, ele repõe um provisório.</p></div></div>
+ </div><div>
+ <div class="sect"><div class="cabecalho"><h3>Os teus domingos</h3></div>
+  ${dias.map(e=>`<div class="linha" style="cursor:pointer" onclick="DIA=${e.id};ir('funcoes')">
+   <div style="flex:1"><p class="nmt">${e.tipo||e.data}</p>
+   <p class="ds">${funcoesDe(e).filter(f=>quem(e,f.id).includes(EU.id)).length} funções · chegada ${chegadaDe(e)}</p></div>
+   ${e.liderDia===EU.id?'<span class="tag lim">Líder de escala</span>':'<span class="seta">›</span>'}</div>`).join("")
+   ||`<div class="vaz">Não estás escalado este mês.</div>`}</div>
+ <div class="sect"><div class="cabecalho"><h3>Mais</h3></div>
+  <div class="linha" style="cursor:pointer" onclick="ir('reembolsos')"><div style="flex:1"><p class="nmt">Reembolsos</p>
+   <p class="ds">${meus.length} pedido${meus.length!==1?"s":""} teu${meus.length!==1?"s":""}</p></div><span class="seta">›</span></div>
+  ${EU.lider?`<div class="linha" style="cursor:pointer" onclick="ir('painel')"><div style="flex:1">
+   <p class="nmt">Painel do líder</p><p class="ds">Escalas, voluntários e catálogo</p></div><span class="seta">›</span></div>`:""}
+  <div class="linha"><div style="flex:1"><p class="nmt">Notificações no telemóvel</p>
+   <p class="ds">Quando te derem funções ou houver novidades</p></div>
+   <button class="btn sec" style="padding:9px 16px;font-size:13px" onclick="torrada('Pediria autorização ao telemóvel')">Ativar</button></div>
+ </div>
+ <button class="sair" onclick="sair()">Terminar sessão</button>
+ </div></div>`}
+function trocarFoto(){pedirFoto(d=>{EU.foto=d;cabecaEu();pgPerfil();torrada("Foto atualizada")})}
+function guardarPerfil(){const n=document.getElementById("pn").value.trim();
+ if(!n){torrada("O nome não pode ficar vazio");return}
+ EU.n=n;EU.tel=document.getElementById("pt").value.trim();cabecaEu();pgPerfil();torrada("Dados guardados")}
+function trocarPin(){
+ const a=document.getElementById("c1").value,b=document.getElementById("c2").value,c=document.getElementById("c3").value;
+ if(a!==EU.pin){torrada("O código atual não está certo");return}
+ if(b.length!==EU.dig){torrada(`O novo código tem de ter ${EU.dig} dígitos`);return}
+ if(b!==c){torrada("Os códigos novos não coincidem");return}
+ EU.pin=b;pgPerfil();torrada("Código alterado")}
+
+/* ═══════════ INVENTÁRIO ═══════════ */
+function pgInventario(){
+ const falta=INVENTARIO.filter(i=>i.q<i.min);
+ cabeca("Inventário","O material da base, sempre atualizado",
+  [`${INVENTARIO.length} itens`,falta.length?`${falta.length} abaixo do mínimo`:"Tudo em ordem"]);
+ const cats=[...new Set(INVENTARIO.map(i=>i.cat))];
+ corpo.innerHTML=cats.map(c=>`<div class="sect"><div class="cabecalho"><h3>${c}</h3></div>
+  ${INVENTARIO.filter(i=>i.cat===c).map(i=>`<div class="linha"><div style="flex:1"><p class="nmt">${i.nome}</p>
+   <p class="ds">${i.q<i.min?`<span style="color:var(--magenta);font-weight:600">Abaixo do mínimo de ${i.min}</span>`:`Mínimo ${i.min} ${i.un}`}</p></div>
+   <div class="qtd"><button class="qb" onclick="mexer(${i.id},-1)">−</button>
+   <span class="qn">${i.q}</span><button class="qb" onclick="mexer(${i.id},1)">+</button></div></div>`).join("")}
+  </div>`).join("")
+  +`<div class="convite" onclick="ir('reembolsos')" style="margin-top:22px">
+    <p class="cap">Compraste alguma coisa para a base?</p>
+    <p style="font-size:17px;font-weight:700;margin-top:7px;letter-spacing:-.03em">Pedir reembolso</p>
+    <p class="ds" style="margin-top:5px">Sobe a foto da nota e o valor. O líder trata do resto.</p></div>
+   <p class="nota">Cada alteração fica registada com o teu nome e a hora.</p>`}
+function mexer(id,d){const i=INVENTARIO.find(x=>x.id===id);i.q=Math.max(0,i.q+d);
+ pgInventario();if(i.q<i.min&&d<0)torrada(`${i.nome} ficou abaixo do mínimo`)}
+
+/* ═══════════ CULTO + FEEDBACKS ═══════════ */
+function pgCulto(){
+ if(PAGINA==="feedbacks"){ABA_CULTO="feedbacks";PAGINA="culto";
+  [...navb.children].forEach(b=>b.dataset.on=b.dataset.k==="culto"?1:0)}
+ const doMes=EVENTOS.filter(e=>e.mes===MES), com=doMes.filter(e=>e.feedback).length;
+ cabeca("Culto",ABA_CULTO==="ordem"?"A ordem do culto que o pastor envia":"O que ficou registado de cada domingo",
+  ABA_CULTO==="ordem"?[MESES[MES],`Domingo ${CULTO}`]:[MESES[MES],`${com} de ${doMes.length} com feedback`]);
+ const abas=`<div class="subtabs">
+  <button data-on="${ABA_CULTO==="ordem"?1:0}" onclick="ABA_CULTO='ordem';pgCulto()">Ordem do culto</button>
+  <button data-on="${ABA_CULTO==="feedbacks"?1:0}" onclick="ABA_CULTO='feedbacks';pgCulto()">Feedbacks</button></div>`;
+ if(ABA_CULTO==="ordem"){
+  corpo.innerHTML=abas+EVENTOS.filter(e=>e.mes===MES).map(ev=>`<div class="sect"><div class="cabecalho"><h3>${ev.tipo||ev.data}</h3>
+   ${ev.pdf?'<span class="tag verd">Disponível</span>':'<span class="tag cinz">À espera</span>'}</div>
+   ${ev.pdf?`<div class="linha" onclick="torrada('Abriria o PDF no telemóvel')">
+    <span class="bola" style="background:var(--violeta)">▤</span>
+    <div style="flex:1"><p class="nmt">Ordem do culto</p><p class="ds">${ev.pdf}</p></div><span class="seta">›</span></div>`
+   :`<div class="vaz">O líder costuma subir o ficheiro à quinta-feira.</div>`}
+   ${EU.lider?`<button class="btn sec" style="margin-top:12px;padding:10px 18px;font-size:13.5px"
+    onclick="subirPdf(${ev.id})">${ev.pdf?"Substituir ficheiro":"Subir ficheiro"}</button>`:""}</div>`).join("")}
+ else{
+  corpo.innerHTML=abas+`<p class="nota" style="margin-top:16px">Depois do culto, o líder de escala escreve o que
+  correu bem e o que faltou. Fica aqui para toda a base ler.</p>
+  ${[...EVENTOS.filter(e=>e.mes===MES)].reverse().map(ev=>{const pode=EU.lider||ev.liderDia===EU.id;
+   return `<div class="sect"><div class="cabecalho"><h3>${ev.data}${ev.hoje?' <span class="tag lim" style="vertical-align:middle">hoje</span>':""}</h3>
+   ${ev.liderDia?`<span class="cap">${pessoa(ev.liderDia).n}</span>`:""}</div>
+   ${ev.feedback?`<div class="caixa"><p style="font-size:15px;line-height:1.6">${ev.feedback.txt}</p>
+    <div class="linha" style="border:0;padding:14px 0 0">${avatar(pessoa(ev.liderDia||1),34,14)}
+    <div style="flex:1"><p class="ds">${ev.feedback.autor} · líder de escala</p></div>
+    ${pode?`<button class="btn sec" style="padding:8px 15px;font-size:12.5px" onclick="editarFeedback(${ev.id})">Editar</button>`:""}</div></div>`
+   :`<div class="vaz">Ainda sem feedback deste domingo.
+     ${pode?`<br><button class="btn sec" style="margin-top:12px;padding:10px 18px;font-size:13.5px" onclick="editarFeedback(${ev.id})">Escrever feedback</button>`:""}</div>`}
+   </div>`}).join("")}`}}
+function subirPdf(id){const ev=evento(id);ev.pdf=`ordem-culto-${ev.curto.replace(" ","-")}.pdf`;
+ pgCulto();torrada("Ficheiro subido — a base foi avisada")}
+function editarFeedback(id){const ev=evento(id);
+ sheet.innerHTML=`<div class="pux"></div><h2>Feedback do culto</h2><p class="sb2">${ev.data}</p>
+  <textarea class="campo" id="fb" rows="6" placeholder="O que correu bem, o que faltou, o que a base precisa.">${ev.feedback?ev.feedback.txt:""}</textarea>
+  <p class="ds" style="margin-top:10px">Todos os voluntários da base vão conseguir ler isto.</p>
+  <button class="btn full" style="margin-top:16px" onclick="guardarFeedback(${id})">Publicar</button>
+  ${ev.feedback?`<button class="btn sec full" style="margin-top:9px" onclick="apagarFeedback(${id})">Apagar</button>`:""}
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet()">Cancelar</button>`;abrirSheet()}
+function guardarFeedback(id){const t=document.getElementById("fb").value.trim();
+ if(!t){torrada("Escreve alguma coisa primeiro");return}
+ evento(id).feedback={txt:t,autor:EU.n};fecharSheet();
+ PAGINA==="inicio"?pgInicio():pgCulto();torrada("Publicado — toda a base consegue ler")}
+function apagarFeedback(id){evento(id).feedback=null;fecharSheet();pgCulto();torrada("Feedback apagado")}
+
+/* ═══════════ REEMBOLSOS ═══════════ */
+let anexado=false;
+function pgReembolsos(){
+ const meus=REEMBOLSOS.filter(r=>r.pessoa===EU.id);
+ const pend=REEMBOLSOS.filter(r=>r.estado==="submetido");
+ cabeca("Reembolsos","Sobe a nota e o líder trata do resto",
+  EU.lider?[`${pend.length} por tratar`]:[`${meus.length} pedido${meus.length!==1?"s":""}`]);
+ corpo.innerHTML=`<div class="duas"><div>
+  <div class="sect"><div class="cabecalho"><h3>Novo pedido</h3></div><div class="caixa">
+   <label class="rot" style="margin-top:0">Descrição</label>
+   <input class="campo" id="rd" placeholder="Ex.: papel higiénico e lixívia">
+   <label class="rot">Valor</label><input class="campo" id="rv" type="number" step="0.01" placeholder="0,00">
+   <label class="rot">Nota ou fatura</label>
+   <button class="btn sec full" style="margin-top:8px" onclick="anexar()" id="anx">Escolher ficheiro</button>
+   <button class="btn full" style="margin-top:16px" onclick="submeter()">Enviar ao líder</button>
+   <p class="ds" style="margin-top:12px">O ${LIDER().n} recebe o pedido e encaminha para o Financeiro.</p>
+  </div></div></div><div>
+  <div class="sect"><div class="cabecalho"><h3>${EU.lider?"Todos os pedidos":"Os teus pedidos"}</h3></div>
+   ${(EU.lider?REEMBOLSOS:meus).map(r=>{const p=pessoa(r.pessoa);
+    return `<div class="linha">${avatar(p,38,15)}<div style="flex:1"><p class="nmt">${eur(r.valor)}</p>
+    <p class="ds">${r.desc} · ${r.data}${EU.lider?" · "+p.n:""}</p></div>
+    <span class="tag ${r.estado==="pago"?"verd":r.estado==="submetido"?"":"cinz"}">${r.estado}</span></div>`}).join("")
+    ||`<div class="vaz">Ainda não submeteste nenhum pedido.</div>`}
+  </div></div></div>`;
+ anexado=false}
+function anexar(){pedirFoto(()=>{anexado=true;document.getElementById("anx").textContent="Nota anexada ✓"})}
+function submeter(){
+ const d=document.getElementById("rd").value.trim(), v=parseFloat(document.getElementById("rv").value);
+ if(!d){torrada("Escreve o que compraste");return}
+ if(!v||v<=0){torrada("Falta o valor");return}
+ if(!anexado){torrada("Junta a foto da nota");return}
+ REEMBOLSOS.unshift({id:Date.now(),pessoa:EU.id,desc:d,valor:v,data:"hoje",estado:"submetido"});
+ pgReembolsos();torrada(`Pedido enviado ao ${LIDER().n}`)}
+
+/* ═══════════ PAINEL DO LÍDER ═══════════ */
+function pgPainel(){
+ cabeca("Painel do líder","Escalas, voluntários e catálogo",[`${PESSOAS.length} voluntários`,`${FUNCOES.filter(f=>!f.evento).length} no catálogo`,`${FUNCOES.filter(f=>f.evento).length} especiais`]);
+ corpo.innerHTML=`<div class="duas"><div>
+ <div class="sect"><div class="cabecalho"><h3>Escala de ${MESES[MES]}</h3><span class="calnav">
+  <button class="calbt" onclick="mudarMesPainel(-1)" ${MES===0?"disabled style=opacity:.35":""}>‹</button>
+  <button class="calbt" onclick="mudarMesPainel(1)" ${MES===11?"disabled style=opacity:.35":""}>›</button></span></div>
+  <p class="ds" style="padding:8px 0 2px">Os domingos são criados sozinhos. Só falta dizer quem serve e quem lidera.</p>
+  ${EVENTOS.filter(e=>e.mes===MES).map(ev=>`<div class="linha" style="cursor:pointer" onclick="editarEscala(${ev.id})">
+   <div style="flex:1"><p class="nmt">${ev.tipo||ev.data}${ev.tipo?` <span class="tag esp">especial</span>`:""}</p>
+   <p class="ds">${ev.escala.length?`${ev.escala.length} pessoas · ${ev.liderDia?pessoa(ev.liderDia).n+" lidera":"líder por definir"}`:"Ninguém escalado"}</p></div>
+   ${ev.escala.length?avatares(ev.escala.slice(0,4),30,12):'<span class="tag">definir</span>'}
+   <span class="seta">›</span></div>`).join("")}
+  <button class="btn sec full" style="margin-top:14px" onclick="novoCulto()">Adicionar culto especial</button>
+ </div>
+ <div class="sect"><div class="cabecalho"><h3>Voluntários</h3>
+  <button class="btn sec" style="padding:8px 15px;font-size:13px" onclick="editarPessoa(null)">Adicionar</button></div>
+  ${PESSOAS.map(p=>`<div class="linha">${avatar(p,38,15)}
+   <div style="flex:1"><p class="nmt">${p.n}</p>
+   <p class="ds">${p.lider?"Líder da base · 6 dígitos":"Voluntário · 4 dígitos"}</p></div>
+   <button class="btn sec" style="padding:8px 14px;font-size:12.5px" onclick="editarPessoa(${p.id})">Editar</button></div>`).join("")}</div>
+ </div><div>
+ <div class="sect"><div class="cabecalho"><h3>Catálogo de funções</h3>
+  <button class="btn sec" style="padding:8px 15px;font-size:13px" onclick="editarFuncao(null,null)">Nova</button></div>
+  ${FASES.map(([k,t])=>{const doF=FUNCOES.filter(f=>f.fase===k&&!f.evento);
+   return `<p class="cap" style="padding:14px 0 4px">${t} · ${doF.length}</p>`+doF.map(f=>`
+    <div class="linha" style="cursor:pointer" onclick="editarFuncao(${f.id})">
+    ${bola(f,34)}
+    <div style="flex:1"><p class="nmt" style="font-size:15px">${f.nome}</p>
+    <p class="ds">${f.desc?(f.foto?"Com foto":"Sem foto"):"Falta a explicação"}</p></div>
+    <span class="seta">›</span></div>`).join("")}).join("")}
+  ${FUNCOES.some(f=>f.evento)?`<div class="cabecalho" style="margin-top:24px"><h3>Só em cultos específicos</h3></div>
+   ${EVENTOS.filter(e=>especiaisDe(e).length).map(e=>`<p class="cap" style="padding:14px 0 4px">${nomeEv(e)} · ${especiaisDe(e).length}</p>`
+    +especiaisDe(e).map(f=>`<div class="linha" style="cursor:pointer" onclick="editarFuncao(${f.id})">${bola(f,34)}
+     <div style="flex:1"><p class="nmt" style="font-size:15px">${f.nome}</p>
+     <p class="ds">${nomeFase(f.fase)} · ${f.desc?"com explicação":"falta a explicação"}</p></div>
+     <span class="seta">›</span></div>`).join("")).join("")}`:""}</div>
+ <div class="sect"><div class="cabecalho"><h3>Definições da base</h3></div>
+  <div class="linha"><div style="flex:1"><p class="nmt">Hora de chegada</p><p class="ds">Igual em todos os domingos</p></div>
+   <span class="tag cinz">${CHEGADA}</span></div>
+  <div class="linha"><div style="flex:1"><p class="nmt">Hora do culto</p><p class="ds">Onda Dura Porto</p></div>
+   <span class="tag cinz">${CULTO}</span></div>
+  <div class="linha"><div style="flex:1"><p class="nmt">Reembolsos</p><p class="ds">Encaminhados para o Financeiro</p></div>
+   <span class="seta">›</span></div>
+ </div></div></div>`}
+
+function mudarMesPainel(d){MES=Math.min(11,Math.max(0,MES+d));pgPainel()}
+
+function editarEscala(id){
+ const ev=evento(id);
+ sheet.innerHTML=`<div class="pux"></div><h2>${ev.tipo||ev.data}</h2>
+  <p class="sb2">${ev.escala.length} pessoas · chegada ${chegadaDe(ev)}</p>
+  <p class="ds" style="text-align:center;margin-top:8px">Toca no nome para juntar ou tirar da escala.
+  A estrela define quem é o líder de escala.</p>
+  <div style="margin-top:16px">
+   ${PESSOAS.map(p=>{const dentro=ev.escala.includes(p.id), lid=ev.liderDia===p.id;
+    return `<div class="opcao" style="cursor:default">
+     <span onclick="alternarEscala(${id},${p.id})" style="display:flex;align-items:center;gap:12px;flex:1;cursor:pointer">
+      ${avatar(p,38,15)}
+      <span style="flex:1"><b style="font-size:15.5px;font-weight:700">${p.n}</b>
+      <span style="display:block;font-size:12px;color:var(--cinza)">${dentro?(lid?"líder de escala":"na escala"):"fora deste culto"}</span></span></span>
+     ${dentro?`<button class="estrela ${lid?"on":""}" onclick="setLiderEsc(${id},${p.id})" title="Líder de escala">★</button>`:""}
+     <span class="chk ${dentro?"on":""}" onclick="alternarEscala(${id},${p.id})" style="cursor:pointer">✓</span></div>`}).join("")}
+  </div>
+  <button class="btn full" style="margin-top:20px" onclick="fecharSheet()">Concluir</button>`;
+ abrirSheet()}
+function alternarEscala(eid,pid){const ev=evento(eid);
+ if(ev.escala.includes(pid)){
+  ev.escala=ev.escala.filter(x=>x!==pid);
+  if(ev.liderDia===pid)ev.liderDia=null;
+  Object.keys(ev.atrib).forEach(k=>{ev.atrib[k]=ev.atrib[k].filter(x=>x!==pid)});
+  torrada(`${pessoa(pid).n} saiu da escala`)}
+ else{ev.escala.push(pid);
+  if(!ev.liderDia)ev.liderDia=pid;
+  torrada(`${pessoa(pid).n} entrou na escala`)}
+ editarEscala(eid);pgPainel()}
+function setLiderEsc(eid,pid){evento(eid).liderDia=pid;editarEscala(eid);pgPainel();
+ torrada(`${pessoa(pid).n} é o líder de escala`)}
+
+function novoCulto(){
+ sheet.innerHTML=`<div class="pux"></div><h2>Culto especial</h2>
+  <p class="sb2">${MESES[MES]} 2026 · fora dos domingos</p>
+  <label class="rot">Nome do culto</label>
+  <input class="campo" id="cn" placeholder="Ex.: Culto de Mulheres">
+  <label class="rot">Dia do mês</label>
+  <input class="campo" id="cd" type="number" min="1" max="31" placeholder="14">
+  <label class="rot">Hora do culto</label><input class="campo" id="ch" placeholder="20:00">
+  <label class="rot">Hora de chegada da base</label><input class="campo" id="cc" placeholder="18:30">
+  <p class="ds" style="margin-top:10px">Os domingos já existem todos. Isto serve para cultos fora do domingo.</p>
+  <button class="btn full" style="margin-top:16px" onclick="guardarCulto()">Criar culto</button>
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet()">Cancelar</button>`;
+ abrirSheet()}
+function guardarCulto(){
+ const n=document.getElementById("cn").value.trim();
+ const d=parseInt(document.getElementById("cd").value,10);
+ const h=document.getElementById("ch").value.trim()||CULTO;
+ const c=document.getElementById("cc").value.trim()||CHEGADA;
+ if(!n){torrada("O culto precisa de um nome");return}
+ const max=new Date(2026,MES+1,0).getDate();
+ if(!d||d<1||d>max){torrada(`O dia tem de estar entre 1 e ${max}`);return}
+ if(EVENTOS.some(e=>e.mes===MES&&e.dia===d)){torrada("Já existe um culto nesse dia");return}
+ EVENTOS.push({id:Math.max(...EVENTOS.map(e=>e.id))+1,mes:MES,dia:d,tipo:n,hora:h,chegada:c,
+  data:`${d} de ${MESES[MES].toLowerCase()}`,curto:`${String(d).padStart(2,"0")} ${MESES[MES].slice(0,3).toLowerCase()}`,
+  escala:[],liderDia:null,frase:"",pdf:null,feedback:null,atrib:{},feito:{}});
+ EVENTOS.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);
+ fecharSheet();pgPainel();torrada(`${n} criado a ${d} de ${MESES[MES].toLowerCase()}`)}
+
+function definirLider(id){const ev=evento(id);
+ sheet.innerHTML=`<div class="pux"></div><h2>Líder de escala</h2><p class="sb2">${ev.data}</p>
+  <div style="margin-top:18px">${ev.escala.map(i=>{const p=pessoa(i);
+   return `<button class="opcao" onclick="setLider(${id},${i})">${avatar(p,38,15)}
+   <span style="flex:1"><b style="font-size:15.5px;font-weight:700">${p.n}</b></span>
+   ${ev.liderDia===i?'<span class="tag verd">Atual</span>':""}</button>`}).join("")}</div>
+  <button class="btn sec full" style="margin-top:18px" onclick="fecharSheet()">Fechar</button>`;abrirSheet()}
+function setLider(eid,pid){evento(eid).liderDia=pid;fecharSheet();pgPainel();
+ torrada(`${pessoa(pid).n} é o líder de escala`)}
+
+let pessoaLider=false;
+function editarPessoa(id){
+ const p=id?pessoa(id):{n:"",tel:"",lider:false};
+ pessoaLider=!!p.lider;
+ const nEsc=id?EVENTOS.filter(e=>e.escala.includes(id)).length:0;
+ sheet.innerHTML=`<div class="pux"></div><h2>${id?"Editar voluntário":"Novo voluntário"}</h2>
+  ${id?`<p class="sb2">${nEsc} domingo${nEsc!==1?"s":""} este mês</p>`:""}
+  <label class="rot">Nome</label><input class="campo" id="vn" value="${p.n}" placeholder="Nome como aparece na escala">
+  <label class="rot">Telemóvel</label><input class="campo" id="vt" value="${p.tel||""}" placeholder="9xx xxx xxx">
+  <label class="rot">Papel na base</label>
+  <div class="subtabs" id="papeis">
+   <button data-k="v" data-on="${p.lider?0:1}" onclick="setPapel(false)">Voluntário</button>
+   <button data-k="l" data-on="${p.lider?1:0}" onclick="setPapel(true)">Líder da base</button></div>
+  <p class="ds" style="margin-top:8px">O líder da base tem código de 6 dígitos e acesso a tudo.</p>
+  <button class="btn full" style="margin-top:18px" onclick="guardarPessoa(${id||"null"})">Guardar</button>
+  ${id?`<button class="btn sec full" style="margin-top:9px" onclick="torrada('${p.n} recebe um código provisório')">Repor código</button>
+   ${p.id===EU.id?"":`<button class="btn sec full" style="margin-top:9px;color:var(--magenta)" onclick="confirmarRemover(${id})">Remover da base</button>`}`:""}
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet()">Cancelar</button>`;
+ abrirSheet()}
+function setPapel(l){pessoaLider=l;
+ [...document.getElementById("papeis").children].forEach(b=>b.dataset.on=((b.dataset.k==="l")===l)?1:0)}
+function guardarPessoa(id){
+ const n=document.getElementById("vn").value.trim();
+ if(!n){torrada("O voluntário precisa de um nome");return}
+ const tel=document.getElementById("vt").value.trim();
+ if(id){const p=pessoa(id);p.n=n;p.tel=tel;
+  if(pessoaLider&&!p.lider){PESSOAS.forEach(x=>x.lider=false);p.lider=true;p.dig=6;p.pin="123456"}
+  else if(!pessoaLider&&p.lider){p.lider=false;p.dig=4;p.pin="1234"}
+  if(p.id===EU.id)cabecaEu()}
+ else{const novo={id:Math.max(...PESSOAS.map(x=>x.id))+1,n,tel,dig:pessoaLider?6:4,
+   pin:pessoaLider?"123456":"1234",lider:pessoaLider,foto:null,cor:COR[PESSOAS.length%COR.length]};
+  if(pessoaLider)PESSOAS.forEach(x=>x.lider=false);
+  PESSOAS.push(novo)}
+ fecharSheet();pgPainel();torrada(id?"Voluntário atualizado":"Voluntário adicionado")}
+function confirmarRemover(id){const p=pessoa(id);
+ const nEsc=EVENTOS.filter(e=>e.escala.includes(id)).length;
+ sheet.innerHTML=`<div class="pux"></div><h2>Remover ${p.n}?</h2>
+  <p class="sb2">${nEsc?`Está escalado em ${nEsc} domingo${nEsc!==1?"s":""}. Vai sair da escala e das funções.`:"Não está escalado em nenhum domingo."}</p>
+  <p class="ds" style="text-align:center;margin-top:12px">O histórico dos domingos passados mantém-se.</p>
+  <button class="btn full" style="margin-top:20px;background:var(--magenta)" onclick="removerPessoa(${id})">Remover da base</button>
+  <button class="btn sec full" style="margin-top:9px" onclick="editarPessoa(${id})">Voltar atrás</button>`;
+ abrirSheet()}
+function removerPessoa(id){
+ PESSOAS=PESSOAS.filter(p=>p.id!==id);
+ EVENTOS.forEach(ev=>{ev.escala=ev.escala.filter(x=>x!==id);
+  if(ev.liderDia===id)ev.liderDia=null;
+  Object.keys(ev.atrib).forEach(k=>{ev.atrib[k]=ev.atrib[k].filter(x=>x!==id)})});
+ fecharSheet();pgPainel();torrada("Voluntário removido da base")}
+
+function menuEu(){
+ sheet.innerHTML=`<div class="pux"></div>
+  <div class="perfilav ${EU.foto?"avfoto":""}" style="width:74px;height:74px;font-size:29px;${EU.foto?`background-image:url(${EU.foto})`:`background:${EU.cor}`}">${EU.foto?"":EU.n[0]}</div>
+  <h2>${EU.n}</h2><p class="sb2">${EU.lider?"Líder da base":"Voluntário da base de apoio"}</p>
+  <button class="btn full" style="margin-top:20px" onclick="fecharSheet();ir('perfil')">Ver perfil</button>
+  ${EU.lider?`<button class="btn sec full" style="margin-top:9px" onclick="fecharSheet();ir('painel')">Painel do líder</button>`:""}
+  <button class="btn sec full" style="margin-top:9px" onclick="fecharSheet();sair()">Terminar sessão</button>
+  <button class="btn sec full" style="margin-top:9px;background:none;color:var(--cinza)" onclick="fecharSheet()">Fechar</button>`;
+ abrirSheet()}
+function sair(){EU=null;app.classList.remove("on");navb.classList.remove("on");login.style.display="";scrollTo(0,0)}
+
+</script>

@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function autenticado() { return request.auth != null; }
+    function minhaBase(b)  { return autenticado() && request.auth.token.baseId == b; }
+    function lider(b)      { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
+    function imagem()      { return request.resource.contentType.matches('image/.*')
+                                 && request.resource.size < 6 * 1024 * 1024; }
+
+    match /bases/{base}/pessoas/{pessoa} {
+      allow read:  if minhaBase(base);
+      allow write: if (request.auth.uid == pessoa || lider(base)) && imagem();
+    }
+    match /bases/{base}/funcoes/{ficheiro} {
+      allow read:  if minhaBase(base);
+      allow write: if lider(base) && imagem();
+    }
+    match /bases/{base}/reembolsos/{ficheiro} {
+      allow read:  if minhaBase(base);
+      allow write: if minhaBase(base)
+                   && request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+    match /eventos/{evento}/ordem.pdf {
+      allow read:  if autenticado();
+      allow write: if autenticado()
+                   && request.auth.token.papel == 'lider_base'
+                   && request.resource.contentType == 'application/pdf';
+    }
+    match /{tudo=**} { allow read, write: if false; }
+  }
+}
