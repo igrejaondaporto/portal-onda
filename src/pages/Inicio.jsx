@@ -22,7 +22,7 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala, onVerFuncoes }) {
   const torrada = useTorrada();
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
@@ -78,7 +78,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: sirvo
-        ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} funções` : "Funções por distribuir"]
+        ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} ${minhas.length === 1 ? "função" : "funções"}` : "Funções por distribuir"]
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,8 +180,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
                     const ok = !!checklist[f.id];
                     const outros = (atribuicoes[f.id] || []).filter((id) => id !== uid);
                     return (
-                      <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
-                        <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
+                      <div
+                        className={`linha${ok ? " feita" : ""}`} key={f.id} style={{ cursor: "pointer" }}
+                        onClick={() => onVerFuncoes?.(meuEvento.id)}
+                      >
+                        <button className={`chk${ok ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarFeito(f.id); }}>✓</button>
                         <div style={{ flex: 1 }}>
                           <p className="nmt">{f.nome}</p>
                           <p className="ds">

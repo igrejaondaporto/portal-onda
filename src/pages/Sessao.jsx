@@ -7,6 +7,7 @@ import NavBar from "../components/NavBar";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
+import Funcoes from "./Funcoes";
 
 /**
  * Casca da app depois de entrar: cabeçalho + corpo + navegação.
@@ -22,6 +23,7 @@ export default function Sessao({ uid, papel, baseId }) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano] = useState(hoje.getFullYear());
+  const [focoEvento, setFocoEvento] = useState(null);
 
   useEffect(() => {
     getDoc(doc(db, `bases/${baseId}/pessoas/${uid}`)).then((s) => setPessoa(s.exists() ? s.data() : null));
@@ -31,6 +33,13 @@ export default function Sessao({ uid, papel, baseId }) {
 
   function irPara(p) {
     setPagina(p);
+    setMenuAberto(false);
+    if (p === "funcoes") setFocoEvento(null);
+  }
+
+  function irParaFuncoes(eventoId) {
+    setFocoEvento(eventoId ?? null);
+    setPagina("funcoes");
     setMenuAberto(false);
   }
 
@@ -74,11 +83,17 @@ export default function Sessao({ uid, papel, baseId }) {
           {pagina === "inicio" && (
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
-              definirCabecalho={setCab} onIrEscala={() => irPara("escala")}
+              definirCabecalho={setCab} onIrEscala={() => irPara("escala")} onVerFuncoes={irParaFuncoes}
             />
           )}
           {pagina === "escala" && (
-            <Escala uid={uid} mes={mes} ano={ano} definirMes={setMes} definirCabecalho={setCab} />
+            <Escala
+              uid={uid} mes={mes} ano={ano} definirMes={setMes} definirCabecalho={setCab}
+              onVerFuncoes={irParaFuncoes}
+            />
+          )}
+          {pagina === "funcoes" && (
+            <Funcoes uid={uid} papel={papel} eventoIdFoco={focoEvento} definirCabecalho={setCab} />
           )}
           {pagina === "painel" && (
             <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />

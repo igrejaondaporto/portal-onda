@@ -5,7 +5,7 @@ import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
 
-export default function Escala({ uid, mes, ano, definirMes, definirCabecalho }) {
+export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [base, setBase] = useState(null);
@@ -124,6 +124,11 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho }) 
               })
             ) : (
               <div className="vaz">Ainda ninguém escalado.</div>
+            )}
+            {ev.escala.pessoas.length > 0 && (
+              <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => onVerFuncoes?.(ev.id)}>
+                Ver as funções deste culto
+              </button>
             )}
           </div>
         );

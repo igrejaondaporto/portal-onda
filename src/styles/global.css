@@ -477,6 +477,48 @@ textarea {
   font-size: 13.5px;
   line-height: 1.5;
 }
+.aberto {
+  padding: 0 0 16px;
+  font-size: 13.5px;
+  color: var(--cinza);
+  line-height: 1.6;
+  animation: ap 0.3s;
+}
+.feita .nmt {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+.menu {
+  display: flex;
+  gap: 8px;
+  padding: 12px 22px;
+  overflow-x: auto;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  z-index: 5;
+  border-bottom: 1px solid var(--fio);
+}
+.menu::-webkit-scrollbar {
+  display: none;
+}
+.menu button {
+  background: var(--agua);
+  border: 0;
+  border-radius: 100px;
+  cursor: pointer;
+  padding: 9px 15px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cinza);
+  transition: 0.16s;
+}
+.menu button[data-on="1"] {
+  background: var(--azul);
+  color: #fff;
+}
 .tag {
   font-size: 11px;
   font-weight: 700;

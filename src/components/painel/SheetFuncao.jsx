@@ -7,7 +7,7 @@ import { dataPorExtenso } from "../../lib/data";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
-export default function SheetFuncao({ funcao, eventosDisponiveis, onFechar, onGuardado }) {
+export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, souLiderBase = true, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(funcao?.id ?? novoFuncaoId());
   const inputFotoRef = useRef(null);
@@ -15,7 +15,7 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, onFechar, onGu
   const [descricao, setDescricao] = useState(funcao?.descricao ?? "");
   const [fase, setFase] = useState(funcao?.fase ?? "pre");
   const [icone, setIcone] = useState(funcao?.icone ?? "brilho");
-  const [escopo, setEscopo] = useState(funcao?.eventoId ?? null);
+  const [escopo, setEscopo] = useState(funcao?.eventoId ?? eventoAtual ?? null);
   const [foto, setFoto] = useState(funcao?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -74,23 +74,37 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, onFechar, onGu
         <label className="rot" style={{ marginTop: 14 }}>Nome curto</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Sala de amamentação" />
         <label className="rot">Onde aparece</label>
-        <div className="subtabs">
-          <button data-on={!escopo ? 1 : 0} onClick={() => setEscopo(null)}>Todos os cultos</button>
-          <button
-            data-on={escopo ? 1 : 0}
-            disabled={!eventosDisponiveis.length}
-            onClick={() => setEscopo(escopo || eventosDisponiveis[0]?.id || null)}
-          >
-            Só um culto
-          </button>
-        </div>
-        {escopo && (
-          <div className="subtabs">
-            {eventosDisponiveis.map((e) => (
-              <button key={e.id} data-on={escopo === e.id ? 1 : 0} onClick={() => setEscopo(e.id)}>
-                {e.tipo ? `✦ ${dataPorExtenso(e.data)}` : dataPorExtenso(e.data)}
+        {souLiderBase ? (
+          <>
+            <div className="subtabs">
+              <button data-on={!escopo ? 1 : 0} onClick={() => setEscopo(null)}>Todos os cultos</button>
+              <button
+                data-on={escopo ? 1 : 0}
+                disabled={!eventosDisponiveis.length}
+                onClick={() => setEscopo(escopo || eventoAtual || eventosDisponiveis[0]?.id || null)}
+              >
+                Só um culto
               </button>
-            ))}
+            </div>
+            {escopo && (
+              <div className="subtabs">
+                {eventosDisponiveis.map((e) => (
+                  <button key={e.id} data-on={escopo === e.id ? 1 : 0} onClick={() => setEscopo(e.id)}>
+                    {e.tipo ? `✦ ${dataPorExtenso(e.data)}` : dataPorExtenso(e.data)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 8 }}>
+            <p className="ds">
+              Como líder de escala, esta função entra só no culto de{" "}
+              {(() => {
+                const ev = eventosDisponiveis.find((e) => e.id === eventoAtual);
+                return ev ? (ev.tipo || dataPorExtenso(ev.data)) : "hoje";
+              })()}.
+            </p>
           </div>
         )}
         <label className="rot">Quando se faz</label>
