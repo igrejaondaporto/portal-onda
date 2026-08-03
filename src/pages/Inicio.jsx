@@ -3,7 +3,9 @@ import { getDoc } from "firebase/firestore";
 import { cBase, FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
-import { dataPorExtenso } from "../lib/data";
+import { ouvirReembolsos } from "../lib/reembolsos";
+import { ouvirInventario } from "../lib/inventario";
+import { dataPorExtenso, eur } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
 import Avatares from "../components/Avatares";
@@ -22,8 +24,9 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala, onVerFuncoes }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
+  const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -34,12 +37,19 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
   const [frase, setFrase] = useState("");
   const [aEditarFrase, setAEditarFrase] = useState(false);
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
+  const [pendentes, setPendentes] = useState([]);
+  const [inventario, setInventario] = useState([]);
 
   useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => {
+    if (!souLiderBase) return;
+    return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
+  }, [souLiderBase, uid]);
+  useEffect(() => ouvirInventario(setInventario), []);
 
   useEffect(() => {
     if (!meuEvento) return;
@@ -50,7 +60,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
 
   useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
 
-  const souLiderBase = papel === "lider_base";
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
   const funcoesCulto = meuEvento ? funcoesDoCulto(funcoes, meuEvento.id) : [];
@@ -125,6 +134,21 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
   if (!meuEvento) return null;
 
   return (
+    <>
+      {souLiderBase && pendentes.length > 0 && (
+        <div className="destaque" onClick={() => onIrReembolsos?.()}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {pendentes.length} {pendentes.length === 1 ? "pedido" : "pedidos"} de reembolso
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
+              {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
+            </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
     <div className="duas">
       <div>
         {souLiderEscala ? (
@@ -286,7 +310,27 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
             <div className="vaz">Ninguém mais escalado ainda.</div>
           )}
         </div>
+        <div className="sect">
+          <div className="cabecalho"><h3>A base</h3></div>
+          {[
+            ["inventario", "Inventário", "Material de limpeza", () => onIrInventario?.()],
+            ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
+            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
+          ].map(([k, t, d, ir]) => {
+            const falta = k === "inventario" ? inventario.filter((i) => i.quantidade < i.minimo).length : 0;
+            return (
+              <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
+                <div style={{ flex: 1 }}>
+                  <p className="nmt">{t}</p>
+                  <p className="ds">{d}</p>
+                </div>
+                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span> : <span className="seta">›</span>}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
+    </>
   );
 }

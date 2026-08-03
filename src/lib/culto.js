@@ -8,8 +8,9 @@
  * no documento do evento, que é global e write:false — por isso passa
  * pela Cloud Function definirFrase.
  */
-import { collection, doc, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
-import { db, chamar } from "./firebase";
+import { collection, doc, getDocs, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage, chamar } from "./firebase";
 import { obterEventosDoMes } from "./painel";
 
 export function ouvirChecklist(eventoId, cb) {
@@ -26,6 +27,15 @@ export function ouvirAtribuicoes(eventoId, cb) {
     snap.forEach((d) => { mapa[d.id] = d.data().pessoas || []; });
     cb(mapa);
   });
+}
+
+/** Leitura pontual (sem ficar a ouvir) — para sítios como o Perfil,
+ *  que só quer contar, não precisa de atualização ao vivo. */
+export async function obterAtribuicoes(eventoId) {
+  const snap = await getDocs(collection(db, `eventos/${eventoId}/atribuicoes`));
+  const mapa = {};
+  snap.forEach((d) => { mapa[d.id] = d.data().pessoas || []; });
+  return mapa;
 }
 
 const horaAgora = () => {
@@ -45,6 +55,25 @@ export const definirFrase = (eventoId, frase) =>
 export const atribuirFuncao = (eventoId, funcaoId, pessoas) =>
   chamar("atribuirFuncao")({ eventoId, funcaoId, pessoas }).then((r) => r.data);
 
+export const definirFeedback = (eventoId, texto) =>
+  chamar("definirFeedback")({ eventoId, texto }).then((r) => r.data);
+
+/** null se ainda não houver PDF subido para este culto. */
+export async function obterOrdemCulto(eventoId) {
+  try {
+    return await getDownloadURL(refStorage(storage, `eventos/${eventoId}/ordem.pdf`));
+  } catch (e) {
+    if (e.code === "storage/object-not-found") return null;
+    throw e;
+  }
+}
+
+export async function enviarOrdemCulto(eventoId, ficheiro) {
+  const destino = refStorage(storage, `eventos/${eventoId}/ordem.pdf`);
+  await uploadBytes(destino, ficheiro, { contentType: "application/pdf" });
+  return getDownloadURL(destino);
+}
+
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
  *  Sem isso, cai no primeiro culto do mês (mesma rede de segurança do protótipo). */
 export async function obterMeuEvento(uid) {
@@ -60,4 +89,19 @@ export async function obterMeuEvento(uid) {
 
   const meu = candidatos.find((ev) => ev.data >= hojeISO && ev.escala.pessoas.includes(uid));
   return meu ?? candidatos.find((ev) => ev.escala.pessoas.includes(uid)) ?? esteMes[0] ?? null;
+}
+
+/** Todos os cultos em que a pessoa serve, este mês e o próximo — para o Perfil. */
+export async function obterMeusProximosDomingos(uid) {
+  const hoje = new Date();
+  const hojeISO = hoje.toISOString().slice(0, 10);
+  const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+
+  const [esteMes, proxMes] = await Promise.all([
+    obterEventosDoMes(hoje.getFullYear(), hoje.getMonth()),
+    obterEventosDoMes(proximo.getFullYear(), proximo.getMonth()),
+  ]);
+  return [...esteMes, ...proxMes]
+    .filter((ev) => ev.data >= hojeISO && ev.escala.pessoas.includes(uid))
+    .sort((a, b) => a.data.localeCompare(b.data));
 }

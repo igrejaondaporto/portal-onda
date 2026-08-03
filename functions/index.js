@@ -262,6 +262,19 @@ export const definirFrase = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── FEEDBACK DO CULTO — mesma regra, mesmo motivo ────────── */
+export const definirFeedback = onCall(async (req) => {
+  const { eventoId, texto } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  const { uid } = await exigeLiderDoCulto(req, eventoId);
+  const limpo = String(texto ?? "").trim();
+  await db.doc(`eventos/${eventoId}`).set(
+    limpo ? { feedback: { texto: limpo, autorUid: uid } } : { feedback: null },
+    { merge: true }
+  );
+  return { ok: true };
+});
+
 /* ── ATRIBUIR FUNÇÃO — a regra da data vive aqui ──────────── */
 export const atribuirFuncao = onCall(async (req) => {
   const { eventoId, funcaoId, pessoas } = req.data || {};

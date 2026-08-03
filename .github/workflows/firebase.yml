@@ -1,0 +1,26 @@
+# O Cloudflare Pages publica o frontend sozinho a cada push.
+# Isto trata do resto: functions, regras e índices.
+name: Firebase (functions + regras)
+
+on:
+  push:
+    branches: [main]
+    paths: ["functions/**", "firestore.rules", "storage.rules", "firestore.indexes.json"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --prefix functions
+      - run: npm i -g firebase-tools
+      - run: firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project "$FB_PROJECT" --non-interactive
+        env:
+          FB_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+        # cria sa.json a partir do secret antes de correr:
+      - if: always()
+        run: rm -f sa.json

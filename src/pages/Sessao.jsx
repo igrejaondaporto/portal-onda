@@ -8,6 +8,10 @@ import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Funcoes from "./Funcoes";
+import Culto from "./Culto";
+import Inventario from "./Inventario";
+import Reembolsos from "./Reembolsos";
+import Perfil from "./Perfil";
 
 /**
  * Casca da app depois de entrar: cabeçalho + corpo + navegação.
@@ -24,6 +28,7 @@ export default function Sessao({ uid, papel, baseId }) {
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano] = useState(hoje.getFullYear());
   const [focoEvento, setFocoEvento] = useState(null);
+  const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
     getDoc(doc(db, `bases/${baseId}/pessoas/${uid}`)).then((s) => setPessoa(s.exists() ? s.data() : null));
@@ -40,6 +45,12 @@ export default function Sessao({ uid, papel, baseId }) {
   function irParaFuncoes(eventoId) {
     setFocoEvento(eventoId ?? null);
     setPagina("funcoes");
+    setMenuAberto(false);
+  }
+
+  function irParaCulto(aba) {
+    setAbaCulto(aba ?? "ordem");
+    setPagina("culto");
     setMenuAberto(false);
   }
 
@@ -84,6 +95,8 @@ export default function Sessao({ uid, papel, baseId }) {
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
               definirCabecalho={setCab} onIrEscala={() => irPara("escala")} onVerFuncoes={irParaFuncoes}
+              onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
+              onIrReembolsos={() => irPara("reembolsos")}
             />
           )}
           {pagina === "escala" && (
@@ -94,6 +107,22 @@ export default function Sessao({ uid, papel, baseId }) {
           )}
           {pagina === "funcoes" && (
             <Funcoes uid={uid} papel={papel} eventoIdFoco={focoEvento} definirCabecalho={setCab} />
+          )}
+          {pagina === "culto" && (
+            <Culto uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto} definirCabecalho={setCab} />
+          )}
+          {pagina === "inventario" && (
+            <Inventario uid={uid} definirCabecalho={setCab} onIrReembolsos={() => irPara("reembolsos")} />
+          )}
+          {pagina === "reembolsos" && (
+            <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
+          )}
+          {pagina === "perfil" && (
+            <Perfil
+              uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
+              onAtualizarPessoa={setPessoa} onIrReembolsos={() => irPara("reembolsos")}
+              onIrPainel={() => irPara("painel")} onVerFuncoes={irParaFuncoes}
+            />
           )}
           {pagina === "painel" && (
             <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
@@ -107,6 +136,7 @@ export default function Sessao({ uid, papel, baseId }) {
           papel={papel}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
+          onAbrirPerfil={() => irPara("perfil")}
         />
       )}
     </TorradaProvider>

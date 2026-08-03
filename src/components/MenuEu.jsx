@@ -1,6 +1,6 @@
 import { sair } from "../lib/auth";
 
-export default function MenuEu({ pessoa, papel, onFechar, onAbrirPainel }) {
+export default function MenuEu({ pessoa, papel, onFechar, onAbrirPainel, onAbrirPerfil }) {
   const lider = papel === "lider_base";
   return (
     <>
@@ -18,8 +18,11 @@ export default function MenuEu({ pessoa, papel, onFechar, onAbrirPainel }) {
         </div>
         <h2>{pessoa?.nome ?? "…"}</h2>
         <p className="sb2">{lider ? "Líder da base" : "Voluntário da base de apoio"}</p>
+        <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPerfil}>
+          Ver perfil
+        </button>
         {lider && (
-          <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPainel}>
+          <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
           </button>
         )}

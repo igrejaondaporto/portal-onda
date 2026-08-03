@@ -22,3 +22,12 @@ export const hojeISO = () => new Date().toISOString().slice(0, 10);
 /** Líder de escala primeiro, depois o resto — sem repetir ninguém. */
 export const ordenarEscala = (escala) =>
   [escala.liderEscala, ...escala.pessoas.filter((id) => id !== escala.liderEscala)].filter(Boolean);
+
+export const eur = (v) => v.toFixed(2).replace(".", ",") + " €";
+
+/** Timestamp do Firestore (ou null, logo a seguir a criar) → "3 ago". */
+export function dataTimestamp(ts) {
+  if (!ts?.toDate) return "agora";
+  const d = ts.toDate();
+  return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3).toLowerCase()}`;
+}

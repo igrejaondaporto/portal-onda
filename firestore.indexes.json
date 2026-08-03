@@ -31,6 +31,14 @@
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "criadoEm", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "reembolsos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pessoaId", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

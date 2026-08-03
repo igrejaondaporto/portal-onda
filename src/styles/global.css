@@ -603,6 +603,36 @@ textarea.campo {
   margin-top: 14px;
   display: block;
 }
+.qtd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex: none;
+}
+.qb {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--fio);
+  background: #fff;
+  font-size: 19px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+  transition: 0.12s;
+}
+.qb:active {
+  background: var(--azul);
+  color: #fff;
+  transform: scale(0.9);
+}
+.qn {
+  min-width: 34px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+}
 .dupla {
   display: flex;
   gap: 0;
@@ -877,6 +907,18 @@ textarea.campo {
 }
 .convite:active {
   background: var(--agua);
+}
+.destaque {
+  background: var(--grad);
+  color: #fff;
+  border-radius: 22px;
+  padding: 18px 20px;
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
 }
 
 /* ── progresso ── */
