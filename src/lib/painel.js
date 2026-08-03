@@ -9,9 +9,10 @@
  */
 import {
   query, where, orderBy, onSnapshot, getDocs, getDoc,
-  doc, setDoc, updateDoc, addDoc, serverTimestamp,
+  doc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
-import { db, chamar, BASE_ID } from "./firebase";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage, chamar, BASE_ID } from "./firebase";
 import { cPessoas, cFuncoes, cEventos, cEscala } from "./modelo";
 import { corPara } from "./cores";
 
@@ -34,19 +35,30 @@ export function ouvirFuncoes(cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
-export async function guardarFuncao(funcaoId, dados) {
-  if (funcaoId) {
-    await updateDoc(doc(db, `bases/${BASE_ID}/funcoes/${funcaoId}`), dados);
-    return funcaoId;
-  }
-  const ref = await addDoc(cFuncoes(), {
+/** Id gerado no cliente — precisamos dele antes de gravar, para a foto
+ *  (em Storage) e o documento (no Firestore) apontarem ao mesmo sítio. */
+export const novoFuncaoId = () => doc(cFuncoes()).id;
+
+export async function criarFuncao(id, dados) {
+  await setDoc(doc(db, `bases/${BASE_ID}/funcoes/${id}`), {
     ...dados, ativa: true, ordem: 0, criadoEm: serverTimestamp(),
   });
-  return ref.id;
+  return id;
 }
+
+export const guardarFuncao = (funcaoId, dados) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/funcoes/${funcaoId}`), dados);
 
 export const desativarFuncao = (funcaoId) =>
   updateDoc(doc(db, `bases/${BASE_ID}/funcoes/${funcaoId}`), { ativa: false });
+
+/** Só o líder da base pode escrever aqui (ver storage.rules) — a foto de
+ *  uma função só um culto ainda não tem forma de o líder de escala subir. */
+export async function enviarFotoFuncao(funcaoId, ficheiro) {
+  const destino = refStorage(storage, `bases/${BASE_ID}/funcoes/${funcaoId}`);
+  await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+  return getDownloadURL(destino);
+}
 
 /* ── escala do mês ────────────────────────────────────────── */
 const pad2 = (n) => String(n).padStart(2, "0");

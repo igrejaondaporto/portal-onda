@@ -1,30 +1,53 @@
-import { useState } from "react";
-import { guardarFuncao, desativarFuncao } from "../../lib/painel";
+import { useRef, useState } from "react";
+import { criarFuncao, guardarFuncao, desativarFuncao, novoFuncaoId, enviarFotoFuncao } from "../../lib/painel";
 import { useTorrada } from "../../lib/TorradaContext";
 import { ICF, ICF_NOMES, svgFn } from "../../lib/iconesFuncao";
 import { FASES } from "../../lib/modelo";
 import { dataPorExtenso } from "../../lib/data";
 
+const TAMANHO_MAX = 6 * 1024 * 1024;
+
 export default function SheetFuncao({ funcao, eventosDisponiveis, onFechar, onGuardado }) {
   const torrada = useTorrada();
+  const idRef = useRef(funcao?.id ?? novoFuncaoId());
+  const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(funcao?.nome ?? "");
   const [descricao, setDescricao] = useState(funcao?.descricao ?? "");
   const [fase, setFase] = useState(funcao?.fase ?? "pre");
   const [icone, setIcone] = useState(funcao?.icone ?? "brilho");
   const [escopo, setEscopo] = useState(funcao?.eventoId ?? null);
+  const [foto, setFoto] = useState(funcao?.foto ?? null);
+  const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
+
+  async function escolherFoto(e) {
+    const ficheiro = e.target.files[0];
+    e.target.value = "";
+    if (!ficheiro) return;
+    if (!ficheiro.type.startsWith("image/")) return torrada("Tem de ser uma imagem.");
+    if (ficheiro.size >= TAMANHO_MAX) return torrada("A imagem tem de ter menos de 6 MB.");
+    setAEnviarFoto(true);
+    try {
+      const url = await enviarFotoFuncao(idRef.current, ficheiro);
+      setFoto(url);
+    } catch (e2) {
+      torrada(e2.message || "Não foi possível enviar a foto.");
+    } finally {
+      setAEnviarFoto(false);
+    }
+  }
 
   async function guardar() {
     const n = nome.trim();
     if (!n) return torrada("A função precisa de um nome");
     setAEnviar(true);
     try {
-      const dados = { nome: n, descricao: descricao.trim(), fase, icone, eventoId: escopo || null };
+      const dados = { nome: n, descricao: descricao.trim(), fase, icone, eventoId: escopo || null, foto };
       if (funcao) {
         await guardarFuncao(funcao.id, dados);
         onGuardado(escopo ? "Função atualizada — só neste culto" : "Função atualizada");
       } else {
-        await guardarFuncao(null, { ...dados, foto: null });
+        await criarFuncao(idRef.current, dados);
         onGuardado(escopo ? "Função criada só para este culto" : "Função criada no catálogo");
       }
     } catch (e) {
@@ -95,7 +118,16 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, onFechar, onGu
           className="campo" rows={5} value={descricao} onChange={(e) => setDescricao(e.target.value)}
           placeholder="O passo a passo que a pessoa vê quando abre esta função"
         />
-        <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
+        <label className="rot">Foto de exemplo</label>
+        {foto && <img src={foto} className="fotofn" alt="" />}
+        <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
+        <button
+          className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviarFoto}
+          onClick={() => inputFotoRef.current.click()}
+        >
+          {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}
+        </button>
+        <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar || aEnviarFoto} onClick={guardar}>Guardar</button>
         {funcao && <button className="btn sec full" style={{ marginTop: 9 }} onClick={desativar}>Desativar função</button>}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
       </div>
