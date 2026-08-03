@@ -23,8 +23,12 @@ está mal desenhada.
 ## Stack
 
 React + Vite (SPA, sem SSR — é tudo privado atrás de login), Firestore,
-Storage, Cloud Functions em `europe-west1`, Firebase Hosting, PWA.
+Storage, Cloud Functions em `europe-west1`, PWA.
 Ícones: `lucide-react`. Tipografia: Outfit (Google Fonts).
+
+Hosting do frontend: **Cloudflare Workers** (projeto `portal-onda`, static
+assets — `wrangler.toml`), não Firebase Hosting. O resto (Firestore,
+Storage, Auth, Cloud Functions) continua no Firebase.
 
 ## Regras que não se negoceiam
 
