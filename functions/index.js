@@ -172,6 +172,30 @@ export const criarVoluntario = onCall(async (req) => {
   return { pessoaId: ref.id, pinProvisorio: provisorio };
 });
 
+export const editarVoluntario = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { pessoaId, nome, telefone = "", papel } = req.data || {};
+  if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (!["voluntario", "lider_base"].includes(papel)) {
+    throw new HttpsError("invalid-argument", "Papel inválido.");
+  }
+  const ref = refPessoa(baseId, pessoaId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Voluntário não encontrado.");
+
+  if (papel === "lider_base") {
+    // só um líder da base de cada vez — promover alguém demove quem lá estava
+    const outros = await db.collection(`bases/${baseId}/pessoas`)
+      .where("papel", "==", "lider_base").get();
+    const lote = db.batch();
+    outros.forEach((d) => { if (d.id !== pessoaId) lote.update(d.ref, { papel: "voluntario" }); });
+    await lote.commit();
+  }
+  await ref.set({ nome: nome.trim(), telefone, papel }, { merge: true });
+  return { ok: true };
+});
+
 export const reporPin = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { pessoaId } = req.data || {};
@@ -270,4 +294,26 @@ export const gerarDomingos = onCall(async (req) => {
   }
   await lote.commit();
   return { criados };
+});
+
+/* ── CULTO ESPECIAL (fora dos domingos) ───────────────────── */
+export const criarCultoEspecial = onCall(async (req) => {
+  exigeLider(req);
+  const { data, tipo, horaCulto = "10:30", horaChegada = "08:00" } = req.data || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data || ""))) {
+    throw new HttpsError("invalid-argument", "Data inválida.");
+  }
+  if (!tipo?.trim()) throw new HttpsError("invalid-argument", "Falta o nome do culto.");
+
+  // o culto é da igreja toda — por isso é a Cloud Function que grava,
+  // não uma escrita direta do cliente (ver firestore.rules)
+  const ref = db.doc(`eventos/${data}`);
+  const snap = await ref.get();
+  if (snap.exists) throw new HttpsError("already-exists", "Já existe um culto nesse dia.");
+
+  await ref.set({
+    data, tipo: tipo.trim(), horaCulto, horaChegada,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { eventoId: data };
 });

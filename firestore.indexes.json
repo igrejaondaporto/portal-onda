@@ -9,6 +9,14 @@
       ]
     },
     {
+      "collectionGroup": "funcoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativa", "order": "ASCENDING" },
+        { "fieldPath": "nome", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "eventos",
       "queryScope": "COLLECTION",
       "fields": [
@@ -25,5 +33,13 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "escalas",
+      "fieldPath": "pessoas",
+      "indexes": [
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }
