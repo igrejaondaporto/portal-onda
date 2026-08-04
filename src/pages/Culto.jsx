@@ -1,23 +1,25 @@
 import { useEffect, useState } from "react";
-import { podeDistribuir } from "../lib/modelo";
+import { getDoc } from "firebase/firestore";
+import { cBase, podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes } from "../lib/painel";
-import { obterOrdemCulto, enviarOrdemCulto } from "../lib/culto";
+import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataPorExtenso, hojeISO } from "../lib/data";
-import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
 import SheetFeedback from "../components/culto/SheetFeedback";
+import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho }) {
-  const torrada = useTorrada();
+export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
   const souLiderBase = papel === "lider_base";
   const [aba, setAba] = useState(abaInicial ?? "ordem");
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
+  const [base, setBase] = useState(null);
   const [ordens, setOrdens] = useState({});
-  const [aEnviarPdf, setAEnviarPdf] = useState(null);
   const [sheetFeedback, setSheetFeedback] = useState(null);
+  const [cardAberto, setCardAberto] = useState(null);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
 
   useEffect(() => {
@@ -27,6 +29,15 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
       .then((pares) => { if (!cancelado) setOrdens(Object.fromEntries(pares)); });
     return () => { cancelado = true; };
   }, [eventosMes]);
+
+  // um único cronograma aberto de cada vez: o do próximo culto por data,
+  // ou o do último se já não houver nenhum por vir este mês
+  useEffect(() => setCardAberto(null), [mes, ano]);
+  useEffect(() => {
+    if (cardAberto != null || !eventosMes.length) return;
+    const hoje = hojeISO();
+    setCardAberto((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
+  }, [cardAberto, eventosMes]);
 
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
 
@@ -40,20 +51,6 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes, eventosMes.length, comFeedback]);
 
-  async function escolherPdf(eventoId, ficheiro) {
-    if (ficheiro.type !== "application/pdf") return torrada("Tem de ser um PDF.");
-    setAEnviarPdf(eventoId);
-    try {
-      const url = await enviarOrdemCulto(eventoId, ficheiro);
-      setOrdens((o) => ({ ...o, [eventoId]: url }));
-      torrada("Ficheiro subido — a base foi avisada");
-    } catch (e) {
-      torrada(e.message || "Não foi possível subir o ficheiro.");
-    } finally {
-      setAEnviarPdf(null);
-    }
-  }
-
   const hoje = hojeISO();
 
   return (
@@ -65,36 +62,14 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
 
       {aba === "ordem" ? (
         eventosMes.map((ev) => (
-          <div className="sect" key={ev.id}>
-            <div className="cabecalho">
-              <h3>{ev.tipo || dataPorExtenso(ev.data)}</h3>
-              {ordens[ev.id] ? <span className="tag verd">Disponível</span> : <span className="tag cinz">À espera</span>}
-            </div>
-            {ordens[ev.id] ? (
-              <a className="linha" href={ordens[ev.id]} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
-                <span className="bola" style={{ background: "var(--violeta)" }}>▤</span>
-                <div style={{ flex: 1 }}><p className="nmt">Ordem do culto</p><p className="ds">Abrir PDF</p></div>
-                <span className="seta">›</span>
-              </a>
-            ) : (
-              <div className="vaz">O líder costuma subir o ficheiro à quinta-feira.</div>
-            )}
-            {souLiderBase && (
-              <>
-                <input
-                  type="file" accept="application/pdf" id={`pdf-${ev.id}`} style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; if (f) escolherPdf(ev.id, f); }}
-                />
-                <button
-                  className="btn sec" style={{ marginTop: 12, padding: "10px 18px", fontSize: 13.5 }}
-                  disabled={aEnviarPdf === ev.id}
-                  onClick={() => document.getElementById(`pdf-${ev.id}`).click()}
-                >
-                  {aEnviarPdf === ev.id ? "A enviar…" : ordens[ev.id] ? "Substituir ficheiro" : "Subir ficheiro"}
-                </button>
-              </>
-            )}
-          </div>
+          <OrdemCultoCard
+            key={ev.id} evento={ev} souLiderBase={souLiderBase}
+            aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
+            chegada={ev.horaChegada || base?.horaChegada || "08:00"}
+            pdfUrlExistente={ordens[ev.id]}
+            onPdfEnviado={(eventoId, url) => setOrdens((o) => ({ ...o, [eventoId]: url }))}
+            onVerFuncoes={onVerFuncoes}
+          />
         ))
       ) : (
         <>

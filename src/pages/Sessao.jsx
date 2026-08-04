@@ -129,6 +129,7 @@ export default function Sessao({ uid, papel, baseId }) {
             <Culto
               uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
+              onVerFuncoes={irParaFuncoes}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>

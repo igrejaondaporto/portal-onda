@@ -1264,3 +1264,302 @@ textarea.campo {
     transition: none !important;
   }
 }
+
+/* ── ordem do culto: cronologia nativa (oc-) ── */
+.oc-cartao {
+  border: 1.5px solid var(--fio);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.oc-cartao + .oc-cartao {
+  margin-top: 14px;
+}
+.oc-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.oc-cab .nm {
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.oc-cab .ds {
+  font-size: 12.5px;
+  color: var(--cinza);
+  margin-top: 3px;
+}
+.oc-cab .seta {
+  flex: none;
+  transition: transform 0.2s;
+  color: var(--cinza);
+}
+.oc-cab[data-aberto="1"] .seta {
+  transform: rotate(90deg);
+}
+.oc-corpo {
+  padding: 0 18px 20px;
+}
+
+.oc-mom {
+  display: flex;
+  gap: 12px;
+}
+.oc-hora {
+  width: 46px;
+  flex: none;
+  text-align: right;
+  padding-top: 13px;
+}
+.oc-hora b {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.oc-hora span {
+  font-size: 10.5px;
+  color: var(--cinza);
+}
+.oc-trilho {
+  width: 2px;
+  background: var(--fio);
+  flex: none;
+  position: relative;
+  margin: 0 2px;
+}
+.oc-trilho::before {
+  content: "";
+  position: absolute;
+  top: 17px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--azul);
+}
+.oc-mom.destaque .oc-trilho::before {
+  background: var(--lima);
+  border-color: var(--lima);
+  width: 12px;
+  height: 12px;
+  left: -5px;
+}
+.oc-mom .txt {
+  flex: 1;
+  padding: 12px 0;
+}
+.oc-mom + .oc-mom .txt {
+  border-top: 1px solid var(--fio);
+}
+.oc-mom .nm {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.oc-mom .meta {
+  font-size: 12px;
+  color: var(--cinza);
+  margin-top: 3px;
+}
+.oc-marca {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--lima);
+  color: var(--tinta);
+  padding: 3px 8px;
+  border-radius: 100px;
+  margin-top: 6px;
+}
+
+.oc-nossa {
+  background: var(--grad);
+  color: #fff;
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.oc-nossa .l {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+.oc-nossa .l:last-child {
+  border-bottom: 0;
+}
+.oc-nossa .l span {
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+.oc-nossa .l b {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.oc-aviso {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--fio);
+}
+.oc-dt {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--agua);
+  color: var(--azul);
+  flex: none;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1.05;
+}
+.oc-dt b {
+  font-size: 14.5px;
+  font-weight: 800;
+  display: block;
+}
+.oc-dt span {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/* ── tabela editável da revisão (líder) ── */
+.oc-linha {
+  border: 1.5px solid var(--fio);
+  border-radius: 16px;
+  padding: 12px;
+  margin-top: 10px;
+}
+.oc-linha .campos {
+  display: grid;
+  grid-template-columns: 76px 1fr 60px;
+  gap: 8px;
+}
+.oc-linha .campos input {
+  font-family: inherit;
+}
+.oc-linha input,
+.oc-linha .oc-campoInline {
+  border: 1.5px solid var(--fio);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 13.5px;
+  font-family: inherit;
+  width: 100%;
+  color: var(--tinta);
+}
+.oc-linha .rot2 {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cinza);
+  margin-top: 8px;
+  display: block;
+}
+.oc-linha .acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+.oc-icobt {
+  border: 0;
+  background: var(--agua);
+  color: var(--azul);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.oc-icobt.mag {
+  background: #fff0f4;
+  color: var(--magenta);
+}
+
+.oc-avisoEd {
+  border: 1.5px solid var(--fio);
+  border-radius: 16px;
+  padding: 12px;
+  margin-top: 10px;
+}
+.oc-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--fio);
+}
+.oc-toggle span {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.oc-sw {
+  width: 40px;
+  height: 24px;
+  border-radius: 100px;
+  background: var(--fio);
+  border: 0;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+}
+.oc-sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: 0.18s;
+  box-shadow: 0 1px 3px rgba(10, 15, 46, 0.3);
+}
+.oc-sw[data-on="1"] {
+  background: var(--azul);
+}
+.oc-sw[data-on="1"]::after {
+  left: 19px;
+}
+
+.oc-sugestao {
+  background: var(--agua);
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-top: 14px;
+}
+.oc-sugestao p.nm {
+  font-size: 14px;
+  font-weight: 700;
+}
+.oc-sugestao p.ds {
+  font-size: 12.5px;
+  color: var(--cinza);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.oc-sugestao .lin {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}

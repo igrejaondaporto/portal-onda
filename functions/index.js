@@ -12,6 +12,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import admin from "firebase-admin";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { logger } from "firebase-functions";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -313,6 +315,135 @@ export const atribuirFuncao = onCall(async (req) => {
     atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { ok: true };
+});
+
+/* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
+ * O mesmo analisador testado contra o PDF real do pastor (ver
+ * culto-transcrito.html, na raiz do projeto) — só a origem do texto
+ * muda: aqui vem do Storage via pdfjs-dist em vez do <input type=file>
+ * do browser. Quando o pastor mudar o modelo do PDF, isto parte — o
+ * ecrã de revisão do líder é a rede de segurança, não um extra. */
+async function linhasDoPdf(bytes) {
+  const pdf = await getDocument({ data: bytes, disableFontFace: true, useSystemFonts: true }).promise;
+  const linhas = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const conteudo = await (await pdf.getPage(p)).getTextContent();
+    const porY = new Map();
+    for (const it of conteudo.items) {
+      if (!it.str.trim()) continue;
+      const y = Math.round(it.transform[5]);          // agrupa pela altura
+      const chave = [...porY.keys()].find((k) => Math.abs(k - y) <= 3) ?? y;
+      if (!porY.has(chave)) porY.set(chave, []);
+      porY.get(chave).push({ x: it.transform[4], s: it.str });
+    }
+    [...porY.entries()].sort((a, b) => b[0] - a[0]).forEach(([, itens]) => {
+      linhas.push(itens.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ")
+        .replace(/\s+/g, " ").trim());
+    });
+  }
+  return linhas.filter(Boolean);
+}
+
+const RESP = /(Pr(?:\.|a\.)?\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wáéíóúâêôãõçÁÉÍÓÚ.]*|Base\s+[A-Z]\w+|Banda|Projeç[ãa]o|Sonoplastia|Diaconia|Louvor)\s*$/;
+const DETALHE = /(Ilumina[çc][ãa]o:\s*.+|TODOS OS VOLUNT[ÁA]RIOS)\s*$/i;
+
+function analisar(linhas) {
+  const momentos = [], avisos = [];
+  let titulo = null, dataFicheiro = null;
+
+  linhas.forEach((linha, i) => {
+    const t = linha.match(/ORDEM CULTO ([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]+?)\s*(\d{2}\/\d{2})/i);
+    if (t) { titulo = t[1].trim(); dataFicheiro = t[2]; }
+
+    const m = linha.match(/^(\d{1,2}:\d{2})\s+(.+?)\s+(\d+)\s*min\s+(.*)$/);
+    if (m) {
+      let resto = m[4].trim(), detalhe = null, responsavel = null;
+      const d = resto.match(DETALHE);
+      if (d) { detalhe = d[1].trim(); resto = resto.slice(0, d.index).trim(); }
+      const r = resto.match(RESP);
+      if (r) { responsavel = r[1].trim(); resto = resto.slice(0, r.index).trim(); }
+      momentos.push({ hora: m[1], momento: m[2].trim(), minutos: +m[3],
+        projecao: resto === "-" ? null : resto || null, responsavel, detalhe });
+      return;
+    }
+
+    const a = linha.match(/(\d{2}\/\d{2})(?:\/\d{4})?[,\s]+(.*)$/);
+    if (a && !/^\d{1,2}:\d{2}/.test(linha) && !/min\b/.test(linha)) {
+      let nome = linha.slice(0, a.index).trim().replace(/[,\s–-]+$/, "");
+      if (!nome && i > 0) nome = linhas[i - 1].replace(/[,\s–-]+$/, "").trim();
+      let info = a[2].replace(/\s+(BG|BG Avisos|Avisos|Materiais)\s*$/i, "").trim();
+      if (linhas[i + 1] && /^(Povo|Casa|Sala)\b/.test(linhas[i + 1]) && info.endsWith("do"))
+        info += " " + linhas[i + 1].split(" ")[0];
+      if (nome) avisos.push({ nome, data: a[1], info });
+    }
+  });
+
+  let fim = null;
+  if (momentos.length) {
+    const u = momentos.at(-1), [h, mi] = u.hora.split(":").map(Number);
+    const t = h * 60 + mi + u.minutos;
+    fim = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  }
+  return { titulo, dataFicheiro, momentos, avisos, inicio: momentos[0]?.hora ?? null, fim };
+}
+
+export const lerOrdemCulto = onCall(async (req) => {
+  const { eventoId, caminhoStorage } = req.data || {};
+  exigeLider(req);
+  if (!eventoId || caminhoStorage !== `eventos/${eventoId}/ordem.pdf`) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  try {
+    const [bytes] = await admin.storage().bucket().file(caminhoStorage).download();
+    const r = analisar(await linhasDoPdf(bytes));
+    if (!r.momentos.length) return { momentos: [], avisos: [], falhou: true };
+    return { ...r, falhou: false };
+  } catch (e) {
+    logger.error("lerOrdemCulto falhou", e);
+    return { momentos: [], avisos: [], falhou: true };
+  }
+});
+
+/* ── PUBLICAR A ORDEM DO CULTO ─────────────────────────────────
+ * eventos/{e} é global e write:false (ver firestore.rules) — por
+ * isso passa por aqui, tal como a frase e o feedback. Grava só
+ * depois do líder confirmar no ecrã de revisão; nada é automático. */
+export const publicarOrdemCulto = onCall(async (req) => {
+  exigeLider(req);
+  const { eventoId, momentos, avisos, inicio, fim, pdfUrl, origem } = req.data || {};
+  if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const evento = await db.doc(`eventos/${eventoId}`).get();
+  if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+  const ano = evento.data().data.slice(0, 4);
+
+  const criados = [];
+  for (const aviso of avisos) {
+    if (!aviso?.criarCulto) continue;
+    const [dia, mes] = String(aviso.data || "").split("/");
+    if (!dia || !mes) continue;
+    const id = `${ano}-${mes}-${dia}`;
+    const ref = db.doc(`eventos/${id}`);
+    if ((await ref.get()).exists) continue;          // nunca sobrescreve
+    await ref.set({
+      data: id, tipo: aviso.nome, horaCulto: "10:30",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    criados.push({ id, tipo: aviso.nome });
+  }
+
+  const avisosLimpos = avisos.map(({ nome, data, info }) => ({ nome, data, info }));
+  await db.doc(`eventos/${eventoId}`).set({
+    ordem: {
+      momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
+      pdfUrl: pdfUrl ?? null, publicadoPor: req.auth.uid,
+      publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      origem: origem === "manual" ? "manual" : "auto",
+    },
+  }, { merge: true });
+
+  return { ok: true, cultosEspeciaisCriados: criados };
 });
 
 /* ── GERAR OS DOMINGOS DO ANO ─────────────────────────────── */

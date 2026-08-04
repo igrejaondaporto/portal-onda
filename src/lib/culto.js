@@ -74,6 +74,23 @@ export async function enviarOrdemCulto(eventoId, ficheiro) {
   return getDownloadURL(destino);
 }
 
+/** Pede à Cloud Function para ler o PDF que já está no Storage —
+ *  nunca lança erro por falha de leitura (o PDF já ficou guardado,
+ *  é isso que importa; { falhou: true } é que assinala o resto). */
+export const lerOrdemCulto = (eventoId) =>
+  chamar("lerOrdemCulto")({ eventoId, caminhoStorage: `eventos/${eventoId}/ordem.pdf` }).then((r) => r.data);
+
+/** Sobe o PDF e já pede a leitura a seguir. */
+export async function lerEEnviarOrdemCulto(eventoId, ficheiro) {
+  const pdfUrl = await enviarOrdemCulto(eventoId, ficheiro);
+  const resultado = await lerOrdemCulto(eventoId);
+  return { ...resultado, pdfUrl };
+}
+
+/** Só depois disto é que a ordem do culto existe para os voluntários. */
+export const publicarOrdemCulto = (dados) =>
+  chamar("publicarOrdemCulto")(dados).then((r) => r.data);
+
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
  *  Sem isso, cai no primeiro culto do mês (mesma rede de segurança do protótipo). */
 export async function obterMeuEvento(uid) {
