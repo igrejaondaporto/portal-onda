@@ -3,6 +3,11 @@ import { MESES } from "../../lib/data";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
 const paraMinutos = (hora) => { const [h, m] = hora.split(":").map(Number); return h * 60 + m; };
+const somarMinutos = (hora, minutos) => {
+  if (!hora) return null;
+  const t = paraMinutos(hora) + minutos;
+  return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
 
 /** Onde estamos agora, em relação à ordem do culto — só faz sentido
  *  no dia do culto, por isso "hoje" vem de fora. */
@@ -41,7 +46,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
         <div className="l"><span>Chegada da Base de Apoio</span><b>{chegada}</b></div>
         <div className="l"><span>Portas abertas</span><b>{ordem.portasAbertas ?? ordem.inicio ?? "—"}</b></div>
         <div className="l"><span>Fim do culto</span><b>{ordem.fim ?? "—"}</b></div>
-        <div className="l"><span>Arrumação a partir de</span><b>{ordem.fim ?? "—"}</b></div>
+        <div className="l"><span>Arrumação a partir de</span><b>{somarMinutos(ordem.fim, 10) ?? "—"}</b></div>
       </div>
 
       {agora?.fase === "antes" && (
