@@ -323,6 +323,9 @@ textarea {
 .pts.e i {
   background: var(--magenta);
 }
+.pts.a i.on {
+  animation: respirar 0.9s ease-in-out infinite;
+}
 .tr {
   animation: tr 0.4s;
 }
@@ -395,6 +398,30 @@ textarea {
   background: var(--grad);
   color: #fff;
 }
+.acarregar .logo {
+  animation: respirar 1.3s ease-in-out infinite;
+}
+@keyframes respirar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ── placeholders enquanto a grelha de fotos carrega ── */
+.p.skel {
+  pointer-events: none;
+}
+.p.skel .av,
+.p.skel b {
+  background: rgba(10, 15, 46, 0.08) !important;
+  animation: respirar 1.1s ease-in-out infinite;
+  color: transparent;
+}
+.p.skel b {
+  width: 52px;
+  height: 11px;
+  border-radius: 6px;
+  display: block;
+}
 /* ── casca da app (depois de entrar) ── */
 .app {
   background: #fff;
@@ -419,6 +446,14 @@ textarea {
 }
 .sect {
   padding-top: 22px;
+}
+.sect.realce {
+  animation: realce 1.6s ease-out;
+  border-radius: 16px;
+}
+@keyframes realce {
+  0% { background: var(--agua); box-shadow: 0 0 0 3px var(--agua); }
+  100% { background: transparent; box-shadow: 0 0 0 3px transparent; }
 }
 .cabecalho {
   display: flex;

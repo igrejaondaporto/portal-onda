@@ -285,7 +285,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}
             onMudarMes={(d) => definirMes(Math.min(11, Math.max(0, mes + d)))}
-            onAbrirDia={() => onIrEscala?.()}
+            onAbrirDia={(eventoId) => onIrEscala?.(eventoId)}
           />
         </div>
         <div className="sect">
