@@ -9,7 +9,7 @@
  */
 import {
   query, where, orderBy, onSnapshot, getDocs, getDoc,
-  doc, setDoc, updateDoc, serverTimestamp,
+  doc, setDoc, updateDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, chamar, BASE_ID } from "./firebase";
@@ -35,8 +35,18 @@ export const definirBase = (dados) => chamar("definirBase")(dados).then((r) => r
 
 /* ── catálogo de funções ──────────────────────────────────── */
 export function ouvirFuncoes(cb) {
-  const q = query(cFuncoes(), where("ativa", "==", true), orderBy("nome"));
+  const q = query(cFuncoes(), where("ativa", "==", true), orderBy("ordem"), orderBy("nome"));
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+/** O líder arrasta (botões ↑/↓) — grava a ordem final de toda a fase
+ *  de uma vez, para nunca ficar ordem empatada por reordenar só duas. */
+export async function reordenarFuncoes(lista) {
+  const lote = writeBatch(db);
+  lista.forEach((f, i) => {
+    lote.update(doc(db, `bases/${BASE_ID}/funcoes/${f.id}`), { ordem: i });
+  });
+  await lote.commit();
 }
 
 /** Id gerado no cliente — precisamos dele antes de gravar, para a foto

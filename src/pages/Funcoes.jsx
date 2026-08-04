@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FASES, funcoesDoCulto, podeDistribuir } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes } from "../lib/painel";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, reordenarFuncoes } from "../lib/painel";
 import { ouvirAtribuicoes, ouvirChecklist, atribuirFuncao, obterMeuEvento } from "../lib/culto";
 import { dataPorExtenso, dataCurta } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
@@ -76,6 +76,18 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
     }
   }
 
+  async function mover(doF, indice, direcao) {
+    const alvo = indice + direcao;
+    if (alvo < 0 || alvo >= doF.length) return;
+    const nova = [...doF];
+    [nova[indice], nova[alvo]] = [nova[alvo], nova[indice]];
+    try {
+      await reordenarFuncoes(nova);
+    } catch (e) {
+      torrada(e.message || "Não foi possível reordenar.");
+    }
+  }
+
   async function limpar(funcaoId) {
     try {
       await atribuirFuncao(evento.id, funcaoId, []);
@@ -139,7 +151,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
         return (
           <div key={k}>
             <div className="fasecab"><h4>{t}</h4><span>{d}</span><em>{semDono ? `${semDono} livres` : "completo"}</em></div>
-            {doF.map((f) => (
+            {doF.map((f, i) => (
               <LinhaFuncao
                 key={f.id} f={f} ids={atribuicoes[f.id] || []} voluntarios={voluntarios}
                 feita={!!checklist[f.id]} aberta={aberta === f.id} pode={pode} souLiderBase={souLiderBase}
@@ -147,6 +159,8 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
                 onAbrir={() => setAberta(aberta === f.id ? null : f.id)}
                 onEscolher={() => setSheet({ tipo: "escolher", funcaoId: f.id })}
                 onEditar={() => setSheet({ tipo: "funcao", funcaoId: f.id })}
+                onSubir={() => mover(doF, i, -1)} onDescer={() => mover(doF, i, 1)}
+                primeira={i === 0} ultima={i === doF.length - 1}
               />
             ))}
           </div>

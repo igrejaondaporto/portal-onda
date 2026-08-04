@@ -1,7 +1,10 @@
 import Bola from "../Bola";
 import Avatares from "../Avatares";
 
-export default function LinhaFuncao({ f, ids, voluntarios, feita, aberta, pode, souLiderBase, uid, nomeLiderBase, onAbrir, onEscolher, onEditar }) {
+export default function LinhaFuncao({
+  f, ids, voluntarios, feita, aberta, pode, souLiderBase, uid, nomeLiderBase,
+  onAbrir, onEscolher, onEditar, onSubir, onDescer, primeira, ultima,
+}) {
   const pessoas = ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean);
   const nomes = pessoas.map((p) => p.nome).join(" e ");
 
@@ -39,6 +42,22 @@ export default function LinhaFuncao({ f, ids, voluntarios, feita, aberta, pode, 
               {souLiderBase && (
                 <button className="btn sec" style={{ padding: "10px 17px", fontSize: 13 }} onClick={(e) => { e.stopPropagation(); onEditar(); }}>
                   Editar
+                </button>
+              )}
+              {souLiderBase && onSubir && (
+                <button
+                  className="btn sec" style={{ padding: "10px 14px", fontSize: 13 }} disabled={primeira}
+                  onClick={(e) => { e.stopPropagation(); onSubir(); }}
+                >
+                  ↑ Subir
+                </button>
+              )}
+              {souLiderBase && onDescer && (
+                <button
+                  className="btn sec" style={{ padding: "10px 14px", fontSize: 13 }} disabled={ultima}
+                  onClick={(e) => { e.stopPropagation(); onDescer(); }}
+                >
+                  ↓ Descer
                 </button>
               )}
             </div>
