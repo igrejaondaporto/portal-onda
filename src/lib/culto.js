@@ -96,6 +96,11 @@ export const removerOrdemCulto = (eventoId) =>
 export const publicarOrdemCulto = (dados) =>
   chamar("publicarOrdemCulto")(dados).then((r) => r.data);
 
+/** Apaga a ordem já publicada e o PDF — volta a "à espera do PDF",
+ *  como se nada tivesse sido enviado. */
+export const limparOrdemCulto = (eventoId) =>
+  chamar("limparOrdemCulto")({ eventoId }).then((r) => r.data);
+
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
  *  Sem isso, cai no primeiro culto do mês (mesma rede de segurança do protótipo). */
 export async function obterMeuEvento(uid) {

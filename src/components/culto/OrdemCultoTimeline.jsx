@@ -97,8 +97,11 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
       )}
 
       {ordem.pdfUrl && (
-        <a className="link" href={ordem.pdfUrl} target="_blank" rel="noreferrer" style={{ marginTop: 16 }}>
-          Ver o PDF original ›
+        <a
+          className="btn sec full" href={ordem.pdfUrl} target="_blank" rel="noreferrer"
+          style={{ marginTop: 16, textDecoration: "none", display: "block", textAlign: "center" }}
+        >
+          Ver o PDF original
         </a>
       )}
     </>

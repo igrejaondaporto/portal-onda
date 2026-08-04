@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto } from "../../lib/culto";
+import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto, limparOrdemCulto } from "../../lib/culto";
 import { useTorrada } from "../../lib/TorradaContext";
 import { nomeEvento, hojeISO } from "../../lib/data";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
@@ -13,6 +13,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
   const inputRef = useRef(null);
   const [aEnviar, setAEnviar] = useState(false);
   const [aConfirmarRemover, setAConfirmarRemover] = useState(false);
+  const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
   const [revisao, setRevisao] = useState(null);
   const [sugestao, setSugestao] = useState(null);
 
@@ -61,6 +62,20 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
     }
   }
 
+  async function limpar() {
+    setAEnviar(true);
+    try {
+      await limparOrdemCulto(evento.id);
+      onPdfEnviado?.(evento.id, null);
+      setAConfirmarLimpar(false);
+      torrada("Ordem limpa — volta a estar à espera do PDF");
+    } catch (e) {
+      torrada(e.message || "Não foi possível limpar a ordem.");
+    } finally {
+      setAEnviar(false);
+    }
+  }
+
   return (
     <div className="oc-cartao">
       <button className="oc-cab" data-aberto={aberto ? 1 : 0} onClick={onAbrir}>
@@ -80,13 +95,43 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
           {publicado ? (
             <>
               <OrdemCultoTimeline ordem={evento.ordem} chegada={chegada} hoje={evento.data === hojeISO()} />
-              {souLiderBase && (
-                <button
-                  className="btn sec full" style={{ marginTop: 16 }} disabled={aEnviar}
-                  onClick={() => inputRef.current.click()}
-                >
-                  {aEnviar ? "A enviar…" : "Substituir por um novo PDF"}
-                </button>
+              {souLiderBase && !aConfirmarLimpar && (
+                <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                  <button
+                    className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aEnviar}
+                    onClick={() => inputRef.current.click()}
+                  >
+                    {aEnviar ? "A enviar…" : "Substituir por um novo PDF"}
+                  </button>
+                  <button
+                    className="btn sec" style={{ flex: 1, fontSize: 13, color: "var(--magenta)" }} disabled={aEnviar}
+                    onClick={() => setAConfirmarLimpar(true)}
+                  >
+                    Limpar Ordem
+                  </button>
+                </div>
+              )}
+              {souLiderBase && aConfirmarLimpar && (
+                <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600 }}>Limpar a ordem publicada?</p>
+                  <p className="ds" style={{ marginTop: 4 }}>
+                    Apaga a ordem publicada e o PDF — volta ao estado "à espera do PDF", como se nada tivesse sido enviado.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button
+                      className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }}
+                      disabled={aEnviar} onClick={limpar}
+                    >
+                      {aEnviar ? "A limpar…" : "Limpar"}
+                    </button>
+                    <button
+                      className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar}
+                      onClick={() => setAConfirmarLimpar(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
               )}
             </>
           ) : (
