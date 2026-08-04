@@ -8,6 +8,7 @@ import { ouvirFuncoes } from "../lib/painel";
 import { nomeEvento, dataPorExtenso } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import { sair } from "../lib/auth";
+import ImagemExpandida from "../components/ImagemExpandida";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -27,6 +28,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
   const [funcoes, setFuncoes] = useState([]);
   const [meusPedidos, setMeusPedidos] = useState([]);
   const [atribuicoesPorEvento, setAtribuicoesPorEvento] = useState({});
+  const [expandida, setExpandida] = useState(false);
 
   useEffect(() => { setNome(pessoa?.nome ?? ""); setTelefone(pessoa?.telefone ?? ""); }, [pessoa]);
   useEffect(() => { obterMeusProximosDomingos(uid).then(setDomingos); }, [uid]);
@@ -113,10 +115,12 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
         <div className="sect" style={{ textAlign: "center" }}>
           <div
             className="perfilav"
-            style={pessoa?.foto ? { backgroundImage: `url(${pessoa.foto})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: pessoa?.cor || "#0019BE" }}
+            style={pessoa?.foto ? { backgroundImage: `url(${pessoa.foto})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "pointer" } : { background: pessoa?.cor || "#0019BE" }}
+            onClick={pessoa?.foto ? () => setExpandida(true) : undefined}
           >
             {pessoa?.foto ? "" : pessoa?.nome?.[0]}
           </div>
+          {expandida && <ImagemExpandida src={pessoa.foto} alt={pessoa.nome} onFechar={() => setExpandida(false)} />}
           <p style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.03em", marginTop: 14 }}>{pessoa?.nome ?? "…"}</p>
           <p className="ds">{souLiderBase ? "Líder da base de apoio" : "Voluntário da base de apoio"}</p>
           <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
