@@ -318,11 +318,17 @@ export const atribuirFuncao = onCall(async (req) => {
 });
 
 /* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
- * O mesmo analisador testado contra o PDF real do pastor (ver
+ * A base é o analisador testado contra o PDF real do pastor (ver
  * culto-transcrito.html, na raiz do projeto) — só a origem do texto
  * muda: aqui vem do Storage via pdfjs-dist em vez do <input type=file>
- * do browser. Quando o pastor mudar o modelo do PDF, isto parte — o
- * ecrã de revisão do líder é a rede de segurança, não um extra. */
+ * do browser. Duas correções vieram de testar com o PDF a sério:
+ *   1. o extrator às vezes mete espaços à volta de ':' e '/' dentro
+ *      de horas e datas (ex.: "09 : 30") — normalizar() tira-os.
+ *   2. o nome de um aviso pode cair na linha A SEGUIR à data, não só
+ *      antes dela na mesma linha, quando a célula "Informações" da
+ *      grelha quebra em duas linhas.
+ * Quando o pastor mudar o modelo do PDF, isto parte — o ecrã de
+ * revisão do líder é a rede de segurança, não um extra. */
 async function linhasDoPdf(bytes) {
   const pdf = await getDocument({ data: bytes, disableFontFace: true, useSystemFonts: true }).promise;
   const linhas = [];
@@ -337,15 +343,26 @@ async function linhasDoPdf(bytes) {
       porY.get(chave).push({ x: it.transform[4], s: it.str });
     }
     [...porY.entries()].sort((a, b) => b[0] - a[0]).forEach(([, itens]) => {
-      linhas.push(itens.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ")
-        .replace(/\s+/g, " ").trim());
+      linhas.push(normalizar(itens.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ")
+        .replace(/\s+/g, " ").trim()));
     });
   }
   return linhas.filter(Boolean);
 }
 
+/** Junta glifos partidos pelo extrator de texto: "09 : 30" → "09:30",
+ *  "14 / 08" → "14/08", "sexta - feira" → "sexta-feira". */
+function normalizar(linha) {
+  return linha
+    .replace(/(\d)\s*:\s*(\d)/g, "$1:$2")
+    .replace(/(\d)\s*\/\s*(\d)/g, "$1/$2")
+    .replace(/([a-zà-úA-ZÀ-Ú])\s+-\s+([a-zà-úA-ZÀ-Ú])/g, "$1-$2")
+    .replace(/\s+,/g, ",");
+}
+
 const RESP = /(Pr(?:\.|a\.)?\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wáéíóúâêôãõçÁÉÍÓÚ.]*|Base\s+[A-Z]\w+|Banda|Projeç[ãa]o|Sonoplastia|Diaconia|Louvor)\s*$/;
 const DETALHE = /(Ilumina[çc][ãa]o:\s*.+|TODOS OS VOLUNT[ÁA]RIOS)\s*$/i;
+const RUIDO_FIM_AVISO = /\s+((BG|Avisos|Materiais)\s*)+$/i;
 
 function analisar(linhas) {
   const momentos = [], avisos = [];
@@ -369,11 +386,23 @@ function analisar(linhas) {
 
     const a = linha.match(/(\d{2}\/\d{2})(?:\/\d{4})?[,\s]+(.*)$/);
     if (a && !/^\d{1,2}:\d{2}/.test(linha) && !/min\b/.test(linha)) {
-      let nome = linha.slice(0, a.index).trim().replace(/[,\s–-]+$/, "");
-      if (!nome && i > 0) nome = linhas[i - 1].replace(/[,\s–-]+$/, "").trim();
-      let info = a[2].replace(/\s+(BG|BG Avisos|Avisos|Materiais)\s*$/i, "").trim();
-      if (linhas[i + 1] && /^(Povo|Casa|Sala)\b/.test(linhas[i + 1]) && info.endsWith("do"))
-        info += " " + linhas[i + 1].split(" ")[0];
+      let nome = linha.slice(0, a.index).trim().replace(/[,\s–-]+$/, "").replace(RUIDO_FIM_AVISO, "").trim();
+      let j = i + 1;
+      // sem nome antes da data nesta linha? a célula "Evento" da grelha
+      // pode ter caído na linha seguinte, não na anterior
+      if (!nome) {
+        const candidato = linhas[j];
+        if (candidato && !/^(Evento|Informa)/i.test(candidato)) {
+          nome = candidato.replace(RUIDO_FIM_AVISO, "").trim();
+          j++;
+        }
+      }
+      const infoPartes = [a[2]];
+      if (linhas[j] && /^(Povo|Casa|Sala)\b/.test(linhas[j]) && infoPartes.join(" ").trim().endsWith("do")) {
+        infoPartes.push(linhas[j].split(" ")[0]);
+        j++;
+      }
+      const info = infoPartes.join(" ").replace(RUIDO_FIM_AVISO, "").trim();
       if (nome) avisos.push({ nome, data: a[1], info });
     }
   });

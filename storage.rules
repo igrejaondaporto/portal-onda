@@ -24,9 +24,11 @@ service firebase.storage {
     }
     match /eventos/{evento}/ordem.pdf {
       allow read:  if autenticado();
+      // no delete, request.resource é sempre null — só se exige o
+      // contentType quando há mesmo um ficheiro a entrar (create/update)
       allow write: if autenticado()
                    && request.auth.token.papel == 'lider_base'
-                   && request.resource.contentType == 'application/pdf';
+                   && (request.resource == null || request.resource.contentType == 'application/pdf');
     }
     match /{tudo=**} { allow read, write: if false; }
   }
