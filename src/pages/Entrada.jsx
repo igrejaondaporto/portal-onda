@@ -90,6 +90,9 @@ export default function Entrada({ onDeveTrocarPin }) {
         <p className="nota">
           O teu nome e a tua foto ficam visíveis para as pessoas da tua base. Mais nada é partilhado.
         </p>
+        <p className="assinatura">
+          Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
+        </p>
       </div>
       {alvo && (
         <SheetPin

@@ -248,9 +248,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
           <p className="ds" style={{ marginTop: 10 }}>
             {total === 0 ? "Ainda não há funções para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
           </p>
-          {total > 0 && !checklistAberta && (
-            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta(true)}>
-              Ver Checklist do dia
+          {total > 0 && (
+            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta((a) => !a)}>
+              {checklistAberta ? "Ocultar checklist" : "Ver Checklist do dia"}
             </button>
           )}
           {checklistAberta && (

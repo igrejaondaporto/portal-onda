@@ -1,12 +1,10 @@
-import { MESES, hojeISO } from "../lib/data";
+import { MESES } from "../lib/data";
 
 export default function Calendario({ ano, mes, eventosMes, uid, onMudarMes, onAbrirDia }) {
   const primeiro = (new Date(ano, mes, 1).getDay() + 6) % 7;
   const dias = new Date(ano, mes + 1, 0).getDate();
   const hoje = new Date();
-  const hojeIso = hojeISO();
   const ehHoje = (d) => hoje.getFullYear() === ano && hoje.getMonth() === mes && hoje.getDate() === d;
-  const pad2 = (n) => String(n).padStart(2, "0");
 
   const porDia = {};
   eventosMes.forEach((ev) => { porDia[Number(ev.data.slice(8, 10))] = ev; });
@@ -18,7 +16,6 @@ export default function Calendario({ ano, mes, eventosMes, uid, onMudarMes, onAb
     let cl = "cald";
     if (ev) cl += ev.escala.pessoas.includes(uid) ? " sirvo" : " culto";
     if (ehHoje(d)) cl += " hoje";
-    else if (`${ano}-${pad2(mes + 1)}-${pad2(d)}` < hojeIso) cl += " passado";
     celulas.push(
       <div
         key={d} className={cl}

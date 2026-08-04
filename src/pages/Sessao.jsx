@@ -154,7 +154,9 @@ export default function Sessao({ uid, papel, baseId }) {
           {pagina === "painel" && (
             <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
           )}
-          <p className="assinatura">Feito por @geniai.pt</p>
+          <p className="assinatura">
+            Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
+          </p>
         </div>
       </div>
       <NavBar pagina={pagina} onIr={irPara} />

@@ -76,8 +76,8 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
                   <tr>
                     <th>Apoio</th>
                     {eventosMes.map((ev) => (
-                      <th key={ev.id} className={ev.data === hoje ? "hj" : ev.data < hoje ? "passado" : ""}>
-                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ""}
+                      <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
+                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
                       </th>
                     ))}
                   </tr>
@@ -111,9 +111,10 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
             ref={(el) => { refsEventos.current[ev.id] = el; }}
           >
             <div className="cabecalho">
-              <h3 className={ev.data < hoje ? "passado" : ""}>
+              <h3>
                 {ev.tipo || dataPorExtenso(ev.data)}
                 {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
+                {ev.data < hoje && " ✅"}
               </h3>
               {ev.escala.pessoas.includes(uid) ? (
                 <span className="tag verd">Serves</span>
