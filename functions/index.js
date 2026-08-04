@@ -423,8 +423,10 @@ export const lerOrdemCulto = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
   try {
-    const [bytes] = await admin.storage().bucket().file(caminhoStorage).download();
-    const r = analisar(await linhasDoPdf(bytes));
+    const [buffer] = await admin.storage().bucket().file(caminhoStorage).download();
+    // pdfjs-dist exige um Uint8Array "puro" — um Buffer do Node, mesmo
+    // sendo tecnicamente um Uint8Array, é rejeitado pelo teste interno dele
+    const r = analisar(await linhasDoPdf(new Uint8Array(buffer)));
     if (!r.momentos.length) return { momentos: [], avisos: [], falhou: true };
     return { ...r, falhou: false };
   } catch (e) {
