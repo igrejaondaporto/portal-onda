@@ -68,7 +68,7 @@ export default function Sessao({ uid, papel, baseId }) {
   return (
     <TorradaProvider>
       <div className="app">
-        <div className="crista topo" style={{ paddingBottom: 20 }}>
+        <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">
               <i>igreja</i>
@@ -100,6 +100,9 @@ export default function Sessao({ uid, papel, baseId }) {
               ))}
             </div>
           )}
+          <svg className="curva" viewBox="0 0 400 46" preserveAspectRatio="none">
+            <path d="M0,46 C110,4 290,4 400,46 L400,46 L0,46 Z" fill="#fff" />
+          </svg>
         </div>
         <div className="corpo">
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>

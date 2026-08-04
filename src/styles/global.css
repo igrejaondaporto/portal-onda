@@ -1347,7 +1347,7 @@ textarea.campo {
   background: #fff;
   border: 2.5px solid var(--cinza);
 }
-.oc-mom.destaque .oc-trilho::before {
+.oc-mom.oc-destaque .oc-trilho::before {
   background: var(--lima);
   border-color: var(--lima);
   width: 12px;

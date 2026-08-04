@@ -56,7 +56,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
       <div>
         {ordem.momentos.map((m, i) => (
           <div
-            className={`oc-mom${NOSSOS.test(m.momento) ? " destaque" : ""}${agora?.indice === i ? " agora" : ""}`}
+            className={`oc-mom${NOSSOS.test(m.momento) ? " oc-destaque" : ""}${agora?.indice === i ? " agora" : ""}`}
             key={i}
           >
             <div className="oc-hora"><b>{m.hora}</b><span>{m.minutos}min</span></div>
