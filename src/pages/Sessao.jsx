@@ -137,7 +137,7 @@ export default function Sessao({ uid, papel, baseId }) {
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
             <Inventario
-              uid={uid} ativo={pagina === "inventario"} definirCabecalho={setCab}
+              uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
               onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>

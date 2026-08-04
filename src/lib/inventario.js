@@ -1,14 +1,40 @@
 /**
  * Inventário: qualquer voluntário mexe na quantidade, só o líder da
- * base cria ou apaga itens (regras já tratam disso). Cada alteração
- * fica registada em movimentos — é a promessa que a própria página faz.
+ * base cria, edita ou desativa itens (regras já tratam disso). Cada
+ * alteração de quantidade fica registada em movimentos — é a promessa
+ * que a própria página faz. Nada é apagado, só ativo:false.
  */
-import { collection, doc, addDoc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db, BASE_ID } from "./firebase";
+import { collection, doc, addDoc, onSnapshot, query, where, runTransaction, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage, BASE_ID } from "./firebase";
 import { cInventario } from "./modelo";
 
 export function ouvirInventario(cb) {
-  return onSnapshot(cInventario(), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  const q = query(cInventario(), where("ativo", "==", true));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+/** Id gerado no cliente — precisamos dele antes de gravar, para a foto
+ *  (em Storage) e o documento (no Firestore) apontarem ao mesmo sítio. */
+export const novoItemInventarioId = () => doc(cInventario()).id;
+
+export async function criarItemInventario(id, dados) {
+  await setDoc(doc(db, `bases/${BASE_ID}/inventario/${id}`), {
+    ...dados, ativo: true, criadoEm: serverTimestamp(),
+  });
+  return id;
+}
+
+export const guardarItemInventario = (itemId, dados) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/inventario/${itemId}`), dados);
+
+export const desativarItemInventario = (itemId) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/inventario/${itemId}`), { ativo: false });
+
+export async function enviarFotoItemInventario(itemId, ficheiro) {
+  const destino = refStorage(storage, `bases/${BASE_ID}/inventario/${itemId}`);
+  await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+  return getDownloadURL(destino);
 }
 
 /** increment() é atómico no servidor — duas pessoas a mexer ao mesmo
