@@ -39,6 +39,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
   const [inventario, setInventario] = useState([]);
+  const [checklistAberta, setChecklistAberta] = useState(false);
 
   useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -247,42 +248,49 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
           <p className="ds" style={{ marginTop: 10 }}>
             {total === 0 ? "Ainda não há funções para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
           </p>
-          {total > 0 && (
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
-              <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
-            </div>
+          {total > 0 && !checklistAberta && (
+            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta(true)}>
+              Ver Checklist do dia
+            </button>
           )}
-          {FASES.map(([k, t]) => {
-            const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
-            if (!doF.length) return null;
-            const fe = doF.filter((f) => checklist[f.id]).length;
-            return (
-              <div key={k}>
-                <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
-                {doF.map((f) => {
-                  const ok = !!checklist[f.id];
-                  const ids = atribuicoes[f.id] || [];
-                  return (
-                    <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
-                      <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
-                        <p className="ds">
-                          {ok
-                            ? `${voluntarios.find((p) => p.id === checklist[f.id].por)?.nome ?? "alguém"} · ${checklist[f.id].hora}`
-                            : ids.length
-                              ? ids.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")
-                              : "Por atribuir"}
-                        </p>
-                      </div>
-                      <Avatares pessoas={ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean)} />
-                    </div>
-                  );
-                })}
+          {checklistAberta && (
+            <>
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
+                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
-            );
-          })}
+              {FASES.map(([k, t]) => {
+                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+                if (!doF.length) return null;
+                const fe = doF.filter((f) => checklist[f.id]).length;
+                return (
+                  <div key={k}>
+                    <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
+                    {doF.map((f) => {
+                      const ok = !!checklist[f.id];
+                      const ids = atribuicoes[f.id] || [];
+                      return (
+                        <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
+                          <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
+                          <div style={{ flex: 1 }}>
+                            <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
+                            <p className="ds">
+                              {ok
+                                ? `${voluntarios.find((p) => p.id === checklist[f.id].por)?.nome ?? "alguém"} · ${checklist[f.id].hora}`
+                                : ids.length
+                                  ? ids.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")
+                                  : "Por atribuir"}
+                            </p>
+                          </div>
+                          <Avatares pessoas={ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
 

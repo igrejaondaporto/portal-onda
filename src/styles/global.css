@@ -1586,3 +1586,34 @@ textarea.campo {
   margin-top: 10px;
   flex-wrap: wrap;
 }
+
+/* ── foto expandida (lightbox) ── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(4, 8, 40, 0.9);
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  animation: fd 0.18s;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 85vh;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.lightbox-fechar {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
