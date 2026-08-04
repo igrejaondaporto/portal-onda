@@ -8,7 +8,7 @@ import LinhaFuncao from "../components/funcoes/LinhaFuncao";
 import SheetEscolher from "../components/funcoes/SheetEscolher";
 import SheetFuncao from "../components/painel/SheetFuncao";
 
-export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) {
+export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [eventoId, setEventoId] = useState(eventoIdFoco ?? null);
@@ -23,7 +23,9 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
   useEffect(() => {
     if (eventoIdFoco) setEventoId(eventoIdFoco);
     else obterMeuEvento(uid).then((ev) => setEventoId(ev?.id ?? null));
-  }, [uid, eventoIdFoco]);
+    // focoSeq muda a cada navegação para aqui, mesmo que o alvo seja o mesmo de antes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, eventoIdFoco, focoSeq]);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -51,7 +53,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
 
   useEffect(() => {
-    if (!evento) return;
+    if (!ativo || !evento) return;
     definirCabecalho({
       titulo: "Funções",
       subtitulo: evento.tipo ? `${evento.tipo} · ${dataPorExtenso(evento.data)}` : "Toca numa função para ver como se faz",
@@ -62,7 +64,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
       ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [evento, funcoesCulto.length, especiais.length, nomeLiderEscala]);
+  }, [ativo, evento, funcoesCulto.length, especiais.length, nomeLiderEscala]);
 
   async function alternar(funcaoId, pessoaId) {
     const atuais = atribuicoes[funcaoId] || [];

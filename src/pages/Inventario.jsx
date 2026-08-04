@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ouvirInventario, mexerQuantidade } from "../lib/inventario";
 import { useTorrada } from "../lib/TorradaContext";
 
-export default function Inventario({ uid, definirCabecalho, onIrReembolsos }) {
+export default function Inventario({ uid, ativo, definirCabecalho, onIrReembolsos }) {
   const torrada = useTorrada();
   const [itens, setItens] = useState([]);
 
@@ -12,13 +12,14 @@ export default function Inventario({ uid, definirCabecalho, onIrReembolsos }) {
   const categorias = [...new Set(itens.map((i) => i.categoria))];
 
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
       titulo: "Inventário",
       subtitulo: "O material da base, sempre atualizado",
       chips: [`${itens.length} itens`, falta.length ? `${falta.length} abaixo do mínimo` : "Tudo em ordem"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itens.length, falta.length]);
+  }, [ativo, itens.length, falta.length]);
 
   async function mexer(item, delta) {
     try {

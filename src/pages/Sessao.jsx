@@ -28,6 +28,7 @@ export default function Sessao({ uid, papel, baseId }) {
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano] = useState(hoje.getFullYear());
   const [focoEvento, setFocoEvento] = useState(null);
+  const [focoSeq, setFocoSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
@@ -39,11 +40,12 @@ export default function Sessao({ uid, papel, baseId }) {
   function irPara(p) {
     setPagina(p);
     setMenuAberto(false);
-    if (p === "funcoes") setFocoEvento(null);
+    if (p === "funcoes") { setFocoEvento(null); setFocoSeq((s) => s + 1); }
   }
 
   function irParaFuncoes(eventoId) {
     setFocoEvento(eventoId ?? null);
+    setFocoSeq((s) => s + 1);
     setPagina("funcoes");
     setMenuAberto(false);
   }
@@ -91,29 +93,40 @@ export default function Sessao({ uid, papel, baseId }) {
           )}
         </div>
         <div className="corpo">
-          {pagina === "inicio" && (
+          <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
-              definirCabecalho={setCab} onIrEscala={() => irPara("escala")} onVerFuncoes={irParaFuncoes}
+              ativo={pagina === "inicio"} definirCabecalho={setCab}
+              onIrEscala={() => irPara("escala")} onVerFuncoes={irParaFuncoes}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
             />
-          )}
-          {pagina === "escala" && (
+          </div>
+          <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} mes={mes} ano={ano} definirMes={setMes} definirCabecalho={setCab}
+              uid={uid} mes={mes} ano={ano} definirMes={setMes}
+              ativo={pagina === "escala"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
             />
-          )}
-          {pagina === "funcoes" && (
-            <Funcoes uid={uid} papel={papel} eventoIdFoco={focoEvento} definirCabecalho={setCab} />
-          )}
-          {pagina === "culto" && (
-            <Culto uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto} definirCabecalho={setCab} />
-          )}
-          {pagina === "inventario" && (
-            <Inventario uid={uid} definirCabecalho={setCab} onIrReembolsos={() => irPara("reembolsos")} />
-          )}
+          </div>
+          <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
+            <Funcoes
+              uid={uid} papel={papel} eventoIdFoco={focoEvento} focoSeq={focoSeq}
+              ativo={pagina === "funcoes"} definirCabecalho={setCab}
+            />
+          </div>
+          <div style={{ display: pagina === "culto" ? "" : "none" }}>
+            <Culto
+              uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
+              ativo={pagina === "culto"} definirCabecalho={setCab}
+            />
+          </div>
+          <div style={{ display: pagina === "inventario" ? "" : "none" }}>
+            <Inventario
+              uid={uid} ativo={pagina === "inventario"} definirCabecalho={setCab}
+              onIrReembolsos={() => irPara("reembolsos")}
+            />
+          </div>
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
           )}

@@ -7,7 +7,7 @@ import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
 import SheetFeedback from "../components/culto/SheetFeedback";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, definirCabecalho }) {
+export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [aba, setAba] = useState(abaInicial ?? "ordem");
@@ -31,13 +31,14 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, definirCabecal
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
 
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
       titulo: "Culto",
       subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
       chips: aba === "ordem" ? [MESES[mes]] : [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aba, mes, eventosMes.length, comFeedback]);
+  }, [ativo, aba, mes, eventosMes.length, comFeedback]);
 
   async function escolherPdf(eventoId, ficheiro) {
     if (ficheiro.type !== "application/pdf") return torrada("Tem de ser um PDF.");

@@ -5,7 +5,7 @@ import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
 
-export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, onVerFuncoes }) {
+export default function Escala({ uid, mes, ano, definirMes, ativo, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [base, setBase] = useState(null);
@@ -20,13 +20,14 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, on
   const hoje = hojeISO();
 
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
       titulo: "Escala",
       subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
       chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:00"}` : "Escala por definir"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventosMes.length, temEscala, mes, base]);
+  }, [ativo, eventosMes.length, temEscala, mes, base]);
 
   const maxLin = Math.max(0, ...eventosMes.map((e) => e.escala.pessoas.filter((id) => id !== e.escala.liderEscala).length));
   const linhas = [];

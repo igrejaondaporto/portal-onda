@@ -24,7 +24,7 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -77,6 +77,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
   }, [ano, mes]);
 
   useEffect(() => {
+    if (!ativo) return;
     if (!meuEvento) {
       definirCabecalho({ titulo: <>Olá,<br /><em>{pessoa?.nome ?? "…"}</em></>, subtitulo: "", chips: [] });
       return;
@@ -91,7 +92,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
+  }, [ativo, meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
 
   async function alternarFeito(funcaoId) {
     if (!meuEvento) return;
