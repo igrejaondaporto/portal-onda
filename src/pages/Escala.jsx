@@ -76,7 +76,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
                   <tr>
                     <th>Apoio</th>
                     {eventosMes.map((ev) => (
-                      <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
+                      <th key={ev.id} className={ev.data === hoje ? "hj" : ev.data < hoje ? "passado" : ""}>
                         {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ""}
                       </th>
                     ))}
@@ -111,7 +111,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
             ref={(el) => { refsEventos.current[ev.id] = el; }}
           >
             <div className="cabecalho">
-              <h3>
+              <h3 className={ev.data < hoje ? "passado" : ""}>
                 {ev.tipo || dataPorExtenso(ev.data)}
                 {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
               </h3>
