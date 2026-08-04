@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { lerOrdemCulto, lerEEnviarOrdemCulto } from "../../lib/culto";
+import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto } from "../../lib/culto";
 import { useTorrada } from "../../lib/TorradaContext";
 import { nomeEvento } from "../../lib/data";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
@@ -12,6 +12,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
   const torrada = useTorrada();
   const inputRef = useRef(null);
   const [aEnviar, setAEnviar] = useState(false);
+  const [aConfirmarRemover, setAConfirmarRemover] = useState(false);
   const [revisao, setRevisao] = useState(null);
   const [sugestao, setSugestao] = useState(null);
 
@@ -41,6 +42,20 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
       setRevisao({ ...resultado, pdfUrl });
     } catch (e) {
       torrada(e.message || "Não foi possível ler o PDF.");
+    } finally {
+      setAEnviar(false);
+    }
+  }
+
+  async function remover() {
+    setAEnviar(true);
+    try {
+      await removerOrdemCulto(evento.id);
+      onPdfEnviado?.(evento.id, null);
+      setAConfirmarRemover(false);
+      torrada("Ficheiro removido");
+    } catch (e) {
+      torrada(e.message || "Não foi possível remover o ficheiro.");
     } finally {
       setAEnviar(false);
     }
@@ -93,13 +108,43 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
                   {aEnviar ? "A ler o ficheiro…" : pdfUrl ? "Rever e publicar" : "Subir ficheiro"}
                 </button>
               )}
-              {souLiderBase && pdfUrl && (
-                <button
-                  className="btn sec full" style={{ marginTop: 9, fontSize: 12.5 }} disabled={aEnviar}
-                  onClick={() => inputRef.current.click()}
-                >
-                  Substituir o ficheiro
-                </button>
+              {souLiderBase && pdfUrl && !aConfirmarRemover && (
+                <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
+                  <button
+                    className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar}
+                    onClick={() => inputRef.current.click()}
+                  >
+                    Substituir o ficheiro
+                  </button>
+                  <button
+                    className="btn sec" style={{ flex: 1, fontSize: 12.5, color: "var(--magenta)" }} disabled={aEnviar}
+                    onClick={() => setAConfirmarRemover(true)}
+                  >
+                    Remover ficheiro
+                  </button>
+                </div>
+              )}
+              {souLiderBase && pdfUrl && aConfirmarRemover && (
+                <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600 }}>Remover este PDF?</p>
+                  <p className="ds" style={{ marginTop: 4 }}>
+                    Fica sem ficheiro nenhum para os voluntários até subires outro.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button
+                      className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }}
+                      disabled={aEnviar} onClick={remover}
+                    >
+                      {aEnviar ? "A remover…" : "Remover"}
+                    </button>
+                    <button
+                      className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar}
+                      onClick={() => setAConfirmarRemover(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
               )}
             </>
           )}

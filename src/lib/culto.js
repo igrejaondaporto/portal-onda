@@ -9,7 +9,7 @@
  * pela Cloud Function definirFrase.
  */
 import { collection, doc, getDocs, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
-import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref as refStorage, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage, chamar } from "./firebase";
 import { obterEventosDoMes } from "./painel";
 
@@ -86,6 +86,11 @@ export async function lerEEnviarOrdemCulto(eventoId, ficheiro) {
   const resultado = await lerOrdemCulto(eventoId);
   return { ...resultado, pdfUrl };
 }
+
+/** Só para o PDF ainda não publicado — se a leitura falhou ou o líder
+ *  quer recomeçar, tira o ficheiro do Storage sem deixar rasto. */
+export const removerOrdemCulto = (eventoId) =>
+  deleteObject(refStorage(storage, `eventos/${eventoId}/ordem.pdf`));
 
 /** Só depois disto é que a ordem do culto existe para os voluntários. */
 export const publicarOrdemCulto = (dados) =>
