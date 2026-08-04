@@ -28,6 +28,10 @@ export const criarVoluntario = (dados) => chamar("criarVoluntario")(dados).then(
 export const editarVoluntario = (dados) => chamar("editarVoluntario")(dados).then((r) => r.data);
 export const removerVoluntario = (pessoaId) => chamar("removerVoluntario")({ pessoaId }).then((r) => r.data);
 export const reporPin = (pessoaId) => chamar("reporPin")({ pessoaId }).then((r) => r.data);
+export const reporTodosPins = () => chamar("reporTodosPins")({}).then((r) => r.data);
+
+/* ── definições da base ───────────────────────────────────── */
+export const definirBase = (dados) => chamar("definirBase")(dados).then((r) => r.data);
 
 /* ── catálogo de funções ──────────────────────────────────── */
 export function ouvirFuncoes(cb) {
