@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getDoc } from "firebase/firestore";
 import { cBase, podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes } from "../lib/painel";
@@ -30,14 +30,18 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
     return () => { cancelado = true; };
   }, [eventosMes]);
 
-  // um único cronograma aberto de cada vez: o do próximo culto por data,
-  // ou o do último se já não houver nenhum por vir este mês
-  useEffect(() => setCardAberto(null), [mes, ano]);
+  // um único cronograma aberto de cada vez, por defeito o do próximo
+  // culto por data (ou o último, se já não houver nenhum por vir este
+  // mês) — mas só na primeira vez; depois disso é o clique que manda,
+  // incluindo fechar tudo ao clicar outra vez na data já aberta
+  const escolheuPadrao = useRef(false);
+  useEffect(() => { escolheuPadrao.current = false; setCardAberto(null); }, [mes, ano]);
   useEffect(() => {
-    if (cardAberto != null || !eventosMes.length) return;
+    if (escolheuPadrao.current || !eventosMes.length) return;
+    escolheuPadrao.current = true;
     const hoje = hojeISO();
     setCardAberto((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
-  }, [cardAberto, eventosMes]);
+  }, [eventosMes]);
 
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
 
@@ -76,7 +80,7 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
           <p className="nota" style={{ marginTop: 16 }}>
             Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
           </p>
-          {[...eventosMes].reverse().map((ev) => {
+          {eventosMes.map((ev) => {
             const pode = podeDistribuir(papel, uid, ev.escala);
             const autorPessoa = ev.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.feedback.autorUid) : null;
             return (

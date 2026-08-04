@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto } from "../../lib/culto";
 import { useTorrada } from "../../lib/TorradaContext";
-import { nomeEvento } from "../../lib/data";
+import { nomeEvento, hojeISO } from "../../lib/data";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
 import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
 
@@ -79,7 +79,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
         <div className="oc-corpo">
           {publicado ? (
             <>
-              <OrdemCultoTimeline ordem={evento.ordem} chegada={chegada} />
+              <OrdemCultoTimeline ordem={evento.ordem} chegada={chegada} hoje={evento.data === hojeISO()} />
               {souLiderBase && (
                 <button
                   className="btn sec full" style={{ marginTop: 16 }} disabled={aEnviar}
