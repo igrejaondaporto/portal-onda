@@ -1,4 +1,4 @@
-# O Cloudflare Pages publica o frontend sozinho a cada push.
+# O deploy do frontend (Cloudflare Workers) está em cloudflare.yml.
 # Isto trata do resto: functions, regras e índices.
 name: Firebase (functions + regras)
 
