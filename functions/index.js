@@ -16,8 +16,18 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 admin.initializeApp();
 const db = admin.firestore();
 
+// O frontend vive no Cloudflare, não no domínio das Functions — sem isto
+// os pedidos são bloqueados como cross-origin. Cobre o domínio de cada
+// base (apoio.painelonda.pt, tecnica.painelonda.pt…), os previews do
+// Workers Builds e o dev local.
+const ORIGENS_PERMITIDAS = [
+  /^https:\/\/([a-z0-9-]+\.)?painelonda\.pt$/,
+  /^https:\/\/[a-z0-9-]+\.workers\.dev$/,
+  "http://localhost:5173",
+];
+
 // Portugal → o datacenter mais próximo. Poupa ~80ms por chamada.
-setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
+setGlobalOptions({ region: "europe-west1", maxInstances: 10, cors: ORIGENS_PERMITIDAS });
 
 const MAX_1 = 3;                  // tentativas antes do bloqueio
 const MAX_2 = 5;                  // tentativas depois dos 15 minutos
