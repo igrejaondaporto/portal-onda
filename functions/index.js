@@ -220,6 +220,21 @@ export const reporPin = onCall(async (req) => {
   return { pinProvisorio: provisorio };
 });
 
+/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ────────────── */
+export const reporTodosPins = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
+  const lote = db.batch();
+  snap.forEach((doc) => {
+    const provisorio = pinProvisorio(doc.data().papel);
+    lote.set(refSegredo(baseId, doc.id), {
+      pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+    }, { merge: true });
+  });
+  await lote.commit();
+  return { repostos: snap.size };
+});
+
 export const removerVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { pessoaId } = req.data || {};
@@ -476,6 +491,36 @@ export const publicarOrdemCulto = onCall(async (req) => {
   }, { merge: true });
 
   return { ok: true, cultosEspeciaisCriados: criados };
+});
+
+/* ── LIMPAR A ORDEM PUBLICADA ──────────────────────────────────
+ * O líder quer recomeçar do zero: tira o PDF do Storage e apaga o
+ * campo ordem — volta a ficar "à espera do PDF", como nunca tivesse
+ * sido enviado nada. */
+export const limparOrdemCulto = onCall(async (req) => {
+  exigeLider(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  try {
+    await admin.storage().bucket().file(`eventos/${eventoId}/ordem.pdf`).delete();
+  } catch (e) {
+    if (e.code !== 404) throw e;                      // já não havia ficheiro, tudo bem
+  }
+  await db.doc(`eventos/${eventoId}`).update({ ordem: admin.firestore.FieldValue.delete() });
+  return { ok: true };
+});
+
+/* ── DEFINIÇÕES DA BASE ────────────────────────────────────────
+ * bases/{b} é write:false para o cliente (ver firestore.rules). */
+export const definirBase = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { horaChegada, horaCulto } = req.data || {};
+  if (!/^\d{1,2}:\d{2}$/.test(String(horaChegada || "")) || !/^\d{1,2}:\d{2}$/.test(String(horaCulto || ""))) {
+    throw new HttpsError("invalid-argument", "Hora inválida.");
+  }
+  await db.doc(`bases/${baseId}`).set({ horaChegada, horaCulto }, { merge: true });
+  return { ok: true };
 });
 
 /* ── GERAR OS DOMINGOS DO ANO ─────────────────────────────── */
