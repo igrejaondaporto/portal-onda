@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cBase, FASES, funcoesDoCulto } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
+import { useEffect, useState } from "react";
+import { getDoc, onSnapshot } from "firebase/firestore";
+import { cBase, cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
@@ -44,7 +44,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
-  useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+
+  // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
+  // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
+  useEffect(() => {
+    if (!meuEvento?.id) return;
+    return onSnapshot(cEscala(meuEvento.id), (esc) => {
+      const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+      setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meuEvento?.id]);
   useEffect(() => {
     if (!souLiderBase) return;
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
@@ -71,10 +82,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
-
-  const recarregarMes = useCallback(() => {
-    obterEventosDoMes(ano, mes).then(setEventosMes);
-  }, [ano, mes]);
 
   useEffect(() => {
     if (!ativo) return;

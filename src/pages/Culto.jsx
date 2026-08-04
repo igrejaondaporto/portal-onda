@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { podeDistribuir } from "../lib/modelo";
-import { ouvirVoluntarios, obterEventosDoMes } from "../lib/painel";
+import { ouvirVoluntarios, ouvirEventosDoMes } from "../lib/painel";
 import { obterOrdemCulto, enviarOrdemCulto } from "../lib/culto";
 import { MESES, dataPorExtenso, hojeISO } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
@@ -18,7 +18,7 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
   const [sheetFeedback, setSheetFeedback] = useState(null);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
 
   useEffect(() => {
     if (!eventosMes.length) return;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FASES, funcoesDoCulto, podeDistribuir } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes } from "../lib/painel";
 import { ouvirAtribuicoes, ouvirChecklist, atribuirFuncao, obterMeuEvento } from "../lib/culto";
 import { dataPorExtenso, dataCurta } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
@@ -33,7 +33,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
   useEffect(() => {
     if (!eventoId) return;
     const ano = Number(eventoId.slice(0, 4)), mes = Number(eventoId.slice(5, 7)) - 1;
-    obterEventosDoMes(ano, mes).then(setEventosMes);
+    return ouvirEventosDoMes(ano, mes, setEventosMes);
   }, [eventoId]);
 
   useEffect(() => {

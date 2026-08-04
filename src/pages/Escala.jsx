@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getDoc } from "firebase/firestore";
 import { cBase } from "../lib/modelo";
-import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
+import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
 
@@ -12,7 +12,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
   const [realcado, setRealcado] = useState(null);
   const refsEventos = useRef({});
 
-  useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
 

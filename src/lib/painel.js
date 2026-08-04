@@ -77,6 +77,39 @@ export async function obterEventosDoMes(ano, mesIndex) {
   );
 }
 
+/** Como obterEventosDoMes, mas ao vivo — quando o líder da base muda a
+ *  escala, quem está a olhar para o mês vê a alteração sem dar refresh.
+ *  Não há junções no Firestore, por isso ouve os eventos do mês e depois
+ *  a escala de cada um, e junta os dois em cada emissão. */
+export function ouvirEventosDoMes(ano, mesIndex, cb) {
+  const inicio = `${ano}-${pad2(mesIndex + 1)}-01`;
+  const fim = new Date(Date.UTC(ano, mesIndex + 1, 1)).toISOString().slice(0, 10);
+  const q = query(cEventos(), where("data", ">=", inicio), where("data", "<", fim), orderBy("data"));
+
+  let pararEscalas = [];
+
+  const pararEventos = onSnapshot(q, (snap) => {
+    pararEscalas.forEach((p) => p());
+    pararEscalas = [];
+
+    const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (!eventos.length) { cb([]); return; }
+
+    const escalas = {};
+    eventos.forEach((ev) => {
+      escalas[ev.id] = { pessoas: [], liderEscala: null };
+      pararEscalas.push(
+        onSnapshot(cEscala(ev.id), (esc) => {
+          escalas[ev.id] = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+          cb(eventos.map((e) => ({ ...e, escala: escalas[e.id] })));
+        })
+      );
+    });
+  });
+
+  return () => { pararEventos(); pararEscalas.forEach((p) => p()); };
+}
+
 export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
   setDoc(cEscala(eventoId), { pessoas, liderEscala, baseId: BASE_ID }, { merge: true });
 
