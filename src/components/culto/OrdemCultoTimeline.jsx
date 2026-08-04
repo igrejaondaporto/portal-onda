@@ -39,7 +39,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
     <>
       <div className="oc-nossa">
         <div className="l"><span>Chegada da Base de Apoio</span><b>{chegada}</b></div>
-        <div className="l"><span>Portas abertas</span><b>{ordem.inicio ?? "—"}</b></div>
+        <div className="l"><span>Portas abertas</span><b>{ordem.portasAbertas ?? ordem.inicio ?? "—"}</b></div>
         <div className="l"><span>Fim do culto</span><b>{ordem.fim ?? "—"}</b></div>
         <div className="l"><span>Arrumação a partir de</span><b>{ordem.fim ?? "—"}</b></div>
       </div>

@@ -22,15 +22,18 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
   );
   const [aEnviar, setAEnviar] = useState(false);
 
-  const { inicio, fim } = useMemo(() => {
+  const { inicio, fim, portasAbertas } = useMemo(() => {
     const validos = momentos.filter((m) => /^\d{1,2}:\d{2}$/.test(m.hora) && Number(m.minutos) > 0);
-    if (!validos.length) return { inicio: null, fim: null };
+    if (!validos.length) return { inicio: null, fim: null, portasAbertas: null };
     const u = validos.at(-1);
     const [h, mi] = u.hora.split(":").map(Number);
     const t = h * 60 + mi + Number(u.minutos);
+    // as portas abrem sempre à hora da Contagem, não do Pré-culto
+    const contagem = validos.find((m) => /contagem/i.test(m.momento));
     return {
       inicio: validos[0].hora,
       fim: `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`,
+      portasAbertas: contagem?.hora ?? validos[0].hora,
     };
   }, [momentos]);
 
@@ -73,7 +76,7 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
     try {
       const r = await publicarOrdemCulto({
         eventoId: evento.id, momentos: momentosLimpos, avisos: avisosLimpos,
-        inicio, fim, pdfUrl: inicial.pdfUrl ?? null, origem: inicial.falhou ? "manual" : "auto",
+        inicio, fim, portasAbertas, pdfUrl: inicial.pdfUrl ?? null, origem: inicial.falhou ? "manual" : "auto",
       });
       torrada(
         r.cultosEspeciaisCriados?.length

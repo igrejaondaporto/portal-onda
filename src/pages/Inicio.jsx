@@ -5,7 +5,7 @@ import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes } from "../lib/painel
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
-import { dataPorExtenso, eur } from "../lib/data";
+import { dataPorExtenso, eur, nomeCurto } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
 import Avatares from "../components/Avatares";
@@ -86,11 +86,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
   useEffect(() => {
     if (!ativo) return;
     if (!meuEvento) {
-      definirCabecalho({ titulo: <>Olá,<br /><em>{pessoa?.nome ?? "…"}</em></>, subtitulo: "", chips: [] });
+      definirCabecalho({ titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>, subtitulo: "", chips: [] });
       return;
     }
     definirCabecalho({
-      titulo: <>Olá,<br /><em>{pessoa?.nome ?? "…"}</em></>,
+      titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>,
       subtitulo: sirvo
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,

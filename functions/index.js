@@ -441,7 +441,7 @@ export const lerOrdemCulto = onCall(async (req) => {
  * depois do líder confirmar no ecrã de revisão; nada é automático. */
 export const publicarOrdemCulto = onCall(async (req) => {
   exigeLider(req);
-  const { eventoId, momentos, avisos, inicio, fim, pdfUrl, origem } = req.data || {};
+  const { eventoId, momentos, avisos, inicio, fim, portasAbertas, pdfUrl, origem } = req.data || {};
   if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
@@ -468,6 +468,7 @@ export const publicarOrdemCulto = onCall(async (req) => {
   await db.doc(`eventos/${eventoId}`).set({
     ordem: {
       momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
+      portasAbertas: portasAbertas ?? inicio ?? null,
       pdfUrl: pdfUrl ?? null, publicadoPor: req.auth.uid,
       publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
       origem: origem === "manual" ? "manual" : "auto",

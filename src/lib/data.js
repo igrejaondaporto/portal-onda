@@ -11,6 +11,10 @@ export function dataPorExtenso(iso) {
 
 export const nomeEvento = (ev) => (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data));
 
+/** Nome completo se couber num cabeçalho de uma linha; senão só o
+ *  primeiro nome, para o "Olá, ___" nunca quebrar para a linha de baixo. */
+export const nomeCurto = (nome) => (!nome || nome.length <= 14 ? nome : nome.split(" ")[0]);
+
 /** "2026-08-02" → "02 ago" — para cabeçalhos estreitos (tabela da escala) */
 export function dataCurta(iso) {
   const [, m, d] = iso.split("-");
