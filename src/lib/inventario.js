@@ -1,12 +1,14 @@
 /**
- * Inventário: qualquer voluntário mexe na quantidade, só o líder da
- * base cria, edita ou desativa itens (regras já tratam disso). Cada
- * alteração de quantidade fica registada em movimentos — é a promessa
- * que a própria página faz. Nada é apagado, só ativo:false.
+ * Inventário: qualquer voluntário mexe na quantidade diretamente. Criar,
+ * editar ou desativar itens passa sempre pelas Cloud Functions — só assim
+ * o líder de escala também pode geri-lo no dia do culto dele, sem abrir
+ * essa porta a toda a gente (a Cloud Function é que decide quem pode).
+ * Cada alteração de quantidade fica registada em movimentos. Nada é
+ * apagado, só ativo:false.
  */
-import { collection, doc, addDoc, onSnapshot, query, where, runTransaction, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, onSnapshot, query, where, runTransaction, serverTimestamp } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage, BASE_ID } from "./firebase";
+import { db, storage, BASE_ID, chamar } from "./firebase";
 import { cInventario } from "./modelo";
 
 export function ouvirInventario(cb) {
@@ -18,18 +20,14 @@ export function ouvirInventario(cb) {
  *  (em Storage) e o documento (no Firestore) apontarem ao mesmo sítio. */
 export const novoItemInventarioId = () => doc(cInventario()).id;
 
-export async function criarItemInventario(id, dados) {
-  await setDoc(doc(db, `bases/${BASE_ID}/inventario/${id}`), {
-    ...dados, ativo: true, criadoEm: serverTimestamp(),
-  });
-  return id;
-}
+export const criarItemInventario = (itemId, dados) =>
+  chamar("criarItemInventario")({ itemId, ...dados }).then(() => itemId);
 
 export const guardarItemInventario = (itemId, dados) =>
-  updateDoc(doc(db, `bases/${BASE_ID}/inventario/${itemId}`), dados);
+  chamar("guardarItemInventario")({ itemId, ...dados }).then((r) => r.data);
 
 export const desativarItemInventario = (itemId) =>
-  updateDoc(doc(db, `bases/${BASE_ID}/inventario/${itemId}`), { ativo: false });
+  chamar("desativarItemInventario")({ itemId }).then((r) => r.data);
 
 export async function enviarFotoItemInventario(itemId, ficheiro) {
   const destino = refStorage(storage, `bases/${BASE_ID}/inventario/${itemId}`);

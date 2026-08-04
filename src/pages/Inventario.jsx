@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { ouvirInventario, mexerQuantidade } from "../lib/inventario";
+import { obterMeuEvento } from "../lib/culto";
+import { singularizar } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import ImagemExpandida from "../components/ImagemExpandida";
 import SheetItemInventario from "../components/painel/SheetItemInventario";
@@ -10,8 +12,18 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
   const [itens, setItens] = useState([]);
   const [expandida, setExpandida] = useState(null);
   const [sheet, setSheet] = useState(null);
+  const [souLiderEscalaHoje, setSouLiderEscalaHoje] = useState(false);
 
   useEffect(() => ouvirInventario(setItens), []);
+  useEffect(() => {
+    if (souLiderBase) return;
+    obterMeuEvento(uid).then((ev) => {
+      const hoje = new Date().toISOString().slice(0, 10);
+      setSouLiderEscalaHoje(ev?.data === hoje && ev.escala.liderEscala === uid);
+    });
+  }, [uid, souLiderBase]);
+
+  const podeGerir = souLiderBase || souLiderEscalaHoje;
 
   const falta = itens.filter((i) => i.quantidade < i.minimo);
   const categorias = [...new Set(itens.map((i) => i.categoria))];
@@ -37,7 +49,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
 
   return (
     <>
-      {souLiderBase && (
+      {podeGerir && (
         <button className="btn sec full" style={{ marginTop: 4 }} onClick={() => setSheet({ tipo: "item", item: null })}>
           Adicionar item
         </button>
@@ -58,10 +70,10 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                 <p className="ds">
                   {i.quantidade < i.minimo
                     ? <span style={{ color: "var(--magenta)", fontWeight: 600 }}>Abaixo do mínimo de {i.minimo}</span>
-                    : `Mínimo ${i.minimo} ${i.unidade}`}
+                    : `Mínimo ${i.minimo} ${singularizar(i.minimo, i.unidade)}`}
                 </p>
               </div>
-              {souLiderBase && (
+              {podeGerir && (
                 <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12, marginRight: 4 }} onClick={() => setSheet({ tipo: "item", item: i })}>
                   Editar
                 </button>
@@ -88,6 +100,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
       {sheet?.tipo === "item" && (
         <SheetItemInventario
           item={sheet.item}
+          podeFoto={souLiderBase}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

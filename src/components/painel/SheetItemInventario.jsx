@@ -8,7 +8,7 @@ import { useTorrada } from "../../lib/TorradaContext";
 const TAMANHO_MAX = 6 * 1024 * 1024;
 const CATEGORIAS = ["Utensílios", "Produtos", "Insumos", "Decoração", "Extras"];
 
-export default function SheetItemInventario({ item, onFechar, onGuardado }) {
+export default function SheetItemInventario({ item, podeFoto = true, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(item?.id ?? novoItemInventarioId());
   const inputFotoRef = useRef(null);
@@ -99,18 +99,26 @@ export default function SheetItemInventario({ item, onFechar, onGuardado }) {
         </div>
         <label className="rot">Quantidade atual</label>
         <input className="campo" type="number" min="0" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
-        <label className="rot">Foto</label>
-        {foto && <img src={foto} className="fotofn" alt="" />}
-        <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
-        <button
-          className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviarFoto}
-          onClick={() => inputFotoRef.current.click()}
-        >
-          {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}
-        </button>
-        <p className="ds" style={{ marginTop: 10 }}>
-          A foto ajuda quem não conhece o material a saber do que se trata.
-        </p>
+        {(podeFoto || foto) && (
+          <>
+            <label className="rot">Foto</label>
+            {foto && <img src={foto} className="fotofn" alt="" />}
+            {podeFoto && (
+              <>
+                <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
+                <button
+                  className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviarFoto}
+                  onClick={() => inputFotoRef.current.click()}
+                >
+                  {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}
+                </button>
+                <p className="ds" style={{ marginTop: 10 }}>
+                  A foto ajuda quem não conhece o material a saber do que se trata.
+                </p>
+              </>
+            )}
+          </>
+        )}
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || aEnviarFoto} onClick={guardar}>Guardar</button>
         {item && <button className="btn sec full" style={{ marginTop: 9 }} onClick={desativar}>Remover do inventário</button>}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>

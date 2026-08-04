@@ -523,6 +523,58 @@ export const definirBase = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── INVENTÁRIO: LÍDER DA BASE, OU LÍDER DE ESCALA NO DIA DO CULTO DELE ──
+ * Criar, editar e desativar itens passa sempre por aqui — só assim é que
+ * o líder de escala pode ajudar sem abrir a porta a qualquer voluntário.
+ * A quantidade em si continua a mexer-se direto do cliente (ver regras). */
+async function exigeGestorInventario(req) {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (req.auth.token.papel === "lider_base") return baseId;
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const escala = await db.doc(`eventos/${hoje}/escalas/${baseId}`).get();
+  if (escala.exists && escala.data().liderEscala === uid) return baseId;
+
+  throw new HttpsError("permission-denied",
+    "Só o líder da base, ou o líder de escala no dia do culto, pode gerir o inventário.");
+}
+
+export const criarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
+    nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
+    minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+    ativo: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { itemId };
+});
+
+export const guardarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
+    nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
+    minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const desativarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
 /* ── GERAR OS DOMINGOS DO ANO ─────────────────────────────── */
 export const gerarDomingos = onCall(async (req) => {
   exigeLider(req);

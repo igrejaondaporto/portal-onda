@@ -38,15 +38,16 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
-      // ── inventário: qualquer voluntário mexe na quantidade,
-      // só o líder edita o resto (nome, categoria, mínimo, foto…) ──
+      // ── inventário: qualquer voluntário mexe na quantidade direto.
+      // Criar, editar o resto (nome, categoria, mínimo, foto…) e desativar
+      // passa sempre pelas Cloud Functions — é lá que se decide se quem
+      // pede é o líder da base ou o líder de escala no dia do culto dele. ──
       match /inventario/{item} {
         allow read:   if minhaBase(base);
         allow update: if minhaBase(base)
                       && request.resource.data.diff(resource.data)
                           .affectedKeys().hasOnly(['quantidade','atualizadoEm','atualizadoPor']);
-        allow update: if souLiderBase(base);
-        allow create, delete: if souLiderBase(base);
+        allow create, delete: if false;
         match /movimentos/{mov} {
           allow read:   if minhaBase(base);
           allow create: if minhaBase(base) && request.resource.data.pessoaId == request.auth.uid;

@@ -29,6 +29,11 @@ export const ordenarEscala = (escala) =>
 
 export const eur = (v) => v.toFixed(2).replace(".", ",") + " €";
 
+/** "unidades" → "unidade" quando a quantidade é 1. As unidades do
+ *  inventário são texto livre, por isso o singular é só tirar o "s". */
+export const singularizar = (qtd, unidade) =>
+  qtd === 1 && unidade?.endsWith("s") ? unidade.slice(0, -1) : unidade;
+
 /** Timestamp do Firestore (ou null, logo a seguir a criar) → "3 ago". */
 export function dataTimestamp(ts) {
   if (!ts?.toDate) return "agora";
