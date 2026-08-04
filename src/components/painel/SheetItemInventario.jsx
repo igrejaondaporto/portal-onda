@@ -6,13 +6,16 @@ import {
 import { useTorrada } from "../../lib/TorradaContext";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
+const CATEGORIAS = ["Utensílios", "Produtos", "Insumos", "Decoração", "Extras"];
 
 export default function SheetItemInventario({ item, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(item?.id ?? novoItemInventarioId());
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(item?.nome ?? "");
-  const [categoria, setCategoria] = useState(item?.categoria ?? "");
+  const [categoria, setCategoria] = useState(item?.categoria ?? CATEGORIAS[0]);
+  // se o item já tiver uma categoria antiga fora da lista fixa, mantém-na visível
+  const categorias = categoria && !CATEGORIAS.includes(categoria) ? [...CATEGORIAS, categoria] : CATEGORIAS;
   const [unidade, setUnidade] = useState(item?.unidade ?? "unidades");
   const [minimo, setMinimo] = useState(item?.minimo ?? 1);
   const [quantidade, setQuantidade] = useState(item?.quantidade ?? 0);
@@ -79,7 +82,11 @@ export default function SheetItemInventario({ item, onFechar, onGuardado }) {
         <label className="rot" style={{ marginTop: 14 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Detergente multiusos" />
         <label className="rot">Categoria</label>
-        <input className="campo" value={categoria} onChange={(e) => setCategoria(e.target.value)} placeholder="Ex.: Limpeza" />
+        <div className="subtabs">
+          {categorias.map((c) => (
+            <button key={c} data-on={categoria === c ? 1 : 0} onClick={() => setCategoria(c)}>{c}</button>
+          ))}
+        </div>
         <div className="campos" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
           <div>
             <label className="rot">Unidade</label>
