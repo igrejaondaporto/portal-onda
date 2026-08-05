@@ -1,10 +1,13 @@
+import { useState } from "react";
 import Bola from "../Bola";
 import Avatares from "../Avatares";
+import ImagemExpandida from "../ImagemExpandida";
 
 export default function LinhaFuncao({
   f, ids, voluntarios, feita, aberta, pode, souLiderBase, uid, nomeLiderBase,
   onAbrir, onEscolher, onEditar, onSubir, onDescer, primeira, ultima,
 }) {
+  const [fotoExpandida, setFotoExpandida] = useState(false);
   const pessoas = ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean);
   const nomes = pessoas.map((p) => p.nome).join(" e ");
 
@@ -29,7 +32,12 @@ export default function LinhaFuncao({
         </p>
         {aberta && (
           <div className="aberto">
-            {f.foto && <img src={f.foto} className="fotofn" alt="" />}
+            {f.foto && (
+              <img
+                src={f.foto} className="fotofn" alt="" style={{ cursor: "pointer" }}
+                onClick={(e) => { e.stopPropagation(); setFotoExpandida(true); }}
+              />
+            )}
             <p style={{ marginTop: f.foto ? 8 : 2 }}>
               {f.descricao || `Sem descrição. O ${nomeLiderBase} preenche isto no Painel.`}
             </p>
@@ -66,6 +74,7 @@ export default function LinhaFuncao({
       </div>
       <Avatares pessoas={pessoas} tamanho={32} fonte={13} />
       <span className="seta">{aberta ? "⌃" : "⌄"}</span>
+      {fotoExpandida && <ImagemExpandida src={f.foto} alt={f.nome} onFechar={() => setFotoExpandida(false)} />}
     </div>
   );
 }
