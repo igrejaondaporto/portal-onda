@@ -14,20 +14,15 @@ export default function LinhaPessoaContacto({ pessoa, resumo, tagExtra, funcoesD
         <p className="ds">{resumo}</p>
         {aberta && (
           <div className="aberto" onClick={(e) => e.stopPropagation()}>
-            <p>
-              {funcoesDaPessoa?.length
-                ? funcoesDaPessoa.map((f) => f.nome).join(", ")
-                : "Sem funções atribuídas neste culto."}
-            </p>
             {link ? (
-              <a
-                className="btn sec full" style={{ marginTop: 12 }}
-                href={link} target="_blank" rel="noopener"
-              >
+              <a className="btn sec full" href={link} target="_blank" rel="noopener">
                 Falar no WhatsApp
               </a>
             ) : (
-              <p className="ds" style={{ marginTop: 10 }}>Sem contacto no perfil.</p>
+              <p className="ds">Sem contacto no perfil.</p>
+            )}
+            {funcoesDaPessoa?.length > 0 && (
+              <p style={{ marginTop: 10 }}>{funcoesDaPessoa.map((f) => f.nome).join(", ")}</p>
             )}
           </div>
         )}
