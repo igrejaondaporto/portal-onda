@@ -218,7 +218,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
                     return (
                       <div
                         className={`linha${ok ? " feita" : ""}`} key={f.id} style={{ cursor: "pointer" }}
-                        onClick={() => onVerFuncoes?.(meuEvento.id)}
+                        onClick={() => alternarFeito(f.id)}
                       >
                         <button className={`chk${ok ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarFeito(f.id); }}>✓</button>
                         <div style={{ flex: 1 }}>
