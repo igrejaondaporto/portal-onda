@@ -13,10 +13,10 @@ export default function LinhaPessoaContacto({ pessoa, resumo, tagExtra, funcoesD
         <p className="nmt">{pessoa.nome}</p>
         <p className="ds">{resumo}</p>
         {aberta && (
-          <div className="aberto" onClick={(e) => e.stopPropagation()}>
+          <div className="aberto" onClick={(e) => e.stopPropagation()} style={{ paddingTop: 12 }}>
             {link ? (
               <a className="btn sec full" href={link} target="_blank" rel="noopener">
-                Falar no WhatsApp
+                Chamar no WhatsApp
               </a>
             ) : (
               <p className="ds">Sem contacto no perfil.</p>

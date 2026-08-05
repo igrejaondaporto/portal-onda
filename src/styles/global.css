@@ -609,6 +609,10 @@ textarea {
   font-weight: 600;
   cursor: pointer;
   transition: 0.14s;
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+  box-sizing: border-box;
 }
 .btn:active {
   transform: scale(0.96);
