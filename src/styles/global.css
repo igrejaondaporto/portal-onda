@@ -224,6 +224,16 @@ textarea {
   line-height: 1.65;
   max-width: 430px;
 }
+.offline-aviso {
+  background: #3a2f00;
+  color: #ffd866;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  padding: 9px 16px;
+  line-height: 1.4;
+  animation: ap 0.3s;
+}
 
 /* ── folha do PIN ── */
 .veu {

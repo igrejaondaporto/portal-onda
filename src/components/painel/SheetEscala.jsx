@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { guardarEscala } from "../../lib/painel";
+import { useEffect, useState } from "react";
+import { guardarEscala, obterEstatisticasEscala } from "../../lib/painel";
 import { useTorrada } from "../../lib/TorradaContext";
 import Avatar from "../Avatar";
-import { dataPorExtenso } from "../../lib/data";
+import { dataPorExtenso, dataCurta } from "../../lib/data";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
@@ -12,6 +12,11 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
   const torrada = useTorrada();
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
+  const [estatisticas, setEstatisticas] = useState({});
+  const [ordem, setOrdem] = useState("vezes");
+
+  useEffect(() => { obterEstatisticasEscala(90).then(setEstatisticas); }, []);
+
   if (!evento) return null;
 
   async function persistir(novasPessoas, novoLider) {
@@ -38,6 +43,13 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
     persistir(pessoas, id);
   }
 
+  const voluntariosOrdenados = [...voluntarios].sort((a, b) => {
+    if (ordem === "nome") return a.nome.localeCompare(b.nome, "pt");
+    const va = estatisticas[a.id]?.vezes ?? 0;
+    const vb = estatisticas[b.id]?.vezes ?? 0;
+    return va - vb || a.nome.localeCompare(b.nome, "pt");
+  });
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -48,12 +60,24 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
           Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.
         </p>
-        <div style={{ marginTop: 16 }}>
-          {voluntarios.map((p) => {
+        <div className="subtabs" style={{ marginTop: 14 }}>
+          <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
+          <button data-on={ordem === "nome" ? 1 : 0} onClick={() => setOrdem("nome")}>Nome</button>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          {voluntariosOrdenados.map((p) => {
             const dentro = pessoas.includes(p.id);
             const lid = liderEscala === p.id;
+            const stat = estatisticas[p.id];
+            const semServico = !stat?.vezes;
+            const statTexto = semServico
+              ? "Ainda não serviu neste trimestre"
+              : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
             return (
-              <div className="opcao" style={{ cursor: "default" }} key={p.id}>
+              <div
+                className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
+                key={p.id}
+              >
                 <span
                   onClick={() => alternar(p.id)}
                   style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
@@ -63,6 +87,10 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
                       {dentro ? (lid ? "líder de escala" : "na escala") : "fora deste culto"}
+                    </span>
+                    <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
+                      {statTexto}
+                      {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
                     </span>
                   </span>
                 </span>

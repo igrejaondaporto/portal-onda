@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cBase, podeDistribuir } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirEventosDoMes } from "../lib/painel";
+import { podeDistribuir } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataPorExtenso, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
@@ -19,7 +18,7 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
   const [cardAberto, setCardAberto] = useState(null);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
+  useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
 
   useEffect(() => {

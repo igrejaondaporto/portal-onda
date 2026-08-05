@@ -1,20 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cBase } from "../lib/modelo";
-import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
+import { funcoesDoCulto } from "../lib/modelo";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase } from "../lib/painel";
+import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
+import LinhaPessoaContacto from "../components/LinhaPessoaContacto";
 
 export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
+  const [funcoes, setFuncoes] = useState([]);
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
+  const [atribuicoesPorEvento, setAtribuicoesPorEvento] = useState({});
+  const [contactoAberto, setContactoAberto] = useState(null); // { eventoId, pessoaId }
   const refsEventos = useRef({});
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
+  useEffect(() => ouvirFuncoes(setFuncoes), []);
+  useEffect(() => ouvirBase(setBase), []);
+
+  function alternarContacto(eventoId, pessoaId) {
+    setContactoAberto((a) => (a?.eventoId === eventoId && a?.pessoaId === pessoaId ? null : { eventoId, pessoaId }));
+    if (!atribuicoesPorEvento[eventoId]) {
+      obterAtribuicoes(eventoId).then((a) => setAtribuicoesPorEvento((m) => ({ ...m, [eventoId]: a })));
+    }
+  }
 
   useEffect(() => {
     if (!eventoIdFoco || !eventosMes.length) return;
@@ -131,14 +143,17 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
               pessoasOrdenadas.map((id) => {
                 const p = pessoaPorId(id);
                 if (!p) return null;
+                const atribs = atribuicoesPorEvento[ev.id] || {};
+                const fs = funcoesDoCulto(funcoes, ev.id).filter((f) => (atribs[f.id] || []).includes(id));
                 return (
-                  <div className="linha" key={id}>
-                    <Avatar pessoa={p} />
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt">{p.nome}{id === uid ? " · tu" : ""}</p>
-                    </div>
-                    {ev.escala.liderEscala === id && <span className="tag lim">Líder de escala</span>}
-                  </div>
+                  <LinhaPessoaContacto
+                    key={id} pessoa={p}
+                    resumo={id === uid ? "tu" : fs.length ? `${fs.length} ${fs.length === 1 ? "função" : "funções"}` : "Sem funções atribuídas"}
+                    funcoesDaPessoa={fs}
+                    tagExtra={ev.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                    aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === id}
+                    onToggle={() => alternarContacto(ev.id, id)}
+                  />
                 );
               })
             ) : (

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { cBase, FASES } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes, reporTodosPins } from "../lib/painel";
+import { FASES } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins } from "../lib/painel";
 import { MESES, dataPorExtenso } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
@@ -42,9 +42,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
     }
   }
 
-  useEffect(() => {
-    getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null));
-  }, []);
+  useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
 
@@ -292,10 +290,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
         <SheetDefinicoesBase
           base={base}
           onFechar={() => setSheet(null)}
-          onGuardado={(msg) => {
-            setSheet(null); torrada(msg);
-            getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null));
-          }}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
     </>

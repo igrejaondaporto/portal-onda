@@ -29,6 +29,16 @@ export const ordenarEscala = (escala) =>
 
 export const eur = (v) => v.toFixed(2).replace(".", ",") + " €";
 
+/** "912 345 678" → "https://wa.me/351912345678". null se não houver número.
+ *  Limpa espaços, traços e parênteses, e junta o indicativo se faltar. */
+export function linkWhatsApp(telefone) {
+  if (!telefone?.trim()) return null;
+  let n = telefone.replace(/[^\d+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (!n.startsWith("351")) n = "351" + n;
+  return `https://wa.me/${n}`;
+}
+
 /** "unidades" → "unidade" quando a quantidade é 1. As unidades do
  *  inventário são texto livre, por isso o singular é só tirar o "s". */
 export const singularizar = (qtd, unidade) =>

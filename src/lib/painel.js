@@ -13,8 +13,14 @@ import {
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, chamar, BASE_ID } from "./firebase";
-import { cPessoas, cFuncoes, cEventos, cEscala } from "./modelo";
+import { cPessoas, cFuncoes, cEventos, cEscala, cBase } from "./modelo";
 import { corPara } from "./cores";
+
+/* ── a base (horas, nome…) — poucos sítios usam, todos ao vivo,
+ *  para uma edição do líder aparecer em qualquer aba sem refresh ── */
+export function ouvirBase(cb) {
+  return onSnapshot(cBase(), (s) => cb(s.exists() ? s.data() : null));
+}
 
 /* ── voluntários ──────────────────────────────────────────── */
 export function ouvirVoluntarios(cb) {
@@ -32,6 +38,35 @@ export const reporTodosPins = () => chamar("reporTodosPins")({}).then((r) => r.d
 
 /* ── definições da base ───────────────────────────────────── */
 export const definirBase = (dados) => chamar("definirBase")(dados).then((r) => r.data);
+
+/** Quantas vezes cada pessoa serviu nos últimos `dias` — para o líder
+ *  decidir a escala com informação, nunca para bloquear ninguém. Uma
+ *  query aos eventos do período, depois uma leitura por culto (não por
+ *  pessoa), tudo feito uma vez quando o ecrã abre. */
+export async function obterEstatisticasEscala(dias = 90) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const inicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const q = query(cEventos(), where("data", ">=", inicio), where("data", "<=", hoje), orderBy("data"));
+  const snap = await getDocs(q);
+  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const escalas = await Promise.all(eventos.map((ev) => getDoc(cEscala(ev.id))));
+
+  const porPessoa = {};
+  const toque = (id) => (porPessoa[id] ??= { vezes: 0, liderVezes: 0, ultima: null });
+  escalas.forEach((esc, i) => {
+    if (!esc.exists()) return;
+    const { pessoas = [], liderEscala = null } = esc.data();
+    const data = eventos[i].data;
+    pessoas.forEach((id) => {
+      const p = toque(id);
+      p.vezes += 1;
+      if (!p.ultima || data > p.ultima) p.ultima = data;
+    });
+    if (liderEscala) toque(liderEscala).liderVezes += 1;
+  });
+  return porPessoa;
+}
 
 /* ── catálogo de funções ──────────────────────────────────── */
 export function ouvirFuncoes(cb) {

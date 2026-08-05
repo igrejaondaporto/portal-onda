@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obterDadosEntrada } from "../lib/pessoas";
 import { BASE_ID } from "../lib/firebase";
 import SheetPin from "../components/SheetPin";
+import AvisoOffline from "../components/AvisoOffline";
 
 function TituloBase({ nome }) {
   if (!nome) return <h1>Base</h1>;
@@ -41,6 +42,7 @@ export default function Entrada({ onDeveTrocarPin }) {
 
   return (
     <div className="login">
+      <AvisoOffline />
       <div className="crista entrada">
         <div>
           <div className="lin">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { getDoc, onSnapshot } from "firebase/firestore";
-import { cBase, cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes } from "../lib/painel";
+import { onSnapshot } from "firebase/firestore";
+import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
@@ -11,6 +11,7 @@ import Avatar from "../components/Avatar";
 import Avatares from "../components/Avatares";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
+import LinhaPessoaContacto from "../components/LinhaPessoaContacto";
 
 function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
@@ -40,8 +41,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
   const [pendentes, setPendentes] = useState([]);
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
+  const [contactoAberto, setContactoAberto] = useState(null);
 
-  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
+  useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -102,22 +104,23 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
 
-  async function alternarFeito(funcaoId) {
+  // não se espera pela promessa: a marca (ou a limpeza) tem de aparecer já,
+  // vinda da cache local — sem rede, a escrita fica pendente e sincroniza
+  // sozinha quando ela voltar. Esperar aqui deixaria o toque sem efeito
+  // nenhum enquanto a Casa do Povo não tiver sinal.
+  function alternarFeito(funcaoId) {
     if (!meuEvento) return;
-    try {
-      if (checklist[funcaoId]) await desmarcarFeito(meuEvento.id, funcaoId);
-      else await marcarFeito(meuEvento.id, funcaoId, uid);
-    } catch (e) {
-      torrada(e.message || "Não foi possível atualizar.");
-    }
+    const escrita = checklist[funcaoId] ? desmarcarFeito(meuEvento.id, funcaoId) : marcarFeito(meuEvento.id, funcaoId, uid);
+    escrita.catch((e) => torrada(e.message || "Não foi possível atualizar."));
   }
 
   async function marcarTodas(valor) {
     if (!meuEvento) return;
     try {
-      await Promise.all(
-        funcoesCulto.map((f) => (valor ? marcarFeito(meuEvento.id, f.id, uid) : desmarcarFeito(meuEvento.id, f.id)))
-      );
+      funcoesCulto.forEach((f) => {
+        (valor ? marcarFeito(meuEvento.id, f.id, uid) : desmarcarFeito(meuEvento.id, f.id))
+          .catch((e) => torrada(e.message || "Não foi possível atualizar."));
+      });
       torrada(valor ? "Tudo marcado como feito" : "Checklist limpo");
     } catch (e) {
       torrada(e.message || "Não foi possível atualizar.");
@@ -312,14 +315,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
               const fs = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(id));
               const fe = fs.filter((f) => checklist[f.id]).length;
               return (
-                <div className="linha" key={id}>
-                  <Avatar pessoa={p} />
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds">{fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}</p>
-                  </div>
-                  {meuEvento.escala.liderEscala === id && <span className="tag lim">Líder de escala</span>}
-                </div>
+                <LinhaPessoaContacto
+                  key={id} pessoa={p}
+                  resumo={fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}
+                  funcoesDaPessoa={fs}
+                  tagExtra={meuEvento.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                  aberta={contactoAberto === id}
+                  onToggle={() => setContactoAberto((a) => (a === id ? null : id))}
+                />
               );
             })
           ) : (

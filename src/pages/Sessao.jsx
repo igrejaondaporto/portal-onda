@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { TorradaProvider } from "../lib/TorradaContext";
 import MenuEu from "../components/MenuEu";
 import NavBar from "../components/NavBar";
+import AvisoOffline from "../components/AvisoOffline";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -34,7 +35,7 @@ export default function Sessao({ uid, papel, baseId }) {
   const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
-    getDoc(doc(db, `bases/${baseId}/pessoas/${uid}`)).then((s) => setPessoa(s.exists() ? s.data() : null));
+    return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
 
   const lider = papel === "lider_base";
@@ -68,6 +69,7 @@ export default function Sessao({ uid, papel, baseId }) {
   return (
     <TorradaProvider>
       <div className="app">
+        <AvisoOffline />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">
