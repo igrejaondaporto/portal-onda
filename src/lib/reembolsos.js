@@ -7,6 +7,7 @@ import { collection, doc, setDoc, updateDoc, onSnapshot, query, where, orderBy, 
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, BASE_ID } from "./firebase";
 import { cReembolsos } from "./modelo";
+import { comprimirImagem } from "./imagem";
 
 export function ouvirReembolsos(souLiderBase, uid, cb) {
   const q = souLiderBase
@@ -19,8 +20,13 @@ export async function criarReembolso(uid, { descricao, valor, ficheiro }) {
   const ref = doc(cReembolsos());
   let anexo = null;
   if (ficheiro) {
+    // a fatura tem de continuar legível — comprime menos que as outras
+    // fotos da app, e só se for mesmo imagem (PDF sobe sem tocar).
+    const paraEnviar = ficheiro.type.startsWith("image/")
+      ? await comprimirImagem(ficheiro, { maxDimensao: 2000, qualidade: 0.9 })
+      : ficheiro;
     const destino = refStorage(storage, `bases/${BASE_ID}/reembolsos/${ref.id}`);
-    await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+    await uploadBytes(destino, paraEnviar, { contentType: paraEnviar.type });
     anexo = await getDownloadURL(destino);
   }
   await setDoc(ref, {

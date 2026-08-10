@@ -10,6 +10,7 @@ import { collection, doc, addDoc, onSnapshot, query, where, runTransaction, serv
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, BASE_ID, chamar } from "./firebase";
 import { cInventario } from "./modelo";
+import { comprimirImagem } from "./imagem";
 
 export function ouvirInventario(cb) {
   const q = query(cInventario(), where("ativo", "==", true));
@@ -30,8 +31,9 @@ export const desativarItemInventario = (itemId) =>
   chamar("desativarItemInventario")({ itemId }).then((r) => r.data);
 
 export async function enviarFotoItemInventario(itemId, ficheiro) {
+  const comprimida = await comprimirImagem(ficheiro);
   const destino = refStorage(storage, `bases/${BASE_ID}/inventario/${itemId}`);
-  await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+  await uploadBytes(destino, comprimida, { contentType: comprimida.type });
   return getDownloadURL(destino);
 }
 

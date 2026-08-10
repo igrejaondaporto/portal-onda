@@ -15,6 +15,7 @@ import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage
 import { db, storage, chamar, BASE_ID } from "./firebase";
 import { cPessoas, cFuncoes, cEventos, cEscala, cBase } from "./modelo";
 import { corPara } from "./cores";
+import { comprimirImagem } from "./imagem";
 
 /* ── a base (horas, nome…) — poucos sítios usam, todos ao vivo,
  *  para uma edição do líder aparecer em qualquer aba sem refresh ── */
@@ -104,8 +105,9 @@ export const desativarFuncao = (funcaoId) =>
 /** Só o líder da base pode escrever aqui (ver storage.rules) — a foto de
  *  uma função só um culto ainda não tem forma de o líder de escala subir. */
 export async function enviarFotoFuncao(funcaoId, ficheiro) {
+  const comprimida = await comprimirImagem(ficheiro);
   const destino = refStorage(storage, `bases/${BASE_ID}/funcoes/${funcaoId}`);
-  await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+  await uploadBytes(destino, comprimida, { contentType: comprimida.type });
   return getDownloadURL(destino);
 }
 
