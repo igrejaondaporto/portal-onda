@@ -83,3 +83,12 @@ workflow `.github/workflows/firebase.yml`.
 Fotos, nomes, telefones e faturas de pessoas identificadas. O aviso
 curto no primeiro login basta — não há formulário em papel. Retenção:
 operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
+
+## Melhorias entre bases
+
+Ver `MELHORIAS-ENTRE-BASES.md`. Sempre que implementares algo novo
+numa base — funcionalidade ou correção —, antes de dar por terminado
+avalia se serve a outra base já construída ou a uma futura, e
+acrescenta uma linha lá (portar / já partilhado / específico desta
+base e porquê). É assim que uma ideia boa numa base não fica esquecida
+só por termos começado por ela.
