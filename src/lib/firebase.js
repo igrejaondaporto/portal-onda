@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
@@ -14,11 +14,30 @@ export const app = initializeApp({
 });
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// cache local persistente: quem chega às 08:00 de domingo sem rede na
+// Casa do Povo continua a ver e a marcar o checklist — sincroniza
+// sozinho quando a rede volta. O tab manager evita que duas abas/telemóveis
+// com a mesma conta partam a cache uma da outra.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 export const storage = getStorage(app);
 // tem de bater certo com o setGlobalOptions das functions
 export const fns = getFunctions(app, "europe-west1");
 
 export const BASE_ID = import.meta.env.VITE_BASE_ID || "apoio";
-export const chamar = (nome) => httpsCallable(fns, nome);
+
+// as Cloud Functions (entrar, atribuirFuncao…) precisam mesmo de rede —
+// ao contrário do Firestore, não têm cache local. Falhar cedo com uma
+// mensagem clara é melhor do que ficar pendurado sem se perceber porquê.
+export const chamar = (nome) => {
+  const fn = httpsCallable(fns, nome);
+  return (dados) => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return Promise.reject(new Error("Precisas de estar ligado à internet para isto."));
+    }
+    return fn(dados);
+  };
+};
+
 export { signInWithCustomToken, signOut, onAuthStateChanged };

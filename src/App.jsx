@@ -12,6 +12,10 @@ export default function App() {
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (utilizador) => {
+      // também entra aqui a meio do login (depois do PIN, antes do papel
+      // vir do token) — mostra o ecrã de carregar em vez de deixar o
+      // teclado do PIN parado sem resposta visível.
+      setACarregar(true);
       if (utilizador) {
         const { papel, baseId } = await meuPapel();
         setSessao({ uid: utilizador.uid, papel, baseId });

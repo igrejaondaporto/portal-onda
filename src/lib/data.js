@@ -11,6 +11,10 @@ export function dataPorExtenso(iso) {
 
 export const nomeEvento = (ev) => (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data));
 
+/** Nome completo se couber num cabeçalho de uma linha; senão só o
+ *  primeiro nome, para o "Olá, ___" nunca quebrar para a linha de baixo. */
+export const nomeCurto = (nome) => (!nome || nome.length <= 14 ? nome : nome.split(" ")[0]);
+
 /** "2026-08-02" → "02 ago" — para cabeçalhos estreitos (tabela da escala) */
 export function dataCurta(iso) {
   const [, m, d] = iso.split("-");
@@ -24,6 +28,21 @@ export const ordenarEscala = (escala) =>
   [escala.liderEscala, ...escala.pessoas.filter((id) => id !== escala.liderEscala)].filter(Boolean);
 
 export const eur = (v) => v.toFixed(2).replace(".", ",") + " €";
+
+/** "912 345 678" → "https://wa.me/351912345678". null se não houver número.
+ *  Limpa espaços, traços e parênteses, e junta o indicativo se faltar. */
+export function linkWhatsApp(telefone) {
+  if (!telefone?.trim()) return null;
+  let n = telefone.replace(/[^\d+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (!n.startsWith("351")) n = "351" + n;
+  return `https://wa.me/${n}`;
+}
+
+/** "unidades" → "unidade" quando a quantidade é 1. As unidades do
+ *  inventário são texto livre, por isso o singular é só tirar o "s". */
+export const singularizar = (qtd, unidade) =>
+  qtd === 1 && unidade?.endsWith("s") ? unidade.slice(0, -1) : unidade;
 
 /** Timestamp do Firestore (ou null, logo a seguir a criar) → "3 ago". */
 export function dataTimestamp(ts) {

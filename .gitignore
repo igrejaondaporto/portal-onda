@@ -6,5 +6,6 @@ functions/node_modules
 .firebase
 *-service-account.json
 service-account.json
+painel-onda-*.json
 firebase-debug.log
 .claude/scheduled_tasks.lock

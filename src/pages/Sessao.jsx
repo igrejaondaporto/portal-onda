@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { TorradaProvider } from "../lib/TorradaContext";
 import MenuEu from "../components/MenuEu";
 import NavBar from "../components/NavBar";
+import AvisoOffline from "../components/AvisoOffline";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -28,10 +29,13 @@ export default function Sessao({ uid, papel, baseId }) {
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano] = useState(hoje.getFullYear());
   const [focoEvento, setFocoEvento] = useState(null);
+  const [focoSeq, setFocoSeq] = useState(0);
+  const [focoEscala, setFocoEscala] = useState(null);
+  const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
-    getDoc(doc(db, `bases/${baseId}/pessoas/${uid}`)).then((s) => setPessoa(s.exists() ? s.data() : null));
+    return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
 
   const lider = papel === "lider_base";
@@ -39,11 +43,19 @@ export default function Sessao({ uid, papel, baseId }) {
   function irPara(p) {
     setPagina(p);
     setMenuAberto(false);
-    if (p === "funcoes") setFocoEvento(null);
+    if (p === "funcoes") { setFocoEvento(null); setFocoSeq((s) => s + 1); }
+  }
+
+  function irParaEscala(eventoId) {
+    setFocoEscala(eventoId ?? null);
+    setFocoEscalaSeq((s) => s + 1);
+    setPagina("escala");
+    setMenuAberto(false);
   }
 
   function irParaFuncoes(eventoId) {
     setFocoEvento(eventoId ?? null);
+    setFocoSeq((s) => s + 1);
     setPagina("funcoes");
     setMenuAberto(false);
   }
@@ -57,7 +69,8 @@ export default function Sessao({ uid, papel, baseId }) {
   return (
     <TorradaProvider>
       <div className="app">
-        <div className="crista topo" style={{ paddingBottom: 20 }}>
+        <AvisoOffline />
+        <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">
               <i>igreja</i>
@@ -89,31 +102,47 @@ export default function Sessao({ uid, papel, baseId }) {
               ))}
             </div>
           )}
+          <svg className="curva" viewBox="0 0 400 46" preserveAspectRatio="none">
+            <path d="M0,46 C110,4 290,4 400,46 L400,46 L0,46 Z" fill="#fff" />
+          </svg>
         </div>
         <div className="corpo">
-          {pagina === "inicio" && (
+          <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
-              definirCabecalho={setCab} onIrEscala={() => irPara("escala")} onVerFuncoes={irParaFuncoes}
+              ativo={pagina === "inicio"} definirCabecalho={setCab}
+              onIrEscala={irParaEscala} onVerFuncoes={irParaFuncoes}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
             />
-          )}
-          {pagina === "escala" && (
+          </div>
+          <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} mes={mes} ano={ano} definirMes={setMes} definirCabecalho={setCab}
+              uid={uid} mes={mes} ano={ano} definirMes={setMes}
+              eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
+              ativo={pagina === "escala"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
             />
-          )}
-          {pagina === "funcoes" && (
-            <Funcoes uid={uid} papel={papel} eventoIdFoco={focoEvento} definirCabecalho={setCab} />
-          )}
-          {pagina === "culto" && (
-            <Culto uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto} definirCabecalho={setCab} />
-          )}
-          {pagina === "inventario" && (
-            <Inventario uid={uid} definirCabecalho={setCab} onIrReembolsos={() => irPara("reembolsos")} />
-          )}
+          </div>
+          <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
+            <Funcoes
+              uid={uid} papel={papel} eventoIdFoco={focoEvento} focoSeq={focoSeq}
+              ativo={pagina === "funcoes"} definirCabecalho={setCab}
+            />
+          </div>
+          <div style={{ display: pagina === "culto" ? "" : "none" }}>
+            <Culto
+              uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
+              ativo={pagina === "culto"} definirCabecalho={setCab}
+              onVerFuncoes={irParaFuncoes}
+            />
+          </div>
+          <div style={{ display: pagina === "inventario" ? "" : "none" }}>
+            <Inventario
+              uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
+              onIrReembolsos={() => irPara("reembolsos")}
+            />
+          </div>
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
           )}
@@ -127,6 +156,9 @@ export default function Sessao({ uid, papel, baseId }) {
           {pagina === "painel" && (
             <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
           )}
+          <p className="assinatura">
+            Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
+          </p>
         </div>
       </div>
       <NavBar pagina={pagina} onIr={irPara} />

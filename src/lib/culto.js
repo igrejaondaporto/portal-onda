@@ -9,7 +9,7 @@
  * pela Cloud Function definirFrase.
  */
 import { collection, doc, getDocs, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
-import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref as refStorage, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage, chamar } from "./firebase";
 import { obterEventosDoMes } from "./painel";
 
@@ -73,6 +73,33 @@ export async function enviarOrdemCulto(eventoId, ficheiro) {
   await uploadBytes(destino, ficheiro, { contentType: "application/pdf" });
   return getDownloadURL(destino);
 }
+
+/** Pede à Cloud Function para ler o PDF que já está no Storage —
+ *  nunca lança erro por falha de leitura (o PDF já ficou guardado,
+ *  é isso que importa; { falhou: true } é que assinala o resto). */
+export const lerOrdemCulto = (eventoId) =>
+  chamar("lerOrdemCulto")({ eventoId, caminhoStorage: `eventos/${eventoId}/ordem.pdf` }).then((r) => r.data);
+
+/** Sobe o PDF e já pede a leitura a seguir. */
+export async function lerEEnviarOrdemCulto(eventoId, ficheiro) {
+  const pdfUrl = await enviarOrdemCulto(eventoId, ficheiro);
+  const resultado = await lerOrdemCulto(eventoId);
+  return { ...resultado, pdfUrl };
+}
+
+/** Só para o PDF ainda não publicado — se a leitura falhou ou o líder
+ *  quer recomeçar, tira o ficheiro do Storage sem deixar rasto. */
+export const removerOrdemCulto = (eventoId) =>
+  deleteObject(refStorage(storage, `eventos/${eventoId}/ordem.pdf`));
+
+/** Só depois disto é que a ordem do culto existe para os voluntários. */
+export const publicarOrdemCulto = (dados) =>
+  chamar("publicarOrdemCulto")(dados).then((r) => r.data);
+
+/** Apaga a ordem já publicada e o PDF — volta a "à espera do PDF",
+ *  como se nada tivesse sido enviado. */
+export const limparOrdemCulto = (eventoId) =>
+  chamar("limparOrdemCulto")({ eventoId }).then((r) => r.data);
 
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
  *  Sem isso, cai no primeiro culto do mês (mesma rede de segurança do protótipo). */

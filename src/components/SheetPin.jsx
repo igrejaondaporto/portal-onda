@@ -81,7 +81,9 @@ export default function SheetPin({ pessoa, nomeLider, onFechar, onDeveTrocarPin 
           Math.floor((restamMs % 60000) / 1000)
         ).padStart(2, "0")}. Se for urgente, fala com o ${nomeLider}.`
       : ""
-    : erro;
+    : aEnviar
+      ? "A verificar…"
+      : erro;
 
   return (
     <>
@@ -96,7 +98,7 @@ export default function SheetPin({ pessoa, nomeLider, onFechar, onDeveTrocarPin 
         </div>
         <h2>Olá, {pessoa.nome}</h2>
         <p className="sb2">Introduz o teu código de {dig} dígitos</p>
-        <div className={`pts${tremer ? " e tr" : ""}`}>
+        <div className={`pts${tremer ? " e tr" : aEnviar ? " a" : ""}`}>
           {Array.from({ length: dig }).map((_, i) => (
             <i key={i} className={i < cod.length ? "on" : ""} />
           ))}

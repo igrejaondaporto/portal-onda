@@ -32,6 +32,14 @@ integration nativa da Cloudflare (Workers Builds), ligada ao repo — não
 por GitHub Actions. O resto (Firestore, Storage, Auth, Cloud Functions)
 continua no Firebase.
 
+**Um projeto por base.** `apoio.painelonda.pt` é este repositório —
+`VITE_BASE_ID=apoio` fixo no `.env.production`, um Worker Cloudflare só
+seu. A Base Técnica (`tecnica.painelonda.pt`) não é deteção automática
+de subdomínio: é este repositório **duplicado**, com `VITE_BASE_ID`,
+domínio e marca próprios, e o seu próprio Worker na Cloudflare. O
+Firestore é que continua partilhado — é aí que o multi-base da regra 6
+vive, não no deploy.
+
 ## Regras que não se negoceiam
 
 1. **O PIN nunca é verificado no cliente.** Só a Cloud Function `entrar`.

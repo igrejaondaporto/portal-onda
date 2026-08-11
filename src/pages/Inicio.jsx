@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cBase, FASES, funcoesDoCulto } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
+import { useEffect, useState } from "react";
+import { onSnapshot } from "firebase/firestore";
+import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
-import { dataPorExtenso, eur } from "../lib/data";
+import { dataPorExtenso, eur, nomeCurto } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
 import Avatares from "../components/Avatares";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
+import LinhaPessoaContacto from "../components/LinhaPessoaContacto";
 
 function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
@@ -24,7 +25,7 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -39,12 +40,25 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
   const [inventario, setInventario] = useState([]);
+  const [checklistAberta, setChecklistAberta] = useState(false);
+  const [contactoAberto, setContactoAberto] = useState(null);
 
-  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
+  useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
-  useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+
+  // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
+  // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
+  useEffect(() => {
+    if (!meuEvento?.id) return;
+    return onSnapshot(cEscala(meuEvento.id), (esc) => {
+      const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+      setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meuEvento?.id]);
   useEffect(() => {
     if (!souLiderBase) return;
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
@@ -72,17 +86,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
 
-  const recarregarMes = useCallback(() => {
-    obterEventosDoMes(ano, mes).then(setEventosMes);
-  }, [ano, mes]);
-
   useEffect(() => {
+    if (!ativo) return;
     if (!meuEvento) {
-      definirCabecalho({ titulo: <>Olá,<br /><em>{pessoa?.nome ?? "…"}</em></>, subtitulo: "", chips: [] });
+      definirCabecalho({ titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>, subtitulo: "", chips: [] });
       return;
     }
     definirCabecalho({
-      titulo: <>Olá,<br /><em>{pessoa?.nome ?? "…"}</em></>,
+      titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>,
       subtitulo: sirvo
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
@@ -91,24 +102,25 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
+  }, [ativo, meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
 
-  async function alternarFeito(funcaoId) {
+  // não se espera pela promessa: a marca (ou a limpeza) tem de aparecer já,
+  // vinda da cache local — sem rede, a escrita fica pendente e sincroniza
+  // sozinha quando ela voltar. Esperar aqui deixaria o toque sem efeito
+  // nenhum enquanto a Casa do Povo não tiver sinal.
+  function alternarFeito(funcaoId) {
     if (!meuEvento) return;
-    try {
-      if (checklist[funcaoId]) await desmarcarFeito(meuEvento.id, funcaoId);
-      else await marcarFeito(meuEvento.id, funcaoId, uid);
-    } catch (e) {
-      torrada(e.message || "Não foi possível atualizar.");
-    }
+    const escrita = checklist[funcaoId] ? desmarcarFeito(meuEvento.id, funcaoId) : marcarFeito(meuEvento.id, funcaoId, uid);
+    escrita.catch((e) => torrada(e.message || "Não foi possível atualizar."));
   }
 
   async function marcarTodas(valor) {
     if (!meuEvento) return;
     try {
-      await Promise.all(
-        funcoesCulto.map((f) => (valor ? marcarFeito(meuEvento.id, f.id, uid) : desmarcarFeito(meuEvento.id, f.id)))
-      );
+      funcoesCulto.forEach((f) => {
+        (valor ? marcarFeito(meuEvento.id, f.id, uid) : desmarcarFeito(meuEvento.id, f.id))
+          .catch((e) => torrada(e.message || "Não foi possível atualizar."));
+      });
       torrada(valor ? "Tudo marcado como feito" : "Checklist limpo");
     } catch (e) {
       torrada(e.message || "Não foi possível atualizar.");
@@ -206,7 +218,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
                     return (
                       <div
                         className={`linha${ok ? " feita" : ""}`} key={f.id} style={{ cursor: "pointer" }}
-                        onClick={() => onVerFuncoes?.(meuEvento.id)}
+                        onClick={() => alternarFeito(f.id)}
                       >
                         <button className={`chk${ok ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarFeito(f.id); }}>✓</button>
                         <div style={{ flex: 1 }}>
@@ -240,41 +252,48 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
             {total === 0 ? "Ainda não há funções para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
           </p>
           {total > 0 && (
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
-              <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
-            </div>
+            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta((a) => !a)}>
+              {checklistAberta ? "Ocultar checklist" : "Ver Checklist do dia"}
+            </button>
           )}
-          {FASES.map(([k, t]) => {
-            const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
-            if (!doF.length) return null;
-            const fe = doF.filter((f) => checklist[f.id]).length;
-            return (
-              <div key={k}>
-                <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
-                {doF.map((f) => {
-                  const ok = !!checklist[f.id];
-                  const ids = atribuicoes[f.id] || [];
-                  return (
-                    <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
-                      <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
-                        <p className="ds">
-                          {ok
-                            ? `${voluntarios.find((p) => p.id === checklist[f.id].por)?.nome ?? "alguém"} · ${checklist[f.id].hora}`
-                            : ids.length
-                              ? ids.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")
-                              : "Por atribuir"}
-                        </p>
-                      </div>
-                      <Avatares pessoas={ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean)} />
-                    </div>
-                  );
-                })}
+          {checklistAberta && (
+            <>
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
+                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
-            );
-          })}
+              {FASES.map(([k, t]) => {
+                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+                if (!doF.length) return null;
+                const fe = doF.filter((f) => checklist[f.id]).length;
+                return (
+                  <div key={k}>
+                    <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
+                    {doF.map((f) => {
+                      const ok = !!checklist[f.id];
+                      const ids = atribuicoes[f.id] || [];
+                      return (
+                        <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
+                          <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
+                          <div style={{ flex: 1 }}>
+                            <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
+                            <p className="ds">
+                              {ok
+                                ? `${voluntarios.find((p) => p.id === checklist[f.id].por)?.nome ?? "alguém"} · ${checklist[f.id].hora}`
+                                : ids.length
+                                  ? ids.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")
+                                  : "Por atribuir"}
+                            </p>
+                          </div>
+                          <Avatares pessoas={ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
 
@@ -284,7 +303,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}
             onMudarMes={(d) => definirMes(Math.min(11, Math.max(0, mes + d)))}
-            onAbrirDia={() => onIrEscala?.()}
+            onAbrirDia={(eventoId) => onIrEscala?.(eventoId)}
           />
         </div>
         <div className="sect">
@@ -296,14 +315,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, defin
               const fs = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(id));
               const fe = fs.filter((f) => checklist[f.id]).length;
               return (
-                <div className="linha" key={id}>
-                  <Avatar pessoa={p} />
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds">{fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}</p>
-                  </div>
-                  {meuEvento.escala.liderEscala === id && <span className="tag lim">Líder de escala</span>}
-                </div>
+                <LinhaPessoaContacto
+                  key={id} pessoa={p}
+                  resumo={fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}
+                  funcoesDaPessoa={fs}
+                  tagExtra={meuEvento.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                  aberta={contactoAberto === id}
+                  onToggle={() => setContactoAberto((a) => (a === id ? null : id))}
+                />
               );
             })
           ) : (

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { cBase, FASES } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
+import { FASES } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins } from "../lib/painel";
 import { MESES, dataPorExtenso } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
 import Avatar from "../components/Avatar";
@@ -13,6 +13,7 @@ import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
+import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
@@ -25,10 +26,23 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [eventosRef, setEventosRef] = useState({});
   const [sheet, setSheet] = useState(null);
+  const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
+  const [aRepor, setARepor] = useState(false);
 
-  useEffect(() => {
-    getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null));
-  }, []);
+  async function reporTodosOsCodigos() {
+    setARepor(true);
+    try {
+      const r = await reporTodosPins();
+      torrada(`${r.repostos} códigos repostos`);
+      setAConfirmarRepor(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível repor os códigos.");
+    } finally {
+      setARepor(false);
+    }
+  }
+
+  useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
 
@@ -135,6 +149,29 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                 </button>
               </div>
             ))}
+            {!aConfirmarRepor ? (
+              <button
+                className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }}
+                onClick={() => setAConfirmarRepor(true)}
+              >
+                Repor todos os códigos
+              </button>
+            ) : (
+              <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 14 }}>
+                <p style={{ fontSize: 13, fontWeight: 600 }}>Repor o código de toda a gente?</p>
+                <p className="ds" style={{ marginTop: 4 }}>
+                  Volta a 1234 para voluntários e 123456 para líder da base. Ninguém entra até usar o código novo.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aRepor} onClick={reporTodosOsCodigos}>
+                    {aRepor ? "A repor…" : "Repor tudo"}
+                  </button>
+                  <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aRepor} onClick={() => setAConfirmarRepor(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -192,7 +229,12 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           </div>
 
           <div className="sect">
-            <div className="cabecalho"><h3>Definições da base</h3></div>
+            <div className="cabecalho">
+              <h3>Definições da base</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "definicoesBase" })}>
+                Editar
+              </button>
+            </div>
             <div className="linha">
               <div style={{ flex: 1 }}><p className="nmt">Hora de chegada</p><p className="ds">Igual em todos os domingos</p></div>
               <span className="tag cinz">{base?.horaChegada ?? "—"}</span>
@@ -240,6 +282,13 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
         <SheetFuncao
           funcao={sheet.funcaoId ? funcoes.find((f) => f.id === sheet.funcaoId) : null}
           eventosDisponiveis={eventosMes}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "definicoesBase" && (
+        <SheetDefinicoesBase
+          base={base}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

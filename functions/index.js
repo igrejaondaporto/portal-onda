@@ -12,12 +12,24 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import admin from "firebase-admin";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { logger } from "firebase-functions";
 
 admin.initializeApp();
 const db = admin.firestore();
 
+// O frontend vive no Cloudflare, não no domínio das Functions — sem isto
+// os pedidos são bloqueados como cross-origin. Cobre o domínio de cada
+// base (apoio.painelonda.pt, tecnica.painelonda.pt…), os previews do
+// Workers Builds e o dev local.
+const ORIGENS_PERMITIDAS = [
+  /^https:\/\/([a-z0-9-]+\.)?painelonda\.pt$/,
+  /^https:\/\/[a-z0-9-]+\.workers\.dev$/,
+  "http://localhost:5173",
+];
+
 // Portugal → o datacenter mais próximo. Poupa ~80ms por chamada.
-setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
+setGlobalOptions({ region: "europe-west1", maxInstances: 10, cors: ORIGENS_PERMITIDAS });
 
 const MAX_1 = 3;                  // tentativas antes do bloqueio
 const MAX_2 = 5;                  // tentativas depois dos 15 minutos
@@ -208,6 +220,21 @@ export const reporPin = onCall(async (req) => {
   return { pinProvisorio: provisorio };
 });
 
+/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ────────────── */
+export const reporTodosPins = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
+  const lote = db.batch();
+  snap.forEach((doc) => {
+    const provisorio = pinProvisorio(doc.data().papel);
+    lote.set(refSegredo(baseId, doc.id), {
+      pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+    }, { merge: true });
+  });
+  await lote.commit();
+  return { repostos: snap.size };
+});
+
 export const removerVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { pessoaId } = req.data || {};
@@ -302,6 +329,249 @@ export const atribuirFuncao = onCall(async (req) => {
     atualizadoPor: uid,
     atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
+  return { ok: true };
+});
+
+/* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
+ * A base é o analisador testado contra o PDF real do pastor (ver
+ * culto-transcrito.html, na raiz do projeto) — só a origem do texto
+ * muda: aqui vem do Storage via pdfjs-dist em vez do <input type=file>
+ * do browser. Duas correções vieram de testar com o PDF a sério:
+ *   1. o extrator às vezes mete espaços à volta de ':' e '/' dentro
+ *      de horas e datas (ex.: "09 : 30") — normalizar() tira-os.
+ *   2. o nome de um aviso pode cair na linha A SEGUIR à data, não só
+ *      antes dela na mesma linha, quando a célula "Informações" da
+ *      grelha quebra em duas linhas.
+ * Quando o pastor mudar o modelo do PDF, isto parte — o ecrã de
+ * revisão do líder é a rede de segurança, não um extra. */
+async function linhasDoPdf(bytes) {
+  const pdf = await getDocument({ data: bytes, disableFontFace: true, useSystemFonts: true }).promise;
+  const linhas = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const conteudo = await (await pdf.getPage(p)).getTextContent();
+    const porY = new Map();
+    for (const it of conteudo.items) {
+      if (!it.str.trim()) continue;
+      const y = Math.round(it.transform[5]);          // agrupa pela altura
+      const chave = [...porY.keys()].find((k) => Math.abs(k - y) <= 3) ?? y;
+      if (!porY.has(chave)) porY.set(chave, []);
+      porY.get(chave).push({ x: it.transform[4], s: it.str });
+    }
+    [...porY.entries()].sort((a, b) => b[0] - a[0]).forEach(([, itens]) => {
+      linhas.push(normalizar(itens.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ")
+        .replace(/\s+/g, " ").trim()));
+    });
+  }
+  return linhas.filter(Boolean);
+}
+
+/** Junta glifos partidos pelo extrator de texto: "09 : 30" → "09:30",
+ *  "14 / 08" → "14/08", "sexta - feira" → "sexta-feira". */
+function normalizar(linha) {
+  return linha
+    .replace(/(\d)\s*:\s*(\d)/g, "$1:$2")
+    .replace(/(\d)\s*\/\s*(\d)/g, "$1/$2")
+    .replace(/([a-zà-úA-ZÀ-Ú])\s+-\s+([a-zà-úA-ZÀ-Ú])/g, "$1-$2")
+    .replace(/\s+,/g, ",");
+}
+
+const RESP = /(Pr(?:\.|a\.)?\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wáéíóúâêôãõçÁÉÍÓÚ.]*|Base\s+[A-Z]\w+|Banda|Projeç[ãa]o|Sonoplastia|Diaconia|Louvor)\s*$/;
+const DETALHE = /(Ilumina[çc][ãa]o:\s*.+|TODOS OS VOLUNT[ÁA]RIOS)\s*$/i;
+const RUIDO_FIM_AVISO = /\s+((BG|Avisos|Materiais)\s*)+$/i;
+
+function analisar(linhas) {
+  const momentos = [], avisos = [];
+  let titulo = null, dataFicheiro = null;
+
+  linhas.forEach((linha, i) => {
+    const t = linha.match(/ORDEM CULTO ([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]+?)\s*(\d{2}\/\d{2})/i);
+    if (t) { titulo = t[1].trim(); dataFicheiro = t[2]; }
+
+    const m = linha.match(/^(\d{1,2}:\d{2})\s+(.+?)\s+(\d+)\s*min\s+(.*)$/);
+    if (m) {
+      let resto = m[4].trim(), detalhe = null, responsavel = null;
+      const d = resto.match(DETALHE);
+      if (d) { detalhe = d[1].trim(); resto = resto.slice(0, d.index).trim(); }
+      const r = resto.match(RESP);
+      if (r) { responsavel = r[1].trim(); resto = resto.slice(0, r.index).trim(); }
+      momentos.push({ hora: m[1], momento: m[2].trim(), minutos: +m[3],
+        projecao: resto === "-" ? null : resto || null, responsavel, detalhe });
+      return;
+    }
+
+    const a = linha.match(/(\d{2}\/\d{2})(?:\/\d{4})?[,\s]+(.*)$/);
+    if (a && !/^\d{1,2}:\d{2}/.test(linha) && !/min\b/.test(linha)) {
+      let nome = linha.slice(0, a.index).trim().replace(/[,\s–-]+$/, "").replace(RUIDO_FIM_AVISO, "").trim();
+      let j = i + 1;
+      // sem nome antes da data nesta linha? a célula "Evento" da grelha
+      // pode ter caído na linha seguinte, não na anterior
+      if (!nome) {
+        const candidato = linhas[j];
+        if (candidato && !/^(Evento|Informa)/i.test(candidato)) {
+          nome = candidato.replace(RUIDO_FIM_AVISO, "").trim();
+          j++;
+        }
+      }
+      const infoPartes = [a[2]];
+      if (linhas[j] && /^(Povo|Casa|Sala)\b/.test(linhas[j]) && infoPartes.join(" ").trim().endsWith("do")) {
+        infoPartes.push(linhas[j].split(" ")[0]);
+        j++;
+      }
+      const info = infoPartes.join(" ").replace(RUIDO_FIM_AVISO, "").trim();
+      if (nome) avisos.push({ nome, data: a[1], info });
+    }
+  });
+
+  let fim = null;
+  if (momentos.length) {
+    const u = momentos.at(-1), [h, mi] = u.hora.split(":").map(Number);
+    const t = h * 60 + mi + u.minutos;
+    fim = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  }
+  return { titulo, dataFicheiro, momentos, avisos, inicio: momentos[0]?.hora ?? null, fim };
+}
+
+export const lerOrdemCulto = onCall(async (req) => {
+  const { eventoId, caminhoStorage } = req.data || {};
+  exigeLider(req);
+  if (!eventoId || caminhoStorage !== `eventos/${eventoId}/ordem.pdf`) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  try {
+    const [buffer] = await admin.storage().bucket().file(caminhoStorage).download();
+    // pdfjs-dist exige um Uint8Array "puro" — um Buffer do Node, mesmo
+    // sendo tecnicamente um Uint8Array, é rejeitado pelo teste interno dele
+    const r = analisar(await linhasDoPdf(new Uint8Array(buffer)));
+    if (!r.momentos.length) return { momentos: [], avisos: [], falhou: true };
+    return { ...r, falhou: false };
+  } catch (e) {
+    logger.error("lerOrdemCulto falhou", e);
+    return { momentos: [], avisos: [], falhou: true };
+  }
+});
+
+/* ── PUBLICAR A ORDEM DO CULTO ─────────────────────────────────
+ * eventos/{e} é global e write:false (ver firestore.rules) — por
+ * isso passa por aqui, tal como a frase e o feedback. Grava só
+ * depois do líder confirmar no ecrã de revisão; nada é automático. */
+export const publicarOrdemCulto = onCall(async (req) => {
+  exigeLider(req);
+  const { eventoId, momentos, avisos, inicio, fim, portasAbertas, pdfUrl, origem } = req.data || {};
+  if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const evento = await db.doc(`eventos/${eventoId}`).get();
+  if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+  const ano = evento.data().data.slice(0, 4);
+
+  const criados = [];
+  for (const aviso of avisos) {
+    if (!aviso?.criarCulto) continue;
+    const [dia, mes] = String(aviso.data || "").split("/");
+    if (!dia || !mes) continue;
+    const id = `${ano}-${mes}-${dia}`;
+    const ref = db.doc(`eventos/${id}`);
+    if ((await ref.get()).exists) continue;          // nunca sobrescreve
+    await ref.set({
+      data: id, tipo: aviso.nome, horaCulto: "10:30",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    criados.push({ id, tipo: aviso.nome });
+  }
+
+  const avisosLimpos = avisos.map(({ nome, data, info }) => ({ nome, data, info }));
+  await db.doc(`eventos/${eventoId}`).set({
+    ordem: {
+      momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
+      portasAbertas: portasAbertas ?? inicio ?? null,
+      pdfUrl: pdfUrl ?? null, publicadoPor: req.auth.uid,
+      publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      origem: origem === "manual" ? "manual" : "auto",
+    },
+  }, { merge: true });
+
+  return { ok: true, cultosEspeciaisCriados: criados };
+});
+
+/* ── LIMPAR A ORDEM PUBLICADA ──────────────────────────────────
+ * O líder quer recomeçar do zero: tira o PDF do Storage e apaga o
+ * campo ordem — volta a ficar "à espera do PDF", como nunca tivesse
+ * sido enviado nada. */
+export const limparOrdemCulto = onCall(async (req) => {
+  exigeLider(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  try {
+    await admin.storage().bucket().file(`eventos/${eventoId}/ordem.pdf`).delete();
+  } catch (e) {
+    if (e.code !== 404) throw e;                      // já não havia ficheiro, tudo bem
+  }
+  await db.doc(`eventos/${eventoId}`).update({ ordem: admin.firestore.FieldValue.delete() });
+  return { ok: true };
+});
+
+/* ── DEFINIÇÕES DA BASE ────────────────────────────────────────
+ * bases/{b} é write:false para o cliente (ver firestore.rules). */
+export const definirBase = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { horaChegada, horaCulto } = req.data || {};
+  if (!/^\d{1,2}:\d{2}$/.test(String(horaChegada || "")) || !/^\d{1,2}:\d{2}$/.test(String(horaCulto || ""))) {
+    throw new HttpsError("invalid-argument", "Hora inválida.");
+  }
+  await db.doc(`bases/${baseId}`).set({ horaChegada, horaCulto }, { merge: true });
+  return { ok: true };
+});
+
+/* ── INVENTÁRIO: LÍDER DA BASE, OU LÍDER DE ESCALA NO DIA DO CULTO DELE ──
+ * Criar, editar e desativar itens passa sempre por aqui — só assim é que
+ * o líder de escala pode ajudar sem abrir a porta a qualquer voluntário.
+ * A quantidade em si continua a mexer-se direto do cliente (ver regras). */
+async function exigeGestorInventario(req) {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (req.auth.token.papel === "lider_base") return baseId;
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const escala = await db.doc(`eventos/${hoje}/escalas/${baseId}`).get();
+  if (escala.exists && escala.data().liderEscala === uid) return baseId;
+
+  throw new HttpsError("permission-denied",
+    "Só o líder da base, ou o líder de escala no dia do culto, pode gerir o inventário.");
+}
+
+export const criarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
+    nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
+    minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+    ativo: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { itemId };
+});
+
+export const guardarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
+    nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
+    minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const desativarItemInventario = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { itemId } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  await db.doc(`bases/${baseId}/inventario/${itemId}`).set({ ativo: false }, { merge: true });
   return { ok: true };
 });
 

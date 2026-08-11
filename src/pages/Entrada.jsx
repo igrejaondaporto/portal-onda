@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obterDadosEntrada } from "../lib/pessoas";
 import { BASE_ID } from "../lib/firebase";
 import SheetPin from "../components/SheetPin";
+import AvisoOffline from "../components/AvisoOffline";
 
 function TituloBase({ nome }) {
   if (!nome) return <h1>Base</h1>;
@@ -41,6 +42,7 @@ export default function Entrada({ onDeveTrocarPin }) {
 
   return (
     <div className="login">
+      <AvisoOffline />
       <div className="crista entrada">
         <div>
           <div className="lin">
@@ -70,18 +72,28 @@ export default function Entrada({ onDeveTrocarPin }) {
         </div>
         {erro && <p className="aviso" style={{ textAlign: "left", paddingTop: 0 }}>{erro}</p>}
         <div className="g">
-          {pessoas.map((p, i) => (
-            <button key={p.id} className="p" style={{ animationDelay: `${i * 20}ms` }} onClick={() => setAlvo(p)}>
-              <span className="av" style={p.foto ? { backgroundImage: `url(${p.foto})` } : { background: p.cor }}>
-                {p.foto ? "" : p.nome[0]}
-                {p.papel === "lider_base" && <s aria-label="Líder da base">★</s>}
-              </span>
-              <b>{p.nome}</b>
-            </button>
-          ))}
+          {pessoas.length === 0 && !erro
+            ? Array.from({ length: 10 }).map((_, i) => (
+                <div className="p skel" key={i} aria-hidden="true">
+                  <span className="av" />
+                  <b>·</b>
+                </div>
+              ))
+            : pessoas.map((p, i) => (
+                <button key={p.id} className="p" style={{ animationDelay: `${i * 20}ms` }} onClick={() => setAlvo(p)}>
+                  <span className="av" style={p.foto ? { backgroundImage: `url(${p.foto})` } : { background: p.cor }}>
+                    {p.foto ? "" : p.nome[0]}
+                    {p.papel === "lider_base" && <s aria-label="Líder da base">★</s>}
+                  </span>
+                  <b>{p.nome}</b>
+                </button>
+              ))}
         </div>
         <p className="nota">
           O teu nome e a tua foto ficam visíveis para as pessoas da tua base. Mais nada é partilhado.
+        </p>
+        <p className="assinatura">
+          Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
         </p>
       </div>
       {alvo && (

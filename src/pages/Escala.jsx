@@ -1,18 +1,44 @@
-import { useEffect, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cBase } from "../lib/modelo";
-import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
+import { useEffect, useRef, useState } from "react";
+import { funcoesDoCulto } from "../lib/modelo";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase } from "../lib/painel";
+import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "../lib/data";
 import Avatar from "../components/Avatar";
+import LinhaPessoaContacto from "../components/LinhaPessoaContacto";
 
-export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, onVerFuncoes }) {
+export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
+  const [funcoes, setFuncoes] = useState([]);
   const [base, setBase] = useState(null);
+  const [realcado, setRealcado] = useState(null);
+  const [atribuicoesPorEvento, setAtribuicoesPorEvento] = useState({});
+  const [contactoAberto, setContactoAberto] = useState(null); // { eventoId, pessoaId }
+  const refsEventos = useRef({});
 
-  useEffect(() => { obterEventosDoMes(ano, mes).then(setEventosMes); }, [ano, mes]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => { getDoc(cBase()).then((s) => setBase(s.exists() ? s.data() : null)); }, []);
+  useEffect(() => ouvirFuncoes(setFuncoes), []);
+  useEffect(() => ouvirBase(setBase), []);
+
+  function alternarContacto(eventoId, pessoaId) {
+    setContactoAberto((a) => (a?.eventoId === eventoId && a?.pessoaId === pessoaId ? null : { eventoId, pessoaId }));
+    if (!atribuicoesPorEvento[eventoId]) {
+      obterAtribuicoes(eventoId).then((a) => setAtribuicoesPorEvento((m) => ({ ...m, [eventoId]: a })));
+    }
+  }
+
+  useEffect(() => {
+    if (!eventoIdFoco || !eventosMes.length) return;
+    const el = refsEventos.current[eventoIdFoco];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setRealcado(eventoIdFoco);
+    const t = setTimeout(() => setRealcado(null), 1600);
+    return () => clearTimeout(t);
+    // focoSeq muda a cada clique no calendário, mesmo que o culto-alvo seja o mesmo de antes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventoIdFoco, focoSeq, eventosMes.length]);
 
   const temEscala = eventosMes.some((e) => e.escala.pessoas.length);
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
@@ -20,13 +46,14 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, on
   const hoje = hojeISO();
 
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
       titulo: "Escala",
       subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
       chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:00"}` : "Escala por definir"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventosMes.length, temEscala, mes, base]);
+  }, [ativo, eventosMes.length, temEscala, mes, base]);
 
   const maxLin = Math.max(0, ...eventosMes.map((e) => e.escala.pessoas.filter((id) => id !== e.escala.liderEscala).length));
   const linhas = [];
@@ -62,7 +89,7 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, on
                     <th>Apoio</th>
                     {eventosMes.map((ev) => (
                       <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
-                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ""}
+                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
                       </th>
                     ))}
                   </tr>
@@ -91,11 +118,15 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, on
       {eventosMes.map((ev) => {
         const pessoasOrdenadas = ordenarEscala(ev.escala);
         return (
-          <div className="sect" key={ev.id}>
+          <div
+            className={`sect${realcado === ev.id ? " realce" : ""}`} key={ev.id}
+            ref={(el) => { refsEventos.current[ev.id] = el; }}
+          >
             <div className="cabecalho">
               <h3>
                 {ev.tipo || dataPorExtenso(ev.data)}
                 {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
+                {ev.data < hoje && " ✅"}
               </h3>
               {ev.escala.pessoas.includes(uid) ? (
                 <span className="tag verd">Serves</span>
@@ -112,14 +143,17 @@ export default function Escala({ uid, mes, ano, definirMes, definirCabecalho, on
               pessoasOrdenadas.map((id) => {
                 const p = pessoaPorId(id);
                 if (!p) return null;
+                const atribs = atribuicoesPorEvento[ev.id] || {};
+                const fs = funcoesDoCulto(funcoes, ev.id).filter((f) => (atribs[f.id] || []).includes(id));
                 return (
-                  <div className="linha" key={id}>
-                    <Avatar pessoa={p} />
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt">{p.nome}{id === uid ? " · tu" : ""}</p>
-                    </div>
-                    {ev.escala.liderEscala === id && <span className="tag lim">Líder de escala</span>}
-                  </div>
+                  <LinhaPessoaContacto
+                    key={id} pessoa={p}
+                    resumo={id === uid ? "tu" : fs.length ? `${fs.length} ${fs.length === 1 ? "função" : "funções"}` : "Sem funções atribuídas"}
+                    funcoesDaPessoa={fs}
+                    tagExtra={ev.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                    aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === id}
+                    onToggle={() => alternarContacto(ev.id, id)}
+                  />
                 );
               })
             ) : (

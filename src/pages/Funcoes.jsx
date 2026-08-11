@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FASES, funcoesDoCulto, podeDistribuir } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, obterEventosDoMes } from "../lib/painel";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, reordenarFuncoes } from "../lib/painel";
 import { ouvirAtribuicoes, ouvirChecklist, atribuirFuncao, obterMeuEvento } from "../lib/culto";
 import { dataPorExtenso, dataCurta } from "../lib/data";
 import { useTorrada } from "../lib/TorradaContext";
@@ -8,7 +8,7 @@ import LinhaFuncao from "../components/funcoes/LinhaFuncao";
 import SheetEscolher from "../components/funcoes/SheetEscolher";
 import SheetFuncao from "../components/painel/SheetFuncao";
 
-export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) {
+export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [eventoId, setEventoId] = useState(eventoIdFoco ?? null);
@@ -23,7 +23,9 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
   useEffect(() => {
     if (eventoIdFoco) setEventoId(eventoIdFoco);
     else obterMeuEvento(uid).then((ev) => setEventoId(ev?.id ?? null));
-  }, [uid, eventoIdFoco]);
+    // focoSeq muda a cada navegação para aqui, mesmo que o alvo seja o mesmo de antes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, eventoIdFoco, focoSeq]);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -31,7 +33,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
   useEffect(() => {
     if (!eventoId) return;
     const ano = Number(eventoId.slice(0, 4)), mes = Number(eventoId.slice(5, 7)) - 1;
-    obterEventosDoMes(ano, mes).then(setEventosMes);
+    return ouvirEventosDoMes(ano, mes, setEventosMes);
   }, [eventoId]);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
 
   useEffect(() => {
-    if (!evento) return;
+    if (!ativo || !evento) return;
     definirCabecalho({
       titulo: "Funções",
       subtitulo: evento.tipo ? `${evento.tipo} · ${dataPorExtenso(evento.data)}` : "Toca numa função para ver como se faz",
@@ -62,7 +64,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
       ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [evento, funcoesCulto.length, especiais.length, nomeLiderEscala]);
+  }, [ativo, evento, funcoesCulto.length, especiais.length, nomeLiderEscala]);
 
   async function alternar(funcaoId, pessoaId) {
     const atuais = atribuicoes[funcaoId] || [];
@@ -71,6 +73,18 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
       await atribuirFuncao(evento.id, funcaoId, novo);
     } catch (e) {
       torrada(e.message || "Não foi possível atualizar.");
+    }
+  }
+
+  async function mover(doF, indice, direcao) {
+    const alvo = indice + direcao;
+    if (alvo < 0 || alvo >= doF.length) return;
+    const nova = [...doF];
+    [nova[indice], nova[alvo]] = [nova[alvo], nova[indice]];
+    try {
+      await reordenarFuncoes(nova);
+    } catch (e) {
+      torrada(e.message || "Não foi possível reordenar.");
     }
   }
 
@@ -137,7 +151,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
         return (
           <div key={k}>
             <div className="fasecab"><h4>{t}</h4><span>{d}</span><em>{semDono ? `${semDono} livres` : "completo"}</em></div>
-            {doF.map((f) => (
+            {doF.map((f, i) => (
               <LinhaFuncao
                 key={f.id} f={f} ids={atribuicoes[f.id] || []} voluntarios={voluntarios}
                 feita={!!checklist[f.id]} aberta={aberta === f.id} pode={pode} souLiderBase={souLiderBase}
@@ -145,6 +159,8 @@ export default function Funcoes({ uid, papel, eventoIdFoco, definirCabecalho }) 
                 onAbrir={() => setAberta(aberta === f.id ? null : f.id)}
                 onEscolher={() => setSheet({ tipo: "escolher", funcaoId: f.id })}
                 onEditar={() => setSheet({ tipo: "funcao", funcaoId: f.id })}
+                onSubir={() => mover(doF, i, -1)} onDescer={() => mover(doF, i, 1)}
+                primeira={i === 0} ultima={i === doF.length - 1}
               />
             ))}
           </div>
