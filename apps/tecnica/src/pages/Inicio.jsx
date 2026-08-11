@@ -5,6 +5,7 @@ import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMini
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
+import { ouvirIndiceWiki } from "../lib/wiki";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
@@ -17,7 +18,7 @@ function ordenarChecklist(lista, checklist) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos, onIrWiki }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -34,6 +35,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [wikiItens, setWikiItens] = useState([]);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -41,6 +43,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+  useEffect(() => ouvirIndiceWiki(setWikiItens), []);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
   // o líder mudar quem serve ou o líder de culto, não é preciso refresh.
@@ -81,6 +84,19 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
+
+  // artigos (não esqueletos) dos ministérios da pessoa primeiro, depois
+  // os gerais, os 2 mais recentes — só um atalho, a lista toda é na Wiki
+  const meusMinisterios = ministerios.filter((m) => pessoa?.ministerios?.[m.id]).map((m) => m.id);
+  const wikiRecentes = [...wikiItens]
+    .filter((i) => i.tipo === "artigo" && !i.esqueleto)
+    .sort((a, b) => {
+      const meuA = a.ministerios?.some((m) => meusMinisterios.includes(m));
+      const meuB = b.ministerios?.some((m) => meusMinisterios.includes(m));
+      if (meuA !== meuB) return meuA ? -1 : 1;
+      return (b.atualizadoEm?.toMillis?.() ?? 0) - (a.atualizadoEm?.toMillis?.() ?? 0);
+    })
+    .slice(0, 2);
 
   useEffect(() => {
     if (!ativo) return;
@@ -329,6 +345,23 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           ) : (
             <div className="vaz">Ninguém mais escalado ainda.</div>
           )}
+        </div>
+        <div className="sect">
+          <div className="cabecalho"><h3>Wiki</h3></div>
+          {wikiRecentes.length === 0 ? (
+            <div className="vaz">Ainda não há artigos escritos.</div>
+          ) : (
+            wikiRecentes.map((item) => (
+              <div className="linha" style={{ cursor: "pointer" }} key={item.id} onClick={() => onIrWiki?.(item.id)}>
+                <div style={{ flex: 1 }}>
+                  <p className="nmt">{item.titulo}</p>
+                  <p className="ds">{item.ministerios?.map(nomeMinisterio).filter(Boolean).join(", ") || "Geral"}</p>
+                </div>
+                <span className="seta">›</span>
+              </div>
+            ))
+          )}
+          <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => onIrWiki?.()}>Ver toda a Wiki</button>
         </div>
         <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>

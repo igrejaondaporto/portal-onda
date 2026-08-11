@@ -6,6 +6,7 @@ import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
   obterEventosDoMes, reporTodosPins, gerarDomingos,
 } from "../lib/painel";
+import { ouvirIndiceWiki } from "../lib/wiki";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -17,6 +18,7 @@ import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
 import SheetMinisterio from "../components/painel/SheetMinisterio";
+import SheetEsqueletoWiki from "../components/painel/SheetEsqueletoWiki";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
@@ -38,6 +40,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
+  const [wikiItens, setWikiItens] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
   const [eventosRef, setEventosRef] = useState({});
   const [sheet, setSheet] = useState(null);
@@ -76,6 +79,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
+  useEffect(() => ouvirIndiceWiki(setWikiItens), []);
 
   const recarregarMes = useCallback(() => {
     obterEventosDoMes(ano, mes).then(setEventosMes);
@@ -321,6 +325,24 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
 
           <div className="sect">
             <div className="cabecalho">
+              <h3>Wiki</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "esqueletoWiki" })}>
+                Criar esqueleto
+              </button>
+            </div>
+            <p className="ds" style={{ padding: "8px 0 2px" }}>
+              {wikiItens.length} publicados · {wikiItens.filter((w) => w.esqueleto).length} por escrever
+            </p>
+            {wikiItens.filter((w) => w.esqueleto).map((w) => (
+              <div className="linha" key={w.id}>
+                <div style={{ flex: 1 }}><p className="nmt">{w.titulo}</p></div>
+                <span className="tag cinz">por escrever</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho">
               <h3>Definições da base</h3>
               <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "definicoesBase" })}>
                 Editar
@@ -392,6 +414,13 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "ministerio" && (
         <SheetMinisterio
           ministerio={sheet.ministerioId ? ministerios.find((m) => m.id === sheet.ministerioId) : null}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "esqueletoWiki" && (
+        <SheetEsqueletoWiki
+          ministerios={ministerios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

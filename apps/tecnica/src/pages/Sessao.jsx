@@ -11,7 +11,12 @@ import Escala from "./Escala";
 import Culto from "./Culto";
 import Inventario from "./Inventario";
 import Reembolsos from "./Reembolsos";
+import Wiki from "./Wiki";
 import Perfil from "./Perfil";
+
+// livro — não existe no ICO padrão do NavBar (packages/shared), que
+// só conhece os ícones do menu de hoje da Apoio
+const ICONE_WIKI = '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>';
 
 // não há aba Funções na Técnica — a checklist vive só no Início,
 // filtrada pelo ministério da pessoa naquele culto (ver Inicio.jsx)
@@ -20,6 +25,7 @@ const ABAS = [
   ["escala", "Escala"],
   ["culto", "Culto"],
   ["inventario", "Equipamentos"],
+  ["wiki", "Wiki", ICONE_WIKI],
 ];
 
 /**
@@ -39,6 +45,8 @@ export default function Sessao({ uid, papel, baseId }) {
   const [ano, setAno] = useState(hoje.getFullYear());
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
+  const [focoWiki, setFocoWiki] = useState(null);
+  const [focoWikiSeq, setFocoWikiSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
@@ -93,6 +101,13 @@ export default function Sessao({ uid, papel, baseId }) {
     setMenuAberto(false);
   }
 
+  function irParaWiki(wikiId) {
+    setFocoWiki(wikiId ?? null);
+    setFocoWikiSeq((s) => s + 1);
+    setPagina("wiki");
+    setMenuAberto(false);
+  }
+
   return (
     <TorradaProvider>
       <div className="app">
@@ -140,7 +155,7 @@ export default function Sessao({ uid, papel, baseId }) {
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
-              onIrReembolsos={() => irPara("reembolsos")}
+              onIrReembolsos={() => irPara("reembolsos")} onIrWiki={irParaWiki}
             />
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
@@ -161,6 +176,12 @@ export default function Sessao({ uid, papel, baseId }) {
             <Inventario
               uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
               onIrReembolsos={() => irPara("reembolsos")}
+            />
+          </div>
+          <div style={{ display: pagina === "wiki" ? "" : "none" }}>
+            <Wiki
+              uid={uid} papel={papel} pessoa={pessoa} ativo={pagina === "wiki"} definirCabecalho={setCab}
+              wikiIdFoco={focoWiki} focoSeq={focoWikiSeq}
             />
           </div>
           {pagina === "reembolsos" && (

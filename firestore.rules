@@ -25,6 +25,13 @@ service cloud.firestore {
       match /privado/{doc} { allow read, write: if false; }
     }
 
+    // ── índice leve de busca da Wiki (Base Técnica) — recalculado
+    // pela Cloud Function a cada publicação, nunca escrito pelo cliente
+    match /wikiIndice/{base} {
+      allow read: if minhaBase(base);
+      allow write: if false;                        // só por função
+    }
+
     match /bases/{base} {
       // o documento em si é só nome/horas/cor — nada sensível — para o
       // seletor de base conseguir mostrar o nome de uma base que não é
@@ -56,6 +63,19 @@ service cloud.firestore {
       match /ministerios/{ministerio} {
         allow read:  if minhaBase(base);
         allow write: if souLiderBase(base);
+      }
+
+      // ── wiki (Base Técnica): autoria mista (líder cria esqueletos,
+      // qualquer voluntário escreve/edita/responde) e cada write tem
+      // de recalcular wikiIndice/{base} — por isso passa sempre pela
+      // Cloud Function, nunca escrita direta do cliente. ──
+      match /wiki/{artigo} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /respostas/{resposta} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
       }
 
       // ── inventário: qualquer voluntário mexe na quantidade direto.

@@ -746,3 +746,160 @@ export const criarCultoEspecial = onCall(async (req) => {
   });
   return { eventoId: data };
 });
+
+/* ── WIKI ──────────────────────────────────────────────────
+ * Autoria mista (o líder cria esqueletos, qualquer voluntário
+ * escreve/edita artigos e responde dúvidas) e todo write tem de
+ * recalcular o índice leve de busca — por isso, ao contrário de
+ * funcoes/ministerios (escrita direta, só souLiderBase), a Wiki
+ * passa sempre por aqui (ver firestore.rules: write:false). */
+const cWiki = (baseId) => db.collection(`bases/${baseId}/wiki`);
+const refWiki = (baseId, id) => db.doc(`bases/${baseId}/wiki/${id}`);
+
+async function atualizarIndiceWiki(baseId) {
+  const snap = await cWiki(baseId).where("ativo", "==", true).get();
+  const itens = snap.docs.map((d) => {
+    const w = d.data();
+    return {
+      id: d.id, tipo: w.tipo, titulo: w.titulo,
+      ministerios: w.ministerios || [], etiquetas: w.etiquetas || [],
+      esqueleto: !!w.esqueleto,
+      resolvida: w.tipo === "duvida" ? !!w.resolvidaPorRespostaId : null,
+      atualizadoEm: w.atualizadoEm ?? w.criadoEm ?? null,
+    };
+  });
+  await db.doc(`wikiIndice/${baseId}`).set({
+    itens, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+export const criarEsqueletoWiki = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { titulo, ministerios = [] } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  const ref = cWiki(baseId).doc();
+  await ref.set({
+    tipo: "artigo", titulo: titulo.trim(), ministerios, etiquetas: [],
+    introducao: "", conclusao: "", passos: [], esqueleto: true, ativo: true,
+    autorId: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: req.auth.uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: ref.id };
+});
+
+export const guardarArtigoWiki = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, titulo, introducao = "", conclusao = "", passos = [], ministerios = [], etiquetas = [] } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta o id do artigo.");
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  if (!Array.isArray(passos)) throw new HttpsError("invalid-argument", "Passos inválidos.");
+  const passosLimpos = passos
+    .map((p) => ({ texto: String(p?.texto || "").trim(), imagem: p?.imagem || null }))
+    .filter((p) => p.texto || p.imagem);
+
+  const dados = {
+    tipo: "artigo", titulo: titulo.trim(), introducao: introducao.trim(), conclusao: conclusao.trim(),
+    passos: passosLimpos, ministerios, etiquetas, esqueleto: false,
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  };
+
+  // o id vem sempre do cliente (novoWikiId(), o mesmo padrão de
+  // novoFuncaoId()) — precisa de existir antes de guardar para as
+  // fotos dos passos terem onde apontar. Por isso criar/editar é só
+  // "o documento já existia ou não", nunca dois fluxos separados.
+  const snap = await refWiki(baseId, wikiId).get();
+  if (snap.exists) {
+    await refWiki(baseId, wikiId).set(dados, { merge: true });
+  } else {
+    await refWiki(baseId, wikiId).set({
+      ...dados, ativo: true, autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await atualizarIndiceWiki(baseId);
+  return { wikiId };
+});
+
+export const desativarWiki = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { wikiId } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta o artigo.");
+  await refWiki(baseId, wikiId).set({ ativo: false }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
+
+export const criarDuvida = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { titulo, corpo = "", ministerios = [] } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título da dúvida.");
+  const ref = cWiki(baseId).doc();
+  await ref.set({
+    tipo: "duvida", titulo: titulo.trim(), corpo: corpo.trim(), ministerios, etiquetas: [],
+    resolvidaPorRespostaId: null, ativo: true,
+    autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: ref.id };
+});
+
+export const responderDuvida = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, texto } = req.data || {};
+  if (!wikiId || !texto?.trim()) throw new HttpsError("invalid-argument", "Falta o texto da resposta.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const ref = refWiki(baseId, wikiId).collection("respostas").doc();
+  await ref.set({ texto: texto.trim(), autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp() });
+  await refWiki(baseId, wikiId).set({ atualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { respostaId: ref.id };
+});
+
+export const marcarRespostaCerta = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, respostaId } = req.data || {};
+  if (!wikiId || !respostaId) throw new HttpsError("invalid-argument", "Faltam dados.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const d = snap.data();
+  if (d.autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só quem perguntou (ou o líder da base) marca a resposta certa.");
+  }
+  const respostaSnap = await refWiki(baseId, wikiId).collection("respostas").doc(respostaId).get();
+  if (!respostaSnap.exists) throw new HttpsError("not-found", "Resposta não encontrada.");
+  await refWiki(baseId, wikiId).set({
+    resolvidaPorRespostaId: respostaId, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
+
+export const transformarDuvidaEmArtigo = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta a dúvida.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const d = snap.data();
+  if (d.autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só quem perguntou (ou o líder da base) transforma em artigo.");
+  }
+  if (!d.resolvidaPorRespostaId) throw new HttpsError("failed-precondition", "A dúvida ainda não tem resposta certa.");
+  const respostaSnap = await refWiki(baseId, wikiId).collection("respostas").doc(d.resolvidaPorRespostaId).get();
+  if (!respostaSnap.exists) throw new HttpsError("not-found", "Resposta não encontrada.");
+  const resposta = respostaSnap.data();
+
+  await refWiki(baseId, wikiId).set({
+    tipo: "artigo", introducao: d.corpo || "", conclusao: "",
+    passos: [{ texto: resposta.texto, imagem: null }], esqueleto: false,
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
