@@ -5,7 +5,11 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
 /** Um titular + um aprendiz opcional por ministério. Guarda tudo de
  *  uma vez (ao contrário da Apoio, que grava a cada toque) porque há
- *  uma regra a confirmar antes de gravar: ninguém em dois lugares. */
+ *  uma regra a confirmar antes de gravar: ninguém em dois lugares.
+ *
+ *  Não há seletor de líder de culto: o Responsável é modelado como
+ *  ministério (ordem 0) e o titular desse lugar É o líder de culto —
+ *  ver apps/tecnica/CLAUDE.md. */
 export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [lugares, setLugares] = useState(() =>
@@ -14,8 +18,11 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
       return { ministerioId: m.id, titularId: existente?.titularId ?? null, aprendizId: existente?.aprendizId ?? null };
     })
   );
-  const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [aGuardar, setAGuardar] = useState(false);
+
+  const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? ministerios[0];
+  const liderId = lugares.find((l) => l.ministerioId === ministerioResponsavel?.id)?.titularId ?? null;
+  const liderNome = liderId ? voluntarios.find((p) => p.id === liderId)?.nome : null;
 
   if (!evento) return null;
 
@@ -42,7 +49,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
     }
     setAGuardar(true);
     try {
-      await guardarEscalaTecnica(evento.id, { liderEscala, lugares });
+      await guardarEscalaTecnica(evento.id, { liderEscala: liderId, lugares });
       onGuardado("Escala atualizada");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -58,11 +65,9 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
         <h2>{evento.tipo || dataPorExtenso(evento.data)}</h2>
         <p className="sb2">Titular e aprendiz por ministério · chegada {evento.horaChegada || "08:30"}</p>
 
-        <label className="rot" style={{ marginTop: 14 }}>Líder de culto</label>
-        <select className="campo" value={liderEscala ?? ""} onChange={(e) => setLiderEscala(e.target.value || null)}>
-          <option value="">Por definir</option>
-          {voluntarios.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select>
+        <p className="ds" style={{ marginTop: 10 }}>
+          Líder de culto: <b>{liderNome ?? "por definir"}</b> — é quem fica titular do {ministerioResponsavel?.nome ?? "Responsável"} abaixo.
+        </p>
 
         {ministerios.map((m) => {
           const lugar = lugares.find((l) => l.ministerioId === m.id);

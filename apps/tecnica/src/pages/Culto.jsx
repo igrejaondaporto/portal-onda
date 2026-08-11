@@ -7,7 +7,7 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
+export default function Culto({ uid, papel, mes, ano, definirMes, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
   const souLiderBase = papel === "lider_base";
   const [aba, setAba] = useState(abaInicial ?? "ordem");
   const [eventosMes, setEventosMes] = useState([]);
@@ -58,10 +58,17 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
 
   return (
     <>
-      <div className="subtabs">
-        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
-        <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
+      <div className="cabecalho">
+        <div className="subtabs" style={{ margin: 0 }}>
+          <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
+          <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
+        </div>
+        <span className="calnav">
+          <button className="calbt" disabled={mes === 0} onClick={() => definirMes(Math.max(0, mes - 1))}>‹</button>
+          <button className="calbt" disabled={mes === 11} onClick={() => definirMes(Math.min(11, mes + 1))}>›</button>
+        </span>
       </div>
+      <p className="ds" style={{ margin: "6px 0 2px" }}>{MESES[mes]}</p>
 
       {aba === "ordem" ? (
         eventosMes.map((ev) => (
