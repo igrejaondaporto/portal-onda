@@ -593,6 +593,17 @@ textarea {
   display: inline-block;
   letter-spacing: 0.03em;
 }
+/* quadradinho de cor antes do nome de um ministério, para diferenciar
+ * de relance quem serve em quê (Escala, "Servem contigo"…) */
+.quadmin {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 6px;
+  flex: none;
+  vertical-align: middle;
+}
 .caixa {
   border: 1px solid var(--fio);
   border-radius: 20px;

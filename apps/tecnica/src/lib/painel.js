@@ -169,6 +169,11 @@ export const guardarEscalaTecnica = (eventoId, { liderEscala, lugares }) =>
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
 
+/** Os domingos de um ano só existem depois disto ser chamado (não há
+ *  nada automático) — usar perto do fim do ano para o ano seguinte já
+ *  ter cultos quando alguém abrir a Escala em janeiro. */
+export const gerarDomingos = (ano) => chamar("gerarDomingos")({ ano }).then((r) => r.data);
+
 /* ── ministérios ──────────────────────────────────────────── */
 export function ouvirMinisterios(cb) {
   const q = query(cMinisterios(), where("ativo", "==", true), orderBy("ordem"), orderBy("nome"));

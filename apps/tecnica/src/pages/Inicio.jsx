@@ -318,6 +318,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
                 <LinhaPessoaContacto
                   key={m.id} pessoa={titular}
                   resumo={`${m.nome}${aprendiz ? ` · com ${aprendiz.nome} em treino` : ""} · ${fe} de ${fs.length} feitas`}
+                  corMinisterio={m.cor}
                   funcoesDaPessoa={fs}
                   tagExtra={meuEvento.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
                   aberta={contactoAberto === titular.id}

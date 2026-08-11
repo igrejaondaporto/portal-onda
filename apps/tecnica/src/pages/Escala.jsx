@@ -83,7 +83,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
                   </tr>
                   {ministerios.map((m) => (
                     <tr key={m.id}>
-                      <td className="papel">{m.nome}</td>
+                      <td className="papel"><span className="quadmin" style={{ background: m.cor }} />{m.nome}</td>
                       {eventosMes.map((ev) => {
                         const lugar = lugarDe(ev, m.id);
                         const titular = lugar?.titularId ? pessoaPorId(lugar.titularId) : null;
@@ -147,6 +147,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
                       <LinhaPessoaContacto
                         pessoa={titular}
                         resumo={`${m.nome} · titular${titular.id === uid ? " · tu" : ""}`}
+                        corMinisterio={m.cor}
                         funcoesDaPessoa={fs}
                         tagExtra={ev.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
                         aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === titular.id}
@@ -158,6 +159,7 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
                       <LinhaPessoaContacto
                         pessoa={aprendiz}
                         resumo={`${m.nome} · 📝 em treino${aprendiz.id === uid ? " · tu" : ""}`}
+                        corMinisterio={m.cor}
                         funcoesDaPessoa={fs}
                         aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === aprendiz.id}
                         onToggle={() => setContactoAberto((a) =>

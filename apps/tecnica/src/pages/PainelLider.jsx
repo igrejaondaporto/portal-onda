@@ -4,7 +4,7 @@ import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
 import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
-  obterEventosDoMes, reporTodosPins,
+  obterEventosDoMes, reporTodosPins, gerarDomingos,
 } from "../lib/painel";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -31,8 +31,23 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [eventosRef, setEventosRef] = useState({});
   const [sheet, setSheet] = useState(null);
+  const [filtroChecklist, setFiltroChecklist] = useState(null); // null = todos os ministérios
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
+  const [aGerarDomingos, setAGerarDomingos] = useState(false);
+
+  const anoQueVem = ano + 1;
+  async function gerarDomingosDoAnoQueVem() {
+    setAGerarDomingos(true);
+    try {
+      const r = await gerarDomingos(anoQueVem);
+      torrada(`${r.criados} domingos de ${anoQueVem} criados`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível criar os domingos.");
+    } finally {
+      setAGerarDomingos(false);
+    }
+  }
 
   async function reporTodosOsCodigos() {
     setARepor(true);
@@ -228,7 +243,17 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
               </button>
             </div>
             {!ministerios.length && <div className="vaz">Cria os ministérios primeiro.</div>}
-            {ministerios.map((m) => {
+            {ministerios.length > 1 && (
+              <div className="subtabs" style={{ marginTop: 0 }}>
+                <button data-on={filtroChecklist === null ? 1 : 0} onClick={() => setFiltroChecklist(null)}>Todos</button>
+                {ministerios.map((m) => (
+                  <button key={m.id} data-on={filtroChecklist === m.id ? 1 : 0} onClick={() => setFiltroChecklist(m.id)}>
+                    {m.nome}
+                  </button>
+                ))}
+              </div>
+            )}
+            {ministerios.filter((m) => !filtroChecklist || m.id === filtroChecklist).map((m) => {
               const doMinisterio = catalogo.filter((f) => f.ministerioId === m.id);
               if (!doMinisterio.length) return null;
               return (
@@ -259,7 +284,9 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
             {especiais.length > 0 && (
               <>
                 <div className="cabecalho" style={{ marginTop: 24 }}><h3>Só em cultos específicos</h3></div>
-                {Object.entries(especiaisPorEvento).map(([eventoId, fs]) => {
+                {Object.entries(especiaisPorEvento).map(([eventoId, todasFs]) => {
+                  const fs = filtroChecklist ? todasFs.filter((f) => f.ministerioId === filtroChecklist) : todasFs;
+                  if (!fs.length) return null;
                   const ev = eventosRef[eventoId];
                   const rotulo = ev ? (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data)) : eventoId;
                   return (
@@ -296,6 +323,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
             <div className="linha">
               <div style={{ flex: 1 }}><p className="nmt">Hora do culto</p><p className="ds">{base?.nome ?? "—"}</p></div>
               <span className="tag cinz">{base?.horaCulto ?? "—"}</span>
+            </div>
+            <div className="linha">
+              <div style={{ flex: 1 }}>
+                <p className="nmt">Domingos de {anoQueVem}</p>
+                <p className="ds">Os cultos não se criam sozinhos de um ano para o outro — gera aqui perto do fim de {ano}.</p>
+              </div>
+              <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} disabled={aGerarDomingos} onClick={gerarDomingosDoAnoQueVem}>
+                {aGerarDomingos ? "A criar…" : "Gerar"}
+              </button>
             </div>
           </div>
         </div>
