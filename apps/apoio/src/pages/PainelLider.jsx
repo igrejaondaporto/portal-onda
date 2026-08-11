@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins } from "../lib/painel";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos } from "../lib/painel";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -18,7 +18,7 @@ import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
-  const [ano] = useState(hoje.getFullYear());
+  const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
   const [base, setBase] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -28,6 +28,30 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [sheet, setSheet] = useState(null);
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
+  const [aGerarDomingos, setAGerarDomingos] = useState(false);
+
+  // dezembro › janeiro (e o inverso) passam para o ano seguinte/anterior
+  function mudarMes(delta) {
+    setMes((atual) => {
+      let novo = atual + delta;
+      if (novo < 0) { novo = 11; setAno((a) => a - 1); }
+      else if (novo > 11) { novo = 0; setAno((a) => a + 1); }
+      return novo;
+    });
+  }
+
+  const anoQueVem = hoje.getFullYear() + 1;
+  async function gerarDomingosDoAnoQueVem() {
+    setAGerarDomingos(true);
+    try {
+      const r = await gerarDomingos(anoQueVem);
+      torrada(`${r.criados} domingos de ${anoQueVem} criados`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível criar os domingos.");
+    } finally {
+      setAGerarDomingos(false);
+    }
+  }
 
   async function reporTodosOsCodigos() {
     setARepor(true);
@@ -92,10 +116,10 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
         <div>
           <div className="sect">
             <div className="cabecalho">
-              <h3>Escala de {MESES[mes]}</h3>
+              <h3>Escala de {MESES[mes]} {ano}</h3>
               <span className="calnav">
-                <button className="calbt" disabled={mes === 0} onClick={() => setMes((m) => Math.max(0, m - 1))}>‹</button>
-                <button className="calbt" disabled={mes === 11} onClick={() => setMes((m) => Math.min(11, m + 1))}>›</button>
+                <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+                <button className="calbt" onClick={() => mudarMes(1)}>›</button>
               </span>
             </div>
             <p className="ds" style={{ padding: "8px 0 2px" }}>
@@ -242,6 +266,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
             <div className="linha">
               <div style={{ flex: 1 }}><p className="nmt">Hora do culto</p><p className="ds">{base?.nome ?? "—"}</p></div>
               <span className="tag cinz">{base?.horaCulto ?? "—"}</span>
+            </div>
+            <div className="linha">
+              <div style={{ flex: 1 }}>
+                <p className="nmt">Domingos de {anoQueVem}</p>
+                <p className="ds">Os cultos não se criam sozinhos de um ano para o outro — gera aqui perto do fim de {ano}.</p>
+              </div>
+              <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} disabled={aGerarDomingos} onClick={gerarDomingosDoAnoQueVem}>
+                {aGerarDomingos ? "A criar…" : "Gerar"}
+              </button>
             </div>
           </div>
         </div>

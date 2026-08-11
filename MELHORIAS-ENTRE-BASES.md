@@ -15,10 +15,14 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
-| Data | Nasceu em | O quê | Onde falta | Porquê serve lá também |
+_(nada pendente no momento)_
+
+## Já portado
+
+| Data | Nasceu em | O quê | Portado para | Nota |
 |---|---|---|---|---|
-| 2026-08 | Técnica | Botão "Gerar domingos do ano que vem" no Painel do Líder → Definições | Apoio | `gerarDomingos` já é uma Cloud Function partilhada (`functions/index.js`), sempre foi — só nunca teve botão nenhum em lado nenhum. A Apoio tem exatamente o mesmo problema em janeiro de 2027: sem alguém correr isto manualmente no Firestore, os domingos do ano novo não existem. |
-| 2026-08 | Técnica | Navegação de mês sem ficar presa no ano (`mudarMes` com virada dezembro→janeiro, em `Sessao.jsx`/`PainelLider.jsx`/`Calendario.jsx`) | Apoio | A Apoio tem a mesma estrutura de `useState(hoje.getFullYear())` sem setter — em dezembro de 2026 ela vai ter o mesmo bug: nenhuma seta leva a janeiro de 2027, mesmo que os domingos já existam. |
+| 2026-08 | Técnica | Botão "Gerar domingos do ano que vem" no Painel do Líder → Definições | Apoio | `gerarDomingos` já era uma Cloud Function partilhada (`functions/index.js`) — só faltava o botão. Mesmo padrão nas duas bases: mostra sempre "ano corrente + 1", chama `gerarDomingos(anoQueVem)`. |
+| 2026-08 | Técnica | Navegação de mês sem ficar presa no ano (`mudarMes` com virada dezembro→janeiro, em `Sessao.jsx`/`PainelLider.jsx`/`Calendario.jsx`) | Apoio | Mesmo código, mesma correção: `ano` passou a `useState` com setter, e as setas ‹ › deixaram de ter `disabled` nos limites do mês. |
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
 
@@ -26,12 +30,12 @@ esquecimento, é registo.
 - **Login único / troca de base** (`pessoas/{uid}` global, `trocarBase`, `procurarPessoaGlobal`) — `functions/index.js` + `packages/shared/src/lib/auth.js`, todas as bases já usam.
 - **Quadradinho de cor antes de um nome** (`corMinisterio` em `LinhaPessoaContacto`) — o componente já é partilhado e aceita a prop em qualquer base; só é *usado* pela Técnica porque só ela tem ministérios com cor. Uma base futura com o mesmo conceito (subdivisões coloridas) usa de graça.
 
-## Específico de uma base — avaliado e descartado para as outras
+## Específico de uma base hoje — mas reutilizável no futuro
 
-| Nasceu em | O quê | Porque não serve à Apoio |
+| Nasceu em | O quê | Estado |
 |---|---|---|
-| Técnica | Escala titular/aprendiz por ministério (`lugares[]`) | A Apoio não tem ministérios nem conceito de aprendiz — a escala dela é uma lista simples de pessoas por função, e é assim que deve continuar. |
-| Técnica | Filtro por ministério nas Checklists do Painel do Líder | Consequência direta do ponto acima — só existe a necessidade de filtrar quando há mais de um agrupamento (ministério). A Apoio tem poucas funções e um catálogo só. |
+| Técnica | Escala titular/aprendiz por ministério (`lugares[]` em `eventos/{e}/escalas/tecnica`, `guardarEscalaTecnica`) | Só a Técnica usa isto por agora — a Apoio não tem ministérios nem conceito de aprendiz, continua com a escala em lista simples. Mas o padrão (titular + aprendiz por subdivisão, "uma pessoa só num lugar por culto" validado no servidor) foi desenhado para servir qualquer base futura que tenha o mesmo formato de equipa. Quando isso acontecer: generalizar `guardarEscalaTecnica`/`SheetEscalaMinisterios` em vez de copiar e colar — hoje o nome e os campos já são genéricos o suficiente (`ministerioId`, não algo específico da Técnica). |
+| Técnica | Filtro por ministério nas Checklists do Painel do Líder | Consequência direta do ponto acima — só faz sentido quando há mais do que um agrupamento. Vem de graça para qualquer base futura que herde o padrão de ministérios. |
 
 ## A avaliar quando a próxima base começar
 

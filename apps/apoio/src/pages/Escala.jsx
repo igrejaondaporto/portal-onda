@@ -6,7 +6,7 @@ import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@porta
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
-export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
+export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
@@ -76,8 +76,8 @@ export default function Escala({ uid, mes, ano, definirMes, eventoIdFoco, focoSe
         <div className="cabecalho">
           <h3>{MESES[mes]} {ano}</h3>
           <span className="calnav">
-            <button className="calbt" disabled={mes === 0} onClick={() => definirMes(Math.max(0, mes - 1))}>‹</button>
-            <button className="calbt" disabled={mes === 11} onClick={() => definirMes(Math.min(11, mes + 1))}>›</button>
+            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
           </span>
         </div>
         {temEscala ? (

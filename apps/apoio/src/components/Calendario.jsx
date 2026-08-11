@@ -34,8 +34,8 @@ export default function Calendario({ ano, mes, eventosMes, uid, onMudarMes, onAb
       <div className="calcab">
         <b>{MESES[mes]} {ano}</b>
         <span className="calnav">
-          <button className="calbt" disabled={mes === 0} onClick={() => onMudarMes(-1)}>‹</button>
-          <button className="calbt" disabled={mes === 11} onClick={() => onMudarMes(1)}>›</button>
+          <button className="calbt" onClick={() => onMudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => onMudarMes(1)}>›</button>
         </span>
       </div>
       <div className="calgrid">
