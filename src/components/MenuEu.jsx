@@ -1,10 +1,22 @@
 import { useState } from "react";
-import { sair } from "../lib/auth";
+import { sair, trocarBase } from "../lib/auth";
+import { useTorrada } from "../lib/TorradaContext";
 import ImagemExpandida from "./ImagemExpandida";
 
-export default function MenuEu({ pessoa, papel, onFechar, onAbrirPainel, onAbrirPerfil }) {
+export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil }) {
+  const torrada = useTorrada();
   const lider = papel === "lider_base";
   const [expandida, setExpandida] = useState(false);
+  const [aTrocar, setATrocar] = useState(false);
+
+  async function escolherBase(id) {
+    if (id === baseIdAtual || aTrocar) return;
+    setATrocar(true);
+    const r = await trocarBase(id);
+    if (!r.ok) { torrada(r.mensagem); setATrocar(false); }
+    // sucesso: onAuthStateChanged recarrega tudo sozinho, sem mais nada a fazer aqui
+  }
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -22,7 +34,19 @@ export default function MenuEu({ pessoa, papel, onFechar, onAbrirPainel, onAbrir
         </div>
         {expandida && <ImagemExpandida src={pessoa.foto} alt={pessoa.nome} onFechar={() => setExpandida(false)} />}
         <h2>{pessoa?.nome ?? "…"}</h2>
-        <p className="sb2">{lider ? "Líder da base" : "Voluntário da base de apoio"}</p>
+        <p className="sb2">{lider ? "Líder da base" : "Voluntário"}</p>
+        {basesDisponiveis.length > 1 && (
+          <div className="subtabs" style={{ marginTop: 14 }}>
+            {basesDisponiveis.map((b) => (
+              <button
+                key={b.id} data-on={b.id === baseIdAtual ? 1 : 0} disabled={aTrocar}
+                onClick={() => escolherBase(b.id)}
+              >
+                {b.nome}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPerfil}>
           Ver perfil
         </button>

@@ -49,7 +49,9 @@ function confere(pin, guardado) {
 }
 
 const refPessoa = (b, p) => db.doc(`bases/${b}/pessoas/${p}`);
-const refSegredo = (b, p) => db.doc(`bases/${b}/pessoas/${p}/privado/auth`);
+// o segredo é global — uma pessoa, um PIN, em qualquer base em que sirva
+const refGlobal = (p) => db.doc(`pessoas/${p}`);
+const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
 
 /* ── DADOS DO ECRÃ DE ENTRADA ─────────────────────────────────
  * Antes de autenticar não há token, logo as regras do Firestore
@@ -88,7 +90,7 @@ export const entrar = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Dados de entrada inválidos.");
   }
 
-  const segredoRef = refSegredo(baseId, pessoaId);
+  const segredoRef = refSegredo(pessoaId);
   const [pSnap, sSnap] = await Promise.all([refPessoa(baseId, pessoaId).get(), segredoRef.get()]);
   // mensagem igual à do PIN errado, para não revelar quem existe
   if (!pSnap.exists || !sSnap.exists) throw new HttpsError("permission-denied", "errado");
@@ -144,7 +146,7 @@ export const trocarPin = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Escolhe um código menos óbvio.");
   }
 
-  const ref = refSegredo(baseId, uid);
+  const ref = refSegredo(uid);
   const snap = await ref.get();
   if (!snap.exists || !confere(String(pinAtual), snap.data().pinHash)) {
     throw new HttpsError("permission-denied", "O código atual não está certo.");
@@ -168,7 +170,24 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario" } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null } = req.data || {};
+
+  // pessoa que já existe noutra base: só a liga a esta, PIN não muda
+  if (pessoaExistenteId) {
+    const globalSnap = await refGlobal(pessoaExistenteId).get();
+    if (!globalSnap.exists) throw new HttpsError("not-found", "Pessoa não encontrada.");
+    const jaAqui = await refPessoa(baseId, pessoaExistenteId).get();
+    if (jaAqui.exists) throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
+
+    await refPessoa(baseId, pessoaExistenteId).set({
+      nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true,
+      foto: globalSnap.data().foto ?? null,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await refGlobal(pessoaExistenteId).set({ [`bases.${baseId}`]: true }, { merge: true });
+    return { pessoaId: pessoaExistenteId, pinProvisorio: null };
+  }
+
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
 
   const provisorio = pinProvisorio(papel);
@@ -177,11 +196,42 @@ export const criarVoluntario = onCall(async (req) => {
     nome: nome.trim(), telefone, papel, ativo: true, foto: null,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
-  await refSegredo(baseId, ref.id).set({
+  await refGlobal(ref.id).set({
+    nome: nome.trim(), foto: null, bases: { [baseId]: true },
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await refSegredo(ref.id).set({
     pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   });
   // devolvido UMA vez, para o líder dizer à pessoa. Nunca mais fica legível.
   return { pessoaId: ref.id, pinProvisorio: provisorio };
+});
+
+/** Para o líder encontrar alguém que já existe noutra base, antes de
+ *  criar uma identidade duplicada (ex.: o Vitor já está na Apoio e vai
+ *  servir também na Técnica). Procura pelo telefone, o único campo
+ *  razoavelmente único que já se pede a toda a gente. */
+export const procurarPessoaGlobal = onCall(async (req) => {
+  exigeLider(req);
+  const telefone = String(req.data?.telefone || "").trim();
+  if (!telefone) throw new HttpsError("invalid-argument", "Falta o telefone.");
+
+  const snap = await db.collectionGroup("pessoas").where("telefone", "==", telefone).limit(5).get();
+  const vistos = new Set();
+  const resultados = [];
+  for (const d of snap.docs) {
+    if (vistos.has(d.id)) continue;
+    vistos.add(d.id);
+    const global = await refGlobal(d.id).get();
+    const bases = global.exists ? global.data().bases || {} : {};
+    resultados.push({
+      pessoaId: d.id,
+      nome: d.data().nome,
+      foto: d.data().foto ?? null,
+      bases: Object.keys(bases).filter((b) => bases[b]),
+    });
+  }
+  return { resultados };
 });
 
 export const editarVoluntario = onCall(async (req) => {
@@ -214,20 +264,22 @@ export const reporPin = onCall(async (req) => {
   const snap = await refPessoa(baseId, pessoaId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Voluntário não encontrado.");
   const provisorio = pinProvisorio(snap.data().papel);
-  await refSegredo(baseId, pessoaId).set({
+  await refSegredo(pessoaId).set({
     pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   }, { merge: true });
   return { pinProvisorio: provisorio };
 });
 
-/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ────────────── */
+/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ─────────────
+ * O PIN é global — repor aqui repõe em qualquer outra base onde a
+ * pessoa também sirva. É a mesma pessoa, o mesmo código. */
 export const reporTodosPins = onCall(async (req) => {
   const baseId = exigeLider(req);
   const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
   const lote = db.batch();
   snap.forEach((doc) => {
     const provisorio = pinProvisorio(doc.data().papel);
-    lote.set(refSegredo(baseId, doc.id), {
+    lote.set(refSegredo(doc.id), {
       pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
     }, { merge: true });
   });
@@ -243,7 +295,15 @@ export const removerVoluntario = onCall(async (req) => {
   }
   // desativar, não apagar: o histórico dos domingos passados depende disto
   await refPessoa(baseId, pessoaId).set({ ativo: false }, { merge: true });
-  await refSegredo(baseId, pessoaId).delete();
+  await refGlobal(pessoaId).set({ [`bases.${baseId}`]: false }, { merge: true });
+
+  // o PIN só se apaga se a pessoa não continuar ativa nem numa base sequer
+  const globalSnap = await refGlobal(pessoaId).get();
+  const bases = globalSnap.exists ? globalSnap.data().bases || {} : {};
+  const aindaAtivaAlgures = Object.values(bases).some(Boolean);
+  if (!aindaAtivaAlgures) {
+    await refSegredo(pessoaId).delete();
+  }
 
   const escalas = await db.collectionGroup("escalas")
     .where("pessoas", "array-contains", pessoaId).get();
@@ -257,6 +317,27 @@ export const removerVoluntario = onCall(async (req) => {
   });
   await lote.commit();
   return { ok: true };
+});
+
+/* ── TROCAR DE BASE ──────────────────────────────────────────
+ * Já autenticado, sem pedir PIN outra vez: só troca os claims do
+ * token para a base escolhida, desde que a pessoa esteja mesmo lá. */
+export const trocarBase = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { novoBaseId } = req.data || {};
+  if (!novoBaseId) throw new HttpsError("invalid-argument", "Falta a base.");
+
+  const snap = await refPessoa(novoBaseId, uid).get();
+  if (!snap.exists || snap.data().ativo === false) {
+    throw new HttpsError("permission-denied", "Não estás ativo nessa base.");
+  }
+
+  const token = await admin.auth().createCustomToken(uid, {
+    baseId: novoBaseId,
+    papel: snap.data().papel === "lider_base" ? "lider_base" : "voluntario",
+  });
+  return { token };
 });
 
 /** Confirma que quem chama é líder da base ou líder de escala do culto.

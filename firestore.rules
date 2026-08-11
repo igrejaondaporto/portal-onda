@@ -3,7 +3,8 @@ rules_version = '2';
 // ─────────────────────────────────────────────────────────────
 //  REGRA DE OURO
 //  O hash do PIN NUNCA vive no documento da pessoa. Vive em
-//  bases/{b}/pessoas/{p}/privado/auth, que nenhum cliente lê.
+//  pessoas/{p}/privado/auth (global — um só PIN por pessoa, em
+//  qualquer base em que sirva), que nenhum cliente lê.
 //  As Cloud Functions usam o Admin SDK e ignoram estas regras.
 // ─────────────────────────────────────────────────────────────
 
@@ -15,8 +16,21 @@ service cloud.firestore {
     function souLiderBase(b)    { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
     function euSou(p)           { return autenticado() && request.auth.uid == p; }
 
+    // ── identidade global — só nome/foto/quais bases, para o login
+    // único e o seletor de base. O que é específico de cada base
+    // (papel, ativo, telefone, cor…) continua em bases/{b}/pessoas. ──
+    match /pessoas/{pessoa} {
+      allow read: if euSou(pessoa);
+      allow write: if false;                        // só por função
+      match /privado/{doc} { allow read, write: if false; }
+    }
+
     match /bases/{base} {
-      allow read:  if minhaBase(base);
+      // o documento em si é só nome/horas/cor — nada sensível — para o
+      // seletor de base conseguir mostrar o nome de uma base que não é
+      // a ativa no token. As subcoleções abaixo continuam fechadas à
+      // base do token (minhaBase), isto não abre nada por baixo.
+      allow read:  if autenticado();
       allow write: if false;                       // só por função
 
       // ── pessoas ──────────────────────────────────────────

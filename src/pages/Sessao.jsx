@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { TorradaProvider } from "../lib/TorradaContext";
 import MenuEu from "../components/MenuEu";
@@ -22,6 +22,7 @@ import Perfil from "./Perfil";
  */
 export default function Sessao({ uid, papel, baseId }) {
   const [pessoa, setPessoa] = useState(null);
+  const [basesDisponiveis, setBasesDisponiveis] = useState([]); // outras bases em que a pessoa serve
   const [menuAberto, setMenuAberto] = useState(false);
   const [pagina, setPagina] = useState("inicio");
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
@@ -37,6 +38,22 @@ export default function Sessao({ uid, papel, baseId }) {
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
+
+  // se a pessoa servir em mais do que uma base, o menu ganha um seletor —
+  // só o nome de cada base é lido (bases/{id} é público a quem tem sessão,
+  // ver firestore.rules), nunca os dados internos das outras bases.
+  useEffect(() => {
+    return onSnapshot(doc(db, `pessoas/${uid}`), async (s) => {
+      const mapa = s.exists() ? s.data().bases || {} : {};
+      const ids = Object.keys(mapa).filter((b) => mapa[b]);
+      if (ids.length <= 1) { setBasesDisponiveis([]); return; }
+      const comNome = await Promise.all(ids.map(async (id) => {
+        const bs = await getDoc(doc(db, `bases/${id}`));
+        return { id, nome: bs.exists() ? bs.data().nome : id };
+      }));
+      setBasesDisponiveis(comNome);
+    });
+  }, [uid]);
 
   const lider = papel === "lider_base";
 
@@ -166,6 +183,8 @@ export default function Sessao({ uid, papel, baseId }) {
         <MenuEu
           pessoa={pessoa}
           papel={papel}
+          baseIdAtual={baseId}
+          basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
           onAbrirPerfil={() => irPara("perfil")}

@@ -21,6 +21,19 @@ export async function entrarComPin(pessoaId, pin) {
 
 export const sair = () => signOut(auth);
 
+/** Troca de base sem pedir PIN outra vez — só troca os claims do
+ *  token. O App.jsx já ouve onAuthStateChanged e relê o papel/baseId
+ *  sozinho depois disto. */
+export async function trocarBase(novoBaseId) {
+  try {
+    const { data } = await chamar("trocarBase")({ novoBaseId });
+    await signInWithCustomToken(auth, data.token);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, mensagem: e.message || "Não foi possível trocar de base." };
+  }
+}
+
 /** Troca o PIN provisório pelo código próprio da pessoa. */
 export async function trocarPin(pinAtual, pinNovo) {
   try {
