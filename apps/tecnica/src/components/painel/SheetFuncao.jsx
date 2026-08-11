@@ -7,12 +7,13 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
-export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, souLiderBase = true, onFechar, onGuardado }) {
+export default function SheetFuncao({ funcao, ministerios, ministerioAtual, eventosDisponiveis, eventoAtual, souLiderBase = true, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(funcao?.id ?? novoFuncaoId());
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(funcao?.nome ?? "");
   const [descricao, setDescricao] = useState(funcao?.descricao ?? "");
+  const [ministerioId, setMinisterioId] = useState(funcao?.ministerioId ?? ministerioAtual ?? ministerios?.[0]?.id ?? null);
   const [fase, setFase] = useState(funcao?.fase ?? "pre");
   const [icone, setIcone] = useState(funcao?.icone ?? "brilho");
   const [escopo, setEscopo] = useState(funcao?.eventoId ?? eventoAtual ?? null);
@@ -41,8 +42,9 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, s
     const n = nome.trim();
     if (!n) return torrada("A função precisa de um nome");
     setAEnviar(true);
+    if (ministerios?.length && !ministerioId) return torrada("Falta o ministério.");
     try {
-      const dados = { nome: n, descricao: descricao.trim(), fase, icone, eventoId: escopo || null, foto };
+      const dados = { nome: n, descricao: descricao.trim(), fase, icone, eventoId: escopo || null, foto, ministerioId };
       if (funcao) {
         await guardarFuncao(funcao.id, dados);
         onGuardado(escopo ? "Função atualizada — só neste culto" : "Função atualizada");
@@ -106,6 +108,16 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, s
               })()}.
             </p>
           </div>
+        )}
+        {ministerios?.length > 0 && (
+          <>
+            <label className="rot">Ministério</label>
+            <div className="subtabs">
+              {ministerios.map((m) => (
+                <button key={m.id} data-on={ministerioId === m.id ? 1 : 0} onClick={() => setMinisterioId(m.id)}>{m.nome}</button>
+              ))}
+            </div>
+          </>
         )}
         <label className="rot">Quando se faz</label>
         <div className="subtabs">

@@ -20,6 +20,7 @@ import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
 export const cBase        = () => doc(db, "bases", BASE_ID);
 export const cPessoas     = () => collection(db, `bases/${BASE_ID}/pessoas`);
 export const cFuncoes     = () => collection(db, `bases/${BASE_ID}/funcoes`);
+export const cMinisterios = () => collection(db, `bases/${BASE_ID}/ministerios`);
 export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
 export const cEventos     = () => collection(db, "eventos");
@@ -41,3 +42,15 @@ export const funcoesDoCulto = (funcoes, eventoId) =>
  *  A que conta é a da Cloud Function atribuirFuncao. */
 export const podeDistribuir = (papel, uid, escala) =>
   papel === "lider_base" || escala?.liderEscala === uid;
+
+/** O(s) lugar(es) em que a pessoa serve naquele culto — titular ou
+ *  aprendiz. Normalmente um só; a regra de "uma pessoa, um ministério
+ *  por culto" já é validada em guardarEscalaTecnica. */
+export const meusLugares = (escala, uid) =>
+  (escala?.lugares || []).filter((l) => l.titularId === uid || l.aprendizId === uid);
+
+/** Funções (itens da checklist) dos ministérios em que a pessoa serve
+ *  naquele culto — é o que substitui "todas as funções" na Técnica. */
+export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid) =>
+  funcoesDoCulto(funcoes, eventoId).filter((f) =>
+    meusLugares(escala, uid).some((l) => l.ministerioId === f.ministerioId));

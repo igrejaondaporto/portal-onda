@@ -52,6 +52,12 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
+      // ── ministérios (Base Técnica) ────────────────────────
+      match /ministerios/{ministerio} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+
       // ── inventário: qualquer voluntário mexe na quantidade direto.
       // Criar, editar o resto (nome, categoria, mínimo, foto…) e desativar
       // passa sempre pelas Cloud Functions — é lá que se decide se quem

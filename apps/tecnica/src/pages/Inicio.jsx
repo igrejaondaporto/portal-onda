@@ -1,39 +1,31 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
-import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
+import { cEscala, FASES, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
+import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import Avatar from "@portal/shared/components/Avatar.jsx";
-import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
-function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
-  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
-  const nomesDe = (ids) => [...ids].map(nomeDe).sort((a, b) => a.localeCompare(b, "pt")).join(" e ");
+function ordenarChecklist(lista, checklist) {
   return [...lista]
-    .sort((a, b) => {
-      const na = nomesDe(atribuicoes[a.id] || []) || "zzzz";
-      const nb = nomesDe(atribuicoes[b.id] || []) || "zzzz";
-      return na.localeCompare(nb, "pt") || a.nome.localeCompare(b.nome, "pt");
-    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt"))
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
+  const [ministerios, setMinisterios] = useState([]);
   const [checklist, setChecklist] = useState({});
-  const [atribuicoes, setAtribuicoes] = useState({});
   const [eventosMes, setEventosMes] = useState([]);
   const [frase, setFrase] = useState("");
   const [aEditarFrase, setAEditarFrase] = useState(false);
@@ -47,14 +39,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
+  useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
-  // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
+  // o líder mudar quem serve ou o líder de culto, não é preciso refresh.
   useEffect(() => {
     if (!meuEvento?.id) return;
     return onSnapshot(cEscala(meuEvento.id), (esc) => {
-      const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+      const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] };
       setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,24 +60,27 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
 
   useEffect(() => {
     if (!meuEvento) return;
-    const p1 = ouvirChecklist(meuEvento.id, setChecklist);
-    const p2 = ouvirAtribuicoes(meuEvento.id, setAtribuicoes);
-    return () => { p1(); p2(); };
+    return ouvirChecklist(meuEvento.id, setChecklist);
   }, [meuEvento?.id]);
 
   useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
-  const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
-  const funcoesCulto = meuEvento ? funcoesDoCulto(funcoes, meuEvento.id) : [];
-  const minhas = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(uid));
+  const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
+  const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
+  const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
+  const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid) : [];
+  const funcoesCulto = meuEvento ? funcoes.filter((f) => !f.eventoId || f.eventoId === meuEvento.id) : [];
   const total = funcoesCulto.length;
   const feitas = Object.keys(checklist).length;
   const pct = total ? Math.round((feitas / total) * 100) : 0;
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
-  const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
+  const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
+
+  const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
+  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
 
   useEffect(() => {
     if (!ativo) return;
@@ -98,11 +94,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: sirvo
-        ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} ${minhas.length === 1 ? "função" : "funções"}` : "Funções por distribuir"]
+        ? [`Chegada ${chegada}`, `Líder de culto · ${liderNome ?? "por definir"}`, meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "Ministério por definir"]
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, meuEvento, pessoa, sirvo, liderNome, minhas.length, chegada]);
+  }, [ativo, meuEvento, pessoa, sirvo, liderNome, meusLugaresHoje.length, chegada]);
 
   // não se espera pela promessa: a marca (ou a limpeza) tem de aparecer já,
   // vinda da cache local — sem rede, a escrita fica pendente e sincroniza
@@ -188,7 +184,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
             </div>
           ) : (
             <div className="convite" onClick={() => setAEditarFrase(true)}>
-              <p className="cap">És o líder de escala de {dataPorExtenso(meuEvento.data)}</p>
+              <p className="cap">És o líder de culto de {dataPorExtenso(meuEvento.data)}</p>
               <p style={{ fontSize: 17, fontWeight: 700, marginTop: 7, letterSpacing: "-.03em" }}>Deixa uma palavra à tua equipa</p>
               <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
             </div>
@@ -196,25 +192,34 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
         ) : meuEvento.frase ? (
           <div className="frase">
             <p className="txt">“{meuEvento.frase}”</p>
-            <p className="aut">{liderNome ?? "líder de escala"} · líder de escala de {dataPorExtenso(meuEvento.data)}</p>
+            <p className="aut">{liderNome ?? "líder de culto"} · líder de culto de {dataPorExtenso(meuEvento.data)}</p>
           </div>
         ) : null}
 
+        {souAprendiz && (
+          <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 14 }}>
+            <p className="ds">
+              📝 Estás em treino hoje com{" "}
+              {meusLugaresHoje.filter((l) => l.aprendizId === uid).map((l) => nomeDe(l.titularId)).filter(Boolean).join(" e ")}
+              {" "}— acompanha e pergunta.
+            </p>
+          </div>
+        )}
+
         <div className="blococor">
           <div className="cabecalho">
-            <h3>As tuas funções</h3>
+            <h3>{meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "As tuas funções"}</h3>
             <span className="cap">{dataPorExtenso(meuEvento.data)}</span>
           </div>
           {minhas.length ? (
             FASES.map(([k, t]) => {
-              const doF = ordenarPorAtribuicao(minhas.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+              const doF = ordenarChecklist(minhas.filter((f) => f.fase === k), checklist);
               if (!doF.length) return null;
               return (
                 <div key={k}>
                   <div className="fasecab"><h4>{t}</h4><em>{doF.filter((f) => checklist[f.id]).length}/{doF.length}</em></div>
                   {doF.map((f) => {
                     const ok = !!checklist[f.id];
-                    const outros = (atribuicoes[f.id] || []).filter((id) => id !== uid);
                     return (
                       <div
                         className={`linha${ok ? " feita" : ""}`} key={f.id} style={{ cursor: "pointer" }}
@@ -226,9 +231,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
                           <p className="ds">
                             {ok
                               ? `Feito às ${checklist[f.id].hora}`
-                              : outros.length
-                                ? `Contigo: ${outros.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")}`
-                                : (f.descricao || "").slice(0, 52) + ((f.descricao || "").length > 52 ? "…" : "")}
+                              : (f.descricao || "").slice(0, 52) + ((f.descricao || "").length > 52 ? "…" : "")}
                           </p>
                         </div>
                         <Bola funcao={f} tamanho={34} />
@@ -240,7 +243,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
             })
           ) : (
             <div className="vaz" style={{ border: 0 }}>
-              {liderNome ? `${liderNome} ainda não distribuiu as funções deste domingo.` : "O líder de escala ainda não foi definido."}
+              {sirvo ? "Este ministério ainda não tem checklist." : (liderNome ? `${liderNome} ainda não montou a escala deste domingo.` : "O líder de culto ainda não foi definido.")}
             </div>
           )}
         </div>
@@ -249,7 +252,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
           <div className="cabecalho"><h3>Como está o domingo</h3><span className="cap">{feitas} de {total}</span></div>
           <div className="barra"><i style={{ width: `${pct}%` }} /></div>
           <p className="ds" style={{ marginTop: 10 }}>
-            {total === 0 ? "Ainda não há funções para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
+            {total === 0 ? "Ainda não há checklist para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
           </p>
           {total > 0 && (
             <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta((a) => !a)}>
@@ -262,30 +265,24 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
                 <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
                 <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
-              {FASES.map(([k, t]) => {
-                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
-                if (!doF.length) return null;
-                const fe = doF.filter((f) => checklist[f.id]).length;
+              {ministerios.map((m) => {
+                const doM = ordenarChecklist(funcoesCulto.filter((f) => f.ministerioId === m.id), checklist);
+                if (!doM.length) return null;
+                const fe = doM.filter((f) => checklist[f.id]).length;
                 return (
-                  <div key={k}>
-                    <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
-                    {doF.map((f) => {
+                  <div key={m.id}>
+                    <div className="fasecab"><h4>{m.nome}</h4><em>{fe}/{doM.length}</em></div>
+                    {doM.map((f) => {
                       const ok = !!checklist[f.id];
-                      const ids = atribuicoes[f.id] || [];
                       return (
                         <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
                           <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
                           <div style={{ flex: 1 }}>
                             <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
                             <p className="ds">
-                              {ok
-                                ? `${voluntarios.find((p) => p.id === checklist[f.id].por)?.nome ?? "alguém"} · ${checklist[f.id].hora}`
-                                : ids.length
-                                  ? ids.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")
-                                  : "Por atribuir"}
+                              {ok ? `${nomeDe(checklist[f.id].por) ?? "alguém"} · ${checklist[f.id].hora}` : (f.fase === "pre" ? "Pré-culto" : f.fase === "durante" ? "Durante" : "Pós-culto")}
                             </p>
                           </div>
-                          <Avatares pessoas={ids.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean)} />
                         </div>
                       );
                     })}
@@ -308,20 +305,23 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
         </div>
         <div className="sect">
           <div className="cabecalho"><h3>Servem contigo</h3></div>
-          {meuEvento.escala.pessoas.filter((id) => id !== uid).length ? (
-            meuEvento.escala.pessoas.filter((id) => id !== uid).map((id) => {
-              const p = voluntarios.find((x) => x.id === id);
-              if (!p) return null;
-              const fs = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(id));
+          {ministerios.some((m) => (meuEvento.escala.lugares || []).find((l) => l.ministerioId === m.id)?.titularId && m.id !== meusLugaresHoje[0]?.ministerioId) ? (
+            ministerios.map((m) => {
+              const lugar = (meuEvento.escala.lugares || []).find((l) => l.ministerioId === m.id);
+              if (!lugar?.titularId || meusLugaresHoje.some((l) => l.ministerioId === m.id)) return null;
+              const titular = voluntarios.find((p) => p.id === lugar.titularId);
+              const aprendiz = lugar.aprendizId ? voluntarios.find((p) => p.id === lugar.aprendizId) : null;
+              const fs = funcoesCulto.filter((f) => f.ministerioId === m.id);
               const fe = fs.filter((f) => checklist[f.id]).length;
+              if (!titular) return null;
               return (
                 <LinhaPessoaContacto
-                  key={id} pessoa={p}
-                  resumo={fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}
+                  key={m.id} pessoa={titular}
+                  resumo={`${m.nome}${aprendiz ? ` · com ${aprendiz.nome} em treino` : ""} · ${fe} de ${fs.length} feitas`}
                   funcoesDaPessoa={fs}
-                  tagExtra={meuEvento.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
-                  aberta={contactoAberto === id}
-                  onToggle={() => setContactoAberto((a) => (a === id ? null : id))}
+                  tagExtra={meuEvento.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
+                  aberta={contactoAberto === titular.id}
+                  onToggle={() => setContactoAberto((a) => (a === titular.id ? null : titular.id))}
                 />
               );
             })
@@ -332,7 +332,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
         <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>
           {[
-            ["inventario", "Inventário", "Material de limpeza", () => onIrInventario?.()],
+            ["inventario", "Equipamentos", "Som, luz e projeção", () => onIrInventario?.()],
             ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
             ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
           ].map(([k, t, d, ir]) => {

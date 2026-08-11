@@ -8,11 +8,19 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
-import Funcoes from "./Funcoes";
 import Culto from "./Culto";
 import Inventario from "./Inventario";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
+
+// não há aba Funções na Técnica — a checklist vive só no Início,
+// filtrada pelo ministério da pessoa naquele culto (ver Inicio.jsx)
+const ABAS = [
+  ["inicio", "Início"],
+  ["escala", "Escala"],
+  ["culto", "Culto"],
+  ["inventario", "Equipamentos"],
+];
 
 /**
  * Casca da app depois de entrar: cabeçalho + corpo + navegação.
@@ -29,8 +37,6 @@ export default function Sessao({ uid, papel, baseId }) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano] = useState(hoje.getFullYear());
-  const [focoEvento, setFocoEvento] = useState(null);
-  const [focoSeq, setFocoSeq] = useState(0);
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
@@ -60,20 +66,12 @@ export default function Sessao({ uid, papel, baseId }) {
   function irPara(p) {
     setPagina(p);
     setMenuAberto(false);
-    if (p === "funcoes") { setFocoEvento(null); setFocoSeq((s) => s + 1); }
   }
 
   function irParaEscala(eventoId) {
     setFocoEscala(eventoId ?? null);
     setFocoEscalaSeq((s) => s + 1);
     setPagina("escala");
-    setMenuAberto(false);
-  }
-
-  function irParaFuncoes(eventoId) {
-    setFocoEvento(eventoId ?? null);
-    setFocoSeq((s) => s + 1);
-    setPagina("funcoes");
     setMenuAberto(false);
   }
 
@@ -102,7 +100,7 @@ export default function Sessao({ uid, papel, baseId }) {
                 className="av"
                 style={{
                   width: 40, height: 40, fontSize: 16, cursor: "pointer",
-                  ...(pessoa?.foto ? { backgroundImage: `url(${pessoa.foto})` } : { background: pessoa?.cor || "#0019BE" }),
+                  ...(pessoa?.foto ? { backgroundImage: `url(${pessoa.foto})` } : { background: pessoa?.cor || "#001ED1" }),
                 }}
                 onClick={() => setMenuAberto(true)}
               >
@@ -128,7 +126,7 @@ export default function Sessao({ uid, papel, baseId }) {
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
-              onIrEscala={irParaEscala} onVerFuncoes={irParaFuncoes}
+              onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
             />
@@ -138,20 +136,13 @@ export default function Sessao({ uid, papel, baseId }) {
               uid={uid} mes={mes} ano={ano} definirMes={setMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
-              onVerFuncoes={irParaFuncoes}
-            />
-          </div>
-          <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
-            <Funcoes
-              uid={uid} papel={papel} eventoIdFoco={focoEvento} focoSeq={focoSeq}
-              ativo={pagina === "funcoes"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
               uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
-              onVerFuncoes={irParaFuncoes}
+              onVerFuncoes={irParaEscala}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
@@ -167,7 +158,7 @@ export default function Sessao({ uid, papel, baseId }) {
             <Perfil
               uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
               onAtualizarPessoa={setPessoa} onIrReembolsos={() => irPara("reembolsos")}
-              onIrPainel={() => irPara("painel")} onVerFuncoes={irParaFuncoes}
+              onIrPainel={() => irPara("painel")} onVerFuncoes={irParaEscala}
             />
           )}
           {pagina === "painel" && (
@@ -178,7 +169,7 @@ export default function Sessao({ uid, papel, baseId }) {
           </p>
         </div>
       </div>
-      <NavBar pagina={pagina} onIr={irPara} />
+      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} />
       {menuAberto && (
         <MenuEu
           pessoa={pessoa}

@@ -2,17 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins } from "../lib/painel";
+import {
+  ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
+  obterEventosDoMes, reporTodosPins,
+} from "../lib/painel";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
-import SheetEscala from "../components/painel/SheetEscala";
+import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios";
 import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
+import SheetMinisterio from "../components/painel/SheetMinisterio";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
@@ -22,6 +26,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [mes, setMes] = useState(hoje.getMonth());
   const [base, setBase] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
+  const [ministerios, setMinisterios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
   const [eventosRef, setEventosRef] = useState({});
@@ -44,6 +49,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
 
   const recarregarMes = useCallback(() => {
@@ -72,15 +78,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   useEffect(() => {
     definirCabecalho({
       titulo: "Painel do líder",
-      subtitulo: "Escalas, voluntários e catálogo",
+      subtitulo: "Ministérios, escalas e checklists",
       chips: [
         `${voluntarios.length} voluntários`,
-        `${catalogo.length} no catálogo`,
-        `${especiais.length} especiais`,
+        `${ministerios.length} ministérios`,
+        `${catalogo.length} na checklist`,
       ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voluntarios.length, catalogo.length, especiais.length]);
+  }, [voluntarios.length, ministerios.length, catalogo.length]);
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
 
@@ -99,11 +105,12 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
               </span>
             </div>
             <p className="ds" style={{ padding: "8px 0 2px" }}>
-              Os domingos são criados sozinhos. Só falta dizer quem serve e quem lidera.
+              Os domingos são criados sozinhos. Falta dizer o titular e o aprendiz de cada ministério.
             </p>
             {eventosMes.map((ev) => {
               const pessoasEscala = ev.escala.pessoas.map(pessoaPorId).filter(Boolean);
               const lider = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
+              const preenchidos = (ev.escala.lugares || []).filter((l) => l.titularId).length;
               return (
                 <div
                   className="linha" style={{ cursor: "pointer" }} key={ev.id}
@@ -115,9 +122,9 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                       {ev.tipo && <span className="tag esp">especial</span>}
                     </p>
                     <p className="ds">
-                      {pessoasEscala.length
-                        ? `${pessoasEscala.length} pessoas · ${lider ? lider.nome + " lidera" : "líder por definir"}`
-                        : "Ninguém escalado"}
+                      {ministerios.length
+                        ? `${preenchidos} de ${ministerios.length} ministérios · ${lider ? lider.nome + " lidera" : "líder por definir"}`
+                        : "Cria os ministérios antes de montar a escala"}
                     </p>
                   </div>
                   {pessoasEscala.length ? <Avatares pessoas={pessoasEscala.slice(0, 4)} /> : <span className="tag cinz">definir</span>}
@@ -132,6 +139,32 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
 
           <div className="sect">
             <div className="cabecalho">
+              <h3>Ministérios</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "ministerio", ministerioId: null })}>
+                Novo
+              </button>
+            </div>
+            {ministerios.length ? ministerios.map((m) => (
+              <div className="linha" key={m.id}>
+                <span className="bola" style={{ width: 34, height: 34, background: m.cor }} />
+                <div style={{ flex: 1 }}>
+                  <p className="nmt">{m.nome}</p>
+                  <p className="ds">
+                    {voluntarios.filter((p) => p.ministerios?.[m.id] === "titular").length} titular(es) ·{" "}
+                    {voluntarios.filter((p) => p.ministerios?.[m.id] === "aprendiz").length} em treino
+                  </p>
+                </div>
+                <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "ministerio", ministerioId: m.id })}>
+                  Editar
+                </button>
+              </div>
+            )) : (
+              <div className="vaz">Ainda sem ministérios — cria o Áudio, Iluminação, Projeção…</div>
+            )}
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho">
               <h3>Voluntários</h3>
               <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: null })}>
                 Adicionar
@@ -142,7 +175,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                 <Avatar pessoa={p} tamanho={38} fonte={15} />
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{p.nome}</p>
-                  <p className="ds">{p.papel === "lider_base" ? "Líder da base · 6 dígitos" : "Voluntário · 4 dígitos"}</p>
+                  <p className="ds">
+                    {p.papel === "lider_base" ? "Líder da base · 6 dígitos" : "Voluntário · 4 dígitos"}
+                    {ministerios.length > 0 && (() => {
+                      const niveis = ministerios
+                        .filter((m) => p.ministerios?.[m.id])
+                        .map((m) => `${m.nome} (${p.ministerios[m.id] === "titular" ? "titular" : "em treino"})`);
+                      return niveis.length ? ` · ${niveis.join(", ")}` : " · sem ministério";
+                    })()}
+                  </p>
                 </div>
                 <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
                   Editar
@@ -178,27 +219,40 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
         <div>
           <div className="sect">
             <div className="cabecalho">
-              <h3>Catálogo de funções</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "funcao", funcaoId: null, escopo: null })}>
+              <h3>Checklists</h3>
+              <button
+                className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} disabled={!ministerios.length}
+                onClick={() => setSheet({ tipo: "funcao", funcaoId: null })}
+              >
                 Nova
               </button>
             </div>
-            {FASES.map(([k, t]) => {
-              const doF = catalogo.filter((f) => f.fase === k);
-              if (!doF.length) return null;
+            {!ministerios.length && <div className="vaz">Cria os ministérios primeiro.</div>}
+            {ministerios.map((m) => {
+              const doMinisterio = catalogo.filter((f) => f.ministerioId === m.id);
+              if (!doMinisterio.length) return null;
               return (
-                <div key={k}>
-                  <p className="cap" style={{ padding: "14px 0 4px" }}>{t} · {doF.length}</p>
-                  {doF.map((f) => (
-                    <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
-                      <Bola funcao={f} tamanho={34} />
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
-                        <p className="ds">{f.descricao ? (f.foto ? "Com foto" : "Sem foto") : "Falta a explicação"}</p>
+                <div key={m.id}>
+                  <p className="cap" style={{ padding: "14px 0 4px", color: m.cor }}>{m.nome} · {doMinisterio.length}</p>
+                  {FASES.map(([k, t]) => {
+                    const doF = doMinisterio.filter((f) => f.fase === k);
+                    if (!doF.length) return null;
+                    return (
+                      <div key={k}>
+                        <p className="ds" style={{ padding: "6px 0 2px" }}>{t}</p>
+                        {doF.map((f) => (
+                          <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
+                            <Bola funcao={f} tamanho={34} />
+                            <div style={{ flex: 1 }}>
+                              <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
+                              <p className="ds">{f.descricao ? (f.foto ? "Com foto" : "Sem foto") : "Falta a explicação"}</p>
+                            </div>
+                            <span className="seta">›</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className="seta">›</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })}
@@ -248,8 +302,9 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
       </div>
 
       {sheet?.tipo === "escala" && (
-        <SheetEscala
+        <SheetEscalaMinisterios
           evento={eventosMes.find((e) => e.id === sheet.eventoId)}
+          ministerios={ministerios}
           voluntarios={voluntarios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
@@ -265,6 +320,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "pessoa" && (
         <SheetPessoa
           pessoa={sheet.pessoaId ? pessoaPorId(sheet.pessoaId) : null}
+          ministerios={ministerios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
           onRemover={(pessoaId) => setSheet({ tipo: "removerPessoa", pessoaId })}
@@ -281,7 +337,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "funcao" && (
         <SheetFuncao
           funcao={sheet.funcaoId ? funcoes.find((f) => f.id === sheet.funcaoId) : null}
+          ministerios={ministerios}
           eventosDisponiveis={eventosMes}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "ministerio" && (
+        <SheetMinisterio
+          ministerio={sheet.ministerioId ? ministerios.find((m) => m.id === sheet.ministerioId) : null}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

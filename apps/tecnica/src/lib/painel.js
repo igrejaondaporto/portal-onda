@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { cPessoas, cFuncoes, cEventos, cEscala, cBase } from "./modelo";
+import { cPessoas, cFuncoes, cEventos, cEscala, cBase, cMinisterios } from "./modelo";
 import { corPara } from "@portal/shared/lib/cores.js";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 
@@ -123,7 +123,7 @@ export async function obterEventosDoMes(ano, mesIndex) {
   return Promise.all(
     eventos.map(async (ev) => {
       const esc = await getDoc(cEscala(ev.id));
-      return { ...ev, escala: esc.exists() ? esc.data() : { pessoas: [], liderEscala: null } };
+      return { ...ev, escala: esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] } };
     })
   );
 }
@@ -148,10 +148,10 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
 
     const escalas = {};
     eventos.forEach((ev) => {
-      escalas[ev.id] = { pessoas: [], liderEscala: null };
+      escalas[ev.id] = { pessoas: [], liderEscala: null, lugares: [] };
       pararEscalas.push(
         onSnapshot(cEscala(ev.id), (esc) => {
-          escalas[ev.id] = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+          escalas[ev.id] = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] };
           cb(eventos.map((e) => ({ ...e, escala: escalas[e.id] })));
         })
       );
@@ -161,7 +161,31 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
   return () => { pararEventos(); pararEscalas.forEach((p) => p()); };
 }
 
-export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
-  setDoc(cEscala(eventoId), { pessoas, liderEscala, baseId: BASE_ID }, { merge: true });
+/** A escala titular/aprendiz passa pela Cloud Function — é lá que se
+ *  recalcula `pessoas` (o que o resto do sistema já lê) e se valida
+ *  que ninguém está em dois lugares no mesmo culto. */
+export const guardarEscalaTecnica = (eventoId, { liderEscala, lugares }) =>
+  chamar("guardarEscalaTecnica")({ eventoId, liderEscala, lugares }).then((r) => r.data);
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
+
+/* ── ministérios ──────────────────────────────────────────── */
+export function ouvirMinisterios(cb) {
+  const q = query(cMinisterios(), where("ativo", "==", true), orderBy("ordem"), orderBy("nome"));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+export const novoMinisterioId = () => doc(cMinisterios()).id;
+
+export async function criarMinisterio(id, dados) {
+  await setDoc(doc(db, `bases/${BASE_ID}/ministerios/${id}`), {
+    ...dados, ativo: true, criadoEm: serverTimestamp(),
+  });
+  return id;
+}
+
+export const guardarMinisterio = (id, dados) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/ministerios/${id}`), dados);
+
+export const desativarMinisterio = (id) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/ministerios/${id}`), { ativo: false });

@@ -2,23 +2,40 @@ import { useState } from "react";
 import { criarVoluntario, editarVoluntario, reporPin } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
-export default function SheetPessoa({ pessoa, onFechar, onGuardado, onRemover }) {
+const NIVEIS = [
+  [null, "Não serve"],
+  ["aprendiz", "Em treino"],
+  ["titular", "Titular"],
+];
+
+export default function SheetPessoa({ pessoa, ministerios = [], onFechar, onGuardado, onRemover }) {
   const torrada = useTorrada();
   const [nome, setNome] = useState(pessoa?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
+  const [ministeriosPessoa, setMinisteriosPessoa] = useState(pessoa?.ministerios ?? {});
   const [aEnviar, setAEnviar] = useState(false);
+
+  function definirNivel(ministerioId, nivel) {
+    setMinisteriosPessoa((atual) => {
+      const novo = { ...atual };
+      if (nivel) novo[ministerioId] = nivel;
+      else delete novo[ministerioId];
+      return novo;
+    });
+  }
 
   async function guardar() {
     const n = nome.trim();
     if (!n) return torrada("O voluntário precisa de um nome");
     setAEnviar(true);
     try {
+      const dados = { nome: n, telefone: telefone.trim(), papel, ministerios: ministeriosPessoa };
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel });
+        await editarVoluntario({ pessoaId: pessoa.id, ...dados });
         onGuardado("Voluntário atualizado");
       } else {
-        await criarVoluntario({ nome: n, telefone: telefone.trim(), papel });
+        await criarVoluntario(dados);
         onGuardado("Voluntário adicionado");
       }
     } catch (e) {
@@ -52,6 +69,29 @@ export default function SheetPessoa({ pessoa, onFechar, onGuardado, onRemover })
           <button data-on={papel === "lider_base" ? 1 : 0} onClick={() => setPapel("lider_base")}>Líder da base</button>
         </div>
         <p className="ds" style={{ marginTop: 8 }}>O líder da base tem código de 6 dígitos e acesso a tudo.</p>
+
+        {ministerios.length > 0 && (
+          <>
+            <label className="rot" style={{ marginTop: 14 }}>Ministérios</label>
+            {ministerios.map((m) => (
+              <div key={m.id} style={{ marginTop: 8 }}>
+                <p className="ds" style={{ marginBottom: 4 }}>{m.nome}</p>
+                <div className="subtabs">
+                  {NIVEIS.map(([valor, rotulo]) => (
+                    <button
+                      key={rotulo}
+                      data-on={(ministeriosPessoa[m.id] ?? null) === valor ? 1 : 0}
+                      onClick={() => definirNivel(m.id, valor)}
+                    >
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>

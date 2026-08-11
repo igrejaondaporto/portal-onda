@@ -170,7 +170,8 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios } = req.data || {};
+  const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
   if (pessoaExistenteId) {
@@ -183,6 +184,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true,
       foto: globalSnap.data().foto ?? null,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      ...comMinisterios,
     });
     await refGlobal(pessoaExistenteId).set({ [`bases.${baseId}`]: true }, { merge: true });
     return { pessoaId: pessoaExistenteId, pinProvisorio: null };
@@ -195,6 +197,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    ...comMinisterios,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -236,7 +239,7 @@ export const procurarPessoaGlobal = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -254,7 +257,11 @@ export const editarVoluntario = onCall(async (req) => {
     outros.forEach((d) => { if (d.id !== pessoaId) lote.update(d.ref, { papel: "voluntario" }); });
     await lote.commit();
   }
-  await ref.set({ nome: nome.trim(), telefone, papel }, { merge: true });
+  const dados = { nome: nome.trim(), telefone, papel };
+  // ministerios: { audio: "titular"|"aprendiz", ... } — só bases com
+  // ministérios enviam isto; nas outras o campo nunca aparece.
+  if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
+  await ref.set(dados, { merge: true });
   return { ok: true };
 });
 
@@ -357,6 +364,47 @@ async function exigeLiderDoCulto(req, eventoId) {
   }
   return { uid, baseId, escala };
 }
+
+/* ── ESCALA POR MINISTÉRIO (Base Técnica) ──────────────────
+ * eventos/{e}/escalas/{base} ganha `lugares` (titular+aprendiz por
+ * ministério) além do que já existia. `pessoas` continua a ser
+ * escrito — é o array plano que o resto do sistema (checklist,
+ * "servem contigo", obterMeuEvento…) já sabe ler; recalculado aqui,
+ * nunca confiado ao que o cliente mandou. */
+export const guardarEscalaTecnica = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, liderEscala = null, lugares } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(lugares)) throw new HttpsError("invalid-argument", "Faltam os lugares.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  const pessoas = new Set();
+  const lugaresLimpos = lugares.map((l) => {
+    if (!l?.ministerioId) throw new HttpsError("invalid-argument", "Lugar sem ministério.");
+    for (const id of [l.titularId, l.aprendizId]) {
+      if (!id) continue;
+      if (pessoas.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
+      pessoas.add(id);
+    }
+    return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
+  });
+
+  await ref.set({
+    baseId, liderEscala: liderEscala || null,
+    lugares: lugaresLimpos, pessoas: [...pessoas],
+  }, { merge: true });
+  return { ok: true };
+});
 
 /* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────
  * O documento do evento é global (a igreja toda) e write:false para o
