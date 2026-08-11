@@ -7,7 +7,7 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, definirMes, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
+export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
   const souLiderBase = papel === "lider_base";
   const [aba, setAba] = useState(abaInicial ?? "ordem");
   const [eventosMes, setEventosMes] = useState([]);
@@ -49,7 +49,7 @@ export default function Culto({ uid, papel, mes, ano, definirMes, abaInicial, at
     definirCabecalho({
       titulo: "Culto",
       subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
-      chips: aba === "ordem" ? [MESES[mes]] : [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`],
+      chips: aba === "ordem" ? [`${MESES[mes]} ${ano}`] : [`${MESES[mes]} ${ano}`, `${comFeedback} de ${eventosMes.length} com feedback`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes, eventosMes.length, comFeedback]);
@@ -64,11 +64,11 @@ export default function Culto({ uid, papel, mes, ano, definirMes, abaInicial, at
           <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         </div>
         <span className="calnav">
-          <button className="calbt" disabled={mes === 0} onClick={() => definirMes(Math.max(0, mes - 1))}>‹</button>
-          <button className="calbt" disabled={mes === 11} onClick={() => definirMes(Math.min(11, mes + 1))}>›</button>
+          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
         </span>
       </div>
-      <p className="ds" style={{ margin: "6px 0 2px" }}>{MESES[mes]}</p>
+      <p className="ds" style={{ margin: "6px 0 2px" }}>{MESES[mes]} {ano}</p>
 
       {aba === "ordem" ? (
         eventosMes.map((ev) => (

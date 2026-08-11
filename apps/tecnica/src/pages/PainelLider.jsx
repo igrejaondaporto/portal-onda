@@ -22,8 +22,18 @@ import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
-  const [ano] = useState(hoje.getFullYear());
+  const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
+
+  // dezembro › janeiro (e o inverso) passam para o ano seguinte/anterior
+  function mudarMes(delta) {
+    setMes((atual) => {
+      let novo = atual + delta;
+      if (novo < 0) { novo = 11; setAno((a) => a - 1); }
+      else if (novo > 11) { novo = 0; setAno((a) => a + 1); }
+      return novo;
+    });
+  }
   const [base, setBase] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
@@ -36,7 +46,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const [aRepor, setARepor] = useState(false);
   const [aGerarDomingos, setAGerarDomingos] = useState(false);
 
-  const anoQueVem = ano + 1;
+  const anoQueVem = hoje.getFullYear() + 1;
   async function gerarDomingosDoAnoQueVem() {
     setAGerarDomingos(true);
     try {
@@ -113,10 +123,10 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
         <div>
           <div className="sect">
             <div className="cabecalho">
-              <h3>Escala de {MESES[mes]}</h3>
+              <h3>Escala de {MESES[mes]} {ano}</h3>
               <span className="calnav">
-                <button className="calbt" disabled={mes === 0} onClick={() => setMes((m) => Math.max(0, m - 1))}>‹</button>
-                <button className="calbt" disabled={mes === 11} onClick={() => setMes((m) => Math.min(11, m + 1))}>›</button>
+                <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+                <button className="calbt" onClick={() => mudarMes(1)}>›</button>
               </span>
             </div>
             <p className="ds" style={{ padding: "8px 0 2px" }}>

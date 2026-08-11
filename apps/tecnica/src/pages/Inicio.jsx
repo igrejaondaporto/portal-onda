@@ -17,7 +17,7 @@ function ordenarChecklist(lista, checklist) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -299,7 +299,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, definirMes, ativo
           <div className="cabecalho"><h3>Calendário</h3></div>
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}
-            onMudarMes={(d) => definirMes(Math.min(11, Math.max(0, mes + d)))}
+            onMudarMes={mudarMes}
             onAbrirDia={(eventoId) => onIrEscala?.(eventoId)}
           />
         </div>

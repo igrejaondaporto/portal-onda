@@ -36,7 +36,7 @@ export default function Sessao({ uid, papel, baseId }) {
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
-  const [ano] = useState(hoje.getFullYear());
+  const [ano, setAno] = useState(hoje.getFullYear());
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
@@ -73,6 +73,18 @@ export default function Sessao({ uid, papel, baseId }) {
     setFocoEscalaSeq((s) => s + 1);
     setPagina("escala");
     setMenuAberto(false);
+  }
+
+  // dezembro › janeiro (e o inverso) passam para o ano seguinte/anterior —
+  // sem isto, os cultos gerados para o ano que vem (Painel do líder →
+  // Definições → "Gerar domingos") nunca apareciam em lado nenhum.
+  function mudarMes(delta) {
+    setMes((atual) => {
+      let novo = atual + delta;
+      if (novo < 0) { novo = 11; setAno((a) => a - 1); }
+      else if (novo > 11) { novo = 0; setAno((a) => a + 1); }
+      return novo;
+    });
   }
 
   function irParaCulto(aba) {
@@ -124,7 +136,7 @@ export default function Sessao({ uid, papel, baseId }) {
         <div className="corpo">
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
-              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} definirMes={setMes}
+              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
@@ -133,14 +145,14 @@ export default function Sessao({ uid, papel, baseId }) {
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} mes={mes} ano={ano} definirMes={setMes}
+              uid={uid} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} definirMes={setMes} abaInicial={abaCulto}
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaEscala}
             />
