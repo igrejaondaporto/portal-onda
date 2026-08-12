@@ -5,6 +5,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
+import SugestorEscala from "../components/painel/SugestorEscala";
 
 const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
 const NIVEL_TXT = { titular: "Titular", aprendiz: "Em treino" };
@@ -206,6 +207,8 @@ export default function Montar({ ativo, definirCabecalho }) {
           </>
         )}
       </div>
+
+      {ministerios.length > 0 && <SugestorEscala ministerios={ministerios} voluntarios={voluntarios} />}
 
       {sheet?.tipo === "abrirEnquete" && (
         <SheetAbrirEnquete

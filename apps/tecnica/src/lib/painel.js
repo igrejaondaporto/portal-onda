@@ -69,6 +69,23 @@ export async function obterEstatisticasEscala(dias = 90) {
   return porPessoa;
 }
 
+/** Como obterEstatisticasEscala, mas guarda os `lugares` de cada
+ *  culto (ministério + titular + aprendiz), não só quem serviu — o
+ *  Sugestor de escala precisa disto para contar quantas vezes cada
+ *  aprendiz já serviu num ministério específico (a promoção não dá
+ *  para decidir com a contagem geral). */
+export async function obterHistoricoLugares(dias = 180) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const inicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const q = query(cEventos(), where("data", ">=", inicio), where("data", "<=", hoje), orderBy("data"));
+  const snap = await getDocs(q);
+  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const escalas = await Promise.all(eventos.map((ev) => getDoc(cEscala(ev.id))));
+  return escalas
+    .map((esc, i) => (esc.exists() ? { data: eventos[i].data, lugares: esc.data().lugares || [] } : null))
+    .filter(Boolean);
+}
+
 /* ── catálogo de funções ──────────────────────────────────── */
 export function ouvirFuncoes(cb) {
   const q = query(cFuncoes(), where("ativa", "==", true), orderBy("ordem"), orderBy("nome"));
