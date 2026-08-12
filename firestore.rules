@@ -78,6 +78,18 @@ service cloud.firestore {
         }
       }
 
+      // ── melhorias (Base Técnica): autoria mista, como a wiki —
+      // qualquer voluntário reporta/comenta/resolve, só o líder
+      // define a meta e reabre. Sempre por Cloud Function. ──
+      match /melhorias/{melhoria} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /eventos/{evento} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
+      }
+
       // ── inventário: qualquer voluntário mexe na quantidade direto.
       // Criar, editar o resto (nome, categoria, mínimo, foto…) e desativar
       // passa sempre pelas Cloud Functions — é lá que se decide se quem
