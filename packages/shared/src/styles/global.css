@@ -23,6 +23,13 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
+  /* sem isto, o "scroll anchoring" do navegador tenta manter o botão
+   * tocado (ex.: "Ver mais") na mesma posição do ecrã depois de a
+   * lista crescer — o resultado é a página inteira a saltar para
+   * baixo sozinha, escondendo o cabeçalho, em vez de a lista abrir
+   * no sítio. Afeta qualquer "Ver mais"/expansão de lista, em
+   * qualquer base. */
+  overflow-anchor: none;
 }
 body {
   font-family: var(--o);

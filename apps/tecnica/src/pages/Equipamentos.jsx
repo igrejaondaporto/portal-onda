@@ -127,7 +127,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             return (
               <div>
                 <p className="cap" style={{ padding: "18px 0 4px" }}>
-                  <span style={{ color: "var(--magenta)" }}>Avariados</span> · {comProblema}
+                  <span style={{ background: "var(--magenta)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>Avariados</span> · {comProblema}
                 </p>
                 {visiveis.map((e) => (
                   <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
