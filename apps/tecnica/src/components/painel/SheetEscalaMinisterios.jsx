@@ -39,8 +39,12 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
   }
 
   async function guardar() {
+    // o Responsável acumula com um ministério — a validação de "duas
+    // vezes no mesmo culto" é só entre os ministérios operacionais
+    // (mesma regra da Cloud Function, ver guardarEscalaTecnica)
     const usados = new Set();
     for (const l of lugares) {
+      if (l.ministerioId === ministerioResponsavel?.id) continue;
       for (const id of [l.titularId, l.aprendizId]) {
         if (!id) continue;
         if (usados.has(id)) return torrada("Alguém está em dois lugares ao mesmo tempo — corrige antes de guardar.");

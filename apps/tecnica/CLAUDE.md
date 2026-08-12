@@ -74,8 +74,12 @@ que a Apoio usa — torna impossível de construir o que é proibido:
 nunca dois aprendizes juntos, nunca um aprendiz sozinho, o titular é
 sempre expert (ou `sem_nivel`, se o líder assim decidir). Cada lugar
 guarda cópia do nome do ministério e das pessoas (o Firestore não faz
-junções). **Uma pessoa serve num só ministério por culto** — validar
-na Cloud Function que grava a escala.
+junções). **Uma pessoa serve num só ministério operacional por
+culto** (Áudio/Iluminação/Projeção) — validar na Cloud Function que
+grava a escala. **O Responsável é a exceção**: é um papel de
+liderança, não um posto operacional, por isso acumula com um
+ministério (o Jorge pode ser Responsável e titular do Áudio no mesmo
+domingo).
 
 O nível (`não serve` / `em treino` / `titular`) é **por ministério**,
 não da pessoa — o Vinicius é aprendiz no Áudio e titular na

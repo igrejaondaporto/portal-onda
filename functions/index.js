@@ -388,12 +388,21 @@ export const guardarEscalaTecnica = onCall(async (req) => {
       "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
   }
 
+  // o Responsável é um papel de liderança, não um posto operacional —
+  // pode acumular com um ministério (o Jorge pode ser Responsável e
+  // titular do Áudio no mesmo culto). A restrição "uma pessoa, um
+  // lugar por culto" vale só entre os ministérios operacionais.
   const pessoas = new Set();
+  const usados = new Set();
   const lugaresLimpos = lugares.map((l) => {
     if (!l?.ministerioId) throw new HttpsError("invalid-argument", "Lugar sem ministério.");
+    const operacional = l.ministerioId !== "responsavel";
     for (const id of [l.titularId, l.aprendizId]) {
       if (!id) continue;
-      if (pessoas.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
+      if (operacional) {
+        if (usados.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
+        usados.add(id);
+      }
       pessoas.add(id);
     }
     return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
