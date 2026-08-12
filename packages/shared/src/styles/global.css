@@ -1152,6 +1152,52 @@ textarea.campo {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* cartão de ministério (Equipamentos) — contorno com barra da cor do
+ * ministério no topo, pra separar visualmente cada grupo sem mudar
+ * como a lista funciona (toque na linha continua a abrir direto) */
+.mincartao {
+  border: 1px solid var(--fio);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.mincartao-barra {
+  height: 4px;
+}
+.mincartao-cab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px 7px;
+}
+.mincartao-cab .ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.mincartao-cab .nome {
+  font-size: 13px;
+  font-weight: 700;
+}
+.mincartao-cab .conta {
+  font-size: 11px;
+  color: var(--cinza);
+  margin-left: auto;
+}
+.mincartao .linha {
+  padding-left: 12px;
+  padding-right: 12px;
+  border-top: 1px solid var(--fio);
+  border-bottom: none;
+}
+.mincartao .linha:first-of-type {
+  border-top: none;
+}
+.mincartao .verMais {
+  margin: 6px 10px 10px;
+}
+
 /* seletor de ordenação (Melhorias) */
 .ordselect {
   display: flex;

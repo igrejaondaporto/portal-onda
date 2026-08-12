@@ -99,9 +99,15 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             const chave = m.id ?? "geral";
             const aberto = !!verTudo[chave];
             const visiveis = aberto ? doM : doM.slice(0, 3);
+            const cor = m.cor || "var(--cinza)";
             return (
-              <div key={chave}>
-                <p className="cap" style={{ padding: "10px 0 4px", color: m.cor }}>{m.nome} · {doM.length}</p>
+              <div className="mincartao" key={chave}>
+                <div className="mincartao-barra" style={{ background: cor }} />
+                <div className="mincartao-cab">
+                  <span className="ponto" style={{ background: cor }} />
+                  <span className="nome">{m.nome}</span>
+                  <span className="conta">{doM.length} {doM.length === 1 ? "item" : "itens"}</span>
+                </div>
                 {visiveis.map((e) => (
                   <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
                     <div style={{ flex: 1 }}>
@@ -112,7 +118,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                   </div>
                 ))}
                 {doM.length > 3 && (
-                  <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, [chave]: !v[chave] }))}>
+                  <button className="btn sec full verMais" onClick={() => setVerTudo((v) => ({ ...v, [chave]: !v[chave] }))}>
                     {aberto ? "Ver menos" : `Ver mais (${doM.length - 3})`}
                   </button>
                 )}
