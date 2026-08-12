@@ -11,7 +11,6 @@ import SheetNovaDuvida from "../components/wiki/SheetNovaDuvida";
 const normalizar = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wikiIdFoco, focoSeq }) {
-  const souLiderBase = papel === "lider_base";
   const [itens, setItens] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -78,11 +77,9 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
           <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novaDuvida" })}>
             Nova dúvida
           </button>
-          {souLiderBase && (
-            <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novoArtigo" })}>
-              Novo artigo
-            </button>
-          )}
+          <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novoArtigo" })}>
+            Novo artigo
+          </button>
         </div>
       </div>
 
