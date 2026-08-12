@@ -35,6 +35,14 @@
       ]
     },
     {
+      "collectionGroup": "melhorias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "abertaEm", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "eventos",
       "queryScope": "COLLECTION",
       "fields": [

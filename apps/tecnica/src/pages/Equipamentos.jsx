@@ -2,12 +2,28 @@ import { useEffect, useState } from "react";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirMelhorias, corMelhoria } from "../lib/melhorias";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
+import { dataCurta } from "@portal/shared/lib/data.js";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEquipamento from "../components/painel/SheetEquipamento";
 import SheetEquipamentoDetalhe from "../components/equipamentos/SheetEquipamentoDetalhe";
 import SheetMelhoria from "../components/equipamentos/SheetMelhoria";
 import SheetNovaMelhoria from "../components/equipamentos/SheetNovaMelhoria";
 
+const ESTADO_CURTO = { aberta: "Aberta", em_curso: "Em curso", resolvida: "Resolvida" };
+
+// "2026-08-16" (data) ou um Timestamp do Firestore (abertaEm) → "16 ago"
+function curta(valor) {
+  if (!valor) return "—";
+  const iso = typeof valor === "string" ? valor : valor.toDate?.().toISOString().slice(0, 10);
+  return iso ? dataCurta(iso) : "—";
+}
+
+// as mesmas cores do .tag (ver global.css), pra pintar a miniatura
+// quando a melhoria não tem foto
+const COR_FUNDO = { verd: "var(--verde)", lim: "var(--lima)", cinz: "var(--agua)", "": "var(--magenta)" };
+
 export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
+  const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [aba, setAba] = useState("equipamentos");
   const [equipamentos, setEquipamentos] = useState([]);
@@ -79,19 +95,42 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             Nova melhoria
           </button>
           {melhorias.length === 0 && <div className="vaz">Nada reportado ainda.</div>}
-          {[...melhorias].sort((a, b) => (a.estado === "resolvida") - (b.estado === "resolvida")).map((m) => {
-            const { cor, texto } = corMelhoria(m);
-            return (
-              <div className="linha" style={{ cursor: "pointer" }} key={m.id} onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id })}>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{m.titulo}</p>
-                  <p className="ds">{m.ministerioId ? nomeMinisterio(m.ministerioId) : "Geral"}</p>
-                </div>
-                <span className={`tag ${cor}`}>{m.estado === "resolvida" ? "Resolvida" : texto}</span>
-                <span className="seta">›</span>
-              </div>
-            );
-          })}
+          {melhorias.length > 0 && (
+            <div className="tabwrap" style={{ marginTop: 0 }}>
+              <table className="tabcompacta">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Melhoria</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Previsão</th>
+                    <th>Meta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...melhorias].sort((a, b) => (a.estado === "resolvida") - (b.estado === "resolvida")).map((m) => {
+                    const { cor } = corMelhoria(m);
+                    const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
+                    return (
+                      <tr key={m.id} style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id })}>
+                        <td>
+                          {m.foto
+                            ? <img src={m.foto} className="miniatura" alt="" />
+                            : <span className="miniatura semfoto" style={{ background: COR_FUNDO[cor] }} />}
+                        </td>
+                        <td className="trunc">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</td>
+                        <td>{curta(m.abertaEm)}</td>
+                        <td><span className={`tag ${cor}`} style={{ padding: "3px 7px", fontSize: 9.5 }}>{ESTADO_CURTO[m.estado]}</span></td>
+                        <td>{curta(m.previsao)}</td>
+                        <td>{curta(m.meta)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -99,7 +138,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
         <SheetEquipamento
           equipamento={null} ministerios={ministerios}
           onFechar={() => setSheet(null)}
-          onGuardado={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "detalheEquipamento" && (
@@ -115,21 +154,21 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
         <SheetEquipamento
           equipamento={equipamentoAtual} ministerios={ministerios}
           onFechar={() => setSheet(null)}
-          onGuardado={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "novaMelhoria" && (
         <SheetNovaMelhoria
           equipamento={equipamentoAtual} ministerios={ministerios}
           onFechar={() => setSheet(null)}
-          onGuardado={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "melhoria" && (
         <SheetMelhoria
           melhoriaId={sheet.melhoriaId} uid={uid} papel={papel} voluntarios={voluntarios} equipamentos={equipamentos}
           onFechar={() => setSheet(null)}
-          onGuardado={() => {}}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
     </>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ouvirMelhoria, ouvirEventosMelhoria, comentarMelhoria, definirEstadoMelhoria,
-  definirMetaPrevisao, resolverMelhoria, transformarMelhoriaEmArtigoWiki, corMelhoria, GRAVIDADES,
+  definirMetaPrevisao, resolverMelhoria, transformarMelhoriaEmArtigoWiki, desativarMelhoria, corMelhoria, GRAVIDADES,
 } from "../../lib/melhorias";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
@@ -100,7 +100,17 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
     }
   }
 
+  async function excluir() {
+    try {
+      await desativarMelhoria(melhoriaId);
+      onGuardado("Melhoria excluída");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    }
+  }
+
   if (!melhoria) return null;
+  const podeExcluir = souLiderBase || melhoria.abertaPor === uid;
   const { cor, texto: corTexto } = corMelhoria(melhoria);
 
   return (
@@ -177,6 +187,9 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
           </>
         )}
 
+        {podeExcluir && (
+          <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={excluir}>Excluir melhoria</button>
+        )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
     </>

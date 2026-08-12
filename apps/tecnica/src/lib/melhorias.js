@@ -45,6 +45,7 @@ export const resolverMelhoria = (melhoriaId, notaResolucao) =>
   chamar("resolverMelhoria")({ melhoriaId, notaResolucao }).then((r) => r.data);
 export const transformarMelhoriaEmArtigoWiki = (melhoriaId) =>
   chamar("transformarMelhoriaEmArtigoWiki")({ melhoriaId }).then((r) => r.data);
+export const desativarMelhoria = (melhoriaId) => chamar("desativarMelhoria")({ melhoriaId }).then((r) => r.data);
 
 export const GRAVIDADES = [
   ["impede_culto", "Impede o culto"],

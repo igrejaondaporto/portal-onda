@@ -124,14 +124,14 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
       )}
       {sheet?.tipo === "editorArtigo" && (
         <SheetEditorArtigo
-          artigo={sheet.artigo} ministerios={ministerios}
+          artigo={sheet.artigo} ministerios={ministerios} uid={uid} papel={papel}
           onFechar={() => setSheet(null)}
           onGuardado={() => setSheet(null)}
         />
       )}
       {sheet?.tipo === "novoArtigo" && (
         <SheetEditorArtigo
-          artigo={null} ministerios={ministerios}
+          artigo={null} ministerios={ministerios} uid={uid} papel={papel}
           onFechar={() => setSheet(null)}
           onGuardado={() => setSheet(null)}
         />

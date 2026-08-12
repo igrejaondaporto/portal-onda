@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { guardarArtigoWiki, enviarFotoWikiPasso, novoWikiId } from "../../lib/wiki";
+import { guardarArtigoWiki, desativarWiki, enviarFotoWikiPasso, novoWikiId } from "../../lib/wiki";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SeletorMinisterios from "./SeletorMinisterios";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
-export default function SheetEditorArtigo({ artigo, ministerios, onFechar, onGuardado }) {
+export default function SheetEditorArtigo({ artigo, ministerios, uid, papel, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(artigo?.id ?? novoWikiId());
   const inputFotoRef = useRef(null);
@@ -85,6 +85,17 @@ export default function SheetEditorArtigo({ artigo, ministerios, onFechar, onGua
     }
   }
 
+  async function excluir() {
+    try {
+      await desativarWiki(artigo.id);
+      onGuardado("Artigo excluído");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    }
+  }
+
+  const podeExcluir = artigo && (papel === "lider_base" || artigo.autorId === uid);
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -137,6 +148,9 @@ export default function SheetEditorArtigo({ artigo, ministerios, onFechar, onGua
         <input className="campo" value={etiquetas} onChange={(e) => setEtiquetas(e.target.value)} placeholder="som, propresenter" />
 
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar || aEnviarFoto} onClick={guardar}>Guardar</button>
+        {podeExcluir && (
+          <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={excluir}>Excluir artigo</button>
+        )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
       </div>
     </>

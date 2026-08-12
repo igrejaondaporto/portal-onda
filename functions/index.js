@@ -831,9 +831,15 @@ export const guardarArtigoWiki = onCall(async (req) => {
 });
 
 export const desativarWiki = onCall(async (req) => {
-  const baseId = exigeLider(req);
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { wikiId } = req.data || {};
   if (!wikiId) throw new HttpsError("invalid-argument", "Falta o artigo.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Não encontrado.");
+  if (snap.data().autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base ou quem criou pode excluir.");
+  }
   await refWiki(baseId, wikiId).set({ ativo: false }, { merge: true });
   await atualizarIndiceWiki(baseId);
   return { ok: true };
@@ -1106,4 +1112,17 @@ export const transformarMelhoriaEmArtigoWiki = onCall(async (req) => {
   });
   await atualizarIndiceWiki(baseId);
   return { wikiId: wikiRef.id };
+});
+
+export const desativarMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (m.abertaPor !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base ou quem abriu pode excluir.");
+  }
+  await refMelhoria(baseId, melhoriaId).set({ ativo: false }, { merge: true });
+  return { ok: true };
 });
