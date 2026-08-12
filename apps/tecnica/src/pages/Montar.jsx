@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ouvirVoluntarios } from "../lib/painel";
 import { ouvirEnqueteAberta, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
 
@@ -120,15 +120,34 @@ export default function Montar({ ativo, definirCabecalho }) {
               const pessoa = voluntarios.find((p) => p.id === r.id);
               if (!pessoa) return null;
               return (
-                <div className="linha" key={r.id}>
-                  <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt">{pessoa.nome}</p>
-                    <p className="ds">
-                      {r.semIndisponibilidade
-                        ? "Sem indisponibilidades"
-                        : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
-                    </p>
+                <div key={r.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                    <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
+                    <div style={{ flex: 1 }}>
+                      <p className="nmt">{pessoa.nome}</p>
+                      <p className="ds">
+                        {r.semIndisponibilidade
+                          ? "Sem indisponibilidades"
+                          : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8, marginLeft: 47 }}>
+                    {(enquete.domingos || []).map((id) => {
+                      const ev = eventosPorId[id];
+                      const indisponivel = !r.semIndisponibilidade && (r.indisponivelEm || []).includes(id);
+                      return (
+                        <span
+                          key={id}
+                          style={{
+                            fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 100, color: "#fff",
+                            background: indisponivel ? "var(--magenta)" : "var(--verde)",
+                          }}
+                        >
+                          {dataCurta(ev?.data || id)}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { abrirEnquete } from "../../lib/enquetes";
-import { obterEventosDoMes } from "../../lib/painel";
+import { obterEventosDoMes, criarCultoEspecial } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -23,6 +23,10 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
   const [selecionados, setSelecionados] = useState({});
   const [aCarregar, setACarregar] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
+  const [aAdicionarEspecial, setAAdicionarEspecial] = useState(false);
+  const [nomeEspecial, setNomeEspecial] = useState("");
+  const [diaEspecial, setDiaEspecial] = useState("");
+  const [aCriarEspecial, setACriarEspecial] = useState(false);
 
   useEffect(() => {
     const [ano, m] = mes.split("-").map(Number);
@@ -37,6 +41,31 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
 
   function alternar(id) {
     setSelecionados((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  async function adicionarEspecial() {
+    const nome = nomeEspecial.trim();
+    const dia = parseInt(diaEspecial, 10);
+    const [ano, m] = mes.split("-").map(Number);
+    const maxDia = new Date(ano, m, 0).getDate();
+    if (!nome) return torrada("Falta o nome do culto especial.");
+    if (!dia || dia < 1 || dia > maxDia) return torrada(`O dia tem de estar entre 1 e ${maxDia}`);
+
+    const data = `${ano}-${pad2(m)}-${pad2(dia)}`;
+    if (eventos.some((e) => e.id === data)) return torrada("Já há um culto nesse dia.");
+    setACriarEspecial(true);
+    try {
+      await criarCultoEspecial({ data, tipo: nome, horaCulto: "10:30", horaChegada: "08:00" });
+      const novo = { id: data, data, tipo: nome };
+      setEventos((evs) => [...evs, novo].sort((a, b) => a.data.localeCompare(b.data)));
+      setSelecionados((s) => ({ ...s, [data]: true }));
+      setNomeEspecial(""); setDiaEspecial(""); setAAdicionarEspecial(false);
+      torrada(`${nome} criado`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível criar o culto especial.");
+    } finally {
+      setACriarEspecial(false);
+    }
   }
 
   async function guardar() {
@@ -79,6 +108,25 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
             </div>
           </div>
         ))}
+
+        {!aAdicionarEspecial ? (
+          <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => setAAdicionarEspecial(true)}>
+            + Adicionar culto especial
+          </button>
+        ) : (
+          <div className="caixa" style={{ marginTop: 8 }}>
+            <label className="rot">Nome do culto</label>
+            <input className="campo" value={nomeEspecial} onChange={(e) => setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
+            <label className="rot" style={{ marginTop: 8 }}>Dia do mês</label>
+            <input className="campo" type="number" min="1" max="31" value={diaEspecial} onChange={(e) => setDiaEspecial(e.target.value)} placeholder="14" />
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aCriarEspecial} onClick={() => setAAdicionarEspecial(false)}>Cancelar</button>
+              <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aCriarEspecial} onClick={adicionarEspecial}>
+                {aCriarEspecial ? "A criar…" : "Criar e adicionar"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || aCarregar} onClick={guardar}>
           {aEnviar ? "A abrir…" : "Abrir enquete"}

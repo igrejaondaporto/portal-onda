@@ -49,7 +49,7 @@ export function textoWhatsApp(mes, prazo) {
   const [ano, m] = mes.split("-");
   const nomeMes = new Date(Number(ano), Number(m) - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
   const prazoTexto = prazo ? new Date(prazo).toLocaleDateString("pt-PT", { day: "numeric", month: "long" }) : "";
-  return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeMes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${prazoTexto}. 🙏`;
+  return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeMes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${prazoTexto}.\n\ntecnica.painelonda.pt 🙏`;
 }
 
 export const linkWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(texto)}`;

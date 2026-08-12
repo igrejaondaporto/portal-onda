@@ -163,14 +163,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   if (!meuEvento) return null;
 
+  // fica visível até ao prazo, mesmo depois de responder — para quem
+  // quiser alterar o voto ainda dentro do prazo do líder
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const enqueteDentroDoPrazo = !!enquete && (!enquete.prazo || hojeISO <= enquete.prazo);
+  const jaRespondeu = !!minhaResposta;
+
   return (
     <>
-      {enquete && minhaResposta === null && (
+      {enqueteDentroDoPrazo && minhaResposta !== undefined && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              Tens alguma indisponibilidade este mês?
+              {jaRespondeu ? "Já respondeste — queres alterar?" : "Tens alguma indisponibilidade este mês?"}
             </p>
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
           </div>
