@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirVoluntarios } from "../lib/painel";
+import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
 import { ouvirEnqueteAberta, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
@@ -7,11 +7,51 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
 
 const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
+const NIVEL_TXT = { titular: "Titular", aprendiz: "Em treino" };
+
+/** Uma resposta com o nome + o resumo (ministério/nível, se vier de
+ *  um grupo) + os mini-cartões coloridos por domingo. */
+function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo }) {
+  return (
+    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+        <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
+        <div style={{ flex: 1 }}>
+          <p className="nmt">{pessoa.nome}</p>
+          <p className="ds">
+            {rotulo ? `${rotulo} · ` : ""}
+            {r.semIndisponibilidade
+              ? "Sem indisponibilidades"
+              : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
+          </p>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8, marginLeft: 47 }}>
+        {(domingos || []).map((id) => {
+          const ev = eventosPorId[id];
+          const indisponivel = !r.semIndisponibilidade && (r.indisponivelEm || []).includes(id);
+          return (
+            <span
+              key={id}
+              style={{
+                fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 100, color: "#fff",
+                background: indisponivel ? "var(--magenta)" : "var(--verde)",
+              }}
+            >
+              {dataCurta(ev?.data || id)}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function Montar({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const hoje = new Date();
   const [voluntarios, setVoluntarios] = useState([]);
+  const [ministerios, setMinisterios] = useState([]);
   const [enquete, setEnquete] = useState(undefined); // undefined = ainda a carregar
   const [respostas, setRespostas] = useState([]);
   const [eventosPorId, setEventosPorId] = useState({});
@@ -19,6 +59,7 @@ export default function Montar({ ativo, definirCabecalho }) {
   const [aFechar, setAFechar] = useState(false);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirEnqueteAberta(setEnquete), []);
   useEffect(() => {
     if (!enquete) { setRespostas([]); return; }
@@ -42,6 +83,16 @@ export default function Montar({ ativo, definirCabecalho }) {
   const semEnqueteParaOMesQueVem = !enquete && hoje.getDate() >= 15;
   const responderamIds = new Set(respostas.map((r) => r.id));
   const naoResponderam = voluntarios.filter((p) => !responderamIds.has(p.id));
+
+  // agrupadas por ministério — quem serve em mais do que um (ex.: o
+  // Responsável acumula) aparece num grupo por cada um deles
+  const respostasComPessoa = respostas
+    .map((r) => ({ resposta: r, pessoa: voluntarios.find((p) => p.id === r.id) }))
+    .filter((x) => x.pessoa);
+  const gruposMinisterio = ministerios
+    .map((m) => ({ ministerio: m, itens: respostasComPessoa.filter((x) => x.pessoa.ministerios?.[m.id]) }))
+    .filter((g) => g.itens.length);
+  const semMinisterio = respostasComPessoa.filter((x) => !ministerios.some((m) => x.pessoa.ministerios?.[m.id]));
 
   async function fechar() {
     if (!enquete) return;
@@ -116,42 +167,25 @@ export default function Montar({ ativo, definirCabecalho }) {
             </div>
 
             <label className="rot" style={{ marginTop: 16 }}>Respondeu ({respostas.length}/{voluntarios.length})</label>
-            {respostas.map((r) => {
-              const pessoa = voluntarios.find((p) => p.id === r.id);
-              if (!pessoa) return null;
-              return (
-                <div key={r.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                    <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt">{pessoa.nome}</p>
-                      <p className="ds">
-                        {r.semIndisponibilidade
-                          ? "Sem indisponibilidades"
-                          : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8, marginLeft: 47 }}>
-                    {(enquete.domingos || []).map((id) => {
-                      const ev = eventosPorId[id];
-                      const indisponivel = !r.semIndisponibilidade && (r.indisponivelEm || []).includes(id);
-                      return (
-                        <span
-                          key={id}
-                          style={{
-                            fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 100, color: "#fff",
-                            background: indisponivel ? "var(--magenta)" : "var(--verde)",
-                          }}
-                        >
-                          {dataCurta(ev?.data || id)}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+            {gruposMinisterio.map(({ ministerio: m, itens }) => (
+              <div key={m.id}>
+                <p className="cap" style={{ padding: "10px 0 2px", color: m.cor }}>{m.nome}</p>
+                {itens.map(({ resposta: r, pessoa }) => (
+                  <LinhaResposta
+                    key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
+                    rotulo={`${m.nome} · ${NIVEL_TXT[pessoa.ministerios?.[m.id]] ?? "sem nível"}`}
+                  />
+                ))}
+              </div>
+            ))}
+            {semMinisterio.length > 0 && (
+              <div>
+                <p className="cap" style={{ padding: "10px 0 2px" }}>Sem ministério</p>
+                {semMinisterio.map(({ resposta: r, pessoa }) => (
+                  <LinhaResposta key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId} />
+                ))}
+              </div>
+            )}
 
             {naoResponderam.length > 0 && (
               <>

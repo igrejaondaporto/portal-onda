@@ -7,7 +7,7 @@ import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { ouvirEnqueteAberta, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
-import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
@@ -168,13 +168,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const hojeISO = new Date().toISOString().slice(0, 10);
   const enqueteDentroDoPrazo = !!enquete && (!enquete.prazo || hojeISO <= enquete.prazo);
   const jaRespondeu = !!minhaResposta;
+  const mesEnquete = enquete ? MESES[Number(enquete.id.split("-")[1]) - 1] : "";
 
   return (
     <>
       {enqueteDentroDoPrazo && minhaResposta !== undefined && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti — Escala de {mesEnquete}</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
               {jaRespondeu ? "Já respondeste — queres alterar?" : "Tens alguma indisponibilidade este mês?"}
             </p>
