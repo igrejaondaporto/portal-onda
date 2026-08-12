@@ -32,6 +32,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const [ministerios, setMinisterios] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
+  const [verTudo, setVerTudo] = useState({});
 
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirMelhorias(setMelhorias), []);
@@ -69,45 +70,65 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             </button>
           )}
           {equipamentos.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
-          {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
-            const doM = equipamentos.filter((e) => e.ministerioId === m.id);
-            if (!doM.length) return null;
+
+          {comProblema > 0 && (() => {
+            const avariados = equipamentos.filter((e) => e.estado !== "ok");
+            const aberto = !!verTudo.avariados;
+            const visiveis = aberto ? avariados : avariados.slice(0, 3);
             return (
-              <div key={m.id ?? "geral"}>
+              <div style={{ background: "var(--magenta)", borderRadius: 12, padding: "10px 12px", marginBottom: 16 }}>
+                <p className="cap" style={{ padding: "0 0 6px", color: "#fff" }}>⚠ Avariados · {comProblema}</p>
+                {visiveis.map((e) => (
+                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                    <div style={{ flex: 1 }}>
+                      <p className="nmt" style={{ color: "#fff" }}>
+                        {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
+                        {e.nome}
+                      </p>
+                      <p className="ds" style={{ color: "rgba(255,255,255,.8)" }}>{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
+                    </div>
+                    <span className="tag" style={{ background: "#fff", color: "var(--magenta)" }}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
+                    <span className="seta" style={{ color: "#fff" }}>›</span>
+                  </div>
+                ))}
+                {avariados.length > 3 && (
+                  <button
+                    className="btn sec full" style={{ marginTop: 8, background: "#fff", color: "var(--magenta)", border: "none" }}
+                    onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}
+                  >
+                    {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
+            const doM = equipamentos.filter((e) => e.ministerioId === m.id && e.estado === "ok");
+            if (!doM.length) return null;
+            const chave = m.id ?? "geral";
+            const aberto = !!verTudo[chave];
+            const visiveis = aberto ? doM : doM.slice(0, 3);
+            return (
+              <div key={chave}>
                 <p className="cap" style={{ padding: "10px 0 4px", color: m.cor }}>{m.nome} · {doM.length}</p>
-                {doM.map((e) => (
+                {visiveis.map((e) => (
                   <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
                     <div style={{ flex: 1 }}>
                       <p className="nmt">{e.nome}</p>
                       <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
                     </div>
-                    {e.estado === "avariado" && <span className="tag">Avariado</span>}
-                    {e.estado === "em_reparacao" && <span className="tag lim">Em reparação</span>}
                     <span className="seta">›</span>
                   </div>
                 ))}
+                {doM.length > 3 && (
+                  <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, [chave]: !v[chave] }))}>
+                    {aberto ? "Ver menos" : `Ver mais (${doM.length - 3})`}
+                  </button>
+                )}
               </div>
             );
           })}
-
-          {comProblema > 0 && (
-            <>
-              <p className="cap" style={{ padding: "18px 0 4px", color: "var(--magenta)" }}>Avariados · {comProblema}</p>
-              {equipamentos.filter((e) => e.estado !== "ok").map((e) => (
-                <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt">
-                      {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
-                      {e.nome}
-                    </p>
-                    <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
-                  </div>
-                  <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
-                  <span className="seta">›</span>
-                </div>
-              ))}
-            </>
-          )}
         </div>
       ) : (
         <div className="sect">

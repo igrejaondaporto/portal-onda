@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, FASES, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
+import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
@@ -12,10 +12,17 @@ import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
+const ORDEM_FASE = { pre: 0, durante: 1, pos: 2 };
+
+// feitas vão para o fim (some dali se passar das 3 primeiras) — o que
+// falta fazer aparece primeiro, na ordem do culto (pré → durante → pós)
 function ordenarChecklist(lista, checklist) {
-  return [...lista]
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt"))
-    .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
+  return [...lista].sort((a, b) => {
+    const okA = checklist[a.id] ? 1 : 0, okB = checklist[b.id] ? 1 : 0;
+    if (okA !== okB) return okA - okB;
+    if (ORDEM_FASE[a.fase] !== ORDEM_FASE[b.fase]) return ORDEM_FASE[a.fase] - ORDEM_FASE[b.fase];
+    return a.nome.localeCompare(b.nome, "pt");
+  });
 }
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos, onIrWiki }) {
@@ -34,6 +41,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [pendentes, setPendentes] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [verChecklistToda, setVerChecklistToda] = useState(false);
   const [wikiItens, setWikiItens] = useState([]);
 
   useEffect(() => ouvirBase(setBase), []);
@@ -208,16 +216,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         <div className="blococor">
           <div className="cabecalho">
             <h3>{meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "As tuas funções"}</h3>
-            <span className="cap">{dataPorExtenso(meuEvento.data)}</span>
+            <span className="cap">{minhas.filter((f) => checklist[f.id]).length}/{minhas.length}</span>
           </div>
           {minhas.length ? (
-            FASES.map(([k, t]) => {
-              const doF = ordenarChecklist(minhas.filter((f) => f.fase === k), checklist);
-              if (!doF.length) return null;
+            (() => {
+              const ordenadas = ordenarChecklist(minhas, checklist);
+              const visiveis = verChecklistToda ? ordenadas : ordenadas.slice(0, 3);
               return (
-                <div key={k}>
-                  <div className="fasecab"><h4>{t}</h4><em>{doF.filter((f) => checklist[f.id]).length}/{doF.length}</em></div>
-                  {doF.map((f) => {
+                <>
+                  {visiveis.map((f) => {
                     const ok = !!checklist[f.id];
                     return (
                       <div
@@ -237,9 +244,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                       </div>
                     );
                   })}
-                </div>
+                  {ordenadas.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerChecklistToda((v) => !v)}>
+                      {verChecklistToda ? "Ver menos" : `Ver mais (${ordenadas.length - 3})`}
+                    </button>
+                  )}
+                </>
               );
-            })
+            })()
           ) : (
             <div className="vaz" style={{ border: 0 }}>
               {sirvo ? "Este ministério ainda não tem checklist." : (liderNome ? `${liderNome} ainda não montou a escala deste domingo.` : "O líder de culto ainda não foi definido.")}
