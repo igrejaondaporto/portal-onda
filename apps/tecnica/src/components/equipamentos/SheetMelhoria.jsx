@@ -17,7 +17,7 @@ const TAMANHO_MAX = 6 * 1024 * 1024;
  *  campos de edição (comentar, previsão, resolver…) só aparecem
  *  quando aberta pelo lápis do cartão — não há alternância aqui
  *  dentro, editar é sempre pelo lápis. */
-export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equipamentos, editarInicial = false, onFechar, onGuardado }) {
+export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equipamentos, editarInicial = false, resolverInicial = false, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [melhoria, setMelhoria] = useState(null);
@@ -31,12 +31,15 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aResolver, setAResolver] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
-  const [menuEstado, setMenuEstado] = useState(false);
   const [aResolverForm, setAResolverForm] = useState(false);
 
   useEffect(() => ouvirMelhoria(melhoriaId, setMelhoria), [melhoriaId]);
   useEffect(() => ouvirEventosMelhoria(melhoriaId, setEventos), [melhoriaId]);
   useEffect(() => { setPrevisao(melhoria?.previsao ?? ""); }, [melhoria?.previsao]);
+  useEffect(() => {
+    if (resolverInicial && melhoria && melhoria.estado !== "resolvida") setAResolverForm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolverInicial, !!melhoria]);
 
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "alguém";
   const equipamento = melhoria?.equipamentoId ? equipamentos.find((e) => e.id === melhoria.equipamentoId) : null;
@@ -72,10 +75,14 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
     }
   }
 
-  async function marcarEmCurso() {
-    setMenuEstado(false);
+  async function mudarEstado(novoEstado) {
+    if (novoEstado === melhoria.estado) return;
+    if (novoEstado === "resolvida") {
+      setAResolverForm(true);
+      return;
+    }
     try {
-      await definirEstadoMelhoria(melhoriaId, "em_curso");
+      await definirEstadoMelhoria(melhoriaId, novoEstado);
     } catch (e) {
       torrada(e.message || "Não foi possível mudar o estado.");
     }
@@ -198,48 +205,33 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
             {melhoria.estado !== "resolvida" && (
               <>
                 <label className="rot" style={{ marginTop: 14 }}>Status</label>
-                {melhoria.estado === "aberta" ? (
-                  <>
-                    <button className="btn sec full" onClick={() => setMenuEstado((v) => !v)}>
-                      {ESTADO_INFO[melhoria.estado]?.texto} ▾
-                    </button>
-                    {menuEstado && (
-                      <div className="caixa" style={{ marginTop: 6 }}>
-                        <button className="btn sec full" onClick={marcarEmCurso}>Em curso</button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="ds">{ESTADO_INFO[melhoria.estado]?.texto}</p>
-                )}
+                <select className="campo" value={melhoria.estado} onChange={(e) => mudarEstado(e.target.value)}>
+                  <option value="aberta" disabled={!souLiderBase}>Aberta</option>
+                  <option value="em_curso">Em curso</option>
+                  <option value="resolvida">Resolvida</option>
+                </select>
               </>
             )}
 
-            {melhoria.estado !== "resolvida" && (
+            {melhoria.estado !== "resolvida" && aResolverForm && (
               <div className="caixa" style={{ marginTop: 16 }}>
-                {!aResolverForm ? (
-                  <button className="btn full" onClick={() => setAResolverForm(true)}>Marcar como resolvida</button>
-                ) : (
-                  <>
-                    <label className="rot">Resolver — nota obrigatória</label>
-                    <textarea className="campo" rows={3} value={notaResolucao} onChange={(e) => setNotaResolucao(e.target.value)} placeholder="O que foi feito para resolver" />
-                    <label className="rot">Foto de resolução (opcional)</label>
-                    {fotoResolucao && <div style={{ marginTop: 6 }}><FotoRedonda src={fotoResolucao} alt="" tamanho={72} /></div>}
-                    <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFotoResolucao} />
-                    <button className="btn sec full" style={{ marginTop: 6 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
-                      {aEnviarFoto ? "A enviar…" : fotoResolucao ? "Trocar foto" : "Juntar foto"}
-                    </button>
-                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                      <button className="btn sec" style={{ padding: "10px 14px", fontSize: 12.5 }} onClick={() => setAResolverForm(false)}>Cancelar</button>
-                      <button className="btn full" disabled={aResolver || aEnviarFoto} onClick={resolver}>Resolver</button>
-                    </div>
-                  </>
-                )}
+                <label className="rot">Resolver — nota obrigatória</label>
+                <textarea className="campo" rows={3} value={notaResolucao} onChange={(e) => setNotaResolucao(e.target.value)} placeholder="O que foi feito para resolver" />
+                <label className="rot">Foto de resolução (opcional)</label>
+                {fotoResolucao && <div style={{ marginTop: 6 }}><FotoRedonda src={fotoResolucao} alt="" tamanho={72} /></div>}
+                <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFotoResolucao} />
+                <button className="btn sec full" style={{ marginTop: 6 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
+                  {aEnviarFoto ? "A enviar…" : fotoResolucao ? "Trocar foto" : "Juntar foto"}
+                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn sec" style={{ padding: "10px 14px", fontSize: 12.5 }} onClick={() => setAResolverForm(false)}>Cancelar</button>
+                  <button className="btn full" disabled={aResolver || aEnviarFoto} onClick={resolver}>Resolver</button>
+                </div>
               </div>
             )}
 
             {podeExcluir && (
-              <button className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }} onClick={excluir}>Excluir melhoria</button>
+              <button className="btn perigo full" style={{ marginTop: 14 }} onClick={excluir}>Excluir melhoria</button>
             )}
           </>
         )}

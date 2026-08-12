@@ -7,9 +7,9 @@ const ESTADOS = {
 
 /** Vista de leitura, aberta para qualquer voluntário — mostra o
  *  histórico de melhorias ligadas e o atalho para reportar uma nova
- *  avaria. Editar o catálogo (nome, modelo, local…) é só o líder,
- *  ver SheetEquipamento.jsx. */
-export default function SheetEquipamentoDetalhe({ equipamento, melhorias, ministerios, souLiderBase, onFechar, onEditar, onReportarAvaria, onAbrirMelhoria }) {
+ *  avaria. Editar o catálogo (nome, modelo, local…) é pelo lápis na
+ *  lista de Equipamentos, só o líder o vê — ver SheetEquipamento.jsx. */
+export default function SheetEquipamentoDetalhe({ equipamento, melhorias, ministerios, souLiderBase, onFechar, onReportarAvaria, onAbrirMelhoria }) {
   if (!equipamento) return null;
   const nomeMinisterio = ministerios.find((m) => m.id === equipamento.ministerioId)?.nome;
   const ligadas = melhorias.filter((m) => m.equipamentoId === equipamento.id);
@@ -29,9 +29,6 @@ export default function SheetEquipamentoDetalhe({ equipamento, melhorias, minist
         {equipamento.foto && <div style={{ marginTop: 10 }}><FotoRedonda src={equipamento.foto} alt={equipamento.nome} tamanho={90} /></div>}
 
         <button className="btn full" style={{ marginTop: 16 }} onClick={onReportarAvaria}>Reportar avaria</button>
-        {souLiderBase && (
-          <button className="btn sec full" style={{ marginTop: 9 }} onClick={onEditar}>Editar equipamento</button>
-        )}
 
         <label className="rot" style={{ marginTop: 16 }}>Histórico de melhorias</label>
         {ligadas.length === 0 && <div className="vaz">Nada reportado ainda.</div>}

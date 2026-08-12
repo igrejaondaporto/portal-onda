@@ -55,6 +55,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const [sheet, setSheet] = useState(null);
   const [verTudo, setVerTudo] = useState({});
   const [ordem, setOrdem] = useState("gravidade");
+  const [expandida, setExpandida] = useState({});
 
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirMelhorias(setMelhorias), []);
@@ -114,6 +115,9 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                       <p className="nmt">{e.nome}</p>
                       <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
                     </div>
+                    {souLiderBase && (
+                      <button className="lapis" onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "editarEquipamento", equipamentoId: e.id }); }}>✎</button>
+                    )}
                     <span className="seta">›</span>
                   </div>
                 ))}
@@ -135,19 +139,31 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                 <p className="cap" style={{ padding: "18px 0 4px" }}>
                   <span style={{ background: "var(--magenta)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>Avariados</span> · {comProblema}
                 </p>
-                {visiveis.map((e) => (
-                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt">
-                        {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
-                        {e.nome}
-                      </p>
-                      <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
+                {visiveis.map((e) => {
+                  const melhoriaLigada = melhorias.find((m) => m.equipamentoId === e.id && m.estado !== "resolvida");
+                  return (
+                    <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                      <div style={{ flex: 1 }}>
+                        <p className="nmt">
+                          {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
+                          {e.nome}
+                        </p>
+                        <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
+                      </div>
+                      <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
+                      {melhoriaLigada && (
+                        <button
+                          className="btn sec"
+                          style={{ padding: "8px 12px", fontSize: 12 }}
+                          onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: melhoriaLigada.id, editar: true, resolver: true }); }}
+                        >
+                          Marcar resolvida
+                        </button>
+                      )}
+                      <span className="seta">›</span>
                     </div>
-                    <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
-                    <span className="seta">›</span>
-                  </div>
-                ))}
+                  );
+                })}
                 {avariados.length > 3 && (
                   <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}>
                     {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
@@ -176,8 +192,9 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                 const estInfo = ESTADO_INFO[m.estado];
                 const { atrasada, texto: previsaoTexto } = corPrevisao(m);
                 const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
+                const aberta = !!expandida[m.id];
                 return (
-                  <div className="cartaomelh" key={m.id} onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id })}>
+                  <div className="cartaomelh" key={m.id} onClick={() => setExpandida((v) => ({ ...v, [m.id]: !v[m.id] }))}>
                     <span className={`risca ${gravInfo?.cor}`} />
                     {m.foto ? (
                       <FotoRedonda src={m.foto} alt={m.titulo} tamanho={34} />
@@ -190,7 +207,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                       <div className="cartaomelh-linha1">
                         <span className="cartaomelh-titulo">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</span>
                         <button
-                          className="cartaomelh-lapis"
+                          className="lapis"
                           onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}
                         >
                           ✎
@@ -203,6 +220,15 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                           {m.estado === "resolvida" ? curta(m.abertaEm) : previsaoTexto}
                         </span>
                       </div>
+                      {aberta && (
+                        <div className="cartaomelh-desc">
+                          {m.descricao || "Sem descrição."}
+                          <br />
+                          <span className="abrir" onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}>
+                            Comentários e histórico ›
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -223,9 +249,8 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
         <SheetEquipamentoDetalhe
           equipamento={equipamentoAtual} melhorias={melhorias} ministerios={ministerios} souLiderBase={souLiderBase}
           onFechar={() => setSheet(null)}
-          onEditar={() => setSheet({ tipo: "editarEquipamento", equipamentoId: sheet.equipamentoId })}
           onReportarAvaria={() => setSheet({ tipo: "novaMelhoria", equipamentoId: sheet.equipamentoId })}
-          onAbrirMelhoria={(melhoriaId) => setSheet({ tipo: "melhoria", melhoriaId })}
+          onAbrirMelhoria={(melhoriaId) => setSheet({ tipo: "melhoria", melhoriaId, editar: true })}
         />
       )}
       {sheet?.tipo === "editarEquipamento" && (
@@ -245,7 +270,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
       {sheet?.tipo === "melhoria" && (
         <SheetMelhoria
           melhoriaId={sheet.melhoriaId} uid={uid} papel={papel} voluntarios={voluntarios} equipamentos={equipamentos}
-          editarInicial={sheet.editar}
+          editarInicial={sheet.editar} resolverInicial={sheet.resolver}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
