@@ -31,6 +31,8 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aResolver, setAResolver] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
+  const [menuEstado, setMenuEstado] = useState(false);
+  const [aResolverForm, setAResolverForm] = useState(false);
 
   useEffect(() => ouvirMelhoria(melhoriaId, setMelhoria), [melhoriaId]);
   useEffect(() => ouvirEventosMelhoria(melhoriaId, setEventos), [melhoriaId]);
@@ -71,6 +73,7 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
   }
 
   async function marcarEmCurso() {
+    setMenuEstado(false);
     try {
       await definirEstadoMelhoria(melhoriaId, "em_curso");
     } catch (e) {
@@ -192,11 +195,24 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
             <textarea className="campo" rows={2} value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Escreve aqui" />
             <button className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviar} onClick={enviarComentario}>Comentar</button>
 
-            {melhoria.estado === "aberta" && (
-              <button className="btn sec full" style={{ marginTop: 10 }} onClick={marcarEmCurso}>Marcar em curso</button>
+            {melhoria.estado !== "resolvida" && !aResolverForm && (
+              <>
+                <label className="rot" style={{ marginTop: 14 }}>Status</label>
+                <button className="btn sec full" onClick={() => setMenuEstado((v) => !v)}>
+                  {ESTADO_INFO[melhoria.estado]?.texto} ▾
+                </button>
+                {menuEstado && (
+                  <div className="caixa" style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {melhoria.estado === "aberta" && (
+                      <button className="btn sec full" onClick={marcarEmCurso}>Em curso</button>
+                    )}
+                    <button className="btn sec full" onClick={() => { setMenuEstado(false); setAResolverForm(true); }}>Resolvida</button>
+                  </div>
+                )}
+              </>
             )}
 
-            {melhoria.estado !== "resolvida" && (
+            {melhoria.estado !== "resolvida" && aResolverForm && (
               <>
                 <label className="rot" style={{ marginTop: 14 }}>Resolver — nota obrigatória</label>
                 <textarea className="campo" rows={3} value={notaResolucao} onChange={(e) => setNotaResolucao(e.target.value)} placeholder="O que foi feito para resolver" />
@@ -206,7 +222,10 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
                 <button className="btn sec full" style={{ marginTop: 6 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
                   {aEnviarFoto ? "A enviar…" : fotoResolucao ? "Trocar foto" : "Juntar foto"}
                 </button>
-                <button className="btn full" style={{ marginTop: 8 }} disabled={aResolver || aEnviarFoto} onClick={resolver}>Resolver</button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn sec" style={{ padding: "10px 14px", fontSize: 12.5 }} onClick={() => setAResolverForm(false)}>Cancelar</button>
+                  <button className="btn full" disabled={aResolver || aEnviarFoto} onClick={resolver}>Resolver</button>
+                </div>
               </>
             )}
 

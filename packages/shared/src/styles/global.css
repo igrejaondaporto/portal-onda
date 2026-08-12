@@ -1285,12 +1285,12 @@ textarea.campo {
   background: var(--agua);
 }
 .selo.curso {
-  color: var(--verde);
-  background: color-mix(in srgb, var(--verde) 14%, #fff);
+  color: #8a7300;
+  background: color-mix(in srgb, var(--lima) 45%, #fff);
 }
 .selo.resolvida {
-  color: var(--cinza);
-  background: var(--agua);
+  color: var(--verde);
+  background: color-mix(in srgb, var(--verde) 14%, #fff);
 }
 
 /* ── navegação inferior ── */

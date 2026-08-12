@@ -14,7 +14,8 @@ import SheetNovaMelhoria from "../components/equipamentos/SheetNovaMelhoria";
 // a melhoria não tem foto — ver global.css
 const COR_MINIATURA = { alta: "var(--magenta)", media: "var(--laranja)", baixa: "var(--ciano)" };
 const RANK_GRAVIDADE = { impede_culto: 0, atrapalha: 1, melhoria: 2 };
-const OPCOES_ORDEM = [["gravidade", "Gravidade"], ["data", "Data"], ["previsao", "Previsão"]];
+const RANK_ESTADO = { aberta: 0, em_curso: 1, resolvida: 2 };
+const OPCOES_ORDEM = [["gravidade", "Gravidade"], ["data", "Data"], ["previsao", "Previsão"], ["status", "Status"]];
 
 // "2026-08-16" (data) ou um Timestamp do Firestore (abertaEm) → "16 ago"
 function curta(valor) {
@@ -35,6 +36,9 @@ function ordenarMelhorias(lista, ordem) {
     }
     if (ordem === "data") {
       return (b.abertaEm?.toMillis?.() ?? 0) - (a.abertaEm?.toMillis?.() ?? 0);
+    }
+    if (ordem === "status") {
+      return (RANK_ESTADO[a.estado] ?? 9) - (RANK_ESTADO[b.estado] ?? 9);
     }
     return (RANK_GRAVIDADE[a.gravidade] ?? 9) - (RANK_GRAVIDADE[b.gravidade] ?? 9);
   });
@@ -89,38 +93,6 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
           )}
           {equipamentos.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
 
-          {comProblema > 0 && (() => {
-            const avariados = equipamentos.filter((e) => e.estado !== "ok");
-            const aberto = !!verTudo.avariados;
-            const visiveis = aberto ? avariados : avariados.slice(0, 3);
-            return (
-              <div style={{ background: "var(--magenta)", borderRadius: 12, padding: "10px 12px", marginBottom: 16 }}>
-                <p className="cap" style={{ padding: "0 0 6px", color: "#fff" }}>⚠ Avariados · {comProblema}</p>
-                {visiveis.map((e) => (
-                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt" style={{ color: "#fff" }}>
-                        {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
-                        {e.nome}
-                      </p>
-                      <p className="ds" style={{ color: "rgba(255,255,255,.8)" }}>{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
-                    </div>
-                    <span className="tag" style={{ background: "#fff", color: "var(--magenta)" }}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
-                    <span className="seta" style={{ color: "#fff" }}>›</span>
-                  </div>
-                ))}
-                {avariados.length > 3 && (
-                  <button
-                    className="btn sec full" style={{ marginTop: 8, background: "#fff", color: "var(--magenta)", border: "none" }}
-                    onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}
-                  >
-                    {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-
           {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
             const doM = equipamentos.filter((e) => e.ministerioId === m.id && e.estado === "ok");
             if (!doM.length) return null;
@@ -147,6 +119,37 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
               </div>
             );
           })}
+
+          {comProblema > 0 && (() => {
+            const avariados = equipamentos.filter((e) => e.estado !== "ok");
+            const aberto = !!verTudo.avariados;
+            const visiveis = aberto ? avariados : avariados.slice(0, 3);
+            return (
+              <div>
+                <p className="cap" style={{ padding: "18px 0 4px" }}>
+                  <span style={{ color: "var(--magenta)" }}>Avariados</span> · {comProblema}
+                </p>
+                {visiveis.map((e) => (
+                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                    <div style={{ flex: 1 }}>
+                      <p className="nmt">
+                        {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
+                        {e.nome}
+                      </p>
+                      <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
+                    </div>
+                    <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
+                    <span className="seta">›</span>
+                  </div>
+                ))}
+                {avariados.length > 3 && (
+                  <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}>
+                    {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <div className="sect">
