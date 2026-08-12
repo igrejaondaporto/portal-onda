@@ -6,11 +6,13 @@ import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEven
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirIndiceWiki } from "../lib/wiki";
+import { ouvirEnqueteAberta, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import SheetResponderEnquete from "../components/SheetResponderEnquete";
 
 const ORDEM_FASE = { pre: 0, durante: 1, pos: 2 };
 
@@ -43,6 +45,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [contactoAberto, setContactoAberto] = useState(null);
   const [verChecklistToda, setVerChecklistToda] = useState(false);
   const [wikiItens, setWikiItens] = useState([]);
+  const [enquete, setEnquete] = useState(null);
+  const [minhaResposta, setMinhaResposta] = useState(undefined); // undefined = ainda a carregar
+  const [eventosEnquete, setEventosEnquete] = useState({});
+  const [aResponderEnquete, setAResponderEnquete] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -67,6 +73,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
+  useEffect(() => ouvirEnqueteAberta(setEnquete), []);
+  useEffect(() => {
+    if (!enquete) { setMinhaResposta(undefined); return; }
+    return ouvirMinhaResposta(enquete.id, uid, setMinhaResposta);
+  }, [enquete, uid]);
+  useEffect(() => {
+    if (!enquete?.domingos?.length) { setEventosEnquete({}); return; }
+    obterEventosPorIds(enquete.domingos).then(setEventosEnquete);
+  }, [enquete]);
 
   useEffect(() => {
     if (!meuEvento) return;
@@ -150,6 +165,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
+      {enquete && minhaResposta === null && (
+        <div className="destaque" onClick={() => setAResponderEnquete(true)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Tens alguma indisponibilidade este mês?
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
       {souLiderBase && pendentes.length > 0 && (
         <div className="destaque" onClick={() => onIrReembolsos?.()}>
           <div>
@@ -334,6 +361,13 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
       </div>
     </div>
+    {aResponderEnquete && enquete && (
+      <SheetResponderEnquete
+        enquete={enquete} eventosPorId={eventosEnquete} minhaResposta={minhaResposta}
+        onFechar={() => setAResponderEnquete(false)}
+        onGuardado={(msg) => { setAResponderEnquete(false); torrada(msg); }}
+      />
+    )}
     </>
   );
 }

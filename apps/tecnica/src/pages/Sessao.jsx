@@ -12,15 +12,18 @@ import Culto from "./Culto";
 import Equipamentos from "./Equipamentos";
 import Reembolsos from "./Reembolsos";
 import Wiki from "./Wiki";
+import Montar from "./Montar";
 import Perfil from "./Perfil";
 
 // livro — não existe no ICO padrão do NavBar (packages/shared), que
 // só conhece os ícones do menu de hoje da Apoio
 const ICONE_WIKI = '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>';
+// urna — enquete de disponibilidade e montagem da escala do mês
+const ICONE_MONTAR = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
 
 // não há aba Funções na Técnica — a checklist vive só no Início,
 // filtrada pelo ministério da pessoa naquele culto (ver Inicio.jsx)
-const ABAS = [
+const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
   ["culto", "Culto"],
@@ -70,6 +73,7 @@ export default function Sessao({ uid, papel, baseId }) {
   }, [uid]);
 
   const lider = papel === "lider_base";
+  const ABAS = lider ? [...ABAS_BASE, ["montar", "Montar", ICONE_MONTAR]] : ABAS_BASE;
 
   function irPara(p) {
     setPagina(p);
@@ -185,6 +189,9 @@ export default function Sessao({ uid, papel, baseId }) {
           </div>
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
+          )}
+          {pagina === "montar" && lider && (
+            <Montar ativo={pagina === "montar"} definirCabecalho={setCab} />
           )}
           {pagina === "perfil" && (
             <Perfil

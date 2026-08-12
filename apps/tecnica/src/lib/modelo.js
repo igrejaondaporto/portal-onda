@@ -28,6 +28,8 @@ export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`);
 export const cMelhorias   = () => collection(db, `bases/${BASE_ID}/melhorias`);
 export const cEventosMelhoria = (melhoriaId) => collection(db, `bases/${BASE_ID}/melhorias/${melhoriaId}/eventos`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
+export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
+export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
 export const cEventos     = () => collection(db, "eventos");
 export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);

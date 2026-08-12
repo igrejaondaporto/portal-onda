@@ -1113,3 +1113,58 @@ export const desativarMelhoria = onCall(async (req) => {
   await refMelhoria(baseId, melhoriaId).set({ ativo: false }, { merge: true });
   return { ok: true };
 });
+
+/* ── ENQUETES DE INDISPONIBILIDADE (Base Técnica) ─────────────
+ * Um documento por mês (AAAA-MM). Voto privado: cada voluntário só
+ * lê a própria resposta, o líder vê o conjunto (ver firestore.rules).
+ * O sugestor de escala corre depois disto fechar — nunca publica
+ * sozinho, só propõe. */
+const refEnquete = (baseId, mes) => db.doc(`bases/${baseId}/enquetes/${mes}`);
+const MES_RE = /^\d{4}-\d{2}$/;
+
+export const abrirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes, prazo, domingos = [] } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
+  if (!Array.isArray(domingos) || !domingos.length) throw new HttpsError("invalid-argument", "Falta pelo menos um domingo.");
+
+  await refEnquete(baseId, mes).set({
+    estado: "aberta", prazo, domingos,
+    abertaPor: req.auth.uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { mes };
+});
+
+export const fecharEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ estado: "fechada", fechadaEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { ok: true };
+});
+
+export const responderEnquete = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { mes, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  if (!Array.isArray(indisponivelEm)) throw new HttpsError("invalid-argument", "Indisponibilidade inválida.");
+  if (!semIndisponibilidade && !indisponivelEm.length) {
+    throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
+  }
+  const enquete = await refEnquete(baseId, mes).get();
+  if (!enquete.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  if (enquete.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta enquete já está fechada.");
+
+  await refEnquete(baseId, mes).collection("respostas").doc(uid).set({
+    indisponivelEm: semIndisponibilidade ? [] : indisponivelEm,
+    semIndisponibilidade: !!semIndisponibilidade,
+    nota: nota.trim(),
+    respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});

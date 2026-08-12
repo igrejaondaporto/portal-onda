@@ -107,6 +107,18 @@ service cloud.firestore {
         }
       }
 
+      // ── enquetes de indisponibilidade (Base Técnica): um documento
+      // por mês, aberto/fechado só pelo líder. Voto privado — cada
+      // voluntário só lê a própria resposta, o líder vê o conjunto. ──
+      match /enquetes/{mes} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /respostas/{pessoa} {
+          allow read:  if souLiderBase(base) || euSou(pessoa);
+          allow write: if false;                   // só por função
+        }
+      }
+
       // ── reembolsos ───────────────────────────────────────
       match /reembolsos/{r} {
         allow read:   if souLiderBase(base) || resource.data.pessoaId == request.auth.uid;
