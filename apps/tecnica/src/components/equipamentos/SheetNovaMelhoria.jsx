@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { abrirMelhoria, enviarFotoMelhoria, novaMelhoriaId, GRAVIDADES } from "../../lib/melhorias";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -15,6 +16,7 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, 
   const [descricao, setDescricao] = useState("");
   const [gravidade, setGravidade] = useState("atrapalha");
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
+  const [meta, setMeta] = useState("");
   const [foto, setFoto] = useState(null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -43,7 +45,7 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, 
     try {
       await abrirMelhoria({
         melhoriaId: idRef.current, titulo: t, descricao: descricao.trim(), foto,
-        equipamentoId: equipamento?.id ?? null, ministerioId, gravidade,
+        equipamentoId: equipamento?.id ?? null, ministerioId, gravidade, meta: meta || null,
       });
       onGuardado("Melhoria aberta");
     } catch (e) {
@@ -78,8 +80,12 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, 
             </div>
           </>
         )}
-        <label className="rot">Foto (opcional)</label>
-        {foto && <img src={foto} className="fotofn" alt="" />}
+        <label className="rot">Meta — data-limite (opcional)</label>
+        <input className="campo" type="date" value={meta} onChange={(e) => setMeta(e.target.value)} />
+        <p className="ds" style={{ marginTop: 4 }}>Só dá para definir agora, na abertura — depois não muda.</p>
+
+        <label className="rot" style={{ marginTop: 10 }}>Foto (opcional)</label>
+        {foto && <div style={{ marginTop: 6 }}><FotoRedonda src={foto} alt={titulo} tamanho={72} /></div>}
         <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
         <button className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
           {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}

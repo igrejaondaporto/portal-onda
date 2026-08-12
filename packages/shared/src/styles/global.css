@@ -1174,14 +1174,11 @@ textarea.campo {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tabcompacta .miniatura {
+.tabcompacta .miniatura.semfoto {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
-  object-fit: cover;
+  border-radius: 50%;
   display: block;
-}
-.tabcompacta .miniatura.semfoto {
   opacity: 0.85;
 }
 

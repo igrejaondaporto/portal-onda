@@ -1,3 +1,5 @@
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
+
 const ESTADOS = {
   avariado: { tag: "", texto: "Avariado" },
   em_reparacao: { tag: "lim", texto: "Em reparação" },
@@ -24,7 +26,7 @@ export default function SheetEquipamentoDetalhe({ equipamento, melhorias, minist
         </p>
         {equipamento.nSerie && <p className="ds">Nº série {equipamento.nSerie}</p>}
         {estado && <span className={`tag ${estado.tag}`} style={{ marginTop: 8, display: "inline-block" }}>{estado.texto}</span>}
-        {equipamento.foto && <img src={equipamento.foto} className="fotofn" alt="" style={{ marginTop: 10 }} />}
+        {equipamento.foto && <div style={{ marginTop: 10 }}><FotoRedonda src={equipamento.foto} alt={equipamento.nome} tamanho={90} /></div>}
 
         <button className="btn full" style={{ marginTop: 16 }} onClick={onReportarAvaria}>Reportar avaria</button>
         {souLiderBase && (

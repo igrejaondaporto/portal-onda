@@ -972,7 +972,7 @@ const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
 export const abrirMelhoria = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade } = req.data || {};
+  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade, meta = null } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta o id da melhoria.");
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!GRAVIDADES.includes(gravidade)) throw new HttpsError("invalid-argument", "Gravidade inválida.");
@@ -980,10 +980,11 @@ export const abrirMelhoria = onCall(async (req) => {
   const lote = db.batch();
   const ref = refMelhoria(baseId, melhoriaId);
   lote.set(ref, {
+    // meta só se define aqui, na abertura — nunca depois (ver definirPrevisao)
     titulo: titulo.trim(), descricao: descricao.trim(), foto, equipamentoId, ministerioId, gravidade,
-    estado: "aberta", meta: null, previsao: null,
+    estado: "aberta", meta: meta || null, previsao: null,
     abertaPor: uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
-    resolvidaPor: null, resolvidaEm: null, notaResolucao: null, ativo: true,
+    resolvidaPor: null, resolvidaEm: null, notaResolucao: null, fotoResolucao: null, ativo: true,
   });
   if (equipamentoId) {
     lote.set(refEquipamento(baseId, equipamentoId), { estado: "avariado" }, { merge: true });
@@ -1034,40 +1035,27 @@ export const definirEstadoMelhoria = onCall(async (req) => {
   return { ok: true };
 });
 
-export const definirMetaPrevisao = onCall(async (req) => {
+// A meta só se define na abertura (abrirMelhoria) — aqui só a
+// previsão, que é "estimativa de quem está a tratar", qualquer
+// voluntário pode ajustar.
+export const definirPrevisao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { melhoriaId, meta, previsao } = req.data || {};
+  const { melhoriaId, previsao } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
-  if (meta === undefined && previsao === undefined) throw new HttpsError("invalid-argument", "Falta meta ou previsão.");
-  if (meta !== undefined && req.auth.token.papel !== "lider_base") {
-    throw new HttpsError("permission-denied", "Só o líder da base define a meta.");
-  }
   await obterMelhoria(baseId, melhoriaId);
   const ref = refMelhoria(baseId, melhoriaId);
-  const dados = {};
-  if (meta !== undefined) dados.meta = meta || null;
-  if (previsao !== undefined) dados.previsao = previsao || null;
-  await ref.set(dados, { merge: true });
-  const lote = db.batch();
-  if (meta !== undefined) {
-    lote.set(ref.collection("eventos").doc(), {
-      tipo: "meta", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: meta || "removida",
-    });
-  }
-  if (previsao !== undefined) {
-    lote.set(ref.collection("eventos").doc(), {
-      tipo: "previsao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: previsao || "removida",
-    });
-  }
-  await lote.commit();
+  await ref.set({ previsao: previsao || null }, { merge: true });
+  await ref.collection("eventos").add({
+    tipo: "previsao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: previsao || "removida",
+  });
   return { ok: true };
 });
 
 export const resolverMelhoria = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { melhoriaId, notaResolucao } = req.data || {};
+  const { melhoriaId, notaResolucao, fotoResolucao = null } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
   if (!notaResolucao?.trim()) throw new HttpsError("invalid-argument", "A nota de resolução é obrigatória.");
   const m = await obterMelhoria(baseId, melhoriaId);
@@ -1075,7 +1063,7 @@ export const resolverMelhoria = onCall(async (req) => {
   const lote = db.batch();
   const ref = refMelhoria(baseId, melhoriaId);
   lote.set(ref, {
-    estado: "resolvida", resolvidaPor: uid,
+    estado: "resolvida", resolvidaPor: uid, fotoResolucao,
     resolvidaEm: admin.firestore.FieldValue.serverTimestamp(), notaResolucao: notaResolucao.trim(),
   }, { merge: true });
   if (m.equipamentoId) {
@@ -1101,6 +1089,7 @@ export const transformarMelhoriaEmArtigoWiki = onCall(async (req) => {
     .filter((d) => d.data().texto)
     .map((d) => ({ texto: d.data().texto, imagem: null }));
   if (m.foto && passos.length) passos[0].imagem = m.foto; // a foto da abertura vira a do primeiro passo
+  if (m.fotoResolucao && passos.length) passos[passos.length - 1].imagem = m.fotoResolucao; // idem para a de resolução
 
   const wikiRef = cWiki(baseId).doc();
   await wikiRef.set({

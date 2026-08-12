@@ -33,7 +33,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
-  const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [wikiItens, setWikiItens] = useState([]);
 
@@ -74,9 +73,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
   const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid) : [];
   const funcoesCulto = meuEvento ? funcoes.filter((f) => !f.eventoId || f.eventoId === meuEvento.id) : [];
-  const total = funcoesCulto.length;
-  const feitas = Object.keys(checklist).length;
-  const pct = total ? Math.round((feitas / total) * 100) : 0;
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
@@ -124,19 +120,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     if (!meuEvento) return;
     const escrita = checklist[funcaoId] ? desmarcarFeito(meuEvento.id, funcaoId) : marcarFeito(meuEvento.id, funcaoId, uid);
     escrita.catch((e) => torrada(e.message || "Não foi possível atualizar."));
-  }
-
-  async function marcarTodas(valor) {
-    if (!meuEvento) return;
-    try {
-      funcoesCulto.forEach((f) => {
-        (valor ? marcarFeito(meuEvento.id, f.id, uid) : desmarcarFeito(meuEvento.id, f.id))
-          .catch((e) => torrada(e.message || "Não foi possível atualizar."));
-      });
-      torrada(valor ? "Tudo marcado como feito" : "Checklist limpo");
-    } catch (e) {
-      torrada(e.message || "Não foi possível atualizar.");
-    }
   }
 
   async function guardarFrase() {
@@ -261,51 +244,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <div className="vaz" style={{ border: 0 }}>
               {sirvo ? "Este ministério ainda não tem checklist." : (liderNome ? `${liderNome} ainda não montou a escala deste domingo.` : "O líder de culto ainda não foi definido.")}
             </div>
-          )}
-        </div>
-
-        <div className="sect">
-          <div className="cabecalho"><h3>Como está o domingo</h3><span className="cap">{feitas} de {total}</span></div>
-          <div className="barra"><i style={{ width: `${pct}%` }} /></div>
-          <p className="ds" style={{ marginTop: 10 }}>
-            {total === 0 ? "Ainda não há checklist para este culto." : feitas === total ? "Está tudo feito. Podem abrir as portas." : `Faltam ${total - feitas} tarefas.`}
-          </p>
-          {total > 0 && (
-            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setChecklistAberta((a) => !a)}>
-              {checklistAberta ? "Ocultar checklist" : "Ver Checklist do dia"}
-            </button>
-          )}
-          {checklistAberta && (
-            <>
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(true)}>Marcar tudo</button>
-                <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
-              </div>
-              {ministerios.map((m) => {
-                const doM = ordenarChecklist(funcoesCulto.filter((f) => f.ministerioId === m.id), checklist);
-                if (!doM.length) return null;
-                const fe = doM.filter((f) => checklist[f.id]).length;
-                return (
-                  <div key={m.id}>
-                    <div className="fasecab"><h4>{m.nome}</h4><em>{fe}/{doM.length}</em></div>
-                    {doM.map((f) => {
-                      const ok = !!checklist[f.id];
-                      return (
-                        <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
-                          <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
-                          <div style={{ flex: 1 }}>
-                            <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
-                            <p className="ds">
-                              {ok ? `${nomeDe(checklist[f.id].por) ?? "alguém"} · ${checklist[f.id].hora}` : (f.fase === "pre" ? "Pré-culto" : f.fase === "durante" ? "Durante" : "Pós-culto")}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </>
           )}
         </div>
       </div>

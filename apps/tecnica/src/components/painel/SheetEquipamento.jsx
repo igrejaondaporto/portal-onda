@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { criarEquipamento, guardarEquipamento, desativarEquipamento, novoEquipamentoId, enviarFotoEquipamento } from "../../lib/equipamentos";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -87,7 +88,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
           </>
         )}
         <label className="rot">Foto</label>
-        {foto && <img src={foto} className="fotofn" alt="" />}
+        {foto && <div style={{ marginTop: 6 }}><FotoRedonda src={foto} alt={nome} tamanho={90} /></div>}
         <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
         <button className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
           {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}
