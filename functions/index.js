@@ -912,3 +912,198 @@ export const transformarDuvidaEmArtigo = onCall(async (req) => {
   await atualizarIndiceWiki(baseId);
   return { ok: true };
 });
+
+/* ── EQUIPAMENTOS (Base Técnica, modo património) ────────────
+ * Mesma coleção bases/{b}/inventario que a Apoio usa em modo
+ * consumível — nunca colidem porque cada função só é chamada com o
+ * baseId de quem pede, e só a Técnica chama estas. Só o líder gere o
+ * catálogo (nome, modelo, local, ministério, foto), por isso passa
+ * por função como funcoes/ministerios — a diferença é só a foto e o
+ * campo `estado`, que aqui vem sempre das Melhorias, nunca à mão. */
+const refEquipamento = (baseId, id) => db.doc(`bases/${baseId}/inventario/${id}`);
+
+export const criarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  await refEquipamento(baseId, itemId).set({
+    nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
+    ministerioId, foto, estado: "ok", ativo: true,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { itemId };
+});
+
+export const guardarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  await refEquipamento(baseId, itemId).set({
+    nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
+    ministerioId, foto,
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const desativarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  await refEquipamento(baseId, itemId).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── MELHORIAS (Base Técnica) ─────────────────────────────────
+ * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta e
+ * resolve; só o líder define a meta (a previsão é de quem trata) e
+ * reabre uma melhoria já resolvida. */
+const cMelhorias = (baseId) => db.collection(`bases/${baseId}/melhorias`);
+const refMelhoria = (baseId, id) => db.doc(`bases/${baseId}/melhorias/${id}`);
+const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
+
+export const abrirMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta o id da melhoria.");
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  if (!GRAVIDADES.includes(gravidade)) throw new HttpsError("invalid-argument", "Gravidade inválida.");
+
+  const lote = db.batch();
+  const ref = refMelhoria(baseId, melhoriaId);
+  lote.set(ref, {
+    titulo: titulo.trim(), descricao: descricao.trim(), foto, equipamentoId, ministerioId, gravidade,
+    estado: "aberta", meta: null, previsao: null,
+    abertaPor: uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
+    resolvidaPor: null, resolvidaEm: null, notaResolucao: null, ativo: true,
+  });
+  if (equipamentoId) {
+    lote.set(refEquipamento(baseId, equipamentoId), { estado: "avariado" }, { merge: true });
+  }
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "abertura", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: descricao.trim(),
+  });
+  await lote.commit();
+  return { melhoriaId };
+});
+
+async function obterMelhoria(baseId, melhoriaId) {
+  const snap = await refMelhoria(baseId, melhoriaId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Melhoria não encontrada.");
+  return snap.data();
+}
+
+export const comentarMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, texto } = req.data || {};
+  if (!melhoriaId || !texto?.trim()) throw new HttpsError("invalid-argument", "Falta o comentário.");
+  await obterMelhoria(baseId, melhoriaId);
+  const ref = refMelhoria(baseId, melhoriaId);
+  await ref.collection("eventos").add({
+    tipo: "comentario", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: texto.trim(),
+  });
+  return { ok: true };
+});
+
+export const definirEstadoMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, estado } = req.data || {};
+  if (!["aberta", "em_curso"].includes(estado)) throw new HttpsError("invalid-argument", "Estado inválido.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (estado === "aberta" && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria.");
+  }
+  if (m.estado === "resolvida" && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria resolvida.");
+  }
+  const ref = refMelhoria(baseId, melhoriaId);
+  await ref.set({ estado }, { merge: true });
+  await ref.collection("eventos").add({
+    tipo: "estado", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: estado,
+  });
+  return { ok: true };
+});
+
+export const definirMetaPrevisao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, meta, previsao } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  if (meta === undefined && previsao === undefined) throw new HttpsError("invalid-argument", "Falta meta ou previsão.");
+  if (meta !== undefined && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base define a meta.");
+  }
+  await obterMelhoria(baseId, melhoriaId);
+  const ref = refMelhoria(baseId, melhoriaId);
+  const dados = {};
+  if (meta !== undefined) dados.meta = meta || null;
+  if (previsao !== undefined) dados.previsao = previsao || null;
+  await ref.set(dados, { merge: true });
+  const lote = db.batch();
+  if (meta !== undefined) {
+    lote.set(ref.collection("eventos").doc(), {
+      tipo: "meta", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: meta || "removida",
+    });
+  }
+  if (previsao !== undefined) {
+    lote.set(ref.collection("eventos").doc(), {
+      tipo: "previsao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: previsao || "removida",
+    });
+  }
+  await lote.commit();
+  return { ok: true };
+});
+
+export const resolverMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, notaResolucao } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  if (!notaResolucao?.trim()) throw new HttpsError("invalid-argument", "A nota de resolução é obrigatória.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+
+  const lote = db.batch();
+  const ref = refMelhoria(baseId, melhoriaId);
+  lote.set(ref, {
+    estado: "resolvida", resolvidaPor: uid,
+    resolvidaEm: admin.firestore.FieldValue.serverTimestamp(), notaResolucao: notaResolucao.trim(),
+  }, { merge: true });
+  if (m.equipamentoId) {
+    lote.set(refEquipamento(baseId, m.equipamentoId), { estado: "ok" }, { merge: true });
+  }
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "resolucao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: notaResolucao.trim(),
+  });
+  await lote.commit();
+  return { ok: true };
+});
+
+export const transformarMelhoriaEmArtigoWiki = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (m.estado !== "resolvida") throw new HttpsError("failed-precondition", "A melhoria ainda não está resolvida.");
+
+  const eventosSnap = await refMelhoria(baseId, melhoriaId).collection("eventos").orderBy("quando").get();
+  const passos = eventosSnap.docs
+    .filter((d) => d.data().texto)
+    .map((d) => ({ texto: d.data().texto, imagem: null }));
+  if (m.foto && passos.length) passos[0].imagem = m.foto; // a foto da abertura vira a do primeiro passo
+
+  const wikiRef = cWiki(baseId).doc();
+  await wikiRef.set({
+    tipo: "artigo", titulo: m.titulo, introducao: m.descricao || "", conclusao: m.notaResolucao || "",
+    passos, ministerios: m.ministerioId ? [m.ministerioId] : [], etiquetas: [],
+    esqueleto: false, ativo: true,
+    autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: wikiRef.id };
+});

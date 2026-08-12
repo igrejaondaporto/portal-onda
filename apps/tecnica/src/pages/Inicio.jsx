@@ -4,7 +4,7 @@ import { cEscala, FASES, funcoesDosMeusMinisterios, meusLugares } from "../lib/m
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
-import { ouvirInventario } from "../lib/inventario";
+import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -32,7 +32,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aEditarFrase, setAEditarFrase] = useState(false);
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
-  const [inventario, setInventario] = useState([]);
+  const [equipamentos, setEquipamentos] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [wikiItens, setWikiItens] = useState([]);
@@ -59,7 +59,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     if (!souLiderBase) return;
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
-  useEffect(() => ouvirInventario(setInventario), []);
+  useEffect(() => ouvirEquipamentos(setEquipamentos), []);
 
   useEffect(() => {
     if (!meuEvento) return;
@@ -370,14 +370,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
             ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
           ].map(([k, t, d, ir]) => {
-            const falta = k === "inventario" ? inventario.filter((i) => i.quantidade < i.minimo).length : 0;
+            const falta = k === "inventario" ? equipamentos.filter((e) => e.estado !== "ok").length : 0;
             return (
               <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{t}</p>
                   <p className="ds">{d}</p>
                 </div>
-                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span> : <span className="seta">›</span>}
+                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} com problema</span> : <span className="seta">›</span>}
               </div>
             );
           })}

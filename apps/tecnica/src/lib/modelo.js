@@ -24,7 +24,9 @@ export const cMinisterios = () => collection(db, `bases/${BASE_ID}/ministerios`)
 export const cWiki         = () => collection(db, `bases/${BASE_ID}/wiki`);
 export const cRespostasWiki = (wikiId) => collection(db, `bases/${BASE_ID}/wiki/${wikiId}/respostas`);
 export const cWikiIndiceDoc = () => doc(db, "wikiIndice", BASE_ID);
-export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`);
+export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`); // equipamentos, modo património
+export const cMelhorias   = () => collection(db, `bases/${BASE_ID}/melhorias`);
+export const cEventosMelhoria = (melhoriaId) => collection(db, `bases/${BASE_ID}/melhorias/${melhoriaId}/eventos`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
 export const cEventos     = () => collection(db, "eventos");
 export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);

@@ -9,7 +9,7 @@ import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Culto from "./Culto";
-import Inventario from "./Inventario";
+import Equipamentos from "./Equipamentos";
 import Reembolsos from "./Reembolsos";
 import Wiki from "./Wiki";
 import Perfil from "./Perfil";
@@ -173,9 +173,8 @@ export default function Sessao({ uid, papel, baseId }) {
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
-            <Inventario
+            <Equipamentos
               uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
-              onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
           <div style={{ display: pagina === "wiki" ? "" : "none" }}>
