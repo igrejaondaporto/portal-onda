@@ -2,26 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import {
   ouvirMelhoria, ouvirEventosMelhoria, comentarMelhoria, definirEstadoMelhoria,
   definirPrevisao, resolverMelhoria, transformarMelhoriaEmArtigoWiki, desativarMelhoria,
-  enviarFotoResolucaoMelhoria, corMelhoria, GRAVIDADES,
+  enviarFotoResolucaoMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO,
 } from "../../lib/melhorias";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 
 const NOMES_EVENTO = {
   abertura: "abriu a melhoria", comentario: "comentou", estado: "mudou o estado para",
-  meta: "definiu a meta para", previsao: "definiu a previsão para", resolucao: "resolveu",
+  previsao: "definiu a previsão para", resolucao: "resolveu",
 };
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
-/** Por defeito é só leitura — quem quiser mexer toca em "Editar", que
- *  revela os campos (comentar, previsão, resolver…) lá em baixo. Vem
- *  direto no modo de edição quando aberta pelo lápis da tabela. */
+/** Só leitura quando aberta a partir da linha (toque no cartão); os
+ *  campos de edição (comentar, previsão, resolver…) só aparecem
+ *  quando aberta pelo lápis do cartão — não há alternância aqui
+ *  dentro, editar é sempre pelo lápis. */
 export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equipamentos, editarInicial = false, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [melhoria, setMelhoria] = useState(null);
   const [eventos, setEventos] = useState([]);
-  const [aEditar, setAEditar] = useState(editarInicial);
+  const aEditar = editarInicial;
   const [comentario, setComentario] = useState("");
   const [previsao, setPrevisao] = useState("");
   const [notaResolucao, setNotaResolucao] = useState("");
@@ -37,7 +38,6 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
 
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "alguém";
   const equipamento = melhoria?.equipamentoId ? equipamentos.find((e) => e.id === melhoria.equipamentoId) : null;
-  const gravidadeTexto = GRAVIDADES.find(([k]) => k === melhoria?.gravidade)?.[1];
 
   async function escolherFotoResolucao(e) {
     const ficheiro = e.target.files[0];
@@ -128,7 +128,9 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
 
   if (!melhoria) return null;
   const podeExcluir = souLiderBase || melhoria.abertaPor === uid;
-  const { cor, texto: corTexto } = corMelhoria(melhoria);
+  const gravInfo = GRAVIDADE_INFO[melhoria.gravidade];
+  const estInfo = ESTADO_INFO[melhoria.estado];
+  const { atrasada, texto: previsaoTexto } = corPrevisao(melhoria);
 
   return (
     <>
@@ -136,24 +138,16 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{melhoria.titulo}</h2>
-        <p className="ds" style={{ marginTop: 6 }}>
-          {gravidadeTexto} · {equipamento ? equipamento.nome : "sem equipamento ligado"}
-        </p>
-        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-          <span className={`tag ${melhoria.estado === "resolvida" ? "verd" : melhoria.estado === "em_curso" ? "lim" : "cinz"}`}>
-            {melhoria.estado === "resolvida" ? "Resolvida" : melhoria.estado === "em_curso" ? "Em curso" : "Aberta"}
-          </span>
-          {melhoria.estado !== "resolvida" && <span className={`tag ${cor}`}>{corTexto}</span>}
+        <p className="ds" style={{ marginTop: 6 }}>{equipamento ? equipamento.nome : "sem equipamento ligado"}</p>
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {gravInfo && <span className={`selo ${gravInfo.cor}`}>{gravInfo.texto}</span>}
+          {estInfo && <span className={`selo ${estInfo.cor}`}>{estInfo.texto}</span>}
+          {melhoria.estado !== "resolvida" && (
+            <span className="ds" style={atrasada ? { color: "var(--magenta)", fontWeight: 700 } : undefined}>{previsaoTexto}</span>
+          )}
         </div>
         {melhoria.descricao && <p style={{ marginTop: 12, lineHeight: 1.6 }}>{melhoria.descricao}</p>}
         {melhoria.foto && <div style={{ marginTop: 10 }}><FotoRedonda src={melhoria.foto} alt={melhoria.titulo} tamanho={90} /></div>}
-        {(melhoria.meta || melhoria.previsao) && (
-          <p className="ds" style={{ marginTop: 10 }}>
-            {melhoria.meta && `Meta ${melhoria.meta}`}
-            {melhoria.meta && melhoria.previsao && " · "}
-            {melhoria.previsao && `Previsão ${melhoria.previsao}`}
-          </p>
-        )}
 
         {melhoria.estado === "resolvida" && (
           <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 14 }}>
@@ -170,7 +164,7 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
             <div style={{ flex: 1 }}>
               <p className="nmt" style={{ fontSize: 14 }}>
                 {nomeDe(ev.autorId)} {NOMES_EVENTO[ev.tipo] ?? ev.tipo}
-                {(ev.tipo === "estado" || ev.tipo === "previsao" || ev.tipo === "meta") ? ` ${ev.texto}` : ""}
+                {(ev.tipo === "estado" || ev.tipo === "previsao") ? ` ${ev.texto}` : ""}
               </p>
               {(ev.tipo === "comentario" || ev.tipo === "abertura" || ev.tipo === "resolucao") && ev.texto && (
                 <p className="ds" style={{ marginTop: 2 }}>{ev.texto}</p>
@@ -186,9 +180,7 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
           </>
         )}
 
-        {!aEditar ? (
-          <button className="btn sec full" style={{ marginTop: 16 }} onClick={() => setAEditar(true)}>Editar</button>
-        ) : (
+        {aEditar && (
           <>
             <label className="rot" style={{ marginTop: 16 }}>Previsão de quem está a tratar</label>
             <div style={{ display: "flex", gap: 8 }}>

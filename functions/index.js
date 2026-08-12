@@ -962,9 +962,9 @@ export const desativarEquipamento = onCall(async (req) => {
 });
 
 /* ── MELHORIAS (Base Técnica) ─────────────────────────────────
- * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta e
- * resolve; só o líder define a meta (a previsão é de quem trata) e
- * reabre uma melhoria já resolvida. */
+ * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta,
+ * define a previsão e resolve; só o líder reabre uma melhoria já
+ * resolvida. */
 const cMelhorias = (baseId) => db.collection(`bases/${baseId}/melhorias`);
 const refMelhoria = (baseId, id) => db.doc(`bases/${baseId}/melhorias/${id}`);
 const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
@@ -972,7 +972,7 @@ const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
 export const abrirMelhoria = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade, meta = null } = req.data || {};
+  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta o id da melhoria.");
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!GRAVIDADES.includes(gravidade)) throw new HttpsError("invalid-argument", "Gravidade inválida.");
@@ -980,9 +980,8 @@ export const abrirMelhoria = onCall(async (req) => {
   const lote = db.batch();
   const ref = refMelhoria(baseId, melhoriaId);
   lote.set(ref, {
-    // meta só se define aqui, na abertura — nunca depois (ver definirPrevisao)
     titulo: titulo.trim(), descricao: descricao.trim(), foto, equipamentoId, ministerioId, gravidade,
-    estado: "aberta", meta: meta || null, previsao: null,
+    estado: "aberta", previsao: null,
     abertaPor: uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
     resolvidaPor: null, resolvidaEm: null, notaResolucao: null, fotoResolucao: null, ativo: true,
   });
@@ -1035,9 +1034,8 @@ export const definirEstadoMelhoria = onCall(async (req) => {
   return { ok: true };
 });
 
-// A meta só se define na abertura (abrirMelhoria) — aqui só a
-// previsão, que é "estimativa de quem está a tratar", qualquer
-// voluntário pode ajustar.
+// Previsão = estimativa de quem está a tratar; qualquer voluntário
+// pode ajustar, a qualquer momento.
 export const definirPrevisao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");

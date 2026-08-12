@@ -1145,41 +1145,152 @@ textarea.campo {
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* tabela compacta (Melhorias) — colunas estreitas de propósito, pra
- * caber tudo num telemóvel de uma vez, sem scroll horizontal na
- * maioria dos aparelhos (o .tabwrap à volta é só rede de segurança) */
-.tabcompacta {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 11.5px;
-  table-layout: fixed;
-}
-.tabcompacta th {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+/* seletor de ordenação (Melhorias) */
+.ordselect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: var(--cinza);
-  padding: 6px 3px;
-  text-align: left;
-  border-bottom: 2px solid var(--tinta);
+  border: 1px solid var(--fio);
+  border-radius: 100px;
+  padding: 5px 6px 5px 12px;
+  background: #fff;
 }
-.tabcompacta td {
-  padding: 8px 3px;
-  border-bottom: 1px solid var(--fio);
-  vertical-align: middle;
+.ordselect select {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta);
 }
-.tabcompacta td.trunc {
+
+/* cartão de melhoria (Equipamentos › Melhorias) — barra lateral pela
+ * gravidade, miniatura redonda, duas etiquetas de cor sempre visíveis
+ * (gravidade e estado nunca partilham a mesma família de cor, pra não
+ * misturar as duas informações) */
+.cartaomelh {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 10px 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--fio);
+  margin-bottom: 8px;
+  position: relative;
+  cursor: pointer;
+}
+.cartaomelh .risca {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+}
+.cartaomelh .risca.alta {
+  background: var(--magenta);
+}
+.cartaomelh .risca.media {
+  background: var(--laranja);
+}
+.cartaomelh .risca.baixa {
+  background: var(--ciano);
+}
+.cartaomelh .miniatura {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+.cartaomelh-corpo {
+  flex: 1;
+  min-width: 0;
+}
+.cartaomelh-linha1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cartaomelh-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.cartaomelh-lapis {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  border: 1px solid var(--fio);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cinza);
+}
+.cartaomelh-linha2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+.cartaomelh-previsao {
+  font-size: 11px;
+  color: var(--cinza);
+  margin-left: auto;
   white-space: nowrap;
 }
-.tabcompacta .miniatura.semfoto {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: block;
-  opacity: 0.85;
+.cartaomelh-previsao.atrasada {
+  color: var(--magenta);
+  font-weight: 700;
+}
+
+/* etiqueta de gravidade/estado — bem coloridas de propósito, é a
+ * informação mais importante do cartão */
+.selo {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+  flex: none;
+}
+.selo.alta {
+  color: var(--magenta);
+  background: color-mix(in srgb, var(--magenta) 14%, #fff);
+}
+.selo.media {
+  color: #8a5800;
+  background: color-mix(in srgb, var(--laranja) 20%, #fff);
+}
+.selo.baixa {
+  color: var(--ciano);
+  background: color-mix(in srgb, var(--ciano) 14%, #fff);
+}
+.selo.aberta {
+  color: var(--cinza);
+  background: var(--agua);
+}
+.selo.curso {
+  color: var(--verde);
+  background: color-mix(in srgb, var(--verde) 14%, #fff);
+}
+.selo.resolvida {
+  color: var(--cinza);
+  background: var(--agua);
 }
 
 /* ── navegação inferior ── */

@@ -1,9 +1,8 @@
 /**
  * Melhorias: qualquer voluntário reporta uma avaria ou sugere uma
- * melhoria, comenta e resolve. A meta (data-limite) só se define na
- * abertura, nunca depois; a previsão é sempre de quem está a tratar,
- * pode ser ajustada por qualquer voluntário. Só o líder reabre uma
- * melhoria já resolvida.
+ * melhoria, comenta, resolve e ajusta a previsão (estimativa de quem
+ * está a tratar) a qualquer momento. Só o líder reabre uma melhoria
+ * já resolvida.
  */
 import { doc, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -63,21 +62,30 @@ export const GRAVIDADES = [
   ["melhoria", "Só uma melhoria"],
 ];
 
-/** Regra de cor do CLAUDE.md: previsão ≤ meta → verde; previsão >
- *  meta → amarelo; hoje > previsão e ainda aberta → vermelho; sem
- *  meta → cinza. Só para o cliente decidir a cor, nada é validado
- *  aqui — quem decide o que pode gravar é a Cloud Function. */
-export function corMelhoria({ estado, meta, previsao }) {
-  if (estado === "resolvida") return { cor: "verd", texto: "Resolvida" };
-  if (!meta) return { cor: "cinz", texto: previsao ? `Previsão ${previsao}` : "Sem meta" };
-  const hoje = new Date().toISOString().slice(0, 10);
-  if (previsao && hoje > previsao) {
-    const dias = Math.round((new Date(hoje) - new Date(previsao)) / 86400000);
-    return { cor: "", texto: `Atrasada há ${dias} dia${dias === 1 ? "" : "s"}` };
+// Cor própria para gravidade (nunca a mesma família de cor do estado,
+// pra não misturar as duas etiquetas) e para o estado da melhoria.
+export const GRAVIDADE_INFO = {
+  impede_culto: { cor: "alta", texto: "Impede o culto" },
+  atrapalha: { cor: "media", texto: "Atrapalha" },
+  melhoria: { cor: "baixa", texto: "Melhoria" },
+};
+export const ESTADO_INFO = {
+  aberta: { cor: "aberta", texto: "Aberta" },
+  em_curso: { cor: "curso", texto: "Em curso" },
+  resolvida: { cor: "resolvida", texto: "Resolvida" },
+};
+
+/** Cor/texto da previsão: sem previsão → cinza; hoje > previsão e
+ *  ainda aberta → vermelho ("atrasada"); resto → neutro. Só para o
+ *  cliente decidir a cor, nada é validado aqui. */
+export function corPrevisao({ estado, previsao }) {
+  if (!previsao) return { atrasada: false, texto: "Sem previsão" };
+  if (estado !== "resolvida") {
+    const hoje = new Date().toISOString().slice(0, 10);
+    if (hoje > previsao) {
+      const dias = Math.round((new Date(hoje) - new Date(previsao)) / 86400000);
+      return { atrasada: true, texto: `Atrasada há ${dias} dia${dias === 1 ? "" : "s"}` };
+    }
   }
-  if (previsao && previsao > meta) {
-    const dias = Math.round((new Date(previsao) - new Date(meta)) / 86400000);
-    return { cor: "lim", texto: `${dias} dia${dias === 1 ? "" : "s"} além da meta` };
-  }
-  return { cor: "verd", texto: `Meta ${meta}` };
+  return { atrasada: false, texto: `Previsão ${previsao}` };
 }

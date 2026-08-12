@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirEquipamentos } from "../lib/equipamentos";
-import { ouvirMelhorias, corMelhoria } from "../lib/melhorias";
+import { ouvirMelhorias, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO } from "../lib/melhorias";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -10,7 +10,11 @@ import SheetEquipamentoDetalhe from "../components/equipamentos/SheetEquipamento
 import SheetMelhoria from "../components/equipamentos/SheetMelhoria";
 import SheetNovaMelhoria from "../components/equipamentos/SheetNovaMelhoria";
 
-const ESTADO_CURTO = { aberta: "Aberta", em_curso: "Em curso", resolvida: "Resolvida" };
+// mesma cor da .risca/.selo do cartão, pra pintar a miniatura quando
+// a melhoria não tem foto — ver global.css
+const COR_MINIATURA = { alta: "var(--magenta)", media: "var(--laranja)", baixa: "var(--ciano)" };
+const RANK_GRAVIDADE = { impede_culto: 0, atrapalha: 1, melhoria: 2 };
+const OPCOES_ORDEM = [["gravidade", "Gravidade"], ["data", "Data"], ["previsao", "Previsão"]];
 
 // "2026-08-16" (data) ou um Timestamp do Firestore (abertaEm) → "16 ago"
 function curta(valor) {
@@ -19,9 +23,22 @@ function curta(valor) {
   return iso ? dataCurta(iso) : "—";
 }
 
-// as mesmas cores do .tag (ver global.css), pra pintar a miniatura
-// quando a melhoria não tem foto
-const COR_FUNDO = { verd: "var(--verde)", lim: "var(--lima)", cinz: "var(--agua)", "": "var(--magenta)" };
+function ordenarMelhorias(lista, ordem) {
+  return [...lista].sort((a, b) => {
+    const resA = a.estado === "resolvida" ? 1 : 0, resB = b.estado === "resolvida" ? 1 : 0;
+    if (resA !== resB) return resA - resB;
+    if (ordem === "previsao") {
+      if (!a.previsao && !b.previsao) return 0;
+      if (!a.previsao) return 1;
+      if (!b.previsao) return -1;
+      return a.previsao < b.previsao ? -1 : a.previsao > b.previsao ? 1 : 0;
+    }
+    if (ordem === "data") {
+      return (b.abertaEm?.toMillis?.() ?? 0) - (a.abertaEm?.toMillis?.() ?? 0);
+    }
+    return (RANK_GRAVIDADE[a.gravidade] ?? 9) - (RANK_GRAVIDADE[b.gravidade] ?? 9);
+  });
+}
 
 export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
@@ -33,6 +50,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
   const [verTudo, setVerTudo] = useState({});
+  const [ordem, setOrdem] = useState("gravidade");
 
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirMelhorias(setMelhorias), []);
@@ -137,47 +155,50 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
           </button>
           {melhorias.length === 0 && <div className="vaz">Nada reportado ainda.</div>}
           {melhorias.length > 0 && (
-            <div className="tabwrap" style={{ marginTop: 0 }}>
-              <table className="tabcompacta">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>Melhoria</th>
-                    <th>Data</th>
-                    <th>Status</th>
-                    <th>Previsão</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...melhorias].sort((a, b) => (a.estado === "resolvida") - (b.estado === "resolvida")).map((m) => {
-                    const { cor } = corMelhoria(m);
-                    const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
-                    return (
-                      <tr key={m.id} style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id })}>
-                        <td onClick={(e) => m.foto && e.stopPropagation()}>
-                          {m.foto
-                            ? <FotoRedonda src={m.foto} alt={m.titulo} tamanho={24} />
-                            : <span className="miniatura semfoto" style={{ background: COR_FUNDO[cor] }} />}
-                        </td>
-                        <td className="trunc">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</td>
-                        <td>{curta(m.abertaEm)}</td>
-                        <td><span className={`tag ${cor}`} style={{ padding: "3px 7px", fontSize: 9.5 }}>{ESTADO_CURTO[m.estado]}</span></td>
-                        <td>{curta(m.previsao)}</td>
-                        <td>
-                          <button
-                            className="btn sec" style={{ padding: "4px 7px", fontSize: 11 }}
-                            onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}
-                          >
-                            ✎
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="ordselect" style={{ marginBottom: 10 }}>
+                Ordenar por
+                <select value={ordem} onChange={(e) => setOrdem(e.target.value)}>
+                  {OPCOES_ORDEM.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+                </select>
+              </div>
+              {ordenarMelhorias(melhorias, ordem).map((m) => {
+                const gravInfo = GRAVIDADE_INFO[m.gravidade];
+                const estInfo = ESTADO_INFO[m.estado];
+                const { atrasada, texto: previsaoTexto } = corPrevisao(m);
+                const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
+                return (
+                  <div className="cartaomelh" key={m.id} onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id })}>
+                    <span className={`risca ${gravInfo?.cor}`} />
+                    {m.foto ? (
+                      <FotoRedonda src={m.foto} alt={m.titulo} tamanho={34} />
+                    ) : (
+                      <span className="miniatura" style={{ background: COR_MINIATURA[gravInfo?.cor] }}>
+                        {(equipamentoLigado ? equipamentoLigado.nome : m.titulo).charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="cartaomelh-corpo">
+                      <div className="cartaomelh-linha1">
+                        <span className="cartaomelh-titulo">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</span>
+                        <button
+                          className="cartaomelh-lapis"
+                          onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}
+                        >
+                          ✎
+                        </button>
+                      </div>
+                      <div className="cartaomelh-linha2">
+                        {gravInfo && <span className={`selo ${gravInfo.cor}`}>{gravInfo.texto}</span>}
+                        {estInfo && <span className={`selo ${estInfo.cor}`}>{estInfo.texto}</span>}
+                        <span className={`cartaomelh-previsao ${atrasada ? "atrasada" : ""}`}>
+                          {m.estado === "resolvida" ? curta(m.abertaEm) : previsaoTexto}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       )}
