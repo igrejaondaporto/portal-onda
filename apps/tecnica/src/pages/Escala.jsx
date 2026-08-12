@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { funcoesDoCulto } from "../lib/modelo";
-import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios } from "../lib/painel";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { MESES, dataPorExtenso, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
 export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
-  const [funcoes, setFuncoes] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
@@ -16,7 +14,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirBase(setBase), []);
 
@@ -140,7 +137,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                 if (!lugar?.titularId) return null;
                 const titular = pessoaPorId(lugar.titularId);
                 const aprendiz = lugar.aprendizId ? pessoaPorId(lugar.aprendizId) : null;
-                const fs = funcoesDoCulto(funcoes, ev.id).filter((f) => f.ministerioId === m.id);
                 return (
                   <div key={m.id}>
                     {titular && (
@@ -148,7 +144,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                         pessoa={titular}
                         resumo={`${m.nome} · titular${titular.id === uid ? " · tu" : ""}`}
                         corMinisterio={m.cor}
-                        funcoesDaPessoa={fs}
                         tagExtra={ev.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
                         aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === titular.id}
                         onToggle={() => setContactoAberto((a) =>
@@ -160,7 +155,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                         pessoa={aprendiz}
                         resumo={`${m.nome} · 📝 em treino${aprendiz.id === uid ? " · tu" : ""}`}
                         corMinisterio={m.cor}
-                        funcoesDaPessoa={fs}
                         aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === aprendiz.id}
                         onToggle={() => setContactoAberto((a) =>
                           a?.eventoId === ev.id && a?.pessoaId === aprendiz.id ? null : { eventoId: ev.id, pessoaId: aprendiz.id })}
