@@ -36,8 +36,12 @@ export async function trocarBase(novoBaseId) {
       await signInWithCustomToken(auth, data.token);
       return { ok: true };
     }
-    window.location.href = `https://${novoBaseId}.painelonda.pt/#tok=${encodeURIComponent(data.token)}`;
-    return { ok: true };
+    const url = `https://${novoBaseId}.painelonda.pt/#tok=${encodeURIComponent(data.token)}`;
+    window.location.assign(url);
+    // devolve o url mesmo tendo tentado navegar sozinho — numa app instalada
+    // (PWA) ou nalgum browser, a navegação para outro domínio por script
+    // pode não acontecer; quem chama mostra um link de reserva com isto.
+    return { ok: true, url };
   } catch (e) {
     return { ok: false, mensagem: e.message || "Não foi possível trocar de base." };
   }
