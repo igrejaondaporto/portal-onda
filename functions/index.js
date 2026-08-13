@@ -74,11 +74,20 @@ export const dadosEntrada = onCall(async (req) => {
     .get();
 
   const b = baseSnap.data();
+  // o PIN é global — quantos dígitos tem é propriedade do PIN, não do
+  // papel nesta base (um líder da Técnica, adicionado como voluntário
+  // na Apoio, continua a digitar o código de 6 dígitos que já tinha).
+  // pinDigitos vive no segredo (pessoas/{p}/privado/auth), nunca no
+  // documento da base; o fallback cobre identidades criadas antes
+  // deste campo existir.
+  const segredos = await Promise.all(pessoasSnap.docs.map((d) => refSegredo(d.id).get()));
   return {
     base: { nome: b.nome, horaChegada: b.horaChegada, horaCulto: b.horaCulto, local: b.local },
-    pessoas: pessoasSnap.docs.map((d) => {
+    pessoas: pessoasSnap.docs.map((d, i) => {
       const p = d.data();
-      return { id: d.id, nome: p.nome, papel: p.papel, foto: p.foto ?? null };
+      const s = segredos[i];
+      const digitos = s.exists() ? s.data().pinDigitos ?? (p.papel === "lider_base" ? 6 : 4) : 4;
+      return { id: d.id, nome: p.nome, papel: p.papel, foto: p.foto ?? null, digitos };
     }),
   };
 });
@@ -151,7 +160,7 @@ export const trocarPin = onCall(async (req) => {
   if (!snap.exists || !confere(String(pinAtual), snap.data().pinHash)) {
     throw new HttpsError("permission-denied", "O código atual não está certo.");
   }
-  await ref.set({ pinHash: hash(String(pinNovo)), provisorio: false, falhas: 0 }, { merge: true });
+  await ref.set({ pinHash: hash(String(pinNovo)), pinDigitos: digitos, provisorio: false, falhas: 0 }, { merge: true });
   return { ok: true };
 });
 
@@ -186,7 +195,10 @@ export const criarVoluntario = onCall(async (req) => {
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
       ...comMinisterios,
     });
-    await refGlobal(pessoaExistenteId).set({ [`bases.${baseId}`]: true }, { merge: true });
+    // chave com ponto num set(merge:true) grava um campo literal
+    // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
+    // (o merge funde recursivamente e preserva as outras bases já lá).
+    await refGlobal(pessoaExistenteId).set({ bases: { [baseId]: true } }, { merge: true });
     return { pessoaId: pessoaExistenteId, pinProvisorio: null };
   }
 
@@ -204,7 +216,8 @@ export const criarVoluntario = onCall(async (req) => {
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   await refSegredo(ref.id).set({
-    pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+    pinHash: hash(provisorio), pinDigitos: provisorio.length,
+    provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   });
   // devolvido UMA vez, para o líder dizer à pessoa. Nunca mais fica legível.
   return { pessoaId: ref.id, pinProvisorio: provisorio };
@@ -239,8 +252,11 @@ export const procurarPessoaGlobal = onCall(async (req) => {
 
 /** Para o líder que está a ligar uma pessoa já existente noutra base:
  *  procurar pelo telefone às vezes falha (número trocado, não
- *  preenchido) — isto deixa escolher de uma lista. Só nome e foto,
- *  nunca telefone nem papel — a outra base não é dele para ver. */
+ *  preenchido) — isto deixa escolher de uma lista. Inclui o telefone
+ *  (o líder está mesmo a ligar esta pessoa, não a espreitar a outra
+ *  base) para pré-preencher o formulário — é o mesmo número da mesma
+ *  pessoa, não faz sentido perguntar outra vez. Nunca o papel: isso é
+ *  sempre decidido de novo nesta base. */
 export const listarPessoasDaBase = onCall(async (req) => {
   exigeLider(req);
   const { baseId } = req.data || {};
@@ -248,7 +264,10 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
   const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
   const pessoas = snap.docs
-    .map((d) => ({ pessoaId: d.id, nome: d.data().nome, foto: d.data().foto ?? null }))
+    .map((d) => ({
+      pessoaId: d.id, nome: d.data().nome, foto: d.data().foto ?? null,
+      telefone: d.data().telefone ?? "",
+    }))
     .sort((a, b) => a.nome.localeCompare(b.nome));
   return { pessoas };
 });
@@ -288,7 +307,8 @@ export const reporPin = onCall(async (req) => {
   if (!snap.exists) throw new HttpsError("not-found", "Voluntário não encontrado.");
   const provisorio = pinProvisorio(snap.data().papel);
   await refSegredo(pessoaId).set({
-    pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+    pinHash: hash(provisorio), pinDigitos: provisorio.length,
+    provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   }, { merge: true });
   return { pinProvisorio: provisorio };
 });
@@ -303,7 +323,8 @@ export const reporTodosPins = onCall(async (req) => {
   snap.forEach((doc) => {
     const provisorio = pinProvisorio(doc.data().papel);
     lote.set(refSegredo(doc.id), {
-      pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+      pinHash: hash(provisorio), pinDigitos: provisorio.length,
+      provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
     }, { merge: true });
   });
   await lote.commit();
@@ -318,7 +339,7 @@ export const removerVoluntario = onCall(async (req) => {
   }
   // desativar, não apagar: o histórico dos domingos passados depende disto
   await refPessoa(baseId, pessoaId).set({ ativo: false }, { merge: true });
-  await refGlobal(pessoaId).set({ [`bases.${baseId}`]: false }, { merge: true });
+  await refGlobal(pessoaId).set({ bases: { [baseId]: false } }, { merge: true });
 
   // o PIN só se apaga se a pessoa não continuar ativa nem numa base sequer
   const globalSnap = await refGlobal(pessoaId).get();

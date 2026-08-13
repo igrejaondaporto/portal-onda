@@ -11,11 +11,11 @@ const NIVEIS = [
 
 export default function SheetPessoa({
   pessoa, ministerios = [], onFechar, onGuardado, onRemover,
-  pessoaExistente, onLigarPessoa, onDesligarPessoa,
+  pessoaExistente, onDesligarPessoa,
 }) {
   const torrada = useTorrada();
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
-  const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
+  const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
   const [ministeriosPessoa, setMinisteriosPessoa] = useState(pessoa?.ministerios ?? {});
   const [aEnviar, setAEnviar] = useState(false);
@@ -77,12 +77,6 @@ export default function SheetPessoa({
             </button>
           </div>
         )}
-        {!pessoa && !pessoaExistente && onLigarPessoa && (
-          <button className="btn sec full" style={{ marginTop: 10 }} onClick={onLigarPessoa}>
-            Já tem perfil noutra base?
-          </button>
-        )}
-
         <label className="rot" style={{ marginTop: 14 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome como aparece na escala" />
         <label className="rot">Telemóvel</label>

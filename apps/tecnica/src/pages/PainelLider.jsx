@@ -16,6 +16,7 @@ import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios"
 import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetExcluirCulto from "../components/painel/SheetExcluirCulto";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
+import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
@@ -197,7 +198,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           <div className="sect">
             <div className="cabecalho">
               <h3>Voluntários</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: null })}>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>
                 Adicionar
               </button>
             </div>
@@ -396,6 +397,13 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
         />
       )}
+      {sheet?.tipo === "perguntaLigacao" && (
+        <SheetPerguntaLigacao
+          onFechar={() => setSheet(null)}
+          onNao={() => setSheet({ tipo: "pessoa" })}
+          onSim={() => setSheet({ tipo: "ligarPessoa" })}
+        />
+      )}
       {sheet?.tipo === "pessoa" && (
         <SheetPessoa
           pessoa={sheet.pessoaId ? pessoaPorId(sheet.pessoaId) : null}
@@ -404,8 +412,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
           onRemover={(pessoaId) => setSheet({ tipo: "removerPessoa", pessoaId })}
-          onLigarPessoa={() => setSheet({ tipo: "ligarPessoa" })}
-          onDesligarPessoa={() => setSheet({ tipo: "pessoa" })}
+          onDesligarPessoa={() => setSheet({ tipo: "ligarPessoa" })}
         />
       )}
       {sheet?.tipo === "ligarPessoa" && (
