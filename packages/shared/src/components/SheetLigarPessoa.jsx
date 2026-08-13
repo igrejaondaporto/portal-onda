@@ -65,7 +65,7 @@ export default function SheetLigarPessoa({ onFechar, onEscolhida }) {
             {pessoas?.map((p) => (
               <div
                 className="linha" style={{ cursor: "pointer" }} key={p.pessoaId}
-                onClick={() => onEscolhida({ pessoaExistenteId: p.pessoaId, nome: p.nome, foto: p.foto })}
+                onClick={() => onEscolhida({ pessoaExistenteId: p.pessoaId, nome: p.nome, foto: p.foto, telefone: p.telefone })}
               >
                 <Avatar pessoa={p} tamanho={38} />
                 <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>

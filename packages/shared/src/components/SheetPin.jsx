@@ -7,7 +7,11 @@ import TecladoNumerico from "./TecladoNumerico";
  * isto só desenha pontos e manda dígitos, nunca decide se o código está certo.
  */
 export default function SheetPin({ pessoa, nomeLider, onFechar, onDeveTrocarPin }) {
-  const dig = pessoa.papel === "lider_base" ? 6 : 4;
+  // o PIN é global — quantos dígitos tem é propriedade do PIN (vem do
+  // servidor em `digitos`), não do papel nesta base. Um líder de outra
+  // base, adicionado aqui como voluntário, continua a digitar o código
+  // que já tinha. O fallback só cobre uma resposta antiga sem o campo.
+  const dig = pessoa.digitos ?? (pessoa.papel === "lider_base" ? 6 : 4);
 
   const [cod, setCod] = useState("");
   const [erro, setErro] = useState("");
