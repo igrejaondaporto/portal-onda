@@ -14,6 +14,7 @@ import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios";
 import SheetNovoCulto from "../components/painel/SheetNovoCulto";
+import SheetExcluirCulto from "../components/painel/SheetExcluirCulto";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
@@ -376,6 +377,15 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           voluntarios={voluntarios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
+          onExcluir={(eventoId) => setSheet({ tipo: "excluirCulto", eventoId })}
+        />
+      )}
+      {sheet?.tipo === "excluirCulto" && (
+        <SheetExcluirCulto
+          evento={eventosMes.find((e) => e.id === sheet.eventoId)}
+          onFechar={() => setSheet(null)}
+          onVoltar={(eventoId) => setSheet({ tipo: "escala", eventoId })}
+          onExcluido={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "novoCulto" && (

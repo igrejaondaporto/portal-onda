@@ -756,6 +756,27 @@ export const criarCultoEspecial = onCall(async (req) => {
   return { eventoId: data };
 });
 
+/* ── EXCLUIR CULTO ESPECIAL ────────────────────────────────
+ * Nada é apagado, é desativado (ver CLAUDE.md) — o evento fica
+ * `ativo:false` e some das listagens, mas a escala/ordem já gravadas
+ * continuam no histórico. Só cultos especiais (fora dos domingos):
+ * os domingos são geridos por `gerarDomingos`, nunca à mão. */
+export const excluirCultoEspecial = onCall(async (req) => {
+  exigeLider(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const ref = db.doc(`eventos/${eventoId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+  if (!snap.data().tipo) {
+    throw new HttpsError("failed-precondition", "Domingos não se excluem — só cultos especiais.");
+  }
+
+  await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
 /* ── WIKI ──────────────────────────────────────────────────
  * Autoria mista (o líder cria esqueletos, qualquer voluntário
  * escreve/edita artigos e responde dúvidas) e todo write tem de

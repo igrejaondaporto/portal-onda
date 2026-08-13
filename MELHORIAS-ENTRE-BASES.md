@@ -15,7 +15,9 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
-_(nada pendente no momento)_
+| Nasceu em | O quê | Nota |
+|---|---|---|
+| Técnica | Excluir culto especial (`excluirCultoEspecial` em `functions/index.js` — desativa com `ativo:false`, nunca apaga; recusa domingos, só cultos criados por `criarCultoEspecial`; botão "Excluir este culto" em `SheetEscalaMinisterios` → `SheetExcluirCulto`) | A Cloud Function já é partilhada e serve as duas bases sem alteração nenhuma — falta só a Apoio ganhar o mesmo botão/sheet no seu `PainelLider.jsx` (ela já tem `criarCultoEspecial`/`SheetNovoCulto`, só falta o par). `obterEventosDoMes`/`ouvirEventosDoMes` da Apoio também precisam do filtro `ev.ativo !== false`, como foi feito em `apps/tecnica/src/lib/painel.js`. |
 
 ## Já portado
 
