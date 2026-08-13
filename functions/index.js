@@ -55,8 +55,14 @@ const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
 
 /* ── INDISPONIBILIDADE PARTILHADA ENTRE BASES ─────────────────
  * Quem serve em mais do que uma base não pode ser escalado no mesmo
- * culto nas duas ao mesmo tempo. eventos/{e} já é global ("pertence
- * à igreja, não à base" — CLAUDE.md raiz, regra 7); esta subcoleção
+ * culto em nenhuma delas ao mesmo tempo — para N bases, não só duas:
+ * a checagem abaixo procura "existe entrada de QUALQUER outra base",
+ * nunca compara com uma base específica. Uma base nova não precisa de
+ * nenhuma mudança aqui, só da sua própria guardarEscala<Base> (cada
+ * base já tem o formato de escala dela — lugares[] na Técnica, lista
+ * simples na Apoio — por isso não dá para generalizar a função em si,
+ * só a validação partilhada). eventos/{e} já é global ("pertence à
+ * igreja, não à base" — CLAUDE.md raiz, regra 7); esta subcoleção
  * segue o mesmo padrão de escalas/{base} e atribuicoes/{funcao}, só
  * que é "da pessoa+culto", não de uma base. Só existe para quem é
  * multi-base — para o resto nunca há nada para escrever aqui.
@@ -68,7 +74,6 @@ const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
  * para o dia em que a Apoio ganhar enquete própria: essa função só
  * chamaria `marcarIndisponivel(eventoId, "apoio", uid, "votou")`,
  * sem mexer em mais nada aqui. */
-const NOMES_BASE = { apoio: "Apoio", tecnica: "Técnica" };
 const refIndisponibilidade = (eventoId, uid) => db.doc(`eventos/${eventoId}/indisponibilidades/${uid}`);
 
 async function basesDaPessoa(uid) {
@@ -78,18 +83,22 @@ async function basesDaPessoa(uid) {
 }
 
 /** Lança failed-precondition se `uid` já tem uma entrada de OUTRA
- *  base para este culto — chamar antes de gravar a escala. Só lê o
- *  nome (extra pedido ao Firestore) no caminho de erro, que é raro. */
+ *  base (qualquer uma — não uma lista fixa de duas) para este culto —
+ *  chamar antes de gravar a escala. Só lê o nome da pessoa e da outra
+ *  base (dois pedidos extra ao Firestore) no caminho de erro, que é
+ *  raro; `bases/{id}.nome` já existe para todas, nunca precisa de
+ *  manutenção quando uma base nova aparecer. */
 async function garantirSemConflitoCrossBase(eventoId, baseId, uid) {
   const snap = await refIndisponibilidade(eventoId, uid).get();
   if (!snap.exists) return;
   const origens = snap.data().origens || {};
   const outraBase = Object.keys(origens).find((b) => b !== baseId);
   if (outraBase) {
-    const g = await refGlobal(uid).get();
+    const [g, b] = await Promise.all([refGlobal(uid).get(), db.doc(`bases/${outraBase}`).get()]);
     const nome = g.exists ? g.data().nome : "Esta pessoa";
+    const nomeBase = b.exists ? b.data().nome : outraBase;
     throw new HttpsError("failed-precondition",
-      `${nome} já está escalado(a) na ${NOMES_BASE[outraBase] ?? outraBase} nesse dia.`);
+      `${nome} já está escalado(a) na ${nomeBase} nesse dia.`);
   }
 }
 
