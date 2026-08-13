@@ -56,6 +56,8 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const [verTudo, setVerTudo] = useState({});
   const [ordem, setOrdem] = useState("gravidade");
   const [expandida, setExpandida] = useState({});
+  const [soAtrasadas, setSoAtrasadas] = useState(false);
+  const [verResolvidas, setVerResolvidas] = useState(false);
 
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirMelhorias(setMelhorias), []);
@@ -63,7 +65,10 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
 
   const comProblema = equipamentos.filter((e) => e.estado !== "ok").length;
-  const abertas = melhorias.filter((m) => m.estado !== "resolvida").length;
+  const melhoriasAtivas = melhorias.filter((m) => m.estado !== "resolvida");
+  const melhoriasResolvidas = melhorias.filter((m) => m.estado === "resolvida");
+  const abertas = melhoriasAtivas.length;
+  const atrasadas = melhoriasAtivas.filter((m) => corPrevisao(m).atrasada).length;
 
   useEffect(() => {
     if (!ativo) return;
@@ -77,6 +82,53 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome;
   const equipamentoAtual = sheet?.equipamentoId ? equipamentos.find((e) => e.id === sheet.equipamentoId) : null;
+
+  function cartaoMelhoria(m) {
+    const gravInfo = GRAVIDADE_INFO[m.gravidade];
+    const estInfo = ESTADO_INFO[m.estado];
+    const { atrasada, texto: previsaoTexto } = corPrevisao(m);
+    const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
+    const aberta = !!expandida[m.id];
+    return (
+      <div className="cartaomelh" key={m.id} onClick={() => setExpandida((v) => ({ ...v, [m.id]: !v[m.id] }))}>
+        <span className={`risca ${gravInfo?.cor}`} />
+        {m.foto ? (
+          <FotoRedonda src={m.foto} alt={m.titulo} tamanho={34} />
+        ) : (
+          <span className="miniatura" style={{ background: COR_MINIATURA[gravInfo?.cor] }}>
+            {(equipamentoLigado ? equipamentoLigado.nome : m.titulo).charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="cartaomelh-corpo">
+          <div className="cartaomelh-linha1">
+            <span className="cartaomelh-titulo">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</span>
+            <button
+              className="lapis"
+              onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}
+            >
+              ✎
+            </button>
+          </div>
+          <div className="cartaomelh-linha2">
+            {gravInfo && <span className={`selo ${gravInfo.cor}`}>{gravInfo.texto}</span>}
+            {estInfo && <span className={`selo ${estInfo.cor}`}>{estInfo.texto}</span>}
+            <span className={`cartaomelh-previsao ${atrasada ? "atrasada" : ""}`}>
+              {m.estado === "resolvida" ? curta(m.abertaEm) : previsaoTexto}
+            </span>
+          </div>
+          {aberta && (
+            <div className="cartaomelh-desc">
+              {m.descricao || "Sem descrição."}
+              <br />
+              <span className="abrir" onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}>
+                Comentários e histórico ›
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -181,58 +233,45 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
           {melhorias.length === 0 && <div className="vaz">Nada reportado ainda.</div>}
           {melhorias.length > 0 && (
             <>
-              <div className="ordselect" style={{ marginBottom: 10 }}>
-                Ordenar por
-                <select value={ordem} onChange={(e) => setOrdem(e.target.value)}>
-                  {OPCOES_ORDEM.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
-                </select>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                <div className="ordselect" style={{ flex: 1 }}>
+                  Ordenar por
+                  <select value={ordem} onChange={(e) => setOrdem(e.target.value)}>
+                    {OPCOES_ORDEM.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+                  </select>
+                </div>
+                <button
+                  className="tag" data-on={soAtrasadas ? 1 : 0}
+                  style={{
+                    cursor: "pointer", border: 0,
+                    ...(soAtrasadas ? { background: "var(--magenta)", color: "#fff" } : { background: "var(--fio)", color: "var(--cinza)" }),
+                  }}
+                  onClick={() => setSoAtrasadas((v) => !v)}
+                >
+                  Atrasadas{atrasadas > 0 ? ` (${atrasadas})` : ""}
+                </button>
               </div>
-              {ordenarMelhorias(melhorias, ordem).map((m) => {
-                const gravInfo = GRAVIDADE_INFO[m.gravidade];
-                const estInfo = ESTADO_INFO[m.estado];
-                const { atrasada, texto: previsaoTexto } = corPrevisao(m);
-                const equipamentoLigado = m.equipamentoId ? equipamentos.find((e) => e.id === m.equipamentoId) : null;
-                const aberta = !!expandida[m.id];
-                return (
-                  <div className="cartaomelh" key={m.id} onClick={() => setExpandida((v) => ({ ...v, [m.id]: !v[m.id] }))}>
-                    <span className={`risca ${gravInfo?.cor}`} />
-                    {m.foto ? (
-                      <FotoRedonda src={m.foto} alt={m.titulo} tamanho={34} />
-                    ) : (
-                      <span className="miniatura" style={{ background: COR_MINIATURA[gravInfo?.cor] }}>
-                        {(equipamentoLigado ? equipamentoLigado.nome : m.titulo).charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    <div className="cartaomelh-corpo">
-                      <div className="cartaomelh-linha1">
-                        <span className="cartaomelh-titulo">{equipamentoLigado ? equipamentoLigado.nome : m.titulo}</span>
-                        <button
-                          className="lapis"
-                          onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}
-                        >
-                          ✎
-                        </button>
-                      </div>
-                      <div className="cartaomelh-linha2">
-                        {gravInfo && <span className={`selo ${gravInfo.cor}`}>{gravInfo.texto}</span>}
-                        {estInfo && <span className={`selo ${estInfo.cor}`}>{estInfo.texto}</span>}
-                        <span className={`cartaomelh-previsao ${atrasada ? "atrasada" : ""}`}>
-                          {m.estado === "resolvida" ? curta(m.abertaEm) : previsaoTexto}
-                        </span>
-                      </div>
-                      {aberta && (
-                        <div className="cartaomelh-desc">
-                          {m.descricao || "Sem descrição."}
-                          <br />
-                          <span className="abrir" onClick={(e) => { e.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true }); }}>
-                            Comentários e histórico ›
-                          </span>
-                        </div>
-                      )}
+
+              {(soAtrasadas ? melhoriasAtivas.filter((m) => corPrevisao(m).atrasada) : melhoriasAtivas).length === 0 && (
+                <div className="vaz">{soAtrasadas ? "Nenhuma melhoria atrasada." : "Nada em aberto."}</div>
+              )}
+              {ordenarMelhorias(soAtrasadas ? melhoriasAtivas.filter((m) => corPrevisao(m).atrasada) : melhoriasAtivas, ordem)
+                .map((m) => cartaoMelhoria(m))}
+
+              {melhoriasResolvidas.length > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <button
+                    className="btn sec full" onClick={() => setVerResolvidas((v) => !v)}
+                  >
+                    {verResolvidas ? "Ocultar resolvidas" : `Ver resolvidas (${melhoriasResolvidas.length})`}
+                  </button>
+                  {verResolvidas && (
+                    <div style={{ marginTop: 10 }}>
+                      {ordenarMelhorias(melhoriasResolvidas, "data").map((m) => cartaoMelhoria(m))}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

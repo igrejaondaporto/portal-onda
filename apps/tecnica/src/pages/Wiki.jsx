@@ -36,7 +36,9 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
   const lista = useMemo(() => {
     const b = normalizar(busca);
     const filtrados = !b ? itens : itens.filter((i) =>
-      normalizar(i.titulo).includes(b) || (i.etiquetas || []).some((e) => normalizar(e).includes(b))
+      normalizar(i.titulo).includes(b)
+      || (i.etiquetas || []).some((e) => normalizar(e).includes(b))
+      || normalizar(i.texto).includes(b)
     );
     return [...filtrados].sort((a, c) => {
       const duvidaAberta = (i) => i.tipo === "duvida" && !i.resolvida;
@@ -71,7 +73,7 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
       <div className="sect">
         <input
           className="campo" value={busca} onChange={(e) => setBusca(e.target.value)}
-          placeholder="Procurar por título ou etiqueta"
+          placeholder="Procurar por título, etiqueta ou texto"
         />
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novaDuvida" })}>

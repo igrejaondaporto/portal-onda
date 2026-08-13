@@ -765,6 +765,13 @@ export const criarCultoEspecial = onCall(async (req) => {
 const cWiki = (baseId) => db.collection(`bases/${baseId}/wiki`);
 const refWiki = (baseId, id) => db.doc(`bases/${baseId}/wiki/${id}`);
 
+// texto (sem imagens) de todo o corpo, pra busca encontrar uma frase
+// do artigo mesmo que não esteja no título nem nas etiquetas
+function textoBuscavelWiki(w) {
+  if (w.tipo === "duvida") return w.corpo || "";
+  return [w.introducao, w.conclusao, ...(w.passos || []).map((p) => p.texto)].filter(Boolean).join(" ");
+}
+
 async function atualizarIndiceWiki(baseId) {
   const snap = await cWiki(baseId).where("ativo", "==", true).get();
   const itens = snap.docs.map((d) => {
@@ -775,6 +782,7 @@ async function atualizarIndiceWiki(baseId) {
       esqueleto: !!w.esqueleto,
       resolvida: w.tipo === "duvida" ? !!w.resolvidaPorRespostaId : null,
       atualizadoEm: w.atualizadoEm ?? w.criadoEm ?? null,
+      texto: textoBuscavelWiki(w),
     };
   });
   await db.doc(`wikiIndice/${baseId}`).set({
