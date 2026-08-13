@@ -1,32 +1,12 @@
 import { useState } from "react";
-import { sair, trocarBase } from "../lib/auth";
-import { useTorrada } from "../lib/TorradaContext";
+import { sair } from "../lib/auth";
+import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil }) {
-  const torrada = useTorrada();
   const lider = papel === "lider_base";
   const [expandida, setExpandida] = useState(false);
-  const [aTrocar, setATrocar] = useState(false);
-  const [destino, setDestino] = useState(null); // { nome, url } — link de reserva se a navegação sozinha não acontecer
-
-  async function escolherBase(base) {
-    if (base.id === baseIdAtual || aTrocar) return;
-    setATrocar(true);
-    setDestino(null);
-    const r = await trocarBase(base.id);
-    if (!r.ok) { torrada(r.mensagem); setATrocar(false); return; }
-    // em localhost troca no sítio (sem url); noutro domínio, mostra já o
-    // link de reserva — nem toda app instalada deixa um script navegar
-    // sozinho para outro domínio, mas um toque num link real sempre passa.
-    if (r.url) {
-      setDestino({ nome: base.nome, url: r.url });
-      // se a navegação automática não tirar daqui, os separadores voltam a
-      // responder — sem isto ficavam desativados para sempre, só o link
-      // de reserva continuaria a funcionar
-      setTimeout(() => setATrocar(false), 2500);
-    }
-  }
+  const { aTrocar, destino, escolherBase } = useTrocarBase();
 
   return (
     <>
@@ -51,7 +31,7 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
             {basesDisponiveis.map((b) => (
               <button
                 key={b.id} data-on={b.id === baseIdAtual ? 1 : 0} disabled={aTrocar}
-                onClick={() => escolherBase(b)}
+                onClick={() => b.id !== baseIdAtual && escolherBase(b)}
               >
                 {b.nome}
               </button>
