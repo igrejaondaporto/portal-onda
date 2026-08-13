@@ -61,7 +61,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
       const indisponibilidades = construirIndisponibilidades(respostas);
       const dados = { estatisticas, vezesAprendizPorMinisterio, indisponibilidades };
       setDadosGeracao(dados);
-      const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dados, travados: {} });
+      const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dados });
       setSugestao(s);
       setAlertas(calcularAlertas({
         domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
@@ -76,35 +76,26 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   }
 
   function regenerar() {
-    if (!sugestao || !dadosGeracao) return gerar();
-    const travados = Object.fromEntries(
-      Object.entries(sugestao.resultado).filter(([, r]) => r.travado)
-    );
-    const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dadosGeracao, travados });
+    if (!dadosGeracao) return gerar();
+    const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dadosGeracao });
     setSugestao(s);
     setAlertas(calcularAlertas({
       domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
       estatisticas: dadosGeracao.estatisticas, respondentes: new Set(respostas.map((r) => r.id)),
       vezesAprendizPorMinisterio: dadosGeracao.vezesAprendizPorMinisterio,
     }));
+    torrada("Sugestão regenerada");
   }
 
+  // editar uma célula é uma escolha ativa do líder — deixa de ser "só
+  // havia essa opção", por isso tira o 🔒 automático dela
   function definirCelula(domingoId, ministerioId, campo, valor) {
     setSugestao((s) => {
       const chave = chaveSlot(domingoId, ministerioId);
-      const atual = s.resultado[chave] || { titularId: null, aprendizId: null, travado: false, semCandidato: false };
-      const novo = { ...atual, [campo]: valor || null, travado: true, semCandidato: false };
+      const atual = s.resultado[chave] || { titularId: null, aprendizId: null, travado: false, motivoTravado: null, semCandidato: false };
+      const novo = { ...atual, [campo]: valor || null, travado: false, motivoTravado: null, semCandidato: false };
       if (campo === "titularId" && !valor) novo.aprendizId = null;
       return { ...s, resultado: { ...s.resultado, [chave]: novo } };
-    });
-  }
-
-  function alternarTravado(domingoId, ministerioId) {
-    setSugestao((s) => {
-      const chave = chaveSlot(domingoId, ministerioId);
-      const atual = s.resultado[chave];
-      if (!atual) return s;
-      return { ...s, resultado: { ...s.resultado, [chave]: { ...atual, travado: !atual.travado } } };
     });
   }
 
@@ -192,23 +183,17 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                       const operacional = m.id !== ministerioResponsavel?.id;
                       return (
                         <td key={d.id} style={{ minWidth: 180 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <select
-                              className="campo" style={{ fontSize: 12, padding: "6px 8px" }}
-                              value={r.titularId ?? ""}
-                              onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
-                            >
-                              <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
-                              {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                            </select>
-                            <button
-                              className="btn sec" style={{ padding: "6px 8px", fontSize: 12, flex: "none" }}
-                              title={r.travado ? "Travado — não muda ao regenerar" : "Travar"}
-                              onClick={() => alternarTravado(d.id, m.id)}
-                            >
-                              {r.travado ? "🔒" : "🔓"}
-                            </button>
-                          </div>
+                          <select
+                            className="campo" style={{ fontSize: 12, padding: "6px 8px" }}
+                            value={r.titularId ?? ""}
+                            onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
+                          >
+                            <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
+                            {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                          </select>
+                          {r.travado && (
+                            <p style={{ fontSize: 9.5, color: "var(--magenta)", marginTop: 3 }}>🔒 {r.motivoTravado}</p>
+                          )}
                           {operacional && (
                             <select
                               className="campo" style={{ fontSize: 11.5, padding: "5px 8px", marginTop: 4 }}
@@ -228,9 +213,13 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
             </table>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <p className="ds" style={{ marginTop: 10 }}>
+            🔒 = não havia outra opção disponível esse dia. Editar uma célula é uma escolha tua, e "Regenerar" volta a
+            propor tudo do zero — publica assim que estiveres satisfeito.
+          </p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aCarregar} onClick={regenerar}>
-              Regenerar (respeita 🔒)
+              Regenerar
             </button>
             <button className="btn" style={{ flex: 1, fontSize: 13 }} disabled={aPublicar} onClick={publicar}>
               {aPublicar ? "A publicar…" : "Publicar escala"}

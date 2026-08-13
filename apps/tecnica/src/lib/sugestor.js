@@ -44,29 +44,28 @@ export function calcularVezesAprendiz(historicoLugares) {
 }
 
 /** O motor: preenche primeiro os lugares com menos candidatos (evita
- *  o beco sem saída de sobrar um domingo sem ninguém no fim). Nunca
- *  mexe num slot que já venha travado — regenerar respeita o que o
- *  líder já fixou. */
-export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibilidades, estatisticas, vezesAprendizPorMinisterio, travados = {} }) {
+ *  o beco sem saída de sobrar um domingo sem ninguém no fim). Um slot
+ *  só sai 🔒 quando não havia alternativa (0 ou 1 candidato) — isso é
+ *  tudo que o cadeado significa; não é um "fixar" manual.
+ *
+ *  Importante: "há mais tempo sem servir" e "vezes como aprendiz nesse
+ *  ministério" são recalculados a cada atribuição desta própria
+ *  geração (não só a partir do histórico real) — senão quem tinha a
+ *  data mais antiga no início ficava sempre em primeiro e levava toda
+ *  vaga do mês, mesmo depois de já ter sido escalado nesta sugestão. */
+export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibilidades, estatisticas, vezesAprendizPorMinisterio }) {
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const usoPorDomingo = {};
   const contagemMes = {};
   const somar = (id) => { contagemMes[id] = (contagemMes[id] ?? 0) + 1; };
   const usar = (domingoId, id) => { (usoPorDomingo[domingoId] ??= new Set()).add(id); };
 
+  const ultimaEfetiva = {};
+  voluntarios.forEach((p) => { ultimaEfetiva[p.id] = estatisticas[p.id]?.ultima ?? ""; });
+  const aprendizEfetivo = {};
+  Object.entries(vezesAprendizPorMinisterio).forEach(([uid, porM]) => { aprendizEfetivo[uid] = { ...porM }; });
+
   const resultado = {};
-
-  Object.entries(travados).forEach(([chave, val]) => {
-    const [domingoId, ministerioId] = chave.split("|");
-    resultado[chave] = { titularId: val.titularId ?? null, aprendizId: val.aprendizId ?? null, travado: true, semCandidato: false };
-    if (ministerioId !== ministerioResponsavel?.id) {
-      if (val.titularId) usar(domingoId, val.titularId);
-      if (val.aprendizId) usar(domingoId, val.aprendizId);
-    }
-    if (val.titularId) somar(val.titularId);
-    if (val.aprendizId) somar(val.aprendizId);
-  });
-
   const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
 
   function candidatosTitular(ministerioId, domingoId) {
@@ -75,13 +74,15 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
       .filter((p) => !indisponivel(p.id, domingoId))
       .filter((p) => ministerioId === ministerioResponsavel?.id || !usoPorDomingo[domingoId]?.has(p.id))
       .sort((a, b) => {
-        const ua = estatisticas[a.id]?.ultima ?? "";
-        const ub = estatisticas[b.id]?.ultima ?? "";
+        const ua = ultimaEfetiva[a.id] ?? "";
+        const ub = ultimaEfetiva[b.id] ?? "";
         if (ua !== ub) return ua.localeCompare(ub); // nunca serviu ("") vem primeiro
         const va = estatisticas[a.id]?.vezes ?? 0;
         const vb = estatisticas[b.id]?.vezes ?? 0;
         if (va !== vb) return va - vb;
-        return (contagemMes[a.id] ?? 0) - (contagemMes[b.id] ?? 0);
+        const ca = contagemMes[a.id] ?? 0, cb = contagemMes[b.id] ?? 0;
+        if (ca !== cb) return ca - cb;
+        return Math.random() - 0.5; // empate de verdade — dá pra variar ao regenerar
       });
   }
 
@@ -92,19 +93,19 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
       .filter((p) => !indisponivel(p.id, domingoId))
       .filter((p) => !usoPorDomingo[domingoId]?.has(p.id))
       .sort((a, b) => {
-        const va = vezesAprendizPorMinisterio[a.id]?.[ministerioId] ?? 0;
-        const vb = vezesAprendizPorMinisterio[b.id]?.[ministerioId] ?? 0;
+        const va = aprendizEfetivo[a.id]?.[ministerioId] ?? 0;
+        const vb = aprendizEfetivo[b.id]?.[ministerioId] ?? 0;
         if (va !== vb) return va - vb; // rotação: quem serviu menos vezes como aprendiz aqui
-        return (contagemMes[a.id] ?? 0) - (contagemMes[b.id] ?? 0);
+        const ca = contagemMes[a.id] ?? 0, cb = contagemMes[b.id] ?? 0;
+        if (ca !== cb) return ca - cb;
+        return Math.random() - 0.5;
       });
   }
 
   let pendentes = [];
   domingos.forEach((d) => {
     ministerios.forEach((m) => {
-      const chave = chaveSlot(d.id, m.id);
-      if (resultado[chave]) return;
-      pendentes.push({ domingoId: d.id, ministerioId: m.id, chave });
+      pendentes.push({ domingoId: d.id, ministerioId: m.id, chave: chaveSlot(d.id, m.id) });
     });
   });
 
@@ -125,6 +126,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
     if (titular) {
       if (operacional) usar(slot.domingoId, titular.id);
       somar(titular.id);
+      ultimaEfetiva[titular.id] = slot.domingoId; // eventoId é sempre "AAAA-MM-DD"
       if (operacional) {
         const candsAp = candidatosAprendiz(slot.ministerioId, slot.domingoId, titular.id);
         const aprendiz = candsAp[0] ?? null;
@@ -132,11 +134,20 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
           aprendizId = aprendiz.id;
           usar(slot.domingoId, aprendiz.id);
           somar(aprendiz.id);
+          (aprendizEfetivo[aprendiz.id] ??= {});
+          aprendizEfetivo[aprendiz.id][slot.ministerioId] = (aprendizEfetivo[aprendiz.id][slot.ministerioId] ?? 0) + 1;
         }
       }
     }
 
-    resultado[slot.chave] = { titularId: titular?.id ?? null, aprendizId, travado: false, semCandidato: !titular };
+    const forcado = cands.length <= 1; // só havia essa opção (ou nenhuma) — não é um "fixar" manual
+    resultado[slot.chave] = {
+      titularId: titular?.id ?? null,
+      aprendizId,
+      travado: forcado,
+      motivoTravado: forcado ? (titular ? `só ${titular.nome} disponível` : "ninguém disponível") : null,
+      semCandidato: !titular,
+    };
   }
 
   return { resultado, contagemMes };
