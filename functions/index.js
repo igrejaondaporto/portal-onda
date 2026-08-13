@@ -237,6 +237,22 @@ export const procurarPessoaGlobal = onCall(async (req) => {
   return { resultados };
 });
 
+/** Para o líder que está a ligar uma pessoa já existente noutra base:
+ *  procurar pelo telefone às vezes falha (número trocado, não
+ *  preenchido) — isto deixa escolher de uma lista. Só nome e foto,
+ *  nunca telefone nem papel — a outra base não é dele para ver. */
+export const listarPessoasDaBase = onCall(async (req) => {
+  exigeLider(req);
+  const { baseId } = req.data || {};
+  if (!baseId) throw new HttpsError("invalid-argument", "Falta a base.");
+
+  const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
+  const pessoas = snap.docs
+    .map((d) => ({ pessoaId: d.id, nome: d.data().nome, foto: d.data().foto ?? null }))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+  return { pessoas };
+});
+
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { pessoaId, nome, telefone = "", papel, ministerios } = req.data || {};
