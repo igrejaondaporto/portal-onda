@@ -64,6 +64,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
   voluntarios.forEach((p) => { ultimaEfetiva[p.id] = estatisticas[p.id]?.ultima ?? ""; });
   const aprendizEfetivo = {};
   Object.entries(vezesAprendizPorMinisterio).forEach(([uid, porM]) => { aprendizEfetivo[uid] = { ...porM }; });
+  const aprendizMes = {}; // uid → vezes escalado como aprendiz neste mês (em qualquer ministério)
 
   const resultado = {};
   const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
@@ -86,12 +87,18 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
       });
   }
 
+  // treinar não precisa acontecer toda semana — 2x no mês já basta
+  // pra rodar entre os aprendizes e respeitar o limite saudável (ver
+  // RECOMENDADO_MES). Quem já bateu o limite simplesmente sai da
+  // lista de candidatos — o slot fica sem aprendiz nesse domingo, o
+  // que é normal, não é obrigatório preencher.
   function candidatosAprendiz(ministerioId, domingoId, excluirId) {
     return voluntarios
       .filter((p) => p.ministerios?.[ministerioId] === "aprendiz")
       .filter((p) => p.id !== excluirId)
       .filter((p) => !indisponivel(p.id, domingoId))
       .filter((p) => !usoPorDomingo[domingoId]?.has(p.id))
+      .filter((p) => (aprendizMes[p.id] ?? 0) < RECOMENDADO_MES)
       .sort((a, b) => {
         const va = aprendizEfetivo[a.id]?.[ministerioId] ?? 0;
         const vb = aprendizEfetivo[b.id]?.[ministerioId] ?? 0;
@@ -136,6 +143,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
           somar(aprendiz.id);
           (aprendizEfetivo[aprendiz.id] ??= {});
           aprendizEfetivo[aprendiz.id][slot.ministerioId] = (aprendizEfetivo[aprendiz.id][slot.ministerioId] ?? 0) + 1;
+          aprendizMes[aprendiz.id] = (aprendizMes[aprendiz.id] ?? 0) + 1;
         }
       }
     }
