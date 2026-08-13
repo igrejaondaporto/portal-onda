@@ -3,6 +3,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
+import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import PainelLider from "./PainelLider";
@@ -127,6 +128,7 @@ export default function Sessao({ uid, papel, baseId }) {
                 <b>{pessoa?.nome ?? "…"}</b>
                 <p>{lider ? "Líder da base" : "Voluntário"}</p>
               </div>
+              <BotaoTrocarBase baseIdAtual={baseId} basesDisponiveis={basesDisponiveis} />
               <span
                 className="av"
                 style={{
