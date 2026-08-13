@@ -5,6 +5,8 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
+import SheetPessoa from "../components/painel/SheetPessoa";
+import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SugestorEscala from "../components/painel/SugestorEscala";
 
 const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
@@ -236,6 +238,7 @@ export default function Montar({ ativo, definirCabecalho }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo]);
 
+  const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
   const abertas = (enquetesMontar || []).filter((e) => e.estado === "aberta");
   const semEnqueteParaOMesQueVem = Array.isArray(enquetesMontar) && abertas.length === 0 && hoje.getDate() >= 15;
 
@@ -297,7 +300,12 @@ export default function Montar({ ativo, definirCabecalho }) {
         ))}
       </div>
 
-      {ministerios.length > 0 && <SugestorEscala ministerios={ministerios} voluntarios={voluntarios} />}
+      {ministerios.length > 0 && (
+        <SugestorEscala
+          ministerios={ministerios} voluntarios={voluntarios}
+          onPromover={(pessoaId) => setSheet({ tipo: "pessoa", pessoaId })}
+        />
+      )}
 
       {ministerios.length > 0 && <UltimasEnquetes ministerios={ministerios} voluntarios={voluntarios} />}
 
@@ -305,6 +313,23 @@ export default function Montar({ ativo, definirCabecalho }) {
         <SheetAbrirEnquete
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "pessoa" && (
+        <SheetPessoa
+          pessoa={sheet.pessoaId ? pessoaPorId(sheet.pessoaId) : null}
+          ministerios={ministerios}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+          onRemover={(pessoaId) => setSheet({ tipo: "removerPessoa", pessoaId })}
+        />
+      )}
+      {sheet?.tipo === "removerPessoa" && (
+        <SheetRemoverPessoa
+          pessoa={pessoaPorId(sheet.pessoaId)}
+          onFechar={() => setSheet(null)}
+          onVoltar={(pessoaId) => setSheet({ tipo: "pessoa", pessoaId })}
+          onRemovido={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
     </>

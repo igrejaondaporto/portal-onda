@@ -191,10 +191,6 @@ export function calcularAlertas({ domingos, ministerios, voluntarios, resultado,
     }
   });
 
-  voluntarios.forEach((p) => {
-    if (!respondentes.has(p.id)) alertas.push({ tipo: "sem_resposta", texto: `${p.nome} não respondeu à enquete` });
-  });
-
   ministerios.forEach((m) => {
     const titulares = voluntarios.filter((p) => p.ministerios?.[m.id] === "titular").length;
     if (titulares < 2) alertas.push({ tipo: "cobertura", texto: `${m.nome} tem só ${titulares} titular${titulares === 1 ? "" : "es"} cadastrado${titulares === 1 ? "" : "s"}` });
@@ -206,7 +202,10 @@ export function calcularAlertas({ domingos, ministerios, voluntarios, resultado,
       const p = voluntarios.find((v) => v.id === uid);
       const m = ministerios.find((x) => x.id === ministerioId);
       if (p && m && p.ministerios?.[ministerioId] === "aprendiz") {
-        alertas.push({ tipo: "promocao", texto: `${p.nome} já serviu ${vezes}× no ${m.nome} como aprendiz. Promover a titular?` });
+        alertas.push({
+          tipo: "promocao", pessoaId: p.id, ministerioId: m.id,
+          texto: `${p.nome} já serviu ${vezes}× no ${m.nome} como aprendiz. Promover a titular?`,
+        });
       }
     });
   });

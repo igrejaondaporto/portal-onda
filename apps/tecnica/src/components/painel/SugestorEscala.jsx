@@ -17,10 +17,10 @@ const mesAtual = () => {
 };
 
 const ALERTA_ICONE = {
-  sobrecarga: "⚠️", sem_candidato: "🔴", inativo: "⏳", sem_resposta: "❔", cobertura: "🧩", promocao: "🌟",
+  sobrecarga: "⚠️", sem_candidato: "🔴", inativo: "⏳", cobertura: "🧩", promocao: "🌟",
 };
 
-export default function SugestorEscala({ ministerios, voluntarios }) {
+export default function SugestorEscala({ ministerios, voluntarios, onPromover }) {
   const torrada = useTorrada();
   const [mes, setMes] = useState(mesAtual());
   const [enquete, setEnquete] = useState(undefined);
@@ -31,6 +31,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   const [alertas, setAlertas] = useState([]);
   const [dadosGeracao, setDadosGeracao] = useState(null); // estatisticas + vezesAprendiz, cache p/ regenerar
   const [aPublicar, setAPublicar] = useState(false);
+  const [aConfirmarPublicar, setAConfirmarPublicar] = useState(false);
   const [publicado, setPublicado] = useState(false);
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [aExcluir, setAExcluir] = useState(false);
@@ -50,7 +51,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   // própria enquete (ex.: marcarEscalaPublicada), senão a sugestão e o
   // "publicado" somem sozinhos logo depois de publicar
   useEffect(() => {
-    setSugestao(null); setAlertas([]); setPublicado(false); setAConfirmarExcluir(false);
+    setSugestao(null); setAlertas([]); setPublicado(false); setAConfirmarExcluir(false); setAConfirmarPublicar(false);
   }, [mes]);
   useEffect(() => {
     if (!enquete) { setRespostas([]); return; }
@@ -79,6 +80,20 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
       indisponibilidades: dadosGeracao.indisponibilidades, respondentes,
     });
   }, [sugestao, dadosGeracao, domingos, ministerios, voluntarios, respondentes]);
+
+  // quantos 🔴/⚠️ ainda por resolver na tabela — mostrado na
+  // confirmação antes de publicar, já que publicar reescreve os
+  // cultos reais e não há como desfazer
+  const contagemAvisos = useMemo(() => {
+    let erros = 0, atencoes = 0;
+    Object.values(avisos).forEach((slot) => {
+      [slot?.titular, slot?.aprendiz].forEach((a) => {
+        if (a?.nivel === "erro") erros++;
+        else if (a?.nivel === "atencao") atencoes++;
+      });
+    });
+    return { erros, atencoes };
+  }, [avisos]);
 
   async function gerar() {
     if (!enquete?.domingos?.length) return;
@@ -134,6 +149,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
 
   async function publicar() {
     if (!sugestao) return;
+    setAConfirmarPublicar(false);
     setAPublicar(true);
     try {
       for (const d of domingos) {
@@ -240,7 +256,17 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
             <div className="caixa" style={{ marginTop: 14, background: "#FFF7E8", border: 0 }}>
               <p className="cap">Vale olhar antes de publicar</p>
               {alertas.map((a, i) => (
-                <p key={i} style={{ fontSize: 12.5, marginTop: i ? 6 : 8 }}>{ALERTA_ICONE[a.tipo] ?? "•"} {a.texto}</p>
+                <div key={i} style={{ marginTop: i ? 8 : 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  <p style={{ fontSize: 12.5, flex: 1 }}>{ALERTA_ICONE[a.tipo] ?? "•"} {a.texto}</p>
+                  {a.tipo === "promocao" && onPromover && (
+                    <button
+                      className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5, whiteSpace: "nowrap" }}
+                      onClick={() => onPromover(a.pessoaId, a.ministerioId)}
+                    >
+                      Promover
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -347,10 +373,33 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
             <button className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aCarregar} onClick={regenerar}>
               Regenerar
             </button>
-            <button className="btn" style={{ flex: 1, fontSize: 13 }} disabled={aPublicar} onClick={publicar}>
+            <button className="btn" style={{ flex: 1, fontSize: 13 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(true)}>
               {aPublicar ? "A publicar…" : "Publicar escala"}
             </button>
           </div>
+
+          {aConfirmarPublicar && (
+            <div className="caixa" style={{ background: "#FFF7E8", border: 0, marginTop: 10 }}>
+              <p style={{ fontSize: 13, fontWeight: 700 }}>Publicar a escala de {mesLabel}?</p>
+              <p className="ds" style={{ marginTop: 4 }}>
+                Isto grava a escala direto nos {domingos.length} cultos — não há como desfazer.
+                {(contagemAvisos.erros > 0 || contagemAvisos.atencoes > 0) && (
+                  <>
+                    {" "}Ainda ficam{contagemAvisos.erros > 0 && ` ${contagemAvisos.erros} 🔴`}
+                    {contagemAvisos.atencoes > 0 && ` ${contagemAvisos.atencoes} ⚠️`} por resolver na tabela.
+                  </>
+                )}
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(false)}>
+                  Cancelar
+                </button>
+                <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aPublicar} onClick={publicar}>
+                  {aPublicar ? "A publicar…" : "Sim, publicar"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {publicado && (
             <div className="caixa" style={{ marginTop: 14 }}>
