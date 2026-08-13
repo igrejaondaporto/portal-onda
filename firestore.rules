@@ -137,9 +137,20 @@ service cloud.firestore {
       allow read:  if autenticado();
       allow write: if false;                       // só por função
 
+      // as duas bases passam por Cloud Function (guardarEscalaTecnica/
+      // guardarEscalaApoio) — é lá que se valida o cruzamento entre
+      // bases (quem serve nas duas não fica escalado nas duas no
+      // mesmo culto). Já não é escrita direta do cliente em nenhuma.
       match /escalas/{base} {
         allow read:  if autenticado();
-        allow write: if souLiderBase(base);
+        allow write: if false;
+      }
+
+      // pessoa+culto, não de uma base — só quem serve em mais do que
+      // uma base tem entrada aqui, gravada pelas mesmas funções acima
+      match /indisponibilidades/{pessoa} {
+        allow read:  if autenticado();
+        allow write: if false;
       }
 
       // as atribuições passam SEMPRE pela função atribuirFuncao,

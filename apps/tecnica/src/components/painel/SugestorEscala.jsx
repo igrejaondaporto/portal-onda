@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete, marcarEscalaPublicada } from "../../lib/enquetes";
-import { obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica } from "../../lib/painel";
+import {
+  obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica,
+  obterIndisponibilidadesCrossBase,
+} from "../../lib/painel";
 import {
   gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
-  validarSugestao, chaveSlot,
+  mesclarIndisponibilidades, validarSugestao, chaveSlot,
 } from "../../lib/sugestor";
 import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -99,12 +102,18 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     if (!enquete?.domingos?.length) return;
     setACarregar(true);
     try {
-      const [estatisticas, historicoLugares] = await Promise.all([
+      const [estatisticas, historicoLugares, indisponibilidadesCrossBase] = await Promise.all([
         obterEstatisticasEscala(90),
         obterHistoricoLugares(180),
+        obterIndisponibilidadesCrossBase(domingos.map((d) => d.id)),
       ]);
       const vezesAprendizPorMinisterio = calcularVezesAprendiz(historicoLugares);
-      const indisponibilidades = construirIndisponibilidades(respostas);
+      // quem já está escalado na Apoio nesse domingo sai dos
+      // candidatos igual a quem votou indisponível — o motor não
+      // distingue a origem, só o aviso mostrado ao líder distingue
+      const indisponibilidades = mesclarIndisponibilidades(
+        construirIndisponibilidades(respostas), indisponibilidadesCrossBase
+      );
       const dados = { estatisticas, vezesAprendizPorMinisterio, indisponibilidades };
       setDadosGeracao(dados);
       const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dados });

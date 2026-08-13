@@ -29,6 +29,20 @@ export function construirIndisponibilidades(respostas) {
   return mapa;
 }
 
+/** Funde o mapa da enquete com o de compromissos cruzados entre
+ *  bases (quem já está escalado na Apoio nesse domingo) — mesmo
+ *  formato uid → Set(domingoId), união simples. Quem está bloqueado
+ *  numa base ou noutra conta como indisponível aqui, sem distinção;
+ *  o motivo não interessa ao motor, só ao aviso mostrado ao líder. */
+export function mesclarIndisponibilidades(...mapas) {
+  const saida = {};
+  const uids = new Set(mapas.flatMap((m) => Object.keys(m)));
+  uids.forEach((uid) => {
+    saida[uid] = new Set(mapas.flatMap((m) => [...(m[uid] || [])]));
+  });
+  return saida;
+}
+
 /** uid → { ministerioId: vezes } — quantas vezes serviu como aprendiz
  *  em cada ministério, para a promoção sugerida. */
 export function calcularVezesAprendiz(historicoLugares) {
@@ -247,7 +261,10 @@ export function validarSugestao({ resultado, domingos, ministerios, voluntarios,
 
       function checar(pessoaId, ehAprendiz) {
         if (!pessoaId) return null;
-        if (indisponivel(pessoaId, d.id)) return { nivel: "erro", motivo: "votou que não pode nesse dia" };
+        // pode ser um voto da enquete ou um compromisso na outra base
+        // (mesclarIndisponibilidades funde os dois) — a mensagem cobre
+        // ambos sem distinguir a origem
+        if (indisponivel(pessoaId, d.id)) return { nivel: "erro", motivo: "indisponível nesse dia" };
         if (operacional) {
           let vezesNoDomingo = 0;
           ministerios.forEach((m2) => {

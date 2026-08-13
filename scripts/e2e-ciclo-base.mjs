@@ -216,9 +216,55 @@ try {
     if (t.claims.baseId !== "tecnica") throw new Error(`baseId=${t.claims.baseId}`);
   });
 
-  // ── 6. culto especial: criar, listar, excluir, recusar domingo ──
-  await loginComo("julio", "tecnica");
+  // ── 6. indisponibilidade partilhada: escalar numa base bloqueia a outra ──
+  await loginComo("julio", "tecnica"); // a última sessão ficou como a pessoa de teste
   const anoTeste = hoje.getFullYear() + 1;
+  const dataConflito = `${anoTeste}-02-01`;
+  let ministerioId = null;
+
+  await teste("criar o culto de teste do conflito cross-base", async () => {
+    const r = await chamar("criarCultoEspecial")({ data: dataConflito, tipo: `Culto Conflito E2E ${SUFIXO}` });
+    if (r.data.eventoId !== dataConflito) throw new Error(`eventoId=${r.data.eventoId}`);
+  });
+
+  await teste("escalar a pessoa de teste na Técnica marca origens.tecnica", async () => {
+    const ms = await adb.collection("bases/tecnica/ministerios").where("ativo", "==", true).limit(1).get();
+    if (ms.empty) throw new Error("sem ministérios ativos na Técnica para testar");
+    ministerioId = ms.docs[0].id;
+    await chamar("guardarEscalaTecnica")({
+      eventoId: dataConflito, liderEscala: null,
+      lugares: [{ ministerioId, titularId: testePessoaId, aprendizId: null }],
+    });
+    const s = await adb.doc(`eventos/${dataConflito}/indisponibilidades/${testePessoaId}`).get();
+    if (s.data()?.origens?.tecnica?.motivo !== "escalado") throw new Error(`origens=${JSON.stringify(s.data())}`);
+  });
+
+  await teste("escalar a mesma pessoa na Apoio no mesmo dia é recusado", async () => {
+    await loginComo("alan", "apoio");
+    try {
+      await chamar("guardarEscalaApoio")({ eventoId: dataConflito, liderEscala: null, pessoas: [testePessoaId] });
+      throw new Error("devia ter recusado");
+    } catch (e) {
+      if (e.code !== "functions/failed-precondition") throw new Error(`código inesperado: ${e.code} (${e.message})`);
+    }
+  });
+
+  await teste("tirar a pessoa da escala da Técnica limpa origens.tecnica", async () => {
+    await loginComo("julio", "tecnica");
+    await chamar("guardarEscalaTecnica")({ eventoId: dataConflito, liderEscala: null, lugares: [] });
+    const s = await adb.doc(`eventos/${dataConflito}/indisponibilidades/${testePessoaId}`).get();
+    if (s.exists && s.data()?.origens?.tecnica) throw new Error(`ainda tem origens.tecnica: ${JSON.stringify(s.data())}`);
+  });
+
+  await teste("agora escalar na Apoio no mesmo dia já funciona", async () => {
+    await loginComo("alan", "apoio");
+    await chamar("guardarEscalaApoio")({ eventoId: dataConflito, liderEscala: null, pessoas: [testePessoaId] });
+    const s = await adb.doc(`eventos/${dataConflito}/indisponibilidades/${testePessoaId}`).get();
+    if (s.data()?.origens?.apoio?.motivo !== "escalado") throw new Error(`origens=${JSON.stringify(s.data())}`);
+  });
+
+  // ── 7. culto especial: criar, listar, excluir, recusar domingo ──
+  await loginComo("julio", "tecnica");
   const dataTeste = `${anoTeste}-01-15`;
 
   await teste("criarCultoEspecial cria um culto de teste no futuro", async () => {
@@ -275,6 +321,11 @@ try {
     if (s.data().ativo !== false) throw new Error("não ficou ativo:false");
   });
 
+  await teste("removerVoluntario também limpa a indisponibilidade partilhada pendente", async () => {
+    const s = await adb.doc(`eventos/${dataConflito}/indisponibilidades/${testePessoaId}`).get();
+    if (s.exists && s.data()?.origens?.apoio) throw new Error(`ainda tem origens.apoio: ${JSON.stringify(s.data())}`);
+  });
+
   await teste("depois de inativa nas duas bases, o segredo do PIN foi apagado", async () => {
     const s = await adb.doc(`pessoas/${testePessoaId}/privado/auth`).get();
     if (s.exists) throw new Error("o segredo continua lá");
@@ -298,6 +349,16 @@ try {
     await adb.doc(`eventos/${testeCultoId}`).delete().catch(() => {});
     await adb.doc(`eventos/${testeCultoId}/escalas/tecnica`).delete().catch(() => {});
     console.log(`(limpeza) culto de teste ${testeCultoId} apagado de vez`);
+  }
+  if (testePessoaId) {
+    // culto do teste de conflito cross-base — id fixo (dataConflito),
+    // sempre o mesmo ano+dia, sempre limpo mesmo que a corrida falhe a meio
+    const dataConflitoLimpeza = `${new Date().getFullYear() + 1}-02-01`;
+    await adb.doc(`eventos/${dataConflitoLimpeza}`).delete().catch(() => {});
+    await adb.doc(`eventos/${dataConflitoLimpeza}/escalas/tecnica`).delete().catch(() => {});
+    await adb.doc(`eventos/${dataConflitoLimpeza}/escalas/apoio`).delete().catch(() => {});
+    await adb.doc(`eventos/${dataConflitoLimpeza}/indisponibilidades/${testePessoaId}`).delete().catch(() => {});
+    console.log(`(limpeza) culto de conflito ${dataConflitoLimpeza} apagado de vez`);
   }
 }
 

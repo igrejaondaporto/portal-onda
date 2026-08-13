@@ -161,8 +161,11 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
   return () => { pararEventos(); pararEscalas.forEach((p) => p()); };
 }
 
+/** Passa pela Cloud Function (antes era setDoc direto) — só assim dá
+ *  para validar no servidor que quem serve em mais do que uma base
+ *  não fica escalado nas duas no mesmo culto. */
 export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
-  setDoc(cEscala(eventoId), { pessoas, liderEscala, baseId: BASE_ID }, { merge: true });
+  chamar("guardarEscalaApoio")({ eventoId, pessoas, liderEscala }).then((r) => r.data);
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
 
