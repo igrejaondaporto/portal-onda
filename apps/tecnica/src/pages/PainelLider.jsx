@@ -4,7 +4,7 @@ import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
 import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
-  obterEventosDoMes, reporTodosPins, gerarDomingos,
+  obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
 } from "../lib/painel";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
@@ -14,7 +14,7 @@ import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios";
 import SheetNovoCulto from "../components/painel/SheetNovoCulto";
-import SheetExcluirCulto from "../components/painel/SheetExcluirCulto";
+import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetPessoa from "../components/painel/SheetPessoa";
@@ -385,6 +385,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "excluirCulto" && (
         <SheetExcluirCulto
           evento={eventosMes.find((e) => e.id === sheet.eventoId)}
+          excluir={excluirCultoEspecial}
           onFechar={() => setSheet(null)}
           onVoltar={(eventoId) => setSheet({ tipo: "escala", eventoId })}
           onExcluido={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}

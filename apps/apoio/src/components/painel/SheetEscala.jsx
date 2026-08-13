@@ -8,7 +8,7 @@ import { dataPorExtenso, dataCurta } from "@portal/shared/lib/data.js";
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
  * "Concluir" só fecha a folha.
  */
-export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado }) {
+export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
@@ -116,6 +116,15 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
         <button className="btn full" style={{ marginTop: 20 }} onClick={() => onGuardado("Escala atualizada")}>
           Concluir
         </button>
+        {evento.tipo && onExcluir && (
+          <button
+            className="btn sec full"
+            style={{ marginTop: 9, color: "var(--magenta)" }}
+            onClick={() => onExcluir(evento.id)}
+          >
+            Excluir este culto
+          </button>
+        )}
       </div>
     </>
   );
