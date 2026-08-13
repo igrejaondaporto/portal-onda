@@ -19,6 +19,14 @@ service firebase.storage {
       allow read:  if minhaBase(base);
       allow write: if lider(base) && imagem();
     }
+    match /bases/{base}/wiki/{ficheiro} {
+      allow read:  if minhaBase(base);
+      allow write: if minhaBase(base) && imagem();  // qualquer voluntário sobe foto de passo
+    }
+    match /bases/{base}/melhorias/{ficheiro} {
+      allow read:  if minhaBase(base);
+      allow write: if minhaBase(base) && imagem();  // qualquer voluntário reporta com foto
+    }
     match /bases/{base}/reembolsos/{ficheiro} {
       allow read:  if minhaBase(base);
       allow write: if minhaBase(base)

@@ -26,6 +26,23 @@
       ]
     },
     {
+      "collectionGroup": "ministerios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "ordem", "order": "ASCENDING" },
+        { "fieldPath": "nome", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "melhorias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "abertaEm", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "eventos",
       "queryScope": "COLLECTION",
       "fields": [
@@ -48,6 +65,15 @@
         { "fieldPath": "pessoaId", "order": "ASCENDING" },
         { "fieldPath": "criadoEm", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "enquetes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "abertaEm", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -56,6 +82,13 @@
       "fieldPath": "pessoas",
       "indexes": [
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "pessoas",
+      "fieldPath": "telefone",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
     }
   ]

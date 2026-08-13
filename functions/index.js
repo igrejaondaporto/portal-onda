@@ -49,7 +49,9 @@ function confere(pin, guardado) {
 }
 
 const refPessoa = (b, p) => db.doc(`bases/${b}/pessoas/${p}`);
-const refSegredo = (b, p) => db.doc(`bases/${b}/pessoas/${p}/privado/auth`);
+// o segredo é global — uma pessoa, um PIN, em qualquer base em que sirva
+const refGlobal = (p) => db.doc(`pessoas/${p}`);
+const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
 
 /* ── DADOS DO ECRÃ DE ENTRADA ─────────────────────────────────
  * Antes de autenticar não há token, logo as regras do Firestore
@@ -88,7 +90,7 @@ export const entrar = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Dados de entrada inválidos.");
   }
 
-  const segredoRef = refSegredo(baseId, pessoaId);
+  const segredoRef = refSegredo(pessoaId);
   const [pSnap, sSnap] = await Promise.all([refPessoa(baseId, pessoaId).get(), segredoRef.get()]);
   // mensagem igual à do PIN errado, para não revelar quem existe
   if (!pSnap.exists || !sSnap.exists) throw new HttpsError("permission-denied", "errado");
@@ -144,7 +146,7 @@ export const trocarPin = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Escolhe um código menos óbvio.");
   }
 
-  const ref = refSegredo(baseId, uid);
+  const ref = refSegredo(uid);
   const snap = await ref.get();
   if (!snap.exists || !confere(String(pinAtual), snap.data().pinHash)) {
     throw new HttpsError("permission-denied", "O código atual não está certo.");
@@ -168,7 +170,26 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario" } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios } = req.data || {};
+  const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
+
+  // pessoa que já existe noutra base: só a liga a esta, PIN não muda
+  if (pessoaExistenteId) {
+    const globalSnap = await refGlobal(pessoaExistenteId).get();
+    if (!globalSnap.exists) throw new HttpsError("not-found", "Pessoa não encontrada.");
+    const jaAqui = await refPessoa(baseId, pessoaExistenteId).get();
+    if (jaAqui.exists) throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
+
+    await refPessoa(baseId, pessoaExistenteId).set({
+      nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true,
+      foto: globalSnap.data().foto ?? null,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      ...comMinisterios,
+    });
+    await refGlobal(pessoaExistenteId).set({ [`bases.${baseId}`]: true }, { merge: true });
+    return { pessoaId: pessoaExistenteId, pinProvisorio: null };
+  }
+
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
 
   const provisorio = pinProvisorio(papel);
@@ -176,17 +197,49 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    ...comMinisterios,
   });
-  await refSegredo(baseId, ref.id).set({
+  await refGlobal(ref.id).set({
+    nome: nome.trim(), foto: null, bases: { [baseId]: true },
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await refSegredo(ref.id).set({
     pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   });
   // devolvido UMA vez, para o líder dizer à pessoa. Nunca mais fica legível.
   return { pessoaId: ref.id, pinProvisorio: provisorio };
 });
 
+/** Para o líder encontrar alguém que já existe noutra base, antes de
+ *  criar uma identidade duplicada (ex.: o Vitor já está na Apoio e vai
+ *  servir também na Técnica). Procura pelo telefone, o único campo
+ *  razoavelmente único que já se pede a toda a gente. */
+export const procurarPessoaGlobal = onCall(async (req) => {
+  exigeLider(req);
+  const telefone = String(req.data?.telefone || "").trim();
+  if (!telefone) throw new HttpsError("invalid-argument", "Falta o telefone.");
+
+  const snap = await db.collectionGroup("pessoas").where("telefone", "==", telefone).limit(5).get();
+  const vistos = new Set();
+  const resultados = [];
+  for (const d of snap.docs) {
+    if (vistos.has(d.id)) continue;
+    vistos.add(d.id);
+    const global = await refGlobal(d.id).get();
+    const bases = global.exists ? global.data().bases || {} : {};
+    resultados.push({
+      pessoaId: d.id,
+      nome: d.data().nome,
+      foto: d.data().foto ?? null,
+      bases: Object.keys(bases).filter((b) => bases[b]),
+    });
+  }
+  return { resultados };
+});
+
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -204,7 +257,11 @@ export const editarVoluntario = onCall(async (req) => {
     outros.forEach((d) => { if (d.id !== pessoaId) lote.update(d.ref, { papel: "voluntario" }); });
     await lote.commit();
   }
-  await ref.set({ nome: nome.trim(), telefone, papel }, { merge: true });
+  const dados = { nome: nome.trim(), telefone, papel };
+  // ministerios: { audio: "titular"|"aprendiz", ... } — só bases com
+  // ministérios enviam isto; nas outras o campo nunca aparece.
+  if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
+  await ref.set(dados, { merge: true });
   return { ok: true };
 });
 
@@ -214,20 +271,22 @@ export const reporPin = onCall(async (req) => {
   const snap = await refPessoa(baseId, pessoaId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Voluntário não encontrado.");
   const provisorio = pinProvisorio(snap.data().papel);
-  await refSegredo(baseId, pessoaId).set({
+  await refSegredo(pessoaId).set({
     pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
   }, { merge: true });
   return { pinProvisorio: provisorio };
 });
 
-/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ────────────── */
+/* ── REPOR OS CÓDIGOS DE TODA A BASE DE UMA VEZ ─────────────
+ * O PIN é global — repor aqui repõe em qualquer outra base onde a
+ * pessoa também sirva. É a mesma pessoa, o mesmo código. */
 export const reporTodosPins = onCall(async (req) => {
   const baseId = exigeLider(req);
   const snap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
   const lote = db.batch();
   snap.forEach((doc) => {
     const provisorio = pinProvisorio(doc.data().papel);
-    lote.set(refSegredo(baseId, doc.id), {
+    lote.set(refSegredo(doc.id), {
       pinHash: hash(provisorio), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
     }, { merge: true });
   });
@@ -243,7 +302,15 @@ export const removerVoluntario = onCall(async (req) => {
   }
   // desativar, não apagar: o histórico dos domingos passados depende disto
   await refPessoa(baseId, pessoaId).set({ ativo: false }, { merge: true });
-  await refSegredo(baseId, pessoaId).delete();
+  await refGlobal(pessoaId).set({ [`bases.${baseId}`]: false }, { merge: true });
+
+  // o PIN só se apaga se a pessoa não continuar ativa nem numa base sequer
+  const globalSnap = await refGlobal(pessoaId).get();
+  const bases = globalSnap.exists ? globalSnap.data().bases || {} : {};
+  const aindaAtivaAlgures = Object.values(bases).some(Boolean);
+  if (!aindaAtivaAlgures) {
+    await refSegredo(pessoaId).delete();
+  }
 
   const escalas = await db.collectionGroup("escalas")
     .where("pessoas", "array-contains", pessoaId).get();
@@ -257,6 +324,27 @@ export const removerVoluntario = onCall(async (req) => {
   });
   await lote.commit();
   return { ok: true };
+});
+
+/* ── TROCAR DE BASE ──────────────────────────────────────────
+ * Já autenticado, sem pedir PIN outra vez: só troca os claims do
+ * token para a base escolhida, desde que a pessoa esteja mesmo lá. */
+export const trocarBase = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { novoBaseId } = req.data || {};
+  if (!novoBaseId) throw new HttpsError("invalid-argument", "Falta a base.");
+
+  const snap = await refPessoa(novoBaseId, uid).get();
+  if (!snap.exists || snap.data().ativo === false) {
+    throw new HttpsError("permission-denied", "Não estás ativo nessa base.");
+  }
+
+  const token = await admin.auth().createCustomToken(uid, {
+    baseId: novoBaseId,
+    papel: snap.data().papel === "lider_base" ? "lider_base" : "voluntario",
+  });
+  return { token };
 });
 
 /** Confirma que quem chama é líder da base ou líder de escala do culto.
@@ -276,6 +364,56 @@ async function exigeLiderDoCulto(req, eventoId) {
   }
   return { uid, baseId, escala };
 }
+
+/* ── ESCALA POR MINISTÉRIO (Base Técnica) ──────────────────
+ * eventos/{e}/escalas/{base} ganha `lugares` (titular+aprendiz por
+ * ministério) além do que já existia. `pessoas` continua a ser
+ * escrito — é o array plano que o resto do sistema (checklist,
+ * "servem contigo", obterMeuEvento…) já sabe ler; recalculado aqui,
+ * nunca confiado ao que o cliente mandou. */
+export const guardarEscalaTecnica = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, liderEscala = null, lugares } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(lugares)) throw new HttpsError("invalid-argument", "Faltam os lugares.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  // o Responsável é um papel de liderança, não um posto operacional —
+  // pode acumular com um ministério (o Jorge pode ser Responsável e
+  // titular do Áudio no mesmo culto). A restrição "uma pessoa, um
+  // lugar por culto" vale só entre os ministérios operacionais.
+  const pessoas = new Set();
+  const usados = new Set();
+  const lugaresLimpos = lugares.map((l) => {
+    if (!l?.ministerioId) throw new HttpsError("invalid-argument", "Lugar sem ministério.");
+    const operacional = l.ministerioId !== "responsavel";
+    for (const id of [l.titularId, l.aprendizId]) {
+      if (!id) continue;
+      if (operacional) {
+        if (usados.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
+        usados.add(id);
+      }
+      pessoas.add(id);
+    }
+    return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
+  });
+
+  await ref.set({
+    baseId, liderEscala: liderEscala || null,
+    lugares: lugaresLimpos, pessoas: [...pessoas],
+  }, { merge: true });
+  return { ok: true };
+});
 
 /* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────
  * O documento do evento é global (a igreja toda) e write:false para o
@@ -616,4 +754,480 @@ export const criarCultoEspecial = onCall(async (req) => {
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { eventoId: data };
+});
+
+/* ── WIKI ──────────────────────────────────────────────────
+ * Autoria mista (o líder cria esqueletos, qualquer voluntário
+ * escreve/edita artigos e responde dúvidas) e todo write tem de
+ * recalcular o índice leve de busca — por isso, ao contrário de
+ * funcoes/ministerios (escrita direta, só souLiderBase), a Wiki
+ * passa sempre por aqui (ver firestore.rules: write:false). */
+const cWiki = (baseId) => db.collection(`bases/${baseId}/wiki`);
+const refWiki = (baseId, id) => db.doc(`bases/${baseId}/wiki/${id}`);
+
+// texto (sem imagens) de todo o corpo, pra busca encontrar uma frase
+// do artigo mesmo que não esteja no título nem nas etiquetas
+function textoBuscavelWiki(w) {
+  if (w.tipo === "duvida") return w.corpo || "";
+  return [w.introducao, w.conclusao, ...(w.passos || []).map((p) => p.texto)].filter(Boolean).join(" ");
+}
+
+async function atualizarIndiceWiki(baseId) {
+  const snap = await cWiki(baseId).where("ativo", "==", true).get();
+  const itens = snap.docs.map((d) => {
+    const w = d.data();
+    return {
+      id: d.id, tipo: w.tipo, titulo: w.titulo,
+      ministerios: w.ministerios || [], etiquetas: w.etiquetas || [],
+      esqueleto: !!w.esqueleto,
+      resolvida: w.tipo === "duvida" ? !!w.resolvidaPorRespostaId : null,
+      atualizadoEm: w.atualizadoEm ?? w.criadoEm ?? null,
+      texto: textoBuscavelWiki(w),
+    };
+  });
+  await db.doc(`wikiIndice/${baseId}`).set({
+    itens, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+export const criarEsqueletoWiki = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { titulo, ministerios = [] } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  const ref = cWiki(baseId).doc();
+  await ref.set({
+    tipo: "artigo", titulo: titulo.trim(), ministerios, etiquetas: [],
+    introducao: "", conclusao: "", passos: [], esqueleto: true, ativo: true,
+    autorId: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: req.auth.uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: ref.id };
+});
+
+export const guardarArtigoWiki = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, titulo, introducao = "", conclusao = "", passos = [], ministerios = [], etiquetas = [] } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta o id do artigo.");
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  if (!Array.isArray(passos)) throw new HttpsError("invalid-argument", "Passos inválidos.");
+  const passosLimpos = passos
+    .map((p) => ({ texto: String(p?.texto || "").trim(), imagem: p?.imagem || null }))
+    .filter((p) => p.texto || p.imagem);
+
+  const dados = {
+    tipo: "artigo", titulo: titulo.trim(), introducao: introducao.trim(), conclusao: conclusao.trim(),
+    passos: passosLimpos, ministerios, etiquetas, esqueleto: false,
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  };
+
+  // o id vem sempre do cliente (novoWikiId(), o mesmo padrão de
+  // novoFuncaoId()) — precisa de existir antes de guardar para as
+  // fotos dos passos terem onde apontar. Por isso criar/editar é só
+  // "o documento já existia ou não", nunca dois fluxos separados.
+  const snap = await refWiki(baseId, wikiId).get();
+  if (snap.exists) {
+    await refWiki(baseId, wikiId).set(dados, { merge: true });
+  } else {
+    await refWiki(baseId, wikiId).set({
+      ...dados, ativo: true, autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await atualizarIndiceWiki(baseId);
+  return { wikiId };
+});
+
+export const desativarWiki = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta o artigo.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Não encontrado.");
+  if (snap.data().autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base ou quem criou pode excluir.");
+  }
+  await refWiki(baseId, wikiId).set({ ativo: false }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
+
+export const criarDuvida = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { titulo, corpo = "", ministerios = [] } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título da dúvida.");
+  const ref = cWiki(baseId).doc();
+  await ref.set({
+    tipo: "duvida", titulo: titulo.trim(), corpo: corpo.trim(), ministerios, etiquetas: [],
+    resolvidaPorRespostaId: null, ativo: true,
+    autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: ref.id };
+});
+
+export const responderDuvida = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, texto } = req.data || {};
+  if (!wikiId || !texto?.trim()) throw new HttpsError("invalid-argument", "Falta o texto da resposta.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const ref = refWiki(baseId, wikiId).collection("respostas").doc();
+  await ref.set({ texto: texto.trim(), autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp() });
+  await refWiki(baseId, wikiId).set({ atualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { respostaId: ref.id };
+});
+
+export const marcarRespostaCerta = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId, respostaId } = req.data || {};
+  if (!wikiId || !respostaId) throw new HttpsError("invalid-argument", "Faltam dados.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const d = snap.data();
+  if (d.autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só quem perguntou (ou o líder da base) marca a resposta certa.");
+  }
+  const respostaSnap = await refWiki(baseId, wikiId).collection("respostas").doc(respostaId).get();
+  if (!respostaSnap.exists) throw new HttpsError("not-found", "Resposta não encontrada.");
+  await refWiki(baseId, wikiId).set({
+    resolvidaPorRespostaId: respostaId, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
+
+export const transformarDuvidaEmArtigo = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { wikiId } = req.data || {};
+  if (!wikiId) throw new HttpsError("invalid-argument", "Falta a dúvida.");
+  const snap = await refWiki(baseId, wikiId).get();
+  if (!snap.exists || snap.data().tipo !== "duvida") throw new HttpsError("not-found", "Dúvida não encontrada.");
+  const d = snap.data();
+  if (d.autorId !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só quem perguntou (ou o líder da base) transforma em artigo.");
+  }
+  if (!d.resolvidaPorRespostaId) throw new HttpsError("failed-precondition", "A dúvida ainda não tem resposta certa.");
+  const respostaSnap = await refWiki(baseId, wikiId).collection("respostas").doc(d.resolvidaPorRespostaId).get();
+  if (!respostaSnap.exists) throw new HttpsError("not-found", "Resposta não encontrada.");
+  const resposta = respostaSnap.data();
+
+  await refWiki(baseId, wikiId).set({
+    tipo: "artigo", introducao: d.corpo || "", conclusao: "",
+    passos: [{ texto: resposta.texto, imagem: null }], esqueleto: false,
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  }, { merge: true });
+  await atualizarIndiceWiki(baseId);
+  return { ok: true };
+});
+
+/* ── EQUIPAMENTOS (Base Técnica, modo património) ────────────
+ * Mesma coleção bases/{b}/inventario que a Apoio usa em modo
+ * consumível — nunca colidem porque cada função só é chamada com o
+ * baseId de quem pede, e só a Técnica chama estas. Só o líder gere o
+ * catálogo (nome, modelo, local, ministério, foto), por isso passa
+ * por função como funcoes/ministerios — a diferença é só a foto e o
+ * campo `estado`, que aqui vem sempre das Melhorias, nunca à mão. */
+const refEquipamento = (baseId, id) => db.doc(`bases/${baseId}/inventario/${id}`);
+
+export const criarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  await refEquipamento(baseId, itemId).set({
+    nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
+    ministerioId, foto, estado: "ok", ativo: true,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { itemId };
+});
+
+export const guardarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  await refEquipamento(baseId, itemId).set({
+    nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
+    ministerioId, foto,
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const desativarEquipamento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  await refEquipamento(baseId, itemId).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── MELHORIAS (Base Técnica) ─────────────────────────────────
+ * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta,
+ * define a previsão e resolve; só o líder reabre uma melhoria já
+ * resolvida. */
+const cMelhorias = (baseId) => db.collection(`bases/${baseId}/melhorias`);
+const refMelhoria = (baseId, id) => db.doc(`bases/${baseId}/melhorias/${id}`);
+const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
+
+export const abrirMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta o id da melhoria.");
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  if (!GRAVIDADES.includes(gravidade)) throw new HttpsError("invalid-argument", "Gravidade inválida.");
+
+  const lote = db.batch();
+  const ref = refMelhoria(baseId, melhoriaId);
+  lote.set(ref, {
+    titulo: titulo.trim(), descricao: descricao.trim(), foto, equipamentoId, ministerioId, gravidade,
+    estado: "aberta", previsao: null,
+    abertaPor: uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
+    resolvidaPor: null, resolvidaEm: null, notaResolucao: null, fotoResolucao: null, ativo: true,
+  });
+  if (equipamentoId) {
+    lote.set(refEquipamento(baseId, equipamentoId), { estado: "avariado" }, { merge: true });
+  }
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "abertura", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: descricao.trim(),
+  });
+  await lote.commit();
+  return { melhoriaId };
+});
+
+async function obterMelhoria(baseId, melhoriaId) {
+  const snap = await refMelhoria(baseId, melhoriaId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Melhoria não encontrada.");
+  return snap.data();
+}
+
+export const comentarMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, texto } = req.data || {};
+  if (!melhoriaId || !texto?.trim()) throw new HttpsError("invalid-argument", "Falta o comentário.");
+  await obterMelhoria(baseId, melhoriaId);
+  const ref = refMelhoria(baseId, melhoriaId);
+  await ref.collection("eventos").add({
+    tipo: "comentario", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: texto.trim(),
+  });
+  return { ok: true };
+});
+
+export const definirEstadoMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, estado } = req.data || {};
+  if (!["aberta", "em_curso"].includes(estado)) throw new HttpsError("invalid-argument", "Estado inválido.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (estado === "aberta" && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria.");
+  }
+  if (m.estado === "resolvida" && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria resolvida.");
+  }
+  const ref = refMelhoria(baseId, melhoriaId);
+  await ref.set({ estado }, { merge: true });
+  await ref.collection("eventos").add({
+    tipo: "estado", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: estado,
+  });
+  return { ok: true };
+});
+
+// Previsão = estimativa de quem está a tratar; qualquer voluntário
+// pode ajustar, a qualquer momento.
+export const definirPrevisao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, previsao } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  await obterMelhoria(baseId, melhoriaId);
+  const ref = refMelhoria(baseId, melhoriaId);
+  await ref.set({ previsao: previsao || null }, { merge: true });
+  await ref.collection("eventos").add({
+    tipo: "previsao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: previsao || "removida",
+  });
+  return { ok: true };
+});
+
+export const resolverMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, notaResolucao, fotoResolucao = null } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  if (!notaResolucao?.trim()) throw new HttpsError("invalid-argument", "A nota de resolução é obrigatória.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+
+  const lote = db.batch();
+  const ref = refMelhoria(baseId, melhoriaId);
+  lote.set(ref, {
+    estado: "resolvida", resolvidaPor: uid, fotoResolucao,
+    resolvidaEm: admin.firestore.FieldValue.serverTimestamp(), notaResolucao: notaResolucao.trim(),
+  }, { merge: true });
+  if (m.equipamentoId) {
+    lote.set(refEquipamento(baseId, m.equipamentoId), { estado: "ok" }, { merge: true });
+  }
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "resolucao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: notaResolucao.trim(),
+  });
+  await lote.commit();
+  return { ok: true };
+});
+
+export const transformarMelhoriaEmArtigoWiki = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (m.estado !== "resolvida") throw new HttpsError("failed-precondition", "A melhoria ainda não está resolvida.");
+
+  const eventosSnap = await refMelhoria(baseId, melhoriaId).collection("eventos").orderBy("quando").get();
+  const passos = eventosSnap.docs
+    .filter((d) => d.data().texto)
+    .map((d) => ({ texto: d.data().texto, imagem: null }));
+  if (m.foto && passos.length) passos[0].imagem = m.foto; // a foto da abertura vira a do primeiro passo
+  if (m.fotoResolucao && passos.length) passos[passos.length - 1].imagem = m.fotoResolucao; // idem para a de resolução
+
+  const wikiRef = cWiki(baseId).doc();
+  await wikiRef.set({
+    tipo: "artigo", titulo: m.titulo, introducao: m.descricao || "", conclusao: m.notaResolucao || "",
+    passos, ministerios: m.ministerioId ? [m.ministerioId] : [], etiquetas: [],
+    esqueleto: false, ativo: true,
+    autorId: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(), atualizadoPor: uid,
+  });
+  await atualizarIndiceWiki(baseId);
+  return { wikiId: wikiRef.id };
+});
+
+export const desativarMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  const m = await obterMelhoria(baseId, melhoriaId);
+  if (m.abertaPor !== uid && req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base ou quem abriu pode excluir.");
+  }
+  await refMelhoria(baseId, melhoriaId).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── ENQUETES DE INDISPONIBILIDADE (Base Técnica) ─────────────
+ * Um documento por mês (AAAA-MM). Voto privado: cada voluntário só
+ * lê a própria resposta, o líder vê o conjunto (ver firestore.rules).
+ * O sugestor de escala corre depois disto fechar — nunca publica
+ * sozinho, só propõe. */
+const refEnquete = (baseId, mes) => db.doc(`bases/${baseId}/enquetes/${mes}`);
+const MES_RE = /^\d{4}-\d{2}$/;
+
+// respostas são do voto daquela enquete específica — ao excluir ou
+// reabrir do zero, não pode sobrar resposta antiga a fingir de nova
+async function apagarRespostas(baseId, mes) {
+  const snap = await refEnquete(baseId, mes).collection("respostas").get();
+  if (snap.empty) return;
+  const lote = db.batch();
+  snap.docs.forEach((d) => lote.delete(d.ref));
+  await lote.commit();
+}
+
+export const abrirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes, prazo, domingos = [] } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
+  if (!Array.isArray(domingos) || !domingos.length) throw new HttpsError("invalid-argument", "Falta pelo menos um domingo.");
+
+  // o mês (AAAA-MM) é o próprio id do documento — se já existiu uma
+  // enquete excluída ou fechada nesse mês, esta abertura é uma enquete
+  // nova de verdade, não uma continuação: sem respostas antigas
+  await apagarRespostas(baseId, mes);
+  await refEnquete(baseId, mes).set({
+    estado: "aberta", prazo, domingos, ativo: true, escalaPublicada: false,
+    abertaPor: req.auth.uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { mes };
+});
+
+export const fecharEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ estado: "fechada", fechadaEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { ok: true };
+});
+
+export const reabrirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ estado: "aberta" }, { merge: true });
+  return { ok: true };
+});
+
+// A enquete continua visível no Montar (com "Fechar" trocado por um
+// cadeado) até o líder publicar a escala sugerida a partir dela — só
+// aí some, para não perder de vista o que ainda falta montar.
+export const marcarEscalaPublicada = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ escalaPublicada: true, escalaPublicadaEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { ok: true };
+});
+
+// O documento da enquete em si segue a regra "nada é apagado, é
+// desativado" (ativo:false, ver CLAUDE.md) — mas as respostas são o
+// voto de cada pessoa NAQUELA enquete: excluídas de verdade junto,
+// senão reaparecem sozinhas como "já respondeu" se o mês for reaberto.
+export const excluirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await apagarRespostas(baseId, mes);
+  await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+export const responderEnquete = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { mes, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  if (!Array.isArray(indisponivelEm)) throw new HttpsError("invalid-argument", "Indisponibilidade inválida.");
+  if (!semIndisponibilidade && !indisponivelEm.length) {
+    throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
+  }
+  const enquete = await refEnquete(baseId, mes).get();
+  if (!enquete.exists || enquete.data().ativo === false) throw new HttpsError("not-found", "Enquete não encontrada.");
+  if (enquete.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta enquete já está fechada.");
+
+  await refEnquete(baseId, mes).collection("respostas").doc(uid).set({
+    indisponivelEm: semIndisponibilidade ? [] : indisponivelEm,
+    semIndisponibilidade: !!semIndisponibilidade,
+    nota: nota.trim(),
+    respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
 });

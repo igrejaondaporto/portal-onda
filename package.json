@@ -3,27 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
     "seed": "node scripts/seed.mjs",
-    "deploy": "npm run build && wrangler deploy",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules"
   },
-  "dependencies": {
-    "firebase": "^10.12.0",
-    "lucide-react": "^0.400.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.24.0"
-  },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "firebase-admin": "^12.2.0",
-    "vite": "^5.3.1",
-    "vite-plugin-pwa": "^0.20.0",
-    "wrangler": "^4.118.0"
+    "firebase-admin": "^12.2.0"
   }
 }

@@ -3,7 +3,8 @@ rules_version = '2';
 // ─────────────────────────────────────────────────────────────
 //  REGRA DE OURO
 //  O hash do PIN NUNCA vive no documento da pessoa. Vive em
-//  bases/{b}/pessoas/{p}/privado/auth, que nenhum cliente lê.
+//  pessoas/{p}/privado/auth (global — um só PIN por pessoa, em
+//  qualquer base em que sirva), que nenhum cliente lê.
 //  As Cloud Functions usam o Admin SDK e ignoram estas regras.
 // ─────────────────────────────────────────────────────────────
 
@@ -15,8 +16,28 @@ service cloud.firestore {
     function souLiderBase(b)    { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
     function euSou(p)           { return autenticado() && request.auth.uid == p; }
 
+    // ── identidade global — só nome/foto/quais bases, para o login
+    // único e o seletor de base. O que é específico de cada base
+    // (papel, ativo, telefone, cor…) continua em bases/{b}/pessoas. ──
+    match /pessoas/{pessoa} {
+      allow read: if euSou(pessoa);
+      allow write: if false;                        // só por função
+      match /privado/{doc} { allow read, write: if false; }
+    }
+
+    // ── índice leve de busca da Wiki (Base Técnica) — recalculado
+    // pela Cloud Function a cada publicação, nunca escrito pelo cliente
+    match /wikiIndice/{base} {
+      allow read: if minhaBase(base);
+      allow write: if false;                        // só por função
+    }
+
     match /bases/{base} {
-      allow read:  if minhaBase(base);
+      // o documento em si é só nome/horas/cor — nada sensível — para o
+      // seletor de base conseguir mostrar o nome de uma base que não é
+      // a ativa no token. As subcoleções abaixo continuam fechadas à
+      // base do token (minhaBase), isto não abre nada por baixo.
+      allow read:  if autenticado();
       allow write: if false;                       // só por função
 
       // ── pessoas ──────────────────────────────────────────
@@ -38,6 +59,37 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
+      // ── ministérios (Base Técnica) ────────────────────────
+      match /ministerios/{ministerio} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+
+      // ── wiki (Base Técnica): autoria mista (líder cria esqueletos,
+      // qualquer voluntário escreve/edita/responde) e cada write tem
+      // de recalcular wikiIndice/{base} — por isso passa sempre pela
+      // Cloud Function, nunca escrita direta do cliente. ──
+      match /wiki/{artigo} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /respostas/{resposta} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
+      }
+
+      // ── melhorias (Base Técnica): autoria mista, como a wiki —
+      // qualquer voluntário reporta/comenta/resolve, só o líder
+      // define a meta e reabre. Sempre por Cloud Function. ──
+      match /melhorias/{melhoria} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /eventos/{evento} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
+      }
+
       // ── inventário: qualquer voluntário mexe na quantidade direto.
       // Criar, editar o resto (nome, categoria, mínimo, foto…) e desativar
       // passa sempre pelas Cloud Functions — é lá que se decide se quem
@@ -52,6 +104,18 @@ service cloud.firestore {
           allow read:   if minhaBase(base);
           allow create: if minhaBase(base) && request.resource.data.pessoaId == request.auth.uid;
           allow update, delete: if false;          // histórico é imutável
+        }
+      }
+
+      // ── enquetes de indisponibilidade (Base Técnica): um documento
+      // por mês, aberto/fechado só pelo líder. Voto privado — cada
+      // voluntário só lê a própria resposta, o líder vê o conjunto. ──
+      match /enquetes/{mes} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /respostas/{pessoa} {
+          allow read:  if souLiderBase(base) || euSou(pessoa);
+          allow write: if false;                   // só por função
         }
       }
 
