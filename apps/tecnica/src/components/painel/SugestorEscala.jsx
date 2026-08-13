@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { obterEventosPorIds, ouvirEnquete, ouvirRespostas } from "../../lib/enquetes";
+import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas } from "../../lib/enquetes";
 import { obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica } from "../../lib/painel";
 import {
   gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
@@ -30,6 +30,13 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   const [dadosGeracao, setDadosGeracao] = useState(null); // estatisticas + vezesAprendiz, cache p/ regenerar
   const [aPublicar, setAPublicar] = useState(false);
   const [publicado, setPublicado] = useState(false);
+
+  // por defeito, o mês da enquete em curso (ou a próxima) — só uma
+  // vez, ao montar; depois disso o líder escolhe o mês à vontade
+  useEffect(() => {
+    obterMesEnqueteRelevante().then((relevante) => { if (relevante) setMes(relevante); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => ouvirEnquete(mes, setEnquete), [mes]);
   useEffect(() => {

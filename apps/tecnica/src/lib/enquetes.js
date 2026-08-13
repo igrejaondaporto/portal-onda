@@ -4,9 +4,11 @@
  * líder. Voto privado: cada voluntário só lê a própria resposta
  * (ver firestore.rules); o líder vê o conjunto em ouvirRespostas.
  */
-import { doc, getDoc, onSnapshot, orderBy, query, where, limit } from "firebase/firestore";
+import { doc, documentId, getDoc, getDocs, onSnapshot, orderBy, query, where, limit } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cEnquetes, cRespostasEnquete } from "./modelo";
+
+const pad2 = (n) => String(n).padStart(2, "0");
 
 /** A enquete aberta agora, se houver — normalmente só uma de cada vez. */
 export function ouvirEnqueteAberta(cb) {
@@ -37,6 +39,18 @@ export async function obterEventosPorIds(ids) {
     return [id, s.exists() ? { id, ...s.data() } : { id, data: id }];
   }));
   return Object.fromEntries(pares);
+}
+
+/** O mês certo pra abrir a Escala sugerida por defeito: o da enquete
+ *  que está em curso ou mais próxima do presente — nunca uma antiga
+ *  já usada. Se houver mais do que um mês de enquete daqui pra
+ *  frente, fica o que vem primeiro (o id "AAAA-MM" ordena certinho). */
+export async function obterMesEnqueteRelevante() {
+  const hoje = new Date();
+  const piso = `${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}`;
+  const q = query(cEnquetes(), where(documentId(), ">=", piso), orderBy(documentId()), limit(1));
+  const snap = await getDocs(q);
+  return snap.empty ? null : snap.docs[0].id;
 }
 
 export const abrirEnquete = (dados) => chamar("abrirEnquete")(dados).then((r) => r.data);
