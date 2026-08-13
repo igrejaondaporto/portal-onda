@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { criarVoluntario, editarVoluntario, reporPin } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import Avatar from "@portal/shared/components/Avatar.jsx";
 
-export default function SheetPessoa({ pessoa, onFechar, onGuardado, onRemover }) {
+export default function SheetPessoa({
+  pessoa, onFechar, onGuardado, onRemover,
+  pessoaExistente, onLigarPessoa, onDesligarPessoa,
+}) {
   const torrada = useTorrada();
-  const [nome, setNome] = useState(pessoa?.nome ?? "");
+  const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
   const [aEnviar, setAEnviar] = useState(false);
@@ -18,8 +22,10 @@ export default function SheetPessoa({ pessoa, onFechar, onGuardado, onRemover })
         await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel });
         onGuardado("Voluntário atualizado");
       } else {
-        await criarVoluntario({ nome: n, telefone: telefone.trim(), papel });
-        onGuardado("Voluntário adicionado");
+        const dados = { nome: n, telefone: telefone.trim(), papel };
+        if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
+        await criarVoluntario(dados);
+        onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
       }
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -42,6 +48,25 @@ export default function SheetPessoa({ pessoa, onFechar, onGuardado, onRemover })
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{pessoa ? "Editar voluntário" : "Novo voluntário"}</h2>
+
+        {!pessoa && pessoaExistente && (
+          <div className="caixa" style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar pessoa={pessoaExistente} tamanho={36} />
+            <div style={{ flex: 1 }}>
+              <p className="nmt" style={{ fontSize: 14 }}>Ligado ao perfil de {pessoaExistente.nome}</p>
+              <p className="ds">Ao guardar, o perfil passa a multi-base.</p>
+            </div>
+            <button className="btn sec" style={{ padding: "6px 12px", fontSize: 12.5 }} onClick={onDesligarPessoa}>
+              Trocar
+            </button>
+          </div>
+        )}
+        {!pessoa && !pessoaExistente && onLigarPessoa && (
+          <button className="btn sec full" style={{ marginTop: 10 }} onClick={onLigarPessoa}>
+            Já tem perfil noutra base?
+          </button>
+        )}
+
         <label className="rot" style={{ marginTop: 14 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome como aparece na escala" />
         <label className="rot">Telemóvel</label>

@@ -136,7 +136,7 @@ export async function obterEventosDoMes(ano, mesIndex) {
   const fim = new Date(Date.UTC(ano, mesIndex + 1, 1)).toISOString().slice(0, 10);
   const q = query(cEventos(), where("data", ">=", inicio), where("data", "<", fim), orderBy("data"));
   const snap = await getDocs(q);
-  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false);
   return Promise.all(
     eventos.map(async (ev) => {
       const esc = await getDoc(cEscala(ev.id));
@@ -160,7 +160,7 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
     pararEscalas.forEach((p) => p());
     pararEscalas = [];
 
-    const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false);
     if (!eventos.length) { cb([]); return; }
 
     const escalas = {};
@@ -185,6 +185,10 @@ export const guardarEscalaTecnica = (eventoId, { liderEscala, lugares }) =>
   chamar("guardarEscalaTecnica")({ eventoId, liderEscala, lugares }).then((r) => r.data);
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
+
+/** Não apaga — desativa (ver CLAUDE.md). Só cultos especiais; a Cloud
+ *  Function recusa domingos. */
+export const excluirCultoEspecial = (eventoId) => chamar("excluirCultoEspecial")({ eventoId }).then((r) => r.data);
 
 /** Os domingos de um ano só existem depois disto ser chamado (não há
  *  nada automático) — usar perto do fim do ano para o ano seguinte já

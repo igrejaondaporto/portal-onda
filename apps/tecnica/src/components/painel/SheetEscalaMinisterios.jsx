@@ -10,7 +10,7 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  *  Não há seletor de líder de culto: o Responsável é modelado como
  *  ministério (ordem 0) e o titular desse lugar É o líder de culto —
  *  ver apps/tecnica/CLAUDE.md. */
-export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado }) {
+export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
   const [lugares, setLugares] = useState(() =>
     ministerios.map((m) => {
@@ -107,6 +107,15 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
           {aGuardar ? "A guardar…" : "Guardar escala"}
         </button>
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
+        {evento.tipo && onExcluir && (
+          <button
+            className="btn sec full"
+            style={{ marginTop: 9, color: "var(--magenta)" }}
+            onClick={() => onExcluir(evento.id)}
+          >
+            Excluir este culto
+          </button>
+        )}
       </div>
     </>
   );

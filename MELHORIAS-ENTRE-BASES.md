@@ -15,7 +15,9 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
-_(nada pendente no momento)_
+| Nasceu em | O quê | Nota |
+|---|---|---|
+| Técnica | Excluir culto especial (`excluirCultoEspecial` em `functions/index.js` — desativa com `ativo:false`, nunca apaga; recusa domingos, só cultos criados por `criarCultoEspecial`; botão "Excluir este culto" em `SheetEscalaMinisterios` → `SheetExcluirCulto`) | A Cloud Function já é partilhada e serve as duas bases sem alteração nenhuma — falta só a Apoio ganhar o mesmo botão/sheet no seu `PainelLider.jsx` (ela já tem `criarCultoEspecial`/`SheetNovoCulto`, só falta o par). `obterEventosDoMes`/`ouvirEventosDoMes` da Apoio também precisam do filtro `ev.ativo !== false`, como foi feito em `apps/tecnica/src/lib/painel.js`. |
 
 ## Já portado
 
@@ -31,6 +33,7 @@ _(nada pendente no momento)_
 - **Quadradinho de cor antes de um nome** (`corMinisterio` em `LinhaPessoaContacto`) — o componente já é partilhado e aceita a prop em qualquer base; só é *usado* pela Técnica porque só ela tem ministérios com cor. Uma base futura com o mesmo conceito (subdivisões coloridas) usa de graça.
 - **Foto redonda com toque para expandir** (`FotoRedonda.jsx`, novo em `packages/shared/src/components`) — generalizado do padrão já usado em `Bola.jsx` (Funções), agora reutilizável para qualquer foto avulsa (equipamentos, melhorias…). Qualquer base nova usa direto, sem duplicar a lógica de `useState` + `ImagemExpandida`.
 - **`overflow-anchor: none` no `html`** (`global.css`) — sem isto, o "scroll anchoring" do navegador tenta manter o botão "Ver mais" na mesma posição do ecrã depois de a lista crescer, e a página salta sozinha para baixo (o utilizador vê o cabeçalho a fugir para cima em vez da lista a abrir no sítio). Reportado primeiro na Técnica, mas o mesmo bug já acontecia na Apoio — corrigido nas duas de uma vez só por estar no CSS partilhado.
+- **Ligar voluntário já existente noutra base** (`SheetLigarPessoa.jsx` + `pessoasGlobais.js`, novo em `packages/shared`; Cloud Function `listarPessoasDaBase` em `functions/index.js`, que devolve só nome/foto de outra base, nunca telefone) — feito diretamente partilhado porque é o mesmo conceito de identidade global que já existia (`pessoaExistenteId` em `criarVoluntario`, `procurarPessoaGlobal`), só faltava a UI: "Novo voluntário" → "Já tem perfil noutra base?" → escolhe a base → escolhe a pessoa da lista → o resto do formulário (telefone, papel, ministérios) continua específico desta base. Ao guardar, `pessoas/{uid}.bases` ganha a nova base e o seletor de base em `MenuEu.jsx` (já em produção) passa a aparecer sozinho para essa pessoa.
 
 ## Específico de uma base hoje — mas reutilizável no futuro
 
