@@ -105,8 +105,11 @@ consola do Firebase.
 - **Equipamentos** — adicionar, editar, estado, localização, ministério.
 - **Melhorias** — definir meta, reabrir, fechar.
 - **Wiki** — criar esqueletos, convidar a escrever, remover.
-- **Definições** — nome, horas, máximo recomendado por mês, se o
-  treino conta para o máximo, dia do aviso da enquete.
+- **Definições** — nome, horas. (O "máximo recomendado por mês" e "se
+  o treino conta para o máximo" ficam por agora como constantes no
+  código — `RECOMENDADO_MES`/`ALERTA_MES` em `lib/sugestor.js` — a
+  decisão do líder foi adiar isso para um painel geral da igreja,
+  quando existir, em vez de uma definição só desta base.)
 
 ## Home do voluntário
 
@@ -231,10 +234,12 @@ Só se pergunta: "Tens alguma indisponibilidade este mês?" Botão verde
 "NÃO TENHO INDISPONIBILIDADES" no topo — caminho de 90% das pessoas,
 um toque. Voto privado (cada um vê só o seu; o líder vê o conjunto).
 
-Alerta ao líder: se hoje ≥ dia 15 e não existe enquete aberta para o
-mês seguinte, cartão vermelho no Painel com atalho para abrir e, já
-aberta, texto pronto para o WhatsApp (`wa.me`). Painel de respostas:
-respondeu / não respondeu, com "Lembrar de responder" por pessoa.
+Alerta ao líder: se hoje ≥ dia 15 **e a escala do mês seguinte ainda
+não estiver criada** (nem publicada, nem já há uma enquete em curso
+para esse mês — aberta ou fechada mas ainda por publicar), cartão
+vermelho no Painel com atalho para abrir e, já aberta, texto pronto
+para o WhatsApp (`wa.me`). Painel de respostas: respondeu / não
+respondeu, com "Lembrar de responder" por pessoa.
 
 ## Sugestor de escala — só IFs, sem IA
 
@@ -274,12 +279,11 @@ Promoção de aprendizes: sem regra automática, mas ao fim de 3-4
 serviços como aprendiz num ministério, avisar o líder ("O Carlos já
 serviu 4× no Áudio como aprendiz. Promover a titular?").
 
-## Ecrã de preparação (só antes do lançamento)
+## Ecrã de preparação — descartado
 
-Lista com progresso do que falta antes de dar o link ao grupo:
-checklists por ministério, equipamentos registados, artigos da Wiki
-sugeridos escritos, pessoas com PIN gerado. Desaparece quando estiver
-tudo.
+Estava no plano original, mas não se vai fazer: o líder vai preparar
+à parte um documento de treino para cada líder e cada voluntário, em
+vez de um ecrã de checklist dentro do portal.
 
 ## Vocabulário — usa exatamente estes termos
 

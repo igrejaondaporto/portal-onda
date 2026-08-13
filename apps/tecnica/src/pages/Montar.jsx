@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
+import { ouvirVoluntarios, ouvirMinisterios, obterEventosDoMes } from "../lib/painel";
 import { ouvirEnquetesMontar, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
@@ -218,6 +218,7 @@ export default function Montar({ ativo, definirCabecalho }) {
   const [enquetesMontar, setEnquetesMontar] = useState(undefined); // undefined = ainda a carregar
   const [eventosPorId, setEventosPorId] = useState({});
   const [sheet, setSheet] = useState(null);
+  const [escalaMesQueVemCriada, setEscalaMesQueVemCriada] = useState(null); // null = ainda a verificar
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
@@ -227,6 +228,18 @@ export default function Montar({ ativo, definirCabecalho }) {
     if (!ids.length) { setEventosPorId({}); return; }
     obterEventosPorIds(ids).then(setEventosPorId);
   }, [enquetesMontar]);
+
+  // o alerta de "manda a enquete" só faz sentido enquanto a escala do
+  // mês seguinte ainda não tiver sido montada — checa direto nos
+  // eventos, não só na existência de uma enquete (ver CLAUDE.md)
+  useEffect(() => {
+    const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    obterEventosDoMes(proximo.getFullYear(), proximo.getMonth()).then((eventos) => {
+      const criada = eventos.some((e) => (e.escala?.lugares || []).some((l) => l.titularId));
+      setEscalaMesQueVemCriada(criada);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!ativo) return;
@@ -240,7 +253,12 @@ export default function Montar({ ativo, definirCabecalho }) {
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
   const abertas = (enquetesMontar || []).filter((e) => e.estado === "aberta");
-  const semEnqueteParaOMesQueVem = Array.isArray(enquetesMontar) && abertas.length === 0 && hoje.getDate() >= 15;
+  const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const mesQueVemId = `${proximo.getFullYear()}-${String(proximo.getMonth() + 1).padStart(2, "0")}`;
+  const jaHaEnqueteDoMesQueVem = (enquetesMontar || []).some((e) => e.id === mesQueVemId);
+  const semEnqueteParaOMesQueVem =
+    Array.isArray(enquetesMontar) && hoje.getDate() >= 15
+    && escalaMesQueVemCriada === false && !jaHaEnqueteDoMesQueVem;
 
   async function copiarTexto() {
     try {
