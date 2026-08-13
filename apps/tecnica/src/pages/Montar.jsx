@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
-import { ouvirEnquetesMontar, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnquetesMontar, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -164,6 +164,50 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   );
 }
 
+/** As últimas 3 enquetes, mesmo já com escala publicada — uma linha
+ *  compacta cada, expande ao tocar (reaproveita o CartaoEnquete) e
+ *  tem "Ocultar" para fechar de novo sem perder a linha. */
+function UltimasEnquetes({ voluntarios, ministerios }) {
+  const [enquetes, setEnquetes] = useState([]);
+  const [eventosPorId, setEventosPorId] = useState({});
+  const [expandida, setExpandida] = useState(null);
+
+  useEffect(() => ouvirUltimasEnquetes(3, setEnquetes), []);
+  useEffect(() => {
+    const ids = [...new Set(enquetes.flatMap((e) => e.domingos || []))];
+    if (!ids.length) { setEventosPorId({}); return; }
+    obterEventosPorIds(ids).then(setEventosPorId);
+  }, [enquetes]);
+
+  if (!enquetes.length) return null;
+
+  return (
+    <div className="sect">
+      <div className="cabecalho"><h3>Últimas enquetes</h3></div>
+      {enquetes.map((e) => {
+        const aberta = expandida === e.id;
+        return (
+          <div key={e.id}>
+            <div className="linha" style={{ cursor: "pointer" }} onClick={() => setExpandida(aberta ? null : e.id)}>
+              <div style={{ flex: 1 }}>
+                <p className="nmt">Enquete de {MESES[Number(e.id.split("-")[1]) - 1]}</p>
+                <p className="ds">{e.estado === "aberta" ? "Aberta" : "Fechada"} · prazo {dataPorExtenso(e.prazo)}</p>
+              </div>
+              <span className="seta">{aberta ? "︿" : "›"}</span>
+            </div>
+            {aberta && (
+              <>
+                <CartaoEnquete enquete={e} voluntarios={voluntarios} ministerios={ministerios} eventosPorId={eventosPorId} />
+                <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setExpandida(null)}>Ocultar</button>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Montar({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const hoje = new Date();
@@ -254,6 +298,8 @@ export default function Montar({ ativo, definirCabecalho }) {
       </div>
 
       {ministerios.length > 0 && <SugestorEscala ministerios={ministerios} voluntarios={voluntarios} />}
+
+      {ministerios.length > 0 && <UltimasEnquetes ministerios={ministerios} voluntarios={voluntarios} />}
 
       {sheet?.tipo === "abrirEnquete" && (
         <SheetAbrirEnquete

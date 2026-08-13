@@ -38,6 +38,15 @@ export function ouvirEnquetesMontar(cb) {
   });
 }
 
+/** As últimas enquetes, sejam quais forem os estados — fica sempre
+ *  algo pra olhar em baixo do Montar, mesmo depois de a escala já
+ *  ter sido publicada (ao contrário de ouvirEnquetesMontar, que some
+ *  assim que a escala sai). */
+export function ouvirUltimasEnquetes(quantas, cb) {
+  const q = query(cEnquetes(), where("ativo", "==", true), orderBy(documentId(), "desc"), limit(quantas));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
 /** Uma enquete excluída conta como se não existisse — nunca é
  *  apagada a valer (ver CLAUDE.md), só fica ativo:false. Docs
  *  antigos sem o campo `ativo` continuam a contar como ativos. */

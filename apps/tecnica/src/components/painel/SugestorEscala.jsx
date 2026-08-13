@@ -8,6 +8,7 @@ import {
 import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataCurta, MESES } from "@portal/shared/lib/data.js";
+import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const mesAtual = () => {
@@ -34,6 +35,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [aExcluir, setAExcluir] = useState(false);
   const [aExportar, setAExportar] = useState(false);
+  const [imagemExpandida, setImagemExpandida] = useState(null);
   const canvasRef = useRef(null);
 
   // por defeito, o mês da enquete em curso (ou a próxima) — só uma
@@ -249,7 +251,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                 <tr>
                   <th></th>
                   {domingos.map((d) => (
-                    <th key={d.id} style={{ textAlign: "left" }}>{d.tipo || dataCurta(d.data)}</th>
+                    <th key={d.id} style={{ textAlign: "left", borderLeft: "1px solid var(--fio)" }}>{d.tipo || dataCurta(d.data)}</th>
                   ))}
                 </tr>
               </thead>
@@ -265,7 +267,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                           const r = sugestao.resultado[chave] || {};
                           const aviso = avisos[chave]?.titular;
                           return (
-                            <td key={d.id} style={{ minWidth: 180, verticalAlign: "top" }}>
+                            <td key={d.id} style={{ minWidth: 180, verticalAlign: "top", borderLeft: "1px solid var(--fio)" }}>
                               <select
                                 className="campo"
                                 style={{
@@ -303,7 +305,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                             const r = sugestao.resultado[chave] || {};
                             const aviso = avisos[chave]?.aprendiz;
                             return (
-                              <td key={d.id} style={{ minWidth: 180, borderTop: "none", paddingTop: 0 }}>
+                              <td key={d.id} style={{ minWidth: 180, borderTop: "none", paddingTop: 0, borderLeft: "1px solid var(--fio)" }}>
                                 <select
                                   className="campo"
                                   style={{
@@ -352,8 +354,14 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
 
           {publicado && (
             <div className="caixa" style={{ marginTop: 14 }}>
-              <p className="cap">Escala publicada</p>
-              <div ref={canvasRef} style={{ marginTop: 8 }} />
+              <p className="cap">Escala publicada — toca na imagem para ver em ecrã cheio</p>
+              <div
+                ref={canvasRef} style={{ marginTop: 8, cursor: "zoom-in" }}
+                onClick={() => {
+                  const canvas = canvasRef.current?.querySelector("canvas");
+                  if (canvas) setImagemExpandida(canvas.toDataURL());
+                }}
+              />
               <button className="btn full" style={{ marginTop: 10 }} disabled={aExportar} onClick={exportarImagem}>
                 {aExportar ? "A preparar…" : "Partilhar imagem no WhatsApp"}
               </button>
@@ -361,6 +369,8 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
           )}
         </>
       )}
+
+      {imagemExpandida && <ImagemExpandida src={imagemExpandida} alt={`Escala de ${mesLabel}`} onFechar={() => setImagemExpandida(null)} />}
     </div>
   );
 }
