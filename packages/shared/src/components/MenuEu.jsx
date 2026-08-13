@@ -14,7 +14,8 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
     setATrocar(true);
     const r = await trocarBase(id);
     if (!r.ok) { torrada(r.mensagem); setATrocar(false); }
-    // sucesso: onAuthStateChanged recarrega tudo sozinho, sem mais nada a fazer aqui
+    // sucesso: a página está a navegar para o domínio da base nova,
+    // nada mais a fazer aqui (em localhost, onAuthStateChanged troca sozinho)
   }
 
   return (

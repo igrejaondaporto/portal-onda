@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "@portal/shared/lib/firebase.js";
-import { meuPapel } from "@portal/shared/lib/auth.js";
+import { meuPapel, entrarComTokenDaUrl } from "@portal/shared/lib/auth.js";
 import Entrada from "./pages/Entrada";
 import Sessao from "./pages/Sessao";
 import TrocarPin from "./pages/TrocarPin";
@@ -11,20 +11,27 @@ export default function App() {
   const [codigoProvisorio, setCodigoProvisorio] = useState(null);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (utilizador) => {
-      // também entra aqui a meio do login (depois do PIN, antes do papel
-      // vir do token) — mostra o ecrã de carregar em vez de deixar o
-      // teclado do PIN parado sem resposta visível.
-      setACarregar(true);
-      if (utilizador) {
-        const { papel, baseId } = await meuPapel();
-        setSessao({ uid: utilizador.uid, papel, baseId });
-      } else {
-        setSessao(null);
-        setCodigoProvisorio(null);
-      }
-      setACarregar(false);
+    let parar;
+    // se veio de "trocar de base" noutra base, entra com o token da
+    // fragment ANTES de ligar o listener — senão o primeiro disparo
+    // (sem sessão) mostra a Entrada por um instante e depois troca.
+    entrarComTokenDaUrl().then(() => {
+      parar = onAuthStateChanged(auth, async (utilizador) => {
+        // também entra aqui a meio do login (depois do PIN, antes do papel
+        // vir do token) — mostra o ecrã de carregar em vez de deixar o
+        // teclado do PIN parado sem resposta visível.
+        setACarregar(true);
+        if (utilizador) {
+          const { papel, baseId } = await meuPapel();
+          setSessao({ uid: utilizador.uid, papel, baseId });
+        } else {
+          setSessao(null);
+          setCodigoProvisorio(null);
+        }
+        setACarregar(false);
+      });
     });
+    return () => parar?.();
   }, []);
 
   if (aCarregar) {
