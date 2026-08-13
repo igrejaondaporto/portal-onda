@@ -258,14 +258,17 @@ export function validarSugestao({ resultado, domingos, ministerios, voluntarios,
           });
           if (vezesNoDomingo > 1) return { nivel: "erro", motivo: "já está escalado noutro ministério nesse domingo" };
         }
-        if (!respondentes.has(pessoaId)) return { nivel: "atencao", motivo: "não respondeu à enquete" };
+        // sobrecarga vem antes de "não respondeu" — as duas são só
+        // atenção, mas sobrecarga é a mais acionável das duas e não
+        // pode ficar escondida atrás da outra quando as duas se aplicam
         if (ehAprendiz) {
           if ((aprendizMes[pessoaId] ?? 0) > RECOMENDADO_MES) {
             return { nivel: "atencao", motivo: `já treina ${aprendizMes[pessoaId]}× este mês (recomendado ${RECOMENDADO_MES})` };
           }
-        } else if ((contagemMes[pessoaId] ?? 0) >= ALERTA_MES) {
+        } else if ((contagemMes[pessoaId] ?? 0) > RECOMENDADO_MES) {
           return { nivel: "atencao", motivo: `escalado ${contagemMes[pessoaId]}× este mês (recomendado ${RECOMENDADO_MES})` };
         }
+        if (!respondentes.has(pessoaId)) return { nivel: "atencao", motivo: "não respondeu à enquete" };
         return null;
       }
 

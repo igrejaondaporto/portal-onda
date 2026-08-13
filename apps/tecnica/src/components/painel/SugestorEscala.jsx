@@ -44,11 +44,17 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   }, []);
 
   useEffect(() => ouvirEnquete(mes, setEnquete), [mes]);
+  // só reseta ao trocar de mês — nunca por causa de um write nosso na
+  // própria enquete (ex.: marcarEscalaPublicada), senão a sugestão e o
+  // "publicado" somem sozinhos logo depois de publicar
   useEffect(() => {
     setSugestao(null); setAlertas([]); setPublicado(false); setAConfirmarExcluir(false);
+  }, [mes]);
+  useEffect(() => {
     if (!enquete) { setRespostas([]); return; }
     return ouvirRespostas(mes, setRespostas);
-  }, [enquete, mes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mes, !!enquete]);
   useEffect(() => {
     if (!enquete?.domingos?.length) { setEventosPorId({}); return; }
     obterEventosPorIds(enquete.domingos).then(setEventosPorId);
@@ -349,7 +355,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
               <p className="cap">Escala publicada</p>
               <div ref={canvasRef} style={{ marginTop: 8 }} />
               <button className="btn full" style={{ marginTop: 10 }} disabled={aExportar} onClick={exportarImagem}>
-                {aExportar ? "A preparar…" : "Exportar imagem para o WhatsApp"}
+                {aExportar ? "A preparar…" : "Partilhar imagem no WhatsApp"}
               </button>
             </div>
           )}

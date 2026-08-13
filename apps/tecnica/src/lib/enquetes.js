@@ -82,6 +82,7 @@ export async function obterMesEnqueteRelevante() {
 
 export const abrirEnquete = (dados) => chamar("abrirEnquete")(dados).then((r) => r.data);
 export const fecharEnquete = (mes) => chamar("fecharEnquete")({ mes }).then((r) => r.data);
+export const reabrirEnquete = (mes) => chamar("reabrirEnquete")({ mes }).then((r) => r.data);
 export const excluirEnquete = (mes) => chamar("excluirEnquete")({ mes }).then((r) => r.data);
 export const marcarEscalaPublicada = (mes) => chamar("marcarEscalaPublicada")({ mes }).then((r) => r.data);
 export const responderEnquete = (dados) => chamar("responderEnquete")(dados).then((r) => r.data);

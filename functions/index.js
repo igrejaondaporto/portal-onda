@@ -1147,6 +1147,17 @@ export const fecharEnquete = onCall(async (req) => {
   return { ok: true };
 });
 
+export const reabrirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ estado: "aberta" }, { merge: true });
+  return { ok: true };
+});
+
 // A enquete continua visível no Montar (com "Fechar" trocado por um
 // cadeado) até o líder publicar a escala sugerida a partir dela — só
 // aí some, para não perder de vista o que ainda falta montar.

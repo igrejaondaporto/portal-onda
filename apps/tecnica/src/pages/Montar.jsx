@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
-import { ouvirEnquetesMontar, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnquetesMontar, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -55,6 +55,7 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   const torrada = useTorrada();
   const [respostas, setRespostas] = useState([]);
   const [aFechar, setAFechar] = useState(false);
+  const [aReabrir, setAReabrir] = useState(false);
   const fechada = enquete.estado === "fechada";
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
@@ -85,6 +86,18 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
       torrada(e.message || "Não foi possível fechar a enquete.");
     } finally {
       setAFechar(false);
+    }
+  }
+
+  async function reabrir() {
+    setAReabrir(true);
+    try {
+      await reabrirEnquete(enquete.id);
+      torrada("Enquete reaberta");
+    } catch (e) {
+      torrada(e.message || "Não foi possível reabrir a enquete.");
+    } finally {
+      setAReabrir(false);
     }
   }
 
@@ -139,7 +152,9 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
       )}
 
       {fechada ? (
-        <button className="btn sec full" style={{ marginTop: 16 }} disabled>🔒 Enquete fechada</button>
+        <button className="btn sec full" style={{ marginTop: 16 }} disabled={aReabrir} onClick={reabrir}>
+          {aReabrir ? "A reabrir…" : "🔒 Reabrir"}
+        </button>
       ) : (
         <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
           {aFechar ? "A fechar…" : "Fechar enquete"}
