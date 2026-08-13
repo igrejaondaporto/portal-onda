@@ -21,16 +21,42 @@ export async function entrarComPin(pessoaId, pin) {
 
 export const sair = () => signOut(auth);
 
-/** Troca de base sem pedir PIN outra vez — só troca os claims do
- *  token. O App.jsx já ouve onAuthStateChanged e relê o papel/baseId
- *  sozinho depois disto. */
+/** Troca de base sem pedir PIN outra vez. Cada base é uma app e um
+ *  domínio separados (apoio.painelonda.pt, tecnica.painelonda.pt…) —
+ *  trocar os claims do token sozinho não muda qual app está a
+ *  correr no browser. Por isso isto navega mesmo para o domínio da
+ *  base nova, levando o token novo na fragment da URL (nunca vai para
+ *  o servidor nem fica em logs); a app que abre lê-o em `lerTokenDaUrl`
+ *  e entra sem pedir PIN outra vez. Em localhost (dev, uma app só)
+ *  não há para onde navegar — troca os claims no sítio, como antes. */
 export async function trocarBase(novoBaseId) {
   try {
     const { data } = await chamar("trocarBase")({ novoBaseId });
-    await signInWithCustomToken(auth, data.token);
+    if (window.location.hostname === "localhost") {
+      await signInWithCustomToken(auth, data.token);
+      return { ok: true };
+    }
+    window.location.href = `https://${novoBaseId}.painelonda.pt/#tok=${encodeURIComponent(data.token)}`;
     return { ok: true };
   } catch (e) {
     return { ok: false, mensagem: e.message || "Não foi possível trocar de base." };
+  }
+}
+
+/** Lê um token deixado na fragment da URL por `trocarBase` (vindo de
+ *  outra base) e entra com ele — chamar uma vez, cedo, antes de
+ *  decidir se mostra o ecrã de entrada ou a sessão. Limpa a URL a
+ *  seguir, para o token nunca ficar visível nem no histórico. */
+export async function entrarComTokenDaUrl() {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#tok=")) return false;
+  const token = decodeURIComponent(hash.slice("#tok=".length));
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+  try {
+    await signInWithCustomToken(auth, token);
+    return true;
+  } catch {
+    return false;
   }
 }
 
