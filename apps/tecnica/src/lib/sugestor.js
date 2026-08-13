@@ -214,20 +214,65 @@ export function calcularAlertas({ domingos, ministerios, voluntarios, resultado,
   return alertas;
 }
 
-/** Texto pronto pra colar no WhatsApp — mesmo formato da escala em
- *  papel: um bloco por domingo, uma linha por ministério. */
-export function textoEscalaWhatsApp({ mesLabel, domingos, ministerios, resultado, voluntarios }) {
-  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "por definir";
-  const linhas = [`Escala de ${mesLabel} 🎚️`, ""];
+/** Reavalia a tabela como ela está agora (depois de o líder mexer à
+ *  mão) — não a geração, o estado atual do ecrã. Vermelho é um
+ *  problema real (a pessoa votou que não pode, ou já está noutro
+ *  ministério nesse domingo); amarelo é só um ponto de atenção
+ *  (sobrecarga no mês, não respondeu à enquete). Devolve, por slot,
+ *  {titular, aprendiz} — cada um null ou {nivel: "erro"|"atencao", motivo}. */
+export function validarSugestao({ resultado, domingos, ministerios, voluntarios, indisponibilidades, respondentes }) {
+  const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
+  const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
+
+  const contagemMes = {};
+  const aprendizMes = {};
   domingos.forEach((d) => {
-    linhas.push(`${d.tipo || dataCurta(d.data)}`);
     ministerios.forEach((m) => {
       const r = resultado[chaveSlot(d.id, m.id)];
-      if (!r?.titularId) { linhas.push(`${m.nome}: por definir`); return; }
-      const aprendiz = r.aprendizId ? ` (+ ${nomeDe(r.aprendizId)} em treino)` : "";
-      linhas.push(`${m.nome}: ${nomeDe(r.titularId)}${aprendiz}`);
+      if (!r) return;
+      if (r.titularId) contagemMes[r.titularId] = (contagemMes[r.titularId] ?? 0) + 1;
+      if (r.aprendizId) {
+        contagemMes[r.aprendizId] = (contagemMes[r.aprendizId] ?? 0) + 1;
+        aprendizMes[r.aprendizId] = (aprendizMes[r.aprendizId] ?? 0) + 1;
+      }
     });
-    linhas.push("");
   });
-  return linhas.join("\n").trim();
+
+  const avisos = {};
+  domingos.forEach((d) => {
+    ministerios.forEach((m) => {
+      const chave = chaveSlot(d.id, m.id);
+      const r = resultado[chave];
+      if (!r) return;
+      const operacional = m.id !== ministerioResponsavel?.id;
+
+      function checar(pessoaId, ehAprendiz) {
+        if (!pessoaId) return null;
+        if (indisponivel(pessoaId, d.id)) return { nivel: "erro", motivo: "votou que não pode nesse dia" };
+        if (operacional) {
+          let vezesNoDomingo = 0;
+          ministerios.forEach((m2) => {
+            if (m2.id === ministerioResponsavel?.id) return;
+            const r2 = resultado[chaveSlot(d.id, m2.id)];
+            if (r2?.titularId === pessoaId || r2?.aprendizId === pessoaId) vezesNoDomingo++;
+          });
+          if (vezesNoDomingo > 1) return { nivel: "erro", motivo: "já está escalado noutro ministério nesse domingo" };
+        }
+        if (!respondentes.has(pessoaId)) return { nivel: "atencao", motivo: "não respondeu à enquete" };
+        if (ehAprendiz) {
+          if ((aprendizMes[pessoaId] ?? 0) > RECOMENDADO_MES) {
+            return { nivel: "atencao", motivo: `já treina ${aprendizMes[pessoaId]}× este mês (recomendado ${RECOMENDADO_MES})` };
+          }
+        } else if ((contagemMes[pessoaId] ?? 0) >= ALERTA_MES) {
+          return { nivel: "atencao", motivo: `escalado ${contagemMes[pessoaId]}× este mês (recomendado ${RECOMENDADO_MES})` };
+        }
+        return null;
+      }
+
+      avisos[chave] = { titular: checar(r.titularId, false), aprendiz: checar(r.aprendizId, true) };
+    });
+  });
+
+  return avisos;
 }
+

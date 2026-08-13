@@ -21,6 +21,23 @@ export function ouvirEnquetesAbertas(cb) {
   });
 }
 
+/** Tudo que ainda "pertence" ao Montar: as abertas e as fechadas cuja
+ *  escala ainda não foi publicada — a enquete só sai da tela depois
+ *  de virar escala a valer (ver marcarEscalaPublicada). Sem where de
+ *  estado/escalaPublicada aqui de propósito, porque combinado com
+ *  `ativo` pediria outro índice — filtra-se no cliente, e são poucos
+ *  documentos por base. */
+export function ouvirEnquetesMontar(cb) {
+  const q = query(cEnquetes(), where("ativo", "==", true));
+  return onSnapshot(q, (snap) => {
+    const lista = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((e) => e.estado === "aberta" || !e.escalaPublicada)
+      .sort((a, b) => a.id.localeCompare(b.id));
+    cb(lista);
+  });
+}
+
 /** Uma enquete excluída conta como se não existisse — nunca é
  *  apagada a valer (ver CLAUDE.md), só fica ativo:false. Docs
  *  antigos sem o campo `ativo` continuam a contar como ativos. */
@@ -66,6 +83,7 @@ export async function obterMesEnqueteRelevante() {
 export const abrirEnquete = (dados) => chamar("abrirEnquete")(dados).then((r) => r.data);
 export const fecharEnquete = (mes) => chamar("fecharEnquete")({ mes }).then((r) => r.data);
 export const excluirEnquete = (mes) => chamar("excluirEnquete")({ mes }).then((r) => r.data);
+export const marcarEscalaPublicada = (mes) => chamar("marcarEscalaPublicada")({ mes }).then((r) => r.data);
 export const responderEnquete = (dados) => chamar("responderEnquete")(dados).then((r) => r.data);
 
 const nomeDoMes = (mes) => {

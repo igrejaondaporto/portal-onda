@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete } from "../../lib/enquetes";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete, marcarEscalaPublicada } from "../../lib/enquetes";
 import { obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica } from "../../lib/painel";
 import {
   gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
-  textoEscalaWhatsApp, chaveSlot,
+  validarSugestao, chaveSlot,
 } from "../../lib/sugestor";
+import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataCurta, MESES } from "@portal/shared/lib/data.js";
 
@@ -32,6 +33,8 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   const [publicado, setPublicado] = useState(false);
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [aExcluir, setAExcluir] = useState(false);
+  const [aExportar, setAExportar] = useState(false);
+  const canvasRef = useRef(null);
 
   // por defeito, o mês da enquete em curso (ou a próxima) — só uma
   // vez, ao montar; depois disso o líder escolhe o mês à vontade
@@ -57,6 +60,17 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   );
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const mesLabel = `${MESES[Number(mes.split("-")[1]) - 1]} ${mes.split("-")[0]}`;
+  const respondentes = useMemo(() => new Set(respostas.map((r) => r.id)), [respostas]);
+
+  // reavalia a tabela como está agora (não a geração) — vermelho é um
+  // problema real, amarelo é só um ponto de atenção (ver validarSugestao)
+  const avisos = useMemo(() => {
+    if (!sugestao || !dadosGeracao) return {};
+    return validarSugestao({
+      resultado: sugestao.resultado, domingos, ministerios, voluntarios,
+      indisponibilidades: dadosGeracao.indisponibilidades, respondentes,
+    });
+  }, [sugestao, dadosGeracao, domingos, ministerios, voluntarios, respondentes]);
 
   async function gerar() {
     if (!enquete?.domingos?.length) return;
@@ -74,7 +88,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
       setSugestao(s);
       setAlertas(calcularAlertas({
         domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
-        estatisticas, respondentes: new Set(respostas.map((r) => r.id)), vezesAprendizPorMinisterio,
+        estatisticas, respondentes, vezesAprendizPorMinisterio,
       }));
       setPublicado(false);
     } catch (e) {
@@ -90,7 +104,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
     setSugestao(s);
     setAlertas(calcularAlertas({
       domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
-      estatisticas: dadosGeracao.estatisticas, respondentes: new Set(respostas.map((r) => r.id)),
+      estatisticas: dadosGeracao.estatisticas, respondentes,
       vezesAprendizPorMinisterio: dadosGeracao.vezesAprendizPorMinisterio,
     }));
     torrada("Sugestão regenerada");
@@ -122,6 +136,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
         const liderEscala = sugestao.resultado[chaveSlot(d.id, ministerioResponsavel?.id)]?.titularId ?? null;
         await guardarEscalaTecnica(d.id, { liderEscala, lugares });
       }
+      await marcarEscalaPublicada(enquete.id);
       setPublicado(true);
       torrada("Escala publicada");
     } catch (e) {
@@ -131,12 +146,28 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
     }
   }
 
-  async function copiarTextoEscala() {
+  // desenha a imagem só depois de publicado, direto num canvas
+  // escondido no DOM — o "Exportar" só converte o que já está ali
+  useEffect(() => {
+    if (!publicado || !canvasRef.current || !sugestao) return;
+    const canvas = desenharEscalaCanvas({ mesLabel, domingos, ministerios, resultado: sugestao.resultado, voluntarios });
+    canvasRef.current.innerHTML = "";
+    canvas.style.width = "100%";
+    canvas.style.borderRadius = "12px";
+    canvasRef.current.appendChild(canvas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicado]);
+
+  async function exportarImagem() {
+    const canvas = canvasRef.current?.querySelector("canvas");
+    if (!canvas) return;
+    setAExportar(true);
     try {
-      await navigator.clipboard.writeText(textoEscalaWhatsApp({ mesLabel, domingos, ministerios, resultado: sugestao.resultado, voluntarios }));
-      torrada("Texto copiado");
+      await compartilharOuBaixarCanvas(canvas, `escala-${mes}.png`);
     } catch {
-      torrada("Não foi possível copiar — copia manualmente.");
+      torrada("Não foi possível exportar a imagem.");
+    } finally {
+      setAExportar(false);
     }
   }
 
@@ -226,18 +257,31 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                         {domingos.map((d) => {
                           const chave = chaveSlot(d.id, m.id);
                           const r = sugestao.resultado[chave] || {};
+                          const aviso = avisos[chave]?.titular;
                           return (
                             <td key={d.id} style={{ minWidth: 180, verticalAlign: "top" }}>
                               <select
-                                className="campo" style={{ fontSize: 12, padding: "6px 8px" }}
+                                className="campo"
+                                style={{
+                                  fontSize: 12, padding: "6px 8px",
+                                  ...(aviso?.nivel === "erro"
+                                    ? { background: "#FFE3EC", borderColor: "var(--magenta)", color: "var(--magenta)" }
+                                    : aviso?.nivel === "atencao"
+                                      ? { background: "#FFF7E0", borderColor: "#d9a400" }
+                                      : {}),
+                                }}
                                 value={r.titularId ?? ""}
                                 onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
                               >
                                 <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
                                 {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                               </select>
-                              {r.travado && (
-                                <p style={{ fontSize: 9.5, color: "var(--magenta)", marginTop: 3 }}>🔒 {r.motivoTravado}</p>
+                              {aviso ? (
+                                <p style={{ fontSize: 9.5, color: aviso.nivel === "erro" ? "var(--magenta)" : "#8a7300", marginTop: 3 }}>
+                                  {aviso.nivel === "erro" ? "🔴" : "⚠️"} {aviso.motivo}
+                                </p>
+                              ) : r.travado && (
+                                <p style={{ fontSize: 9.5, color: "var(--cinza)", marginTop: 3 }}>🔒 {r.motivoTravado}</p>
                               )}
                             </td>
                           );
@@ -251,16 +295,30 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                           {domingos.map((d) => {
                             const chave = chaveSlot(d.id, m.id);
                             const r = sugestao.resultado[chave] || {};
+                            const aviso = avisos[chave]?.aprendiz;
                             return (
                               <td key={d.id} style={{ minWidth: 180, borderTop: "none", paddingTop: 0 }}>
                                 <select
-                                  className="campo" style={{ fontSize: 11.5, padding: "5px 8px" }}
+                                  className="campo"
+                                  style={{
+                                    fontSize: 11.5, padding: "5px 8px",
+                                    ...(aviso?.nivel === "erro"
+                                      ? { background: "#FFE3EC", borderColor: "var(--magenta)", color: "var(--magenta)" }
+                                      : aviso?.nivel === "atencao"
+                                        ? { background: "#FFF7E0", borderColor: "#d9a400" }
+                                        : {}),
+                                  }}
                                   value={r.aprendizId ?? ""} disabled={!r.titularId}
                                   onChange={(e) => definirCelula(d.id, m.id, "aprendizId", e.target.value)}
                                 >
                                   <option value="">sem aprendiz</option>
                                   {candidatosPara(m.id, "aprendiz").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
+                                {aviso && (
+                                  <p style={{ fontSize: 9.5, color: aviso.nivel === "erro" ? "var(--magenta)" : "#8a7300", marginTop: 3 }}>
+                                    {aviso.nivel === "erro" ? "🔴" : "⚠️"} {aviso.motivo}
+                                  </p>
+                                )}
                               </td>
                             );
                           })}
@@ -288,11 +346,11 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
 
           {publicado && (
             <div className="caixa" style={{ marginTop: 14 }}>
-              <p className="cap">Texto pronto para o WhatsApp</p>
-              <p style={{ marginTop: 8, lineHeight: 1.6, fontSize: 13, whiteSpace: "pre-wrap" }}>
-                {textoEscalaWhatsApp({ mesLabel, domingos, ministerios, resultado: sugestao.resultado, voluntarios })}
-              </p>
-              <button className="btn sec full" style={{ marginTop: 10 }} onClick={copiarTextoEscala}>Copiar texto</button>
+              <p className="cap">Escala publicada</p>
+              <div ref={canvasRef} style={{ marginTop: 8 }} />
+              <button className="btn full" style={{ marginTop: 10 }} disabled={aExportar} onClick={exportarImagem}>
+                {aExportar ? "A preparar…" : "Exportar imagem para o WhatsApp"}
+              </button>
             </div>
           )}
         </>

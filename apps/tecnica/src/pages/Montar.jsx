@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
-import { ouvirEnquetesAbertas, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnquetesMontar, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -55,6 +55,7 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   const torrada = useTorrada();
   const [respostas, setRespostas] = useState([]);
   const [aFechar, setAFechar] = useState(false);
+  const fechada = enquete.estado === "fechada";
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
 
@@ -63,8 +64,15 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   const respostasComPessoa = respostas
     .map((r) => ({ resposta: r, pessoa: voluntarios.find((p) => p.id === r.id) }))
     .filter((x) => x.pessoa);
+  // titulares sempre acima de quem está em treino, dentro do ministério
+  const ORDEM_NIVEL = { titular: 0, aprendiz: 1 };
   const gruposMinisterio = ministerios
-    .map((m) => ({ ministerio: m, itens: respostasComPessoa.filter((x) => x.pessoa.ministerios?.[m.id]) }))
+    .map((m) => ({
+      ministerio: m,
+      itens: respostasComPessoa
+        .filter((x) => x.pessoa.ministerios?.[m.id])
+        .sort((a, b) => (ORDEM_NIVEL[a.pessoa.ministerios[m.id]] ?? 9) - (ORDEM_NIVEL[b.pessoa.ministerios[m.id]] ?? 9)),
+    }))
     .filter((g) => g.itens.length);
   const semMinisterio = respostasComPessoa.filter((x) => !ministerios.some((m) => x.pessoa.ministerios?.[m.id]));
 
@@ -89,7 +97,7 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
     <div className="caixa" style={{ marginTop: 14 }}>
       <div className="cabecalho">
         <h3>Enquete de {MESES[Number(enquete.id.split("-")[1]) - 1]}</h3>
-        <span className="tag lim">aberta</span>
+        <span className={`tag ${fechada ? "cinz" : "lim"}`}>{fechada ? "fechada" : "aberta"}</span>
       </div>
       <p className="ds" style={{ padding: "6px 0 2px" }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
       <p className="ds">
@@ -130,9 +138,13 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
         </>
       )}
 
-      <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
-        {aFechar ? "A fechar…" : "Fechar enquete"}
-      </button>
+      {fechada ? (
+        <button className="btn sec full" style={{ marginTop: 16 }} disabled>🔒 Enquete fechada</button>
+      ) : (
+        <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
+          {aFechar ? "A fechar…" : "Fechar enquete"}
+        </button>
+      )}
     </div>
   );
 }
@@ -142,18 +154,18 @@ export default function Montar({ ativo, definirCabecalho }) {
   const hoje = new Date();
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
-  const [enquetesAbertas, setEnquetesAbertas] = useState(undefined); // undefined = ainda a carregar
+  const [enquetesMontar, setEnquetesMontar] = useState(undefined); // undefined = ainda a carregar
   const [eventosPorId, setEventosPorId] = useState({});
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
-  useEffect(() => ouvirEnquetesAbertas(setEnquetesAbertas), []);
+  useEffect(() => ouvirEnquetesMontar(setEnquetesMontar), []);
   useEffect(() => {
-    const ids = [...new Set((enquetesAbertas || []).flatMap((e) => e.domingos || []))];
+    const ids = [...new Set((enquetesMontar || []).flatMap((e) => e.domingos || []))];
     if (!ids.length) { setEventosPorId({}); return; }
     obterEventosPorIds(ids).then(setEventosPorId);
-  }, [enquetesAbertas]);
+  }, [enquetesMontar]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -165,11 +177,12 @@ export default function Montar({ ativo, definirCabecalho }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo]);
 
-  const semEnqueteParaOMesQueVem = Array.isArray(enquetesAbertas) && enquetesAbertas.length === 0 && hoje.getDate() >= 15;
+  const abertas = (enquetesMontar || []).filter((e) => e.estado === "aberta");
+  const semEnqueteParaOMesQueVem = Array.isArray(enquetesMontar) && abertas.length === 0 && hoje.getDate() >= 15;
 
   async function copiarTexto() {
     try {
-      await navigator.clipboard.writeText(textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo }))));
+      await navigator.clipboard.writeText(textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo }))));
       torrada("Texto copiado");
     } catch {
       torrada("Não foi possível copiar — copia manualmente.");
@@ -179,9 +192,9 @@ export default function Montar({ ativo, definirCabecalho }) {
   return (
     <>
       <div className="sect">
-        {enquetesAbertas === undefined && <div className="vaz">A carregar…</div>}
+        {enquetesMontar === undefined && <div className="vaz">A carregar…</div>}
 
-        {enquetesAbertas?.length === 0 && (
+        {enquetesMontar !== undefined && abertas.length === 0 && (
           <>
             {semEnqueteParaOMesQueVem && (
               <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginBottom: 14 }}>
@@ -199,30 +212,30 @@ export default function Montar({ ativo, definirCabecalho }) {
           </>
         )}
 
-        {enquetesAbertas?.length > 0 && (
+        {abertas.length > 0 && (
           <>
             <div className="cabecalho">
               <h3>Texto pronto para o WhatsApp</h3>
             </div>
             <p style={{ lineHeight: 1.6, fontSize: 13.5, whiteSpace: "pre-wrap" }}>
-              {textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo })))}
+              {textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo })))}
             </p>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={copiarTexto}>Copiar texto</button>
               <a
                 className="btn" style={{ flex: 1, fontSize: 12.5, textAlign: "center" }}
-                href={linkWhatsApp(textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo }))))}
+                href={linkWhatsApp(textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo }))))}
                 target="_blank" rel="noreferrer"
               >
                 Abrir WhatsApp
               </a>
             </div>
-
-            {enquetesAbertas.map((e) => (
-              <CartaoEnquete key={e.id} enquete={e} voluntarios={voluntarios} ministerios={ministerios} eventosPorId={eventosPorId} />
-            ))}
           </>
         )}
+
+        {(enquetesMontar || []).map((e) => (
+          <CartaoEnquete key={e.id} enquete={e} voluntarios={voluntarios} ministerios={ministerios} eventosPorId={eventosPorId} />
+        ))}
       </div>
 
       {ministerios.length > 0 && <SugestorEscala ministerios={ministerios} voluntarios={voluntarios} />}

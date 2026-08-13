@@ -1130,7 +1130,7 @@ export const abrirEnquete = onCall(async (req) => {
   if (!Array.isArray(domingos) || !domingos.length) throw new HttpsError("invalid-argument", "Falta pelo menos um domingo.");
 
   await refEnquete(baseId, mes).set({
-    estado: "aberta", prazo, domingos, ativo: true,
+    estado: "aberta", prazo, domingos, ativo: true, escalaPublicada: false,
     abertaPor: req.auth.uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
   return { mes };
@@ -1144,6 +1144,20 @@ export const fecharEnquete = onCall(async (req) => {
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
   await ref.set({ estado: "fechada", fechadaEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  return { ok: true };
+});
+
+// A enquete continua visível no Montar (com "Fechar" trocado por um
+// cadeado) até o líder publicar a escala sugerida a partir dela — só
+// aí some, para não perder de vista o que ainda falta montar.
+export const marcarEscalaPublicada = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ escalaPublicada: true, escalaPublicadaEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   return { ok: true };
 });
 
