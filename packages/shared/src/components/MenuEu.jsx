@@ -8,14 +8,24 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   const lider = papel === "lider_base";
   const [expandida, setExpandida] = useState(false);
   const [aTrocar, setATrocar] = useState(false);
+  const [destino, setDestino] = useState(null); // { nome, url } — link de reserva se a navegação sozinha não acontecer
 
-  async function escolherBase(id) {
-    if (id === baseIdAtual || aTrocar) return;
+  async function escolherBase(base) {
+    if (base.id === baseIdAtual || aTrocar) return;
     setATrocar(true);
-    const r = await trocarBase(id);
-    if (!r.ok) { torrada(r.mensagem); setATrocar(false); }
-    // sucesso: a página está a navegar para o domínio da base nova,
-    // nada mais a fazer aqui (em localhost, onAuthStateChanged troca sozinho)
+    setDestino(null);
+    const r = await trocarBase(base.id);
+    if (!r.ok) { torrada(r.mensagem); setATrocar(false); return; }
+    // em localhost troca no sítio (sem url); noutro domínio, mostra já o
+    // link de reserva — nem toda app instalada deixa um script navegar
+    // sozinho para outro domínio, mas um toque num link real sempre passa.
+    if (r.url) {
+      setDestino({ nome: base.nome, url: r.url });
+      // se a navegação automática não tirar daqui, os separadores voltam a
+      // responder — sem isto ficavam desativados para sempre, só o link
+      // de reserva continuaria a funcionar
+      setTimeout(() => setATrocar(false), 2500);
+    }
   }
 
   return (
@@ -41,12 +51,20 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
             {basesDisponiveis.map((b) => (
               <button
                 key={b.id} data-on={b.id === baseIdAtual ? 1 : 0} disabled={aTrocar}
-                onClick={() => escolherBase(b.id)}
+                onClick={() => escolherBase(b)}
               >
                 {b.nome}
               </button>
             ))}
           </div>
+        )}
+        {destino && (
+          <p className="ds" style={{ marginTop: 10 }}>
+            Não abriu sozinho?{" "}
+            <a href={destino.url} style={{ color: "var(--azul, #0019BE)", fontWeight: 600 }}>
+              Toca aqui para continuar em {destino.nome}
+            </a>
+          </p>
         )}
         <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPerfil}>
           Ver perfil
