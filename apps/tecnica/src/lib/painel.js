@@ -9,7 +9,7 @@
  */
 import {
   query, where, orderBy, onSnapshot, getDocs, getDoc,
-  doc, setDoc, updateDoc, writeBatch, serverTimestamp,
+  doc, setDoc, updateDoc, writeBatch, serverTimestamp, collection,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -185,6 +185,24 @@ export const guardarEscalaTecnica = (eventoId, { liderEscala, lugares }) =>
   chamar("guardarEscalaTecnica")({ eventoId, liderEscala, lugares }).then((r) => r.data);
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
+
+/** uid → Set(domingoId) para quem está escalado/indisponível na
+ *  Apoio nesses domingos — mesmo formato de construirIndisponibilidades
+ *  (sugestor.js), para fundir com `mesclarIndisponibilidades`. Leitura
+ *  pública (eventos/{e}/indisponibilidades permite a qualquer base
+ *  autenticada, ver firestore.rules) — não precisa de Cloud Function. */
+export async function obterIndisponibilidadesCrossBase(domingoIds) {
+  const mapa = {};
+  await Promise.all(domingoIds.map(async (domingoId) => {
+    const snap = await getDocs(collection(db, `eventos/${domingoId}/indisponibilidades`));
+    snap.forEach((d) => {
+      const outraBase = Object.keys(d.data().origens || {}).find((b) => b !== BASE_ID);
+      if (!outraBase) return;
+      (mapa[d.id] ??= new Set()).add(domingoId);
+    });
+  }));
+  return mapa;
+}
 
 /** Não apaga — desativa (ver CLAUDE.md). Só cultos especiais; a Cloud
  *  Function recusa domingos. */

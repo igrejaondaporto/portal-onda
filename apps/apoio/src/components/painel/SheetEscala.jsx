@@ -19,15 +19,21 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
 
   if (!evento) return null;
 
-  async function persistir(novasPessoas, novoLider) {
+  // grava otimista (o toque já muda o ecrã), mas se o servidor recusar
+  // (ex.: pessoa já escalada nesse dia noutra base) desfaz e avisa —
+  // nunca fica um estado no ecrã que não bateu certo com o gravado.
+  async function persistir(novasPessoas, novoLider, anterior) {
     try {
       await guardarEscala(evento.id, { pessoas: novasPessoas, liderEscala: novoLider });
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
+      setPessoas(anterior.pessoas);
+      setLiderEscala(anterior.liderEscala);
     }
   }
 
   function alternar(id) {
+    const anterior = { pessoas, liderEscala };
     let novoLider = liderEscala;
     const dentro = pessoas.includes(id);
     const novasPessoas = dentro ? pessoas.filter((x) => x !== id) : [...pessoas, id];
@@ -35,12 +41,13 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado 
     if (!dentro && !liderEscala) novoLider = id;
     setPessoas(novasPessoas);
     setLiderEscala(novoLider);
-    persistir(novasPessoas, novoLider);
+    persistir(novasPessoas, novoLider, anterior);
   }
 
   function definirLider(id) {
+    const anterior = { pessoas, liderEscala };
     setLiderEscala(id);
-    persistir(pessoas, id);
+    persistir(pessoas, id, anterior);
   }
 
   const voluntariosOrdenados = [...voluntarios].sort((a, b) => {

@@ -53,6 +53,66 @@ const refPessoa = (b, p) => db.doc(`bases/${b}/pessoas/${p}`);
 const refGlobal = (p) => db.doc(`pessoas/${p}`);
 const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
 
+/* ── INDISPONIBILIDADE PARTILHADA ENTRE BASES ─────────────────
+ * Quem serve em mais do que uma base não pode ser escalado no mesmo
+ * culto nas duas ao mesmo tempo. eventos/{e} já é global ("pertence
+ * à igreja, não à base" — CLAUDE.md raiz, regra 7); esta subcoleção
+ * segue o mesmo padrão de escalas/{base} e atribuicoes/{funcao}, só
+ * que é "da pessoa+culto", não de uma base. Só existe para quem é
+ * multi-base — para o resto nunca há nada para escrever aqui.
+ *
+ * Por agora só a escala publicada grava (`motivo:"escalado"`) — a
+ * enquete de indisponibilidade fica de fora do escopo de propósito
+ * (cada um vota livremente em cada base). O campo `motivo` continua
+ * uma string, não um booleano, porque é o ponto de extensão pronto
+ * para o dia em que a Apoio ganhar enquete própria: essa função só
+ * chamaria `marcarIndisponivel(eventoId, "apoio", uid, "votou")`,
+ * sem mexer em mais nada aqui. */
+const NOMES_BASE = { apoio: "Apoio", tecnica: "Técnica" };
+const refIndisponibilidade = (eventoId, uid) => db.doc(`eventos/${eventoId}/indisponibilidades/${uid}`);
+
+async function basesDaPessoa(uid) {
+  const g = await refGlobal(uid).get();
+  const bases = g.exists ? g.data().bases || {} : {};
+  return Object.keys(bases).filter((b) => bases[b]);
+}
+
+/** Lança failed-precondition se `uid` já tem uma entrada de OUTRA
+ *  base para este culto — chamar antes de gravar a escala. Só lê o
+ *  nome (extra pedido ao Firestore) no caminho de erro, que é raro. */
+async function garantirSemConflitoCrossBase(eventoId, baseId, uid) {
+  const snap = await refIndisponibilidade(eventoId, uid).get();
+  if (!snap.exists) return;
+  const origens = snap.data().origens || {};
+  const outraBase = Object.keys(origens).find((b) => b !== baseId);
+  if (outraBase) {
+    const g = await refGlobal(uid).get();
+    const nome = g.exists ? g.data().nome : "Esta pessoa";
+    throw new HttpsError("failed-precondition",
+      `${nome} já está escalado(a) na ${NOMES_BASE[outraBase] ?? outraBase} nesse dia.`);
+  }
+}
+
+/** Grava/atualiza só a entrada desta base — nunca mexe na da outra.
+ *  Chave com ponto num set(merge:true) gravaria um campo literal
+ *  "origens.tecnica", não o mapa aninhado (mesmo bug já corrigido em
+ *  pessoas/{uid}.bases) — por isso o objeto vem sempre aninhado. */
+async function marcarIndisponivel(eventoId, baseId, uid, motivo) {
+  await refIndisponibilidade(eventoId, uid).set({
+    origens: { [baseId]: { motivo, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() } },
+  }, { merge: true });
+}
+
+/** Apaga só a entrada desta base. FieldValue.delete() dentro de um
+ *  mapa aninhado funciona tanto em set(merge:true) como em update() —
+ *  aqui fica em set(merge:true) porque não exige o documento já
+ *  existir (nada a apagar = no-op, sem precisar de tratar not-found). */
+async function desmarcarIndisponivel(eventoId, baseId, uid) {
+  await refIndisponibilidade(eventoId, uid).set({
+    origens: { [baseId]: admin.firestore.FieldValue.delete() },
+  }, { merge: true });
+}
+
 /* ── DADOS DO ECRÃ DE ENTRADA ─────────────────────────────────
  * Antes de autenticar não há token, logo as regras do Firestore
  * não deixam ler nada (de propósito). É por isto que a grelha de
@@ -352,14 +412,19 @@ export const removerVoluntario = onCall(async (req) => {
   const escalas = await db.collectionGroup("escalas")
     .where("pessoas", "array-contains", pessoaId).get();
   const lote = db.batch();
+  const eventosLimpos = [];
   escalas.forEach((d) => {
     if (d.id !== baseId) return;
     lote.update(d.ref, {
       pessoas: admin.firestore.FieldValue.arrayRemove(pessoaId),
       liderEscala: d.data().liderEscala === pessoaId ? null : d.data().liderEscala,
     });
+    eventosLimpos.push(d.ref.parent.parent.id);
   });
   await lote.commit();
+  // tira o bloqueio cross-base pendente nos cultos de onde acabou de
+  // sair — sem isto a pessoa ficava "escalada fantasma" na outra base
+  await Promise.all(eventosLimpos.map((eventoId) => desmarcarIndisponivel(eventoId, baseId, pessoaId)));
   return { ok: true };
 });
 
@@ -445,10 +510,79 @@ export const guardarEscalaTecnica = onCall(async (req) => {
     return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
   });
 
+  // quem serve em mais do que uma base não pode ficar escalado nas
+  // duas no mesmo culto — só interessa a quem entrou ou saiu agora
+  // (quem já lá estava já passou por esta validação da vez anterior).
+  const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
+  const adicionadas = [...pessoas].filter((id) => !pessoasAntigas.has(id));
+  const removidas = [...pessoasAntigas].filter((id) => !pessoas.has(id));
+  const multiBase = new Set();
+  for (const id of new Set([...adicionadas, ...removidas])) {
+    if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
+  }
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, "tecnica", id);
+  }
+
   await ref.set({
     baseId, liderEscala: liderEscala || null,
     lugares: lugaresLimpos, pessoas: [...pessoas],
   }, { merge: true });
+
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, "tecnica", id, "escalado");
+  }
+  for (const id of removidas) {
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, "tecnica", id);
+  }
+  return { ok: true };
+});
+
+/* ── ESCALA (Base de Apoio) ─────────────────────────────────
+ * Até agora gravava direto do cliente (setDoc) — nada validava, nem
+ * sequer o líder da base. Passa a existir aqui só para poder aplicar
+ * a mesma regra da Técnica: quem serve em mais do que uma base não
+ * fica escalado nas duas no mesmo culto. Formato desta base é uma
+ * lista simples de pessoas, não lugares por ministério. */
+export const guardarEscalaApoio = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, liderEscala = null, pessoas: pessoasRecebidas } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(pessoasRecebidas)) throw new HttpsError("invalid-argument", "Faltam as pessoas.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  const pessoas = [...new Set(pessoasRecebidas.filter(Boolean))];
+
+  const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
+  const pessoasNovas = new Set(pessoas);
+  const adicionadas = pessoas.filter((id) => !pessoasAntigas.has(id));
+  const removidas = [...pessoasAntigas].filter((id) => !pessoasNovas.has(id));
+  const multiBase = new Set();
+  for (const id of new Set([...adicionadas, ...removidas])) {
+    if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
+  }
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, "apoio", id);
+  }
+
+  await ref.set({ baseId, liderEscala: liderEscala || null, pessoas }, { merge: true });
+
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, "apoio", id, "escalado");
+  }
+  for (const id of removidas) {
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, "apoio", id);
+  }
   return { ok: true };
 });
 
