@@ -11,9 +11,11 @@
     "seed": "node scripts/seed.mjs",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules",
-    "smoke": "node scripts/smoke-functions.mjs"
+    "smoke": "node scripts/smoke-functions.mjs",
+    "teste:ciclo": "node scripts/e2e-ciclo-base.mjs"
   },
   "devDependencies": {
+    "firebase": "^10.12.0",
     "firebase-admin": "^12.2.0"
   }
 }
