@@ -215,7 +215,11 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
         <h3>Escala sugerida</h3>
       </div>
       <label className="rot">Mês</label>
-      <input className="campo" type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
+      <input
+        className="campo" type="month" value={mes} style={{ cursor: "pointer" }}
+        onChange={(e) => setMes(e.target.value)}
+        onClick={(e) => { try { e.target.showPicker?.(); } catch { /* browser sem suporte — o clique normal já focou o campo */ } }}
+      />
 
       {enquete === undefined && <div className="vaz" style={{ marginTop: 10 }}>A carregar…</div>}
       {enquete === null && (
@@ -379,26 +383,28 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
           </div>
 
           {aConfirmarPublicar && (
-            <div className="caixa" style={{ background: "#FFF7E8", border: 0, marginTop: 10 }}>
-              <p style={{ fontSize: 13, fontWeight: 700 }}>Publicar a escala de {mesLabel}?</p>
-              <p className="ds" style={{ marginTop: 4 }}>
-                Isto grava a escala direto nos {domingos.length} cultos — não há como desfazer.
-                {(contagemAvisos.erros > 0 || contagemAvisos.atencoes > 0) && (
-                  <>
-                    {" "}Ainda ficam{contagemAvisos.erros > 0 && ` ${contagemAvisos.erros} 🔴`}
-                    {contagemAvisos.atencoes > 0 && ` ${contagemAvisos.atencoes} ⚠️`} por resolver na tabela.
-                  </>
-                )}
-              </p>
-              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(false)}>
-                  Cancelar
-                </button>
-                <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aPublicar} onClick={publicar}>
+            <>
+              <div className="veu on" onClick={() => !aPublicar && setAConfirmarPublicar(false)} />
+              <div className="pin on" role="dialog" aria-modal="true">
+                <div className="pux" />
+                <h2>Publicar a escala de {mesLabel}?</h2>
+                <p className="sb2">
+                  Isto grava a escala direto nos {domingos.length} cultos — não há como desfazer.
+                  {(contagemAvisos.erros > 0 || contagemAvisos.atencoes > 0) && (
+                    <>
+                      {" "}Ainda ficam{contagemAvisos.erros > 0 && ` ${contagemAvisos.erros} 🔴`}
+                      {contagemAvisos.atencoes > 0 && ` ${contagemAvisos.atencoes} ⚠️`} por resolver na tabela.
+                    </>
+                  )}
+                </p>
+                <button className="btn full" style={{ marginTop: 20 }} disabled={aPublicar} onClick={publicar}>
                   {aPublicar ? "A publicar…" : "Sim, publicar"}
                 </button>
+                <button className="btn sec full" style={{ marginTop: 9 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(false)}>
+                  Cancelar
+                </button>
               </div>
-            </div>
+            </>
           )}
 
           {publicado && (

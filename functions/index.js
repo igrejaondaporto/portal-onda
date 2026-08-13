@@ -1122,6 +1122,16 @@ export const desativarMelhoria = onCall(async (req) => {
 const refEnquete = (baseId, mes) => db.doc(`bases/${baseId}/enquetes/${mes}`);
 const MES_RE = /^\d{4}-\d{2}$/;
 
+// respostas são do voto daquela enquete específica — ao excluir ou
+// reabrir do zero, não pode sobrar resposta antiga a fingir de nova
+async function apagarRespostas(baseId, mes) {
+  const snap = await refEnquete(baseId, mes).collection("respostas").get();
+  if (snap.empty) return;
+  const lote = db.batch();
+  snap.docs.forEach((d) => lote.delete(d.ref));
+  await lote.commit();
+}
+
 export const abrirEnquete = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { mes, prazo, domingos = [] } = req.data || {};
@@ -1129,10 +1139,14 @@ export const abrirEnquete = onCall(async (req) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
   if (!Array.isArray(domingos) || !domingos.length) throw new HttpsError("invalid-argument", "Falta pelo menos um domingo.");
 
+  // o mês (AAAA-MM) é o próprio id do documento — se já existiu uma
+  // enquete excluída ou fechada nesse mês, esta abertura é uma enquete
+  // nova de verdade, não uma continuação: sem respostas antigas
+  await apagarRespostas(baseId, mes);
   await refEnquete(baseId, mes).set({
     estado: "aberta", prazo, domingos, ativo: true, escalaPublicada: false,
     abertaPor: req.auth.uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
+  });
   return { mes };
 });
 
@@ -1172,9 +1186,10 @@ export const marcarEscalaPublicada = onCall(async (req) => {
   return { ok: true };
 });
 
-// Nada é apagado, é desativado (ver CLAUDE.md) — uma enquete excluída
-// sai de qualquer listagem/consulta, como se nunca tivesse existido,
-// mas o documento e as respostas continuam no Firestore.
+// O documento da enquete em si segue a regra "nada é apagado, é
+// desativado" (ativo:false, ver CLAUDE.md) — mas as respostas são o
+// voto de cada pessoa NAQUELA enquete: excluídas de verdade junto,
+// senão reaparecem sozinhas como "já respondeu" se o mês for reaberto.
 export const excluirEnquete = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { mes } = req.data || {};
@@ -1182,6 +1197,7 @@ export const excluirEnquete = onCall(async (req) => {
   const ref = refEnquete(baseId, mes);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await apagarRespostas(baseId, mes);
   await ref.set({ ativo: false }, { merge: true });
   return { ok: true };
 });
