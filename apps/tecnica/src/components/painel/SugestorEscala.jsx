@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas } from "../../lib/enquetes";
 import { obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica } from "../../lib/painel";
 import {
@@ -181,41 +181,58 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
                 </tr>
               </thead>
               <tbody>
-                {ministerios.map((m) => (
-                  <tr key={m.id}>
-                    <td style={{ fontWeight: 700, color: m.cor, whiteSpace: "nowrap" }}>{m.nome}</td>
-                    {domingos.map((d) => {
-                      const chave = chaveSlot(d.id, m.id);
-                      const r = sugestao.resultado[chave] || {};
-                      const operacional = m.id !== ministerioResponsavel?.id;
-                      return (
-                        <td key={d.id} style={{ minWidth: 180 }}>
-                          <select
-                            className="campo" style={{ fontSize: 12, padding: "6px 8px" }}
-                            value={r.titularId ?? ""}
-                            onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
-                          >
-                            <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
-                            {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                          </select>
-                          {r.travado && (
-                            <p style={{ fontSize: 9.5, color: "var(--magenta)", marginTop: 3 }}>🔒 {r.motivoTravado}</p>
-                          )}
-                          {operacional && (
-                            <select
-                              className="campo" style={{ fontSize: 11.5, padding: "5px 8px", marginTop: 4 }}
-                              value={r.aprendizId ?? ""} disabled={!r.titularId}
-                              onChange={(e) => definirCelula(d.id, m.id, "aprendizId", e.target.value)}
-                            >
-                              <option value="">sem aprendiz</option>
-                              {candidatosPara(m.id, "aprendiz").map((p) => <option key={p.id} value={p.id}>{p.nome} · em treino</option>)}
-                            </select>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {ministerios.map((m) => {
+                  const operacional = m.id !== ministerioResponsavel?.id;
+                  return (
+                    <Fragment key={m.id}>
+                      <tr>
+                        <td style={{ fontWeight: 700, color: m.cor, whiteSpace: "nowrap", verticalAlign: "top" }}>{m.nome}</td>
+                        {domingos.map((d) => {
+                          const chave = chaveSlot(d.id, m.id);
+                          const r = sugestao.resultado[chave] || {};
+                          return (
+                            <td key={d.id} style={{ minWidth: 180, verticalAlign: "top" }}>
+                              <select
+                                className="campo" style={{ fontSize: 12, padding: "6px 8px" }}
+                                value={r.titularId ?? ""}
+                                onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
+                              >
+                                <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
+                                {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                              </select>
+                              {r.travado && (
+                                <p style={{ fontSize: 9.5, color: "var(--magenta)", marginTop: 3 }}>🔒 {r.motivoTravado}</p>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {operacional && (
+                        <tr>
+                          <td style={{ fontSize: 11, color: "var(--cinza)", whiteSpace: "nowrap", borderTop: "none", paddingTop: 0 }}>
+                            Em treino
+                          </td>
+                          {domingos.map((d) => {
+                            const chave = chaveSlot(d.id, m.id);
+                            const r = sugestao.resultado[chave] || {};
+                            return (
+                              <td key={d.id} style={{ minWidth: 180, borderTop: "none", paddingTop: 0 }}>
+                                <select
+                                  className="campo" style={{ fontSize: 11.5, padding: "5px 8px" }}
+                                  value={r.aprendizId ?? ""} disabled={!r.titularId}
+                                  onChange={(e) => definirCelula(d.id, m.id, "aprendizId", e.target.value)}
+                                >
+                                  <option value="">sem aprendiz</option>
+                                  {candidatosPara(m.id, "aprendiz").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
