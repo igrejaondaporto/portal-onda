@@ -10,7 +10,8 @@
   "scripts": {
     "seed": "node scripts/seed.mjs",
     "deploy:functions": "firebase deploy --only functions",
-    "deploy:rules": "firebase deploy --only firestore:rules"
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "smoke": "node scripts/smoke-functions.mjs"
   },
   "devDependencies": {
     "firebase-admin": "^12.2.0"

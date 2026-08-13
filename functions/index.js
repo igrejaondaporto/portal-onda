@@ -86,7 +86,7 @@ export const dadosEntrada = onCall(async (req) => {
     pessoas: pessoasSnap.docs.map((d, i) => {
       const p = d.data();
       const s = segredos[i];
-      const digitos = s.exists() ? s.data().pinDigitos ?? (p.papel === "lider_base" ? 6 : 4) : 4;
+      const digitos = s.exists ? s.data().pinDigitos ?? (p.papel === "lider_base" ? 6 : 4) : 4;
       return { id: d.id, nome: p.nome, papel: p.papel, foto: p.foto ?? null, digitos };
     }),
   };

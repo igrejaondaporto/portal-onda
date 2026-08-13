@@ -58,6 +58,15 @@ com "Root directory" apontado para essa pasta). Deploy de Functions/
 regras: `npm run deploy:functions` / `deploy:rules` na raiz, ou o
 workflow `.github/workflows/firebase.yml`.
 
+**Depois de todo deploy de Functions, corre `npm run smoke`** — chama
+`dadosEntrada` das duas bases a sério (sem PIN, é público) e falha
+alto se alguma rebentar. `node --check`/build só apanha erro de
+sintaxe; um erro de runtime (ex.: `.exists()` em vez de `.exists` no
+Admin SDK — os dois SDKs do Firestore não são iguais nisto, e já
+partiu o ecrã de entrada em produção uma vez) só aparece a chamar a
+função a sério. Não dês um deploy de Functions por terminado sem isto
+passar.
+
 ## Regras que não se negoceiam (valem em qualquer base)
 
 1. **O PIN nunca é verificado no cliente.** Só a Cloud Function `entrar`.
