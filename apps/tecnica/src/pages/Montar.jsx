@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
-import { ouvirEnqueteAberta, ouvirRespostas, obterEventosPorIds, fecharEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnquetesAbertas, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -48,47 +48,18 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo }) 
   );
 }
 
-export default function Montar({ ativo, definirCabecalho }) {
+/** Um mês de enquete — respostas agrupadas por ministério, quem falta
+ *  responder, e o botão de fechar. A exclusão vive só na Escala
+ *  sugerida (não faz sentido repetir o botão aqui também). */
+function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   const torrada = useTorrada();
-  const hoje = new Date();
-  const [voluntarios, setVoluntarios] = useState([]);
-  const [ministerios, setMinisterios] = useState([]);
-  const [enquete, setEnquete] = useState(undefined); // undefined = ainda a carregar
   const [respostas, setRespostas] = useState([]);
-  const [eventosPorId, setEventosPorId] = useState({});
-  const [sheet, setSheet] = useState(null);
   const [aFechar, setAFechar] = useState(false);
-  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
-  const [aExcluir, setAExcluir] = useState(false);
 
-  useEffect(() => ouvirVoluntarios(setVoluntarios), []);
-  useEffect(() => ouvirMinisterios(setMinisterios), []);
-  useEffect(() => ouvirEnqueteAberta(setEnquete), []);
-  useEffect(() => {
-    if (!enquete) { setRespostas([]); return; }
-    return ouvirRespostas(enquete.id, setRespostas);
-  }, [enquete]);
-  useEffect(() => {
-    if (!enquete?.domingos?.length) { setEventosPorId({}); return; }
-    obterEventosPorIds(enquete.domingos).then(setEventosPorId);
-  }, [enquete]);
+  useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
 
-  useEffect(() => {
-    if (!ativo) return;
-    definirCabecalho({
-      titulo: "Montar",
-      subtitulo: "Enquete e escala do mês",
-      chips: enquete ? [`${respostas.length} de ${voluntarios.length} responderam`] : [],
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, enquete, respostas.length, voluntarios.length]);
-
-  const semEnqueteParaOMesQueVem = !enquete && hoje.getDate() >= 15;
   const responderamIds = new Set(respostas.map((r) => r.id));
   const naoResponderam = voluntarios.filter((p) => !responderamIds.has(p.id));
-
-  // agrupadas por ministério — quem serve em mais do que um (ex.: o
-  // Responsável acumula) aparece num grupo por cada um deles
   const respostasComPessoa = respostas
     .map((r) => ({ resposta: r, pessoa: voluntarios.find((p) => p.id === r.id) }))
     .filter((x) => x.pessoa);
@@ -98,7 +69,6 @@ export default function Montar({ ativo, definirCabecalho }) {
   const semMinisterio = respostasComPessoa.filter((x) => !ministerios.some((m) => x.pessoa.ministerios?.[m.id]));
 
   async function fechar() {
-    if (!enquete) return;
     setAFechar(true);
     try {
       await fecharEnquete(enquete.id);
@@ -110,40 +80,108 @@ export default function Montar({ ativo, definirCabecalho }) {
     }
   }
 
-  async function excluir() {
-    if (!enquete) return;
-    setAExcluir(true);
-    try {
-      await excluirEnquete(enquete.id);
-      torrada("Enquete excluída");
-      setAConfirmarExcluir(false);
-    } catch (e) {
-      torrada(e.message || "Não foi possível excluir a enquete.");
-    } finally {
-      setAExcluir(false);
-    }
-  }
-
-  async function copiarTexto() {
-    try {
-      await navigator.clipboard.writeText(textoWhatsApp(enquete.id, enquete.prazo));
-      torrada("Texto copiado");
-    } catch {
-      torrada("Não foi possível copiar — copia manualmente.");
-    }
-  }
-
   function lembrar(pessoa) {
     const texto = `Olá ${pessoa.nome.split(" ")[0]}, ainda não recebi a tua resposta à enquete de indisponibilidades. Podes responder no Início do portal? 🙏`;
     window.open(`https://wa.me/${telefoneWa(pessoa.telefone)}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
   return (
+    <div className="caixa" style={{ marginTop: 14 }}>
+      <div className="cabecalho">
+        <h3>Enquete de {MESES[Number(enquete.id.split("-")[1]) - 1]}</h3>
+        <span className="tag lim">aberta</span>
+      </div>
+      <p className="ds" style={{ padding: "6px 0 2px" }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
+      <p className="ds">
+        {(enquete.domingos || []).map((id) => eventosPorId[id]?.tipo || dataPorExtenso(eventosPorId[id]?.data || id)).join(" · ")}
+      </p>
+
+      <label className="rot" style={{ marginTop: 16 }}>Respondeu ({respostas.length}/{voluntarios.length})</label>
+      {gruposMinisterio.map(({ ministerio: m, itens }) => (
+        <div key={m.id}>
+          <p className="cap" style={{ padding: "10px 0 2px", color: m.cor }}>{m.nome}</p>
+          {itens.map(({ resposta: r, pessoa }) => (
+            <LinhaResposta
+              key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
+              rotulo={`${m.nome} · ${NIVEL_TXT[pessoa.ministerios?.[m.id]] ?? "sem nível"}`}
+            />
+          ))}
+        </div>
+      ))}
+      {semMinisterio.length > 0 && (
+        <div>
+          <p className="cap" style={{ padding: "10px 0 2px" }}>Sem ministério</p>
+          {semMinisterio.map(({ resposta: r, pessoa }) => (
+            <LinhaResposta key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId} />
+          ))}
+        </div>
+      )}
+
+      {naoResponderam.length > 0 && (
+        <>
+          <label className="rot" style={{ marginTop: 16 }}>Ainda não respondeu ({naoResponderam.length})</label>
+          {naoResponderam.map((p) => (
+            <div className="linha" key={p.id}>
+              <Avatar pessoa={p} tamanho={34} fonte={13} />
+              <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>
+              <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => lembrar(p)}>Lembrar</button>
+            </div>
+          ))}
+        </>
+      )}
+
+      <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
+        {aFechar ? "A fechar…" : "Fechar enquete"}
+      </button>
+    </div>
+  );
+}
+
+export default function Montar({ ativo, definirCabecalho }) {
+  const torrada = useTorrada();
+  const hoje = new Date();
+  const [voluntarios, setVoluntarios] = useState([]);
+  const [ministerios, setMinisterios] = useState([]);
+  const [enquetesAbertas, setEnquetesAbertas] = useState(undefined); // undefined = ainda a carregar
+  const [eventosPorId, setEventosPorId] = useState({});
+  const [sheet, setSheet] = useState(null);
+
+  useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirMinisterios(setMinisterios), []);
+  useEffect(() => ouvirEnquetesAbertas(setEnquetesAbertas), []);
+  useEffect(() => {
+    const ids = [...new Set((enquetesAbertas || []).flatMap((e) => e.domingos || []))];
+    if (!ids.length) { setEventosPorId({}); return; }
+    obterEventosPorIds(ids).then(setEventosPorId);
+  }, [enquetesAbertas]);
+
+  useEffect(() => {
+    if (!ativo) return;
+    definirCabecalho({
+      titulo: "Montar",
+      subtitulo: "Enquete e escala do mês",
+      chips: [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ativo]);
+
+  const semEnqueteParaOMesQueVem = Array.isArray(enquetesAbertas) && enquetesAbertas.length === 0 && hoje.getDate() >= 15;
+
+  async function copiarTexto() {
+    try {
+      await navigator.clipboard.writeText(textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo }))));
+      torrada("Texto copiado");
+    } catch {
+      torrada("Não foi possível copiar — copia manualmente.");
+    }
+  }
+
+  return (
     <>
       <div className="sect">
-        {enquete === undefined && <div className="vaz">A carregar…</div>}
+        {enquetesAbertas === undefined && <div className="vaz">A carregar…</div>}
 
-        {enquete === null && (
+        {enquetesAbertas?.length === 0 && (
           <>
             {semEnqueteParaOMesQueVem && (
               <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginBottom: 14 }}>
@@ -161,86 +199,28 @@ export default function Montar({ ativo, definirCabecalho }) {
           </>
         )}
 
-        {enquete && (
+        {enquetesAbertas?.length > 0 && (
           <>
             <div className="cabecalho">
-              <h3>Enquete de {MESES[Number(enquete.id.split("-")[1]) - 1]}</h3>
-              <span className="tag lim">aberta</span>
+              <h3>Texto pronto para o WhatsApp</h3>
             </div>
-            <p className="ds" style={{ padding: "6px 0 2px" }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
-            <p className="ds">
-              {(enquete.domingos || []).map((id) => eventosPorId[id]?.tipo || dataPorExtenso(eventosPorId[id]?.data || id)).join(" · ")}
+            <p style={{ lineHeight: 1.6, fontSize: 13.5, whiteSpace: "pre-wrap" }}>
+              {textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo })))}
             </p>
-
-            <div className="caixa" style={{ marginTop: 12 }}>
-              <p className="cap">Texto pronto para o WhatsApp</p>
-              <p style={{ marginTop: 8, lineHeight: 1.6, fontSize: 13.5 }}>{textoWhatsApp(enquete.id, enquete.prazo)}</p>
-              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={copiarTexto}>Copiar texto</button>
-                <a className="btn" style={{ flex: 1, fontSize: 12.5, textAlign: "center" }} href={linkWhatsApp(textoWhatsApp(enquete.id, enquete.prazo))} target="_blank" rel="noreferrer">
-                  Abrir WhatsApp
-                </a>
-              </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={copiarTexto}>Copiar texto</button>
+              <a
+                className="btn" style={{ flex: 1, fontSize: 12.5, textAlign: "center" }}
+                href={linkWhatsApp(textoWhatsApp(enquetesAbertas.map((e) => ({ mes: e.id, prazo: e.prazo }))))}
+                target="_blank" rel="noreferrer"
+              >
+                Abrir WhatsApp
+              </a>
             </div>
 
-            <label className="rot" style={{ marginTop: 16 }}>Respondeu ({respostas.length}/{voluntarios.length})</label>
-            {gruposMinisterio.map(({ ministerio: m, itens }) => (
-              <div key={m.id}>
-                <p className="cap" style={{ padding: "10px 0 2px", color: m.cor }}>{m.nome}</p>
-                {itens.map(({ resposta: r, pessoa }) => (
-                  <LinhaResposta
-                    key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
-                    rotulo={`${m.nome} · ${NIVEL_TXT[pessoa.ministerios?.[m.id]] ?? "sem nível"}`}
-                  />
-                ))}
-              </div>
+            {enquetesAbertas.map((e) => (
+              <CartaoEnquete key={e.id} enquete={e} voluntarios={voluntarios} ministerios={ministerios} eventosPorId={eventosPorId} />
             ))}
-            {semMinisterio.length > 0 && (
-              <div>
-                <p className="cap" style={{ padding: "10px 0 2px" }}>Sem ministério</p>
-                {semMinisterio.map(({ resposta: r, pessoa }) => (
-                  <LinhaResposta key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId} />
-                ))}
-              </div>
-            )}
-
-            {naoResponderam.length > 0 && (
-              <>
-                <label className="rot" style={{ marginTop: 16 }}>Ainda não respondeu ({naoResponderam.length})</label>
-                {naoResponderam.map((p) => (
-                  <div className="linha" key={p.id}>
-                    <Avatar pessoa={p} tamanho={34} fonte={13} />
-                    <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>
-                    <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => lembrar(p)}>Lembrar</button>
-                  </div>
-                ))}
-              </>
-            )}
-
-            <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
-              {aFechar ? "A fechar…" : "Fechar enquete"}
-            </button>
-
-            {!aConfirmarExcluir ? (
-              <button className="btn perigo full" style={{ marginTop: 9 }} onClick={() => setAConfirmarExcluir(true)}>
-                Excluir enquete
-              </button>
-            ) : (
-              <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
-                <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir esta enquete?</p>
-                <p className="ds" style={{ marginTop: 4 }}>
-                  Deixa de contar em qualquer lado — Início, Montar e Escala sugerida — como se não tivesse dados.
-                </p>
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button className="btn perigo" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={excluir}>
-                    {aExcluir ? "A excluir…" : "Excluir"}
-                  </button>
-                  <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={() => setAConfirmarExcluir(false)}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

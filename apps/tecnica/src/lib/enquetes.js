@@ -10,10 +10,15 @@ import { cEnquetes, cRespostasEnquete } from "./modelo";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
-/** A enquete aberta agora, se houver — normalmente só uma de cada vez. */
-export function ouvirEnqueteAberta(cb) {
-  const q = query(cEnquetes(), where("ativo", "==", true), where("estado", "==", "aberta"), orderBy("abertaEm", "desc"), limit(1));
-  return onSnapshot(q, (snap) => cb(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }));
+/** As enquetes abertas agora — normalmente uma, mas o líder pode abrir
+ *  duas de uma vez (ver SheetAbrirEnquete, "também o mês seguinte").
+ *  Vem sempre ordenada por mês (a mais próxima primeiro). */
+export function ouvirEnquetesAbertas(cb) {
+  const q = query(cEnquetes(), where("ativo", "==", true), where("estado", "==", "aberta"), orderBy("abertaEm", "desc"));
+  return onSnapshot(q, (snap) => {
+    const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
+    cb(lista);
+  });
 }
 
 /** Uma enquete excluída conta como se não existisse — nunca é
@@ -63,13 +68,26 @@ export const fecharEnquete = (mes) => chamar("fecharEnquete")({ mes }).then((r) 
 export const excluirEnquete = (mes) => chamar("excluirEnquete")({ mes }).then((r) => r.data);
 export const responderEnquete = (dados) => chamar("responderEnquete")(dados).then((r) => r.data);
 
-/** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre
- *  já com a mensagem escrita, só falta escolher o grupo. */
-export function textoWhatsApp(mes, prazo) {
+const nomeDoMes = (mes) => {
   const [ano, m] = mes.split("-");
-  const nomeMes = new Date(Number(ano), Number(m) - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
-  const prazoTexto = prazo ? new Date(prazo).toLocaleDateString("pt-PT", { day: "numeric", month: "long" }) : "";
-  return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeMes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${prazoTexto}.\n\ntecnica.painelonda.pt 🙏`;
+  return new Date(Number(ano), Number(m) - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
+};
+const dataPorExtensoTexto = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "long" }) : "";
+
+/** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre
+ *  já com a mensagem escrita, só falta escolher o grupo. Recebe uma
+ *  ou duas enquetes ({mes, prazo}) — quando são duas (líder abriu os
+ *  dois meses de uma vez), o texto já avisa que é para os dois. */
+export function textoWhatsApp(enquetes) {
+  const lista = Array.isArray(enquetes) ? enquetes : [enquetes];
+  if (lista.length === 1) {
+    const { mes, prazo } = lista[0];
+    return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeDoMes(mes)}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${dataPorExtensoTexto(prazo)}.\n\ntecnica.painelonda.pt 🙏`;
+  }
+  const nomes = lista.map((e) => nomeDoMes(e.mes)).join(" e ");
+  const prazos = lista.map((e) => `${nomeDoMes(e.mes)}: até ${dataPorExtensoTexto(e.prazo)}`).join("\n");
+  return `Pessoal, já estão abertas as enquetes de indisponibilidade de ${nomes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal — vai pedir os dois meses seguidos.\n\nPrazos:\n${prazos}\n\ntecnica.painelonda.pt 🙏`;
 }
 
 export const linkWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(texto)}`;

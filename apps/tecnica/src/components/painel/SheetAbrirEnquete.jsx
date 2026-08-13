@@ -22,22 +22,22 @@ function proximoMes(mesStr) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
-export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
+/** Os cultos de um mês (para marcar/desmarcar) + o mini-formulário de
+ *  culto especial dele — usado uma vez por mês na folha, para o
+ *  segundo mês (quando o líder liga "também o mês seguinte") ter
+ *  exatamente a mesma capacidade do primeiro. */
+function useCultosDoMes(mes) {
   const torrada = useTorrada();
-  const hoje = new Date();
-  const [mes, setMes] = useState(mesSeguinte(hoje));
-  const [prazo, setPrazo] = useState(`${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}-25`);
   const [eventos, setEventos] = useState([]);
   const [selecionados, setSelecionados] = useState({});
   const [aCarregar, setACarregar] = useState(false);
-  const [aEnviar, setAEnviar] = useState(false);
   const [aAdicionarEspecial, setAAdicionarEspecial] = useState(false);
   const [nomeEspecial, setNomeEspecial] = useState("");
   const [diaEspecial, setDiaEspecial] = useState("");
   const [aCriarEspecial, setACriarEspecial] = useState(false);
-  const [tambemMesSeguinte, setTambemMesSeguinte] = useState(false);
 
   useEffect(() => {
+    if (!mes) { setEventos([]); setSelecionados({}); return; }
     const [ano, m] = mes.split("-").map(Number);
     setACarregar(true);
     obterEventosDoMes(ano, m - 1)
@@ -77,26 +77,74 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
     }
   }
 
+  const domingos = eventos.filter((e) => selecionados[e.id]).map((e) => e.id);
+
+  return {
+    eventos, selecionados, alternar, aCarregar, domingos,
+    aAdicionarEspecial, setAAdicionarEspecial, nomeEspecial, setNomeEspecial,
+    diaEspecial, setDiaEspecial, aCriarEspecial, adicionarEspecial,
+  };
+}
+
+function BlocoCultos({ titulo, c }) {
+  return (
+    <>
+      <label className="rot" style={{ marginTop: 14 }}>{titulo}</label>
+      {c.aCarregar && <div className="vaz">A carregar…</div>}
+      {!c.aCarregar && !c.eventos.length && <div className="vaz">Sem cultos criados para este mês ainda.</div>}
+      {c.eventos.map((ev) => (
+        <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => c.alternar(ev.id)}>
+          <button className={`chk${c.selecionados[ev.id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); c.alternar(ev.id); }}>✓</button>
+          <div style={{ flex: 1 }}>
+            <p className="nmt">{ev.tipo || dataPorExtenso(ev.data)}</p>
+            {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
+          </div>
+        </div>
+      ))}
+
+      {!c.aAdicionarEspecial ? (
+        <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => c.setAAdicionarEspecial(true)}>
+          + Adicionar culto especial
+        </button>
+      ) : (
+        <div className="caixa" style={{ marginTop: 8 }}>
+          <label className="rot">Nome do culto</label>
+          <input className="campo" value={c.nomeEspecial} onChange={(e) => c.setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
+          <label className="rot" style={{ marginTop: 8 }}>Dia do mês</label>
+          <input className="campo" type="number" min="1" max="31" value={c.diaEspecial} onChange={(e) => c.setDiaEspecial(e.target.value)} placeholder="14" />
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={() => c.setAAdicionarEspecial(false)}>Cancelar</button>
+            <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={c.adicionarEspecial}>
+              {c.aCriarEspecial ? "A criar…" : "Criar e adicionar"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
+  const torrada = useTorrada();
+  const hoje = new Date();
+  const [mes, setMes] = useState(mesSeguinte(hoje));
+  const [prazo, setPrazo] = useState(`${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}-25`);
+  const [aEnviar, setAEnviar] = useState(false);
+  const [tambemMesSeguinte, setTambemMesSeguinte] = useState(false);
+
+  const mes2 = tambemMesSeguinte ? proximoMes(mes) : null;
+  const c1 = useCultosDoMes(mes);
+  const c2 = useCultosDoMes(mes2);
+
   async function guardar() {
-    const domingos = eventos.filter((e) => selecionados[e.id]).map((e) => e.id);
-    if (!domingos.length) return torrada("Escolhe pelo menos um culto.");
+    if (!c1.domingos.length) return torrada("Escolhe pelo menos um culto.");
+    if (tambemMesSeguinte && !c2.domingos.length) return torrada("Escolhe pelo menos um culto do mês seguinte também.");
     if (!prazo) return torrada("Falta o prazo.");
     setAEnviar(true);
     try {
-      await abrirEnquete({ mes, prazo, domingos });
-      let mensagem = "Enquete aberta";
-      if (tambemMesSeguinte) {
-        const mes2 = proximoMes(mes);
-        const [ano2, m2] = mes2.split("-").map(Number);
-        const eventos2 = await obterEventosDoMes(ano2, m2 - 1);
-        if (eventos2.length) {
-          await abrirEnquete({ mes: mes2, prazo, domingos: eventos2.map((e) => e.id) });
-          mensagem = "Enquetes de dois meses abertas";
-        } else {
-          torrada(`Sem cultos criados para o mês seguinte ainda — só abri a de ${mes}.`);
-        }
-      }
-      onGuardado(mensagem);
+      await abrirEnquete({ mes, prazo, domingos: c1.domingos });
+      if (tambemMesSeguinte) await abrirEnquete({ mes: mes2, prazo, domingos: c2.domingos });
+      onGuardado(tambemMesSeguinte ? "Enquetes de dois meses abertas" : "Enquete aberta");
     } catch (e) {
       torrada(e.message || "Não foi possível abrir a enquete.");
       setAEnviar(false);
@@ -121,43 +169,14 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
           <button className={`chk${tambemMesSeguinte ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); setTambemMesSeguinte((v) => !v); }}>✓</button>
           <div style={{ flex: 1 }}>
             <p className="nmt">Já abrir também o mês seguinte</p>
-            <p className="ds">Junta todos os cultos dele automaticamente, com o mesmo prazo</p>
+            <p className="ds">O mesmo prazo serve para os dois — a pessoa responde às duas seguidas, 1/2 e 2/2</p>
           </div>
         </div>
 
-        <label className="rot" style={{ marginTop: 14 }}>Cultos deste mês</label>
-        {aCarregar && <div className="vaz">A carregar…</div>}
-        {!aCarregar && !eventos.length && <div className="vaz">Sem cultos criados para este mês ainda.</div>}
-        {eventos.map((ev) => (
-          <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => alternar(ev.id)}>
-            <button className={`chk${selecionados[ev.id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternar(ev.id); }}>✓</button>
-            <div style={{ flex: 1 }}>
-              <p className="nmt">{ev.tipo || dataPorExtenso(ev.data)}</p>
-              {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
-            </div>
-          </div>
-        ))}
+        <BlocoCultos titulo="Cultos deste mês" c={c1} />
+        {tambemMesSeguinte && <BlocoCultos titulo="Cultos do mês seguinte" c={c2} />}
 
-        {!aAdicionarEspecial ? (
-          <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => setAAdicionarEspecial(true)}>
-            + Adicionar culto especial
-          </button>
-        ) : (
-          <div className="caixa" style={{ marginTop: 8 }}>
-            <label className="rot">Nome do culto</label>
-            <input className="campo" value={nomeEspecial} onChange={(e) => setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
-            <label className="rot" style={{ marginTop: 8 }}>Dia do mês</label>
-            <input className="campo" type="number" min="1" max="31" value={diaEspecial} onChange={(e) => setDiaEspecial(e.target.value)} placeholder="14" />
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aCriarEspecial} onClick={() => setAAdicionarEspecial(false)}>Cancelar</button>
-              <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aCriarEspecial} onClick={adicionarEspecial}>
-                {aCriarEspecial ? "A criar…" : "Criar e adicionar"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || aCarregar} onClick={guardar}>
+        <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || c1.aCarregar || (tambemMesSeguinte && c2.aCarregar)} onClick={guardar}>
           {aEnviar ? "A abrir…" : "Abrir enquete"}
         </button>
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>

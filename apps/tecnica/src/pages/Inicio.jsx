@@ -6,7 +6,7 @@ import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEven
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirIndiceWiki } from "../lib/wiki";
-import { ouvirEnqueteAberta, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
@@ -45,8 +45,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [contactoAberto, setContactoAberto] = useState(null);
   const [verChecklistToda, setVerChecklistToda] = useState(false);
   const [wikiItens, setWikiItens] = useState([]);
-  const [enquete, setEnquete] = useState(null);
-  const [minhaResposta, setMinhaResposta] = useState(undefined); // undefined = ainda a carregar
+  const [enquetes, setEnquetes] = useState([]); // 1 ou 2, se o líder abriu dois meses de uma vez
+  const [minhasRespostas, setMinhasRespostas] = useState({}); // { [mes]: resposta | null }
   const [eventosEnquete, setEventosEnquete] = useState({});
   const [aResponderEnquete, setAResponderEnquete] = useState(false);
 
@@ -73,15 +73,21 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
-  useEffect(() => ouvirEnqueteAberta(setEnquete), []);
+  useEffect(() => ouvirEnquetesAbertas(setEnquetes), []);
   useEffect(() => {
-    if (!enquete) { setMinhaResposta(undefined); return; }
-    return ouvirMinhaResposta(enquete.id, uid, setMinhaResposta);
-  }, [enquete, uid]);
+    if (!enquetes.length) { setMinhasRespostas({}); return; }
+    const paragens = enquetes.map((e) =>
+      ouvirMinhaResposta(e.id, uid, (resposta) => setMinhasRespostas((m) => ({ ...m, [e.id]: resposta })))
+    );
+    return () => paragens.forEach((p) => p());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enquetes.map((e) => e.id).join(","), uid]);
   useEffect(() => {
-    if (!enquete?.domingos?.length) { setEventosEnquete({}); return; }
-    obterEventosPorIds(enquete.domingos).then(setEventosEnquete);
-  }, [enquete]);
+    const ids = [...new Set(enquetes.flatMap((e) => e.domingos || []))];
+    if (!ids.length) { setEventosEnquete({}); return; }
+    obterEventosPorIds(ids).then(setEventosEnquete);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enquetes.map((e) => e.id).join(",")]);
 
   useEffect(() => {
     if (!meuEvento) return;
@@ -164,22 +170,24 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   if (!meuEvento) return null;
 
   // fica visível até ao prazo, mesmo depois de responder — para quem
-  // quiser alterar o voto ainda dentro do prazo do líder
+  // quiser alterar o voto ainda dentro do prazo do líder. Se o líder
+  // abriu dois meses de uma vez, as duas contam pra este alerta.
   const hojeISO = new Date().toISOString().slice(0, 10);
-  const enqueteDentroDoPrazo = !!enquete && (!enquete.prazo || hojeISO <= enquete.prazo);
-  const jaRespondeu = !!minhaResposta;
-  const mesEnquete = enquete ? MESES[Number(enquete.id.split("-")[1]) - 1] : "";
+  const enquetesDentroDoPrazo = enquetes.filter((e) => !e.prazo || hojeISO <= e.prazo);
+  const carregandoRespostas = enquetesDentroDoPrazo.some((e) => !(e.id in minhasRespostas));
+  const todasRespondidas = enquetesDentroDoPrazo.length > 0 && enquetesDentroDoPrazo.every((e) => !!minhasRespostas[e.id]);
+  const mesesEnquete = enquetesDentroDoPrazo.map((e) => MESES[Number(e.id.split("-")[1]) - 1]).join(" e ");
 
   return (
     <>
-      {enqueteDentroDoPrazo && minhaResposta !== undefined && (
+      {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti — Escala de {mesEnquete}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti — Escala de {mesesEnquete}</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              {jaRespondeu ? "Já respondeste — queres alterar?" : "Tens alguma indisponibilidade este mês?"}
+              {todasRespondidas ? "Já respondeste — queres alterar?" : "Tens alguma indisponibilidade nesse período?"}
             </p>
-            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Prazo até {dataPorExtenso(enquete.prazo)}</p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Prazo até {dataPorExtenso(enquetesDentroDoPrazo[0].prazo)}</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>
@@ -368,9 +376,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
       </div>
     </div>
-    {aResponderEnquete && enquete && (
+    {aResponderEnquete && enquetesDentroDoPrazo.length > 0 && (
       <SheetResponderEnquete
-        enquete={enquete} eventosPorId={eventosEnquete} minhaResposta={minhaResposta}
+        enquetes={enquetesDentroDoPrazo} eventosPorId={eventosEnquete} minhasRespostas={minhasRespostas}
         onFechar={() => setAResponderEnquete(false)}
         onGuardado={(msg) => { setAResponderEnquete(false); torrada(msg); }}
       />
