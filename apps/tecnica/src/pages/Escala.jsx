@@ -71,15 +71,8 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="lid">
-                    <td className="papel">Líder de culto</td>
-                    {eventosMes.map((ev) => {
-                      const p = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
-                      return <td key={ev.id} className={p?.id === uid ? "mim" : ""}>{p ? p.nome : "por definir"}</td>;
-                    })}
-                  </tr>
                   {ministerios.map((m) => (
-                    <tr key={m.id}>
+                    <tr key={m.id} className={m.ordem === 0 ? "lid" : undefined}>
                       <td className="papel"><span className="quadmin" style={{ background: m.cor }} />{m.nome}</td>
                       {eventosMes.map((ev) => {
                         const lugar = lugarDe(ev, m.id);
@@ -144,7 +137,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                         pessoa={titular}
                         resumo={`${m.nome} · titular${titular.id === uid ? " · tu" : ""}`}
                         corMinisterio={m.cor}
-                        tagExtra={ev.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
                         aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === titular.id}
                         onToggle={() => setContactoAberto((a) =>
                           a?.eventoId === ev.id && a?.pessoaId === titular.id ? null : { eventoId: ev.id, pessoaId: titular.id })}

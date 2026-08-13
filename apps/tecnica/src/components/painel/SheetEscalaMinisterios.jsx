@@ -70,7 +70,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
         <p className="sb2">Titular e aprendiz por ministério · chegada {evento.horaChegada || "08:30"}</p>
 
         <p className="ds" style={{ marginTop: 10 }}>
-          Líder de culto: <b>{liderNome ?? "por definir"}</b> — é quem fica titular do {ministerioResponsavel?.nome ?? "Responsável"} abaixo.
+          Quem lidera este culto é o titular do {ministerioResponsavel?.nome ?? "Responsável"} abaixo: <b>{liderNome ?? "por definir"}</b>.
         </p>
 
         {ministerios.map((m) => {

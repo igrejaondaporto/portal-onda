@@ -1,9 +1,10 @@
 /**
  * Desenha a escala publicada como imagem (canvas puro, sem
  * dependências) — mesmo formato da tabela do menu "Escala": colunas
- * são os domingos, linhas são Líder de culto + cada ministério,
- * titular e "+aprendiz" na mesma célula. O líder exporta e já manda
- * a imagem direto no grupo do WhatsApp, sem digitar nada.
+ * são os domingos, uma linha por ministério (titular e "+aprendiz" na
+ * mesma célula). O Responsável é quem lidera o culto — não tem uma
+ * linha à parte para isso, só a dele mesmo, destacada. O líder
+ * exporta e já manda a imagem direto no grupo do WhatsApp.
  */
 import { chaveSlot } from "./sugestor";
 import { dataCurta } from "@portal/shared/lib/data.js";
@@ -16,7 +17,6 @@ const COR_AZUL = "#0019be";
 
 export function desenharEscalaCanvas({ mesLabel, domingos, ministerios, resultado, voluntarios }) {
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "por definir";
-  const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
 
   const colMinisterio = 150;
   const colDomingo = 168;
@@ -27,8 +27,7 @@ export function desenharEscalaCanvas({ mesLabel, domingos, ministerios, resultad
   const pad = 24;
 
   const largura = pad * 2 + colMinisterio + domingos.length * colDomingo;
-  const nLinhas = 1 + ministerios.length; // líder de culto + cada ministério
-  const altura = cabecalhoAlt + linhaHeaderAlt + nLinhas * linhaAlt + rodapeAlt + pad;
+  const altura = cabecalhoAlt + linhaHeaderAlt + ministerios.length * linhaAlt + rodapeAlt + pad;
 
   const escala = 2; // exporta em 2x pra ficar nítido no telemóvel
   const canvas = document.createElement("canvas");
@@ -79,35 +78,27 @@ export function desenharEscalaCanvas({ mesLabel, domingos, ministerios, resultad
     ctx.stroke();
   }
 
-  // líder de culto
-  ctx.fillStyle = COR_TINTA;
-  ctx.font = "700 13.5px Arial";
-  ctx.fillText("Líder de culto", pad, y + linhaAlt / 2);
-  domingos.forEach((d, i) => {
-    const x = pad + colMinisterio + i * colDomingo;
-    const r = resultado[chaveSlot(d.id, ministerioResponsavel?.id)];
-    ctx.fillStyle = COR_AZUL;
-    ctx.font = "700 13.5px Arial";
-    ctx.fillText(r?.titularId ? nomeDe(r.titularId) : "—", x, y + linhaAlt / 2);
-  });
-  y += linhaAlt;
-  linhaDivisoria(y);
-
-  // um bloco por ministério
+  // um bloco por ministério — o Responsável (ordem 0) é quem lidera
+  // o culto, por isso ganha destaque visual em vez de uma linha à parte
   ministerios.forEach((m) => {
+    const destaque = m.ordem === 0;
+    if (destaque) {
+      ctx.fillStyle = COR_AGUA;
+      ctx.fillRect(0, y, largura, linhaAlt);
+    }
     ctx.fillStyle = m.cor || COR_AZUL;
     ctx.beginPath();
     ctx.arc(pad + 5, y + linhaAlt / 2, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = COR_TINTA;
-    ctx.font = "700 13.5px Arial";
+    ctx.font = `700 ${destaque ? 14.5 : 13.5}px Arial`;
     ctx.fillText(m.nome, pad + 16, y + linhaAlt / 2);
 
     domingos.forEach((d, i) => {
       const x = pad + colMinisterio + i * colDomingo;
       const r = resultado[chaveSlot(d.id, m.id)];
-      ctx.fillStyle = COR_TINTA;
-      ctx.font = "600 13px Arial";
+      ctx.fillStyle = destaque ? COR_AZUL : COR_TINTA;
+      ctx.font = destaque ? "700 13.5px Arial" : "600 13px Arial";
       const titular = r?.titularId ? nomeDe(r.titularId) : "—";
       ctx.fillText(titular, x, y + linhaAlt / 2 - (r?.aprendizId ? 8 : 0));
       if (r?.aprendizId) {

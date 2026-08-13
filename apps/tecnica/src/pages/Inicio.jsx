@@ -135,7 +135,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: sirvo
-        ? [`Chegada ${chegada}`, `Líder de culto · ${liderNome ?? "por definir"}`, meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "Ministério por definir"]
+        ? [`Chegada ${chegada}`, `Responsável · ${liderNome ?? "por definir"}`, meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "Ministério por definir"]
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,7 +233,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </div>
           ) : (
             <div className="convite" onClick={() => setAEditarFrase(true)}>
-              <p className="cap">És o líder de culto de {dataPorExtenso(meuEvento.data)}</p>
+              <p className="cap">És o Responsável de {dataPorExtenso(meuEvento.data)}</p>
               <p style={{ fontSize: 17, fontWeight: 700, marginTop: 7, letterSpacing: "-.03em" }}>Deixa uma palavra à tua equipa</p>
               <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
             </div>
@@ -241,7 +241,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         ) : meuEvento.frase ? (
           <div className="frase">
             <p className="txt">“{meuEvento.frase}”</p>
-            <p className="aut">{liderNome ?? "líder de culto"} · líder de culto de {dataPorExtenso(meuEvento.data)}</p>
+            <p className="aut">{liderNome ?? "Responsável"} · Responsável de {dataPorExtenso(meuEvento.data)}</p>
           </div>
         ) : null}
 
@@ -296,7 +296,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             })()
           ) : (
             <div className="vaz" style={{ border: 0 }}>
-              {sirvo ? "Este ministério ainda não tem checklist." : (liderNome ? `${liderNome} ainda não montou a escala deste domingo.` : "O líder de culto ainda não foi definido.")}
+              {sirvo ? "Este ministério ainda não tem checklist." : (liderNome ? `${liderNome} ainda não montou a escala deste domingo.` : "O Responsável ainda não foi definido.")}
             </div>
           )}
         </div>
@@ -328,7 +328,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                   resumo={`${m.nome}${aprendiz ? ` · com ${aprendiz.nome} em treino` : ""} · ${fe} de ${fs.length} feitas`}
                   corMinisterio={m.cor}
                   funcoesDaPessoa={fs}
-                  tagExtra={meuEvento.escala.liderEscala === titular.id ? <span className="tag lim">Líder de culto</span> : null}
                   aberta={contactoAberto === titular.id}
                   onToggle={() => setContactoAberto((a) => (a === titular.id ? null : titular.id))}
                 />
