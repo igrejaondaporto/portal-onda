@@ -14,6 +14,14 @@ function mesSeguinte(hoje) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
+// "2026-09" → "2026-10" — para quem costuma abrir a enquete de dois
+// em dois meses de uma vez, sem ter de voltar aqui daqui a 15 dias
+function proximoMes(mesStr) {
+  const [ano, m] = mesStr.split("-").map(Number);
+  const d = new Date(ano, m, 1); // m já é 1-based, então isto já é o mês seguinte
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
 export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
   const torrada = useTorrada();
   const hoje = new Date();
@@ -27,6 +35,7 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
   const [nomeEspecial, setNomeEspecial] = useState("");
   const [diaEspecial, setDiaEspecial] = useState("");
   const [aCriarEspecial, setACriarEspecial] = useState(false);
+  const [tambemMesSeguinte, setTambemMesSeguinte] = useState(false);
 
   useEffect(() => {
     const [ano, m] = mes.split("-").map(Number);
@@ -75,7 +84,19 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
     setAEnviar(true);
     try {
       await abrirEnquete({ mes, prazo, domingos });
-      onGuardado("Enquete aberta");
+      let mensagem = "Enquete aberta";
+      if (tambemMesSeguinte) {
+        const mes2 = proximoMes(mes);
+        const [ano2, m2] = mes2.split("-").map(Number);
+        const eventos2 = await obterEventosDoMes(ano2, m2 - 1);
+        if (eventos2.length) {
+          await abrirEnquete({ mes: mes2, prazo, domingos: eventos2.map((e) => e.id) });
+          mensagem = "Enquetes de dois meses abertas";
+        } else {
+          torrada(`Sem cultos criados para o mês seguinte ainda — só abri a de ${mes}.`);
+        }
+      }
+      onGuardado(mensagem);
     } catch (e) {
       torrada(e.message || "Não foi possível abrir a enquete.");
       setAEnviar(false);
@@ -95,6 +116,14 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
 
         <label className="rot">Prazo para responder</label>
         <input className="campo" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+
+        <div className="linha" style={{ cursor: "pointer", marginTop: 8 }} onClick={() => setTambemMesSeguinte((v) => !v)}>
+          <button className={`chk${tambemMesSeguinte ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); setTambemMesSeguinte((v) => !v); }}>✓</button>
+          <div style={{ flex: 1 }}>
+            <p className="nmt">Já abrir também o mês seguinte</p>
+            <p className="ds">Junta todos os cultos dele automaticamente, com o mesmo prazo</p>
+          </div>
+        </div>
 
         <label className="rot" style={{ marginTop: 14 }}>Cultos deste mês</label>
         {aCarregar && <div className="vaz">A carregar…</div>}

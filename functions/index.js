@@ -1130,7 +1130,7 @@ export const abrirEnquete = onCall(async (req) => {
   if (!Array.isArray(domingos) || !domingos.length) throw new HttpsError("invalid-argument", "Falta pelo menos um domingo.");
 
   await refEnquete(baseId, mes).set({
-    estado: "aberta", prazo, domingos,
+    estado: "aberta", prazo, domingos, ativo: true,
     abertaPor: req.auth.uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
   return { mes };
@@ -1147,6 +1147,20 @@ export const fecharEnquete = onCall(async (req) => {
   return { ok: true };
 });
 
+// Nada é apagado, é desativado (ver CLAUDE.md) — uma enquete excluída
+// sai de qualquer listagem/consulta, como se nunca tivesse existido,
+// mas o documento e as respostas continuam no Firestore.
+export const excluirEnquete = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { mes } = req.data || {};
+  if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
+  const ref = refEnquete(baseId, mes);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
 export const responderEnquete = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1157,7 +1171,7 @@ export const responderEnquete = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
   }
   const enquete = await refEnquete(baseId, mes).get();
-  if (!enquete.exists) throw new HttpsError("not-found", "Enquete não encontrada.");
+  if (!enquete.exists || enquete.data().ativo === false) throw new HttpsError("not-found", "Enquete não encontrada.");
   if (enquete.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta enquete já está fechada.");
 
   await refEnquete(baseId, mes).collection("respostas").doc(uid).set({

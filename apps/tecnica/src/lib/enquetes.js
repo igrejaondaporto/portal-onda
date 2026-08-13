@@ -12,12 +12,17 @@ const pad2 = (n) => String(n).padStart(2, "0");
 
 /** A enquete aberta agora, se houver — normalmente só uma de cada vez. */
 export function ouvirEnqueteAberta(cb) {
-  const q = query(cEnquetes(), where("estado", "==", "aberta"), orderBy("abertaEm", "desc"), limit(1));
+  const q = query(cEnquetes(), where("ativo", "==", true), where("estado", "==", "aberta"), orderBy("abertaEm", "desc"), limit(1));
   return onSnapshot(q, (snap) => cb(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }));
 }
 
+/** Uma enquete excluída conta como se não existisse — nunca é
+ *  apagada a valer (ver CLAUDE.md), só fica ativo:false. Docs
+ *  antigos sem o campo `ativo` continuam a contar como ativos. */
 export function ouvirEnquete(mes, cb) {
-  return onSnapshot(doc(db, `bases/${BASE_ID}/enquetes/${mes}`), (s) => cb(s.exists() ? { id: s.id, ...s.data() } : null));
+  return onSnapshot(doc(db, `bases/${BASE_ID}/enquetes/${mes}`), (s) => {
+    cb(s.exists() && s.data().ativo !== false ? { id: s.id, ...s.data() } : null);
+  });
 }
 
 /** Só o líder consegue mesmo ler todas — as regras limitam cada
@@ -48,13 +53,14 @@ export async function obterEventosPorIds(ids) {
 export async function obterMesEnqueteRelevante() {
   const hoje = new Date();
   const piso = `${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}`;
-  const q = query(cEnquetes(), where(documentId(), ">=", piso), orderBy(documentId()), limit(1));
+  const q = query(cEnquetes(), where("ativo", "==", true), where(documentId(), ">=", piso), orderBy(documentId()), limit(1));
   const snap = await getDocs(q);
   return snap.empty ? null : snap.docs[0].id;
 }
 
 export const abrirEnquete = (dados) => chamar("abrirEnquete")(dados).then((r) => r.data);
 export const fecharEnquete = (mes) => chamar("fecharEnquete")({ mes }).then((r) => r.data);
+export const excluirEnquete = (mes) => chamar("excluirEnquete")({ mes }).then((r) => r.data);
 export const responderEnquete = (dados) => chamar("responderEnquete")(dados).then((r) => r.data);
 
 /** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre

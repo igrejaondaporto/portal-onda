@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas } from "../../lib/enquetes";
+import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete } from "../../lib/enquetes";
 import { obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica } from "../../lib/painel";
 import {
   gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
@@ -30,6 +30,8 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
   const [dadosGeracao, setDadosGeracao] = useState(null); // estatisticas + vezesAprendiz, cache p/ regenerar
   const [aPublicar, setAPublicar] = useState(false);
   const [publicado, setPublicado] = useState(false);
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
 
   // por defeito, o mês da enquete em curso (ou a próxima) — só uma
   // vez, ao montar; depois disso o líder escolhe o mês à vontade
@@ -40,7 +42,7 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
 
   useEffect(() => ouvirEnquete(mes, setEnquete), [mes]);
   useEffect(() => {
-    setSugestao(null); setAlertas([]); setPublicado(false);
+    setSugestao(null); setAlertas([]); setPublicado(false); setAConfirmarExcluir(false);
     if (!enquete) { setRespostas([]); return; }
     return ouvirRespostas(mes, setRespostas);
   }, [enquete, mes]);
@@ -138,6 +140,20 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
     }
   }
 
+  async function excluir() {
+    if (!enquete) return;
+    setAExcluir(true);
+    try {
+      await excluirEnquete(enquete.id);
+      torrada("Enquete excluída");
+      setAConfirmarExcluir(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir a enquete.");
+    } finally {
+      setAExcluir(false);
+    }
+  }
+
   return (
     <div className="sect">
       <div className="cabecalho">
@@ -157,6 +173,26 @@ export default function SugestorEscala({ ministerios, voluntarios }) {
         <button className="btn full" style={{ marginTop: 12 }} disabled={aCarregar} onClick={gerar}>
           {aCarregar ? "A gerar…" : "Gerar sugestão"}
         </button>
+      )}
+
+      {enquete && !aConfirmarExcluir && (
+        <button className="btn sec full" style={{ marginTop: 8, color: "var(--magenta)" }} onClick={() => setAConfirmarExcluir(true)}>
+          Excluir a enquete de {mesLabel}
+        </button>
+      )}
+      {enquete && aConfirmarExcluir && (
+        <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 8 }}>
+          <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir a enquete de {mesLabel}?</p>
+          <p className="ds" style={{ marginTop: 4 }}>Deixa de contar em qualquer lado, como se não tivesse dados.</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn perigo" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={excluir}>
+              {aExcluir ? "A excluir…" : "Excluir"}
+            </button>
+            <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={() => setAConfirmarExcluir(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
 
       {sugestao && (

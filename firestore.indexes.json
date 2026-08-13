@@ -70,8 +70,17 @@
       "collectionGroup": "enquetes",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "abertaEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "enquetes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     }
   ],

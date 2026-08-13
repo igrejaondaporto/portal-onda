@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
-import { ouvirEnqueteAberta, ouvirRespostas, obterEventosPorIds, fecharEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnqueteAberta, ouvirRespostas, obterEventosPorIds, fecharEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -58,6 +58,8 @@ export default function Montar({ ativo, definirCabecalho }) {
   const [eventosPorId, setEventosPorId] = useState({});
   const [sheet, setSheet] = useState(null);
   const [aFechar, setAFechar] = useState(false);
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
@@ -105,6 +107,20 @@ export default function Montar({ ativo, definirCabecalho }) {
       torrada(e.message || "Não foi possível fechar a enquete.");
     } finally {
       setAFechar(false);
+    }
+  }
+
+  async function excluir() {
+    if (!enquete) return;
+    setAExcluir(true);
+    try {
+      await excluirEnquete(enquete.id);
+      torrada("Enquete excluída");
+      setAConfirmarExcluir(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir a enquete.");
+    } finally {
+      setAExcluir(false);
     }
   }
 
@@ -201,9 +217,30 @@ export default function Montar({ ativo, definirCabecalho }) {
               </>
             )}
 
-            <button className="btn sec full" style={{ marginTop: 16, color: "var(--magenta)" }} disabled={aFechar} onClick={fechar}>
+            <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
               {aFechar ? "A fechar…" : "Fechar enquete"}
             </button>
+
+            {!aConfirmarExcluir ? (
+              <button className="btn perigo full" style={{ marginTop: 9 }} onClick={() => setAConfirmarExcluir(true)}>
+                Excluir enquete
+              </button>
+            ) : (
+              <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
+                <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir esta enquete?</p>
+                <p className="ds" style={{ marginTop: 4 }}>
+                  Deixa de contar em qualquer lado — Início, Montar e Escala sugerida — como se não tivesse dados.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn perigo" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={excluir}>
+                    {aExcluir ? "A excluir…" : "Excluir"}
+                  </button>
+                  <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={() => setAConfirmarExcluir(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
