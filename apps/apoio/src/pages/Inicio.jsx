@@ -200,7 +200,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         ) : null}
 
-        <div className="blococor">
+        <div className="blococor" data-tour="checklist-bloco">
           <div className="cabecalho">
             <h3>As tuas funções</h3>
             <span className="cap">{dataPorExtenso(meuEvento.data)}</span>
