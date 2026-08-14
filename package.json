@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "seed": "node scripts/seed.mjs",
+    "seed:tour": "node scripts/seedTour.mjs",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules",
     "smoke": "node scripts/smoke-functions.mjs",

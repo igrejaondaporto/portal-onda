@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
+import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
+import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
@@ -38,7 +40,16 @@ const ABAS_BASE = [
  * definirCabecalho — o mesmo padrão do cabeca() do protótipo, só que
  * como estado em vez de mexer direto no DOM.
  */
-export default function Sessao({ uid, papel, baseId }) {
+/** Ponte pequena e local: MenuEu precisa de "Rever tour", mas
+ *  `useReverTour` só funciona dentro de `TourProvider` — e é o
+ *  próprio `Sessao` que o instancia, por isso não pode chamar o hook
+ *  no corpo dele. */
+function MenuComTour({ baseId, papel, irPara, ...props }) {
+  const reverTour = useReverTour(baseId, papel, irPara);
+  return <MenuEu {...props} onAbrirTour={reverTour} />;
+}
+
+export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [basesDisponiveis, setBasesDisponiveis] = useState([]); // outras bases em que a pessoa serve
   const [menuAberto, setMenuAberto] = useState(false);
@@ -115,6 +126,9 @@ export default function Sessao({ uid, papel, baseId }) {
 
   return (
     <TorradaProvider>
+    <TourProvider>
+      <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
+      <Tour />
       <div className="app">
         <AvisoOffline />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
@@ -212,9 +226,9 @@ export default function Sessao({ uid, papel, baseId }) {
       </div>
       <NavBar pagina={pagina} onIr={irPara} itens={ABAS} />
       {menuAberto && (
-        <MenuEu
+        <MenuComTour
+          baseId={baseId} papel={papel} irPara={irPara}
           pessoa={pessoa}
-          papel={papel}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
@@ -222,6 +236,7 @@ export default function Sessao({ uid, papel, baseId }) {
           onAbrirPerfil={() => irPara("perfil")}
         />
       )}
+    </TourProvider>
     </TorradaProvider>
   );
 }

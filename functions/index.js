@@ -458,6 +458,19 @@ export const trocarBase = onCall(async (req) => {
   return { token };
 });
 
+/** Marca o tour de primeiro login como visto, só para a base do token
+ *  de quem chama — nunca uma base recebida do cliente, para não dar
+ *  para marcar tour visto de uma base a que a pessoa não pertence.
+ *  pessoas/{uid} é global e write:false nas regras, por isso esta
+ *  gravação só pode passar por aqui. */
+export const marcarTourVisto = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  await refGlobal(uid).set({ tourVisto: { [baseId]: true } }, { merge: true });
+  return { ok: true };
+});
+
 /** Confirma que quem chama é líder da base ou líder de escala do culto.
  *  Devolve a escala (já lida) para quem precisar dela a seguir. */
 async function exigeLiderDoCulto(req, eventoId) {

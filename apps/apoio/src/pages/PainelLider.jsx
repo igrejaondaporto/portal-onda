@@ -117,7 +117,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
 
       <div className="duas">
         <div>
-          <div className="sect">
+          <div className="sect" data-tour="painel-escala-bloco">
             <div className="cabecalho">
               <h3>Escala de {MESES[mes]} {ano}</h3>
               <span className="calnav">

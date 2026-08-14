@@ -298,7 +298,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       </div>
 
       <div>
-        <div className="sect">
+        <div className="sect" data-tour="escala-bloco">
           <div className="cabecalho"><h3>Calendário</h3></div>
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}

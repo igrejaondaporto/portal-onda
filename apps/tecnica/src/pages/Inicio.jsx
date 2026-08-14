@@ -181,7 +181,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   return (
     <>
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
-        <div className="destaque" onClick={() => setAResponderEnquete(true)}>
+        <div className="destaque" data-tour="cartao-enquete" onClick={() => setAResponderEnquete(true)}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti — Escala de {mesesEnquete}</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
@@ -303,7 +303,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       </div>
 
       <div>
-        <div className="sect">
+        <div className="sect" data-tour="escala-bloco">
           <div className="cabecalho"><h3>Calendário</h3></div>
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}
