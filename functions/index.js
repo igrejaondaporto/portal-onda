@@ -343,7 +343,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -365,6 +365,13 @@ export const editarVoluntario = onCall(async (req) => {
   // ministerios: { audio: "titular"|"aprendiz", ... } — só bases com
   // ministérios enviam isto; nas outras o campo nunca aparece.
   if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
+  // o próprio já muda a sua foto por escrita direta (firestore.rules
+  // permite ao dono); isto é só o líder a mudar a foto de outra
+  // pessoa — o upload em si já passou pelo Storage antes de chegar
+  // aqui (storage.rules já deixa o líder da base subir a foto de
+  // qualquer pessoa da base). `null` remove a foto de propósito;
+  // `undefined` (campo nem enviado) é que significa "não mexer".
+  if (foto !== undefined) dados.foto = foto;
   await ref.set(dados, { merge: true });
   return { ok: true };
 });

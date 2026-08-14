@@ -1,17 +1,39 @@
-import { useState } from "react";
-import { criarVoluntario, editarVoluntario, reporPin } from "../../lib/painel";
+import { useRef, useState } from "react";
+import { criarVoluntario, editarVoluntario, enviarFotoVoluntario, reporPin } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
+
+const TAMANHO_MAX_FOTO = 6 * 1024 * 1024;
 
 export default function SheetPessoa({
   pessoa, onFechar, onGuardado, onRemover,
   pessoaExistente, onDesligarPessoa,
 }) {
   const torrada = useTorrada();
+  const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
+  const [foto, setFoto] = useState(pessoa?.foto ?? null);
+  const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
+
+  async function escolherFoto(e) {
+    const ficheiro = e.target.files[0];
+    e.target.value = "";
+    if (!ficheiro || !pessoa) return;
+    if (!ficheiro.type.startsWith("image/")) return torrada("Tem de ser uma imagem.");
+    if (ficheiro.size >= TAMANHO_MAX_FOTO) return torrada("A imagem tem de ter menos de 6 MB.");
+    setAEnviarFoto(true);
+    try {
+      const url = await enviarFotoVoluntario(pessoa.id, ficheiro);
+      setFoto(url);
+    } catch (e2) {
+      torrada(e2.message || "Não foi possível enviar a foto.");
+    } finally {
+      setAEnviarFoto(false);
+    }
+  }
 
   async function guardar() {
     const n = nome.trim();
@@ -19,7 +41,7 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto });
         onGuardado("Voluntário atualizado");
       } else {
         const dados = { nome: n, telefone: telefone.trim(), papel };
@@ -48,6 +70,28 @@ export default function SheetPessoa({
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{pessoa ? "Editar voluntário" : "Novo voluntário"}</h2>
+
+        {pessoa && (
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <div
+              className="perfilav"
+              style={foto ? { backgroundImage: `url(${foto})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: pessoa.cor || "#0019BE" }}
+            >
+              {foto ? "" : pessoa.nome?.[0]}
+            </div>
+            <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
+            <div style={{ marginTop: 10 }}>
+              <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
+                {aEnviarFoto ? "A enviar…" : foto ? "Trocar foto" : "Juntar foto"}
+              </button>
+              {foto && (
+                <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, marginLeft: 8 }} onClick={() => setFoto(null)}>
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {!pessoa && pessoaExistente && (
           <div className="caixa" style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
