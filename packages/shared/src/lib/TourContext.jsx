@@ -74,16 +74,19 @@ export const useTour = () => useContext(Ctx);
 export function TourAutoStart({ baseId, papel, mostrarTourAoEntrar, irPara }) {
   const { iniciarTour } = useTour();
   useEffect(() => {
-    if (!mostrarTourAoEntrar) return;
+    // pré-carrega sempre, mesmo quando não vai disparar sozinho — é
+    // a mesma leitura (em cache, ver tour.js) que "Rever tour" usa
+    // mais tarde; assim, quem já viu o tour antes não espera pela
+    // rede a primeira vez que abrir "Rever tour" no menu.
     let cancelado = false;
     obterConfigTour(baseId).then((config) => {
-      if (cancelado) return;
+      if (cancelado || !mostrarTourAoEntrar) return;
       const passos = composicaoPassos(config, papel);
       if (passos.length) iniciarTour(passos, { irPara, marcarAoConcluir: true });
     });
     return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mostrarTourAoEntrar]);
+  }, [baseId]);
   return null;
 }
 

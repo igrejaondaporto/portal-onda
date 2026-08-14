@@ -96,12 +96,11 @@ const TOURS = {
   tecnica: {
     // Ordem pensada pra nunca esperar: os botões do menu (NavBar, fixo
     // no rodapé) não dependem de nenhum dado da Firestore, aparecem
-    // sempre na hora — vêm primeiro. Indisponibilidade/checklist/
-    // calendário só existem depois dos dados carregarem em
-    // Inicio.jsx (e a indisponibilidade só aparece mesmo se houver
-    // enquete aberta); ficam por último, quando esse tempo já passou
-    // de sobra — e nessa ordem (é como aparecem na página, de cima
-    // pra baixo) é um scroll só, sempre pra baixo, sem voltar atrás.
+    // sempre na hora — vêm primeiro. Checklist/calendário só existem
+    // depois dos dados carregarem em Inicio.jsx; ficam por último,
+    // quando esse tempo já passou de sobra — e nessa ordem (é como
+    // aparecem na página, de cima pra baixo) é um scroll só, sempre
+    // pra baixo, sem voltar atrás.
     passos: [
       {
         chave: "boasvindas",
@@ -132,12 +131,6 @@ const TOURS = {
         titulo: "Wiki",
         texto: "Na Wiki ficam artigos e respostas às dúvidas do teu ministério.",
         alvo: "nav-wiki", pagina: "inicio",
-      },
-      {
-        chave: "indisponibilidade",
-        titulo: "Indisponibilidade",
-        texto: "Não podes servir nalgum domingo? Avisa por aqui.",
-        alvo: "cartao-enquete", pagina: "inicio",
       },
       {
         chave: "checklist",
