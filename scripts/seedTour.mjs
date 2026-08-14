@@ -25,30 +25,20 @@ const TOURS = {
     // a Apoio não tem tela de indisponibilidade (sem confirmação de
     // presença, avisa por WhatsApp — CLAUDE.md da Apoio) nem fluxo de
     // "gerar sugestão + publicar" no Painel — o líder atribui pessoa a
-    // pessoa, culto a culto. Ordem pensada pra minimizar scroll: a
-    // checklist fica ACIMA do calendário na página (colunas da Início
-    // empilham no telemóvel), por isso vem logo a seguir às
-    // boas-vindas, antes do calendário — depois disso os passos do
-    // menu (NavBar, fixo no rodapé) não fazem scroll nenhum, então vêm
-    // por último, sem precisar voltar lá acima outra vez.
+    // pessoa, culto a culto. Ordem pensada pra nunca esperar: os
+    // botões do menu (NavBar, fixo no rodapé) não dependem de nenhum
+    // dado da Firestore, aparecem sempre na hora — vêm primeiro. A
+    // checklist e o calendário só existem depois de `meuEvento`
+    // carregar em Inicio.jsx; ficam por último, quando esse tempo já
+    // passou de sobra (o utilizador já tocou em 4 botões antes) — e
+    // nessa ordem (checklist antes do calendário, que é como aparecem
+    // na página) é um scroll só, sempre pra baixo, sem voltar atrás.
     passos: [
       {
         chave: "boasvindas",
         titulo: "Bem-vindo ao Painel do Voluntário",
         texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
-      },
-      {
-        chave: "checklist",
-        titulo: "A tua checklist",
-        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
-        alvo: "checklist-bloco", pagina: "inicio",
-      },
-      {
-        chave: "escala",
-        titulo: "A tua escala",
-        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
-        alvo: "escala-bloco", pagina: "inicio",
       },
       {
         chave: "nav-escala",
@@ -75,6 +65,18 @@ const TOURS = {
         alvo: "nav-inventario", pagina: "inicio",
       },
       {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
         chave: "fechamento",
         titulo: "Pronto a servir",
         texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
@@ -92,34 +94,20 @@ const TOURS = {
   },
 
   tecnica: {
-    // Ordem pensada pra minimizar scroll: na página Início, de cima pra
-    // baixo, é cartão de enquete → checklist → calendário — por isso
-    // o tour segue essa mesma ordem antes de entrar nos passos do menu
-    // (NavBar, fixo no rodapé, sem scroll nenhum), que ficam por último.
+    // Ordem pensada pra nunca esperar: os botões do menu (NavBar, fixo
+    // no rodapé) não dependem de nenhum dado da Firestore, aparecem
+    // sempre na hora — vêm primeiro. Indisponibilidade/checklist/
+    // calendário só existem depois dos dados carregarem em
+    // Inicio.jsx (e a indisponibilidade só aparece mesmo se houver
+    // enquete aberta); ficam por último, quando esse tempo já passou
+    // de sobra — e nessa ordem (é como aparecem na página, de cima
+    // pra baixo) é um scroll só, sempre pra baixo, sem voltar atrás.
     passos: [
       {
         chave: "boasvindas",
         titulo: "Bem-vindo ao Painel do Voluntário",
         texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
-      },
-      {
-        chave: "indisponibilidade",
-        titulo: "Indisponibilidade",
-        texto: "Não podes servir nalgum domingo? Avisa por aqui.",
-        alvo: "cartao-enquete", pagina: "inicio",
-      },
-      {
-        chave: "checklist",
-        titulo: "A tua checklist",
-        texto: "Aqui ficam as tarefas do teu ministério para hoje — toca para marcares como feita.",
-        alvo: "checklist-bloco", pagina: "inicio",
-      },
-      {
-        chave: "escala",
-        titulo: "A tua escala",
-        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
-        alvo: "escala-bloco", pagina: "inicio",
       },
       {
         chave: "nav-escala",
@@ -144,6 +132,24 @@ const TOURS = {
         titulo: "Wiki",
         texto: "Na Wiki ficam artigos e respostas às dúvidas do teu ministério.",
         alvo: "nav-wiki", pagina: "inicio",
+      },
+      {
+        chave: "indisponibilidade",
+        titulo: "Indisponibilidade",
+        texto: "Não podes servir nalgum domingo? Avisa por aqui.",
+        alvo: "cartao-enquete", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui ficam as tarefas do teu ministério para hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
       },
       {
         chave: "fechamento",
