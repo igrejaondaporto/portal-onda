@@ -238,7 +238,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
         <div className="vaz" style={{ marginTop: 10 }}>A enquete de {mesLabel} ainda está aberta — fecha-a para gerar a escala.</div>
       )}
       {enquete && enquete.estado === "fechada" && !sugestao && (
-        <button className="btn full" style={{ marginTop: 12 }} disabled={aCarregar} onClick={gerar}>
+        <button className="btn full" data-tour="montar-gerar" style={{ marginTop: 12 }} disabled={aCarregar} onClick={gerar}>
           {aCarregar ? "A gerar…" : "Gerar sugestão"}
         </button>
       )}
@@ -386,7 +386,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
             <button className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aCarregar} onClick={regenerar}>
               Regenerar
             </button>
-            <button className="btn" style={{ flex: 1, fontSize: 13 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(true)}>
+            <button className="btn" data-tour="montar-publicar" style={{ flex: 1, fontSize: 13 }} disabled={aPublicar} onClick={() => setAConfirmarPublicar(true)}>
               {aPublicar ? "A publicar…" : "Publicar escala"}
             </button>
           </div>

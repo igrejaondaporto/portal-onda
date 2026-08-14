@@ -34,7 +34,7 @@ export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO }) {
   return (
     <nav className="navb on" style={{ gridTemplateColumns: `repeat(${itens.length}, 1fr)` }}>
       {itens.map(([k, t, svg]) => (
-        <button key={k} data-on={pagina === k ? 1 : 0} onClick={() => onIr(k)}>
+        <button key={k} data-on={pagina === k ? 1 : 0} data-tour={`nav-${k}`} onClick={() => onIr(k)}>
           <Icone chave={k} svg={svg} />
           {t}
         </button>

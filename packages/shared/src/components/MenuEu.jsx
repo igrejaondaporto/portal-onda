@@ -3,7 +3,7 @@ import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 
-export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil }) {
+export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour }) {
   const lider = papel === "lider_base";
   const [expandida, setExpandida] = useState(false);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
@@ -52,6 +52,14 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
+          </button>
+        )}
+        {onAbrirTour && (
+          <button
+            className="btn sec full" style={{ marginTop: 9 }}
+            onClick={() => { onFechar(); onAbrirTour(); }}
+          >
+            Rever tour
           </button>
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={sair}>

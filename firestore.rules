@@ -119,6 +119,14 @@ service cloud.firestore {
         }
       }
 
+      // ── tour de primeiro login: conteúdo dos passos, por base.
+      // Muda raramente (escrito por script, não pelo líder) — lido só
+      // sob demanda (getDoc pontual), nunca com onSnapshot. ──
+      match /tour/{doc} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só pelo script de seed
+      }
+
       // ── reembolsos ───────────────────────────────────────
       match /reembolsos/{r} {
         allow read:   if souLiderBase(base) || resource.data.pessoaId == request.auth.uid;
