@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
@@ -16,11 +16,20 @@ export const app = initializeApp({
 export const auth = getAuth(app);
 // cache local persistente: quem chega às 08:00 de domingo sem rede na
 // Casa do Povo continua a ver e a marcar o checklist — sincroniza
-// sozinho quando a rede volta. O tab manager evita que duas abas/telemóveis
-// com a mesma conta partam a cache uma da outra.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-});
+// sozinho quando a rede volta. Single-tab (não multiple-tab): duas abas
+// da mesma conta não corrompem a cache uma da outra na mesma (a segunda
+// cai sozinha para memória), mas sem a negociação de "aba principal"
+// entre abas — essa negociação depende de escrever e ler o IndexedDB
+// com sucesso nas duas pontas, e em navegação privada (sobretudo Safari
+// no iOS) isso pode nunca resolver, travando a app inteira sem erro
+// visível nenhum (nenhum pedido ao Firestore chega a responder). Sem
+// IndexedDB disponível, nem tenta — cache em memória direto (sem
+// offline, mas nunca trava).
+export const db = typeof indexedDB === "undefined"
+  ? initializeFirestore(app, { localCache: memoryLocalCache() })
+  : initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
+    });
 export const storage = getStorage(app);
 // tem de bater certo com o setGlobalOptions das functions
 export const fns = getFunctions(app, "europe-west1");
