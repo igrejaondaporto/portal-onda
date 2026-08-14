@@ -25,15 +25,24 @@ const TOURS = {
     // a Apoio não tem tela de indisponibilidade (sem confirmação de
     // presença, avisa por WhatsApp — CLAUDE.md da Apoio) nem fluxo de
     // "gerar sugestão + publicar" no Painel — o líder atribui pessoa a
-    // pessoa, culto a culto. Depois do calendário, o tour passa por
-    // cada botão do menu (NavBar já marca todos com data-tour="nav-
-    // <chave>") antes de mostrar a checklist do dia e fechar.
+    // pessoa, culto a culto. Ordem pensada pra minimizar scroll: a
+    // checklist fica ACIMA do calendário na página (colunas da Início
+    // empilham no telemóvel), por isso vem logo a seguir às
+    // boas-vindas, antes do calendário — depois disso os passos do
+    // menu (NavBar, fixo no rodapé) não fazem scroll nenhum, então vêm
+    // por último, sem precisar voltar lá acima outra vez.
     passos: [
       {
         chave: "boasvindas",
         titulo: "Bem-vindo ao Painel do Voluntário",
         texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
       },
       {
         chave: "escala",
@@ -66,12 +75,6 @@ const TOURS = {
         alvo: "nav-inventario", pagina: "inicio",
       },
       {
-        chave: "checklist",
-        titulo: "A tua checklist",
-        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
-        alvo: "checklist-bloco", pagina: "inicio",
-      },
-      {
         chave: "fechamento",
         titulo: "Pronto a servir",
         texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
@@ -89,12 +92,28 @@ const TOURS = {
   },
 
   tecnica: {
+    // Ordem pensada pra minimizar scroll: na página Início, de cima pra
+    // baixo, é cartão de enquete → checklist → calendário — por isso
+    // o tour segue essa mesma ordem antes de entrar nos passos do menu
+    // (NavBar, fixo no rodapé, sem scroll nenhum), que ficam por último.
     passos: [
       {
         chave: "boasvindas",
         titulo: "Bem-vindo ao Painel do Voluntário",
         texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
+      },
+      {
+        chave: "indisponibilidade",
+        titulo: "Indisponibilidade",
+        texto: "Não podes servir nalgum domingo? Avisa por aqui.",
+        alvo: "cartao-enquete", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui ficam as tarefas do teu ministério para hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
       },
       {
         chave: "escala",
@@ -125,18 +144,6 @@ const TOURS = {
         titulo: "Wiki",
         texto: "Na Wiki ficam artigos e respostas às dúvidas do teu ministério.",
         alvo: "nav-wiki", pagina: "inicio",
-      },
-      {
-        chave: "indisponibilidade",
-        titulo: "Indisponibilidade",
-        texto: "Não podes servir nalgum domingo? Avisa por aqui.",
-        alvo: "cartao-enquete", pagina: "inicio",
-      },
-      {
-        chave: "checklist",
-        titulo: "A tua checklist",
-        texto: "Aqui ficam as tarefas do teu ministério para hoje — toca para marcares como feita.",
-        alvo: "checklist-bloco", pagina: "inicio",
       },
       {
         chave: "fechamento",
