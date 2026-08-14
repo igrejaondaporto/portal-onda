@@ -29,7 +29,7 @@ import Perfil from "./Perfil";
  *  no corpo dele. */
 function MenuComTour({ baseId, papel, irPara, ...props }) {
   const reverTour = useReverTour(baseId, papel, irPara);
-  return <MenuEu {...props} onAbrirTour={reverTour} />;
+  return <MenuEu {...props} papel={papel} onAbrirTour={reverTour} />;
 }
 
 export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
