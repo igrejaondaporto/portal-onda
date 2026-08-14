@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos } from "../lib/painel";
+import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -16,6 +16,7 @@ import SheetFuncao from "../components/painel/SheetFuncao";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
+import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 
 export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
@@ -288,6 +289,16 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
           voluntarios={voluntarios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
+          onExcluir={(eventoId) => setSheet({ tipo: "excluirCulto", eventoId })}
+        />
+      )}
+      {sheet?.tipo === "excluirCulto" && (
+        <SheetExcluirCulto
+          evento={eventosMes.find((e) => e.id === sheet.eventoId)}
+          excluir={excluirCultoEspecial}
+          onFechar={() => setSheet(null)}
+          onVoltar={(eventoId) => setSheet({ tipo: "escala", eventoId })}
+          onExcluido={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "novoCulto" && (
