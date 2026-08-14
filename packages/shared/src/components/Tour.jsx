@@ -66,7 +66,7 @@ export default function Tour() {
 
   return (
     <>
-      <div className="tour-veu" onClick={pular}>
+      <div className="tour-veu">
         {posicao.modo === "alvo" && (
           <div
             className="tour-realce"
