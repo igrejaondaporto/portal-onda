@@ -255,7 +255,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         )}
 
-        <div className="blococor">
+        <div className="blococor" data-tour="checklist-bloco">
           <div className="cabecalho">
             <h3>{meusLugaresHoje.length ? nomeMinisterio(meusLugaresHoje[0].ministerioId) : "As tuas funções"}</h3>
             <span className="cap">{minhas.filter((f) => checklist[f.id]).length}/{minhas.length}</span>

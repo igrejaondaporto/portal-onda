@@ -25,25 +25,51 @@ const TOURS = {
     // a Apoio não tem tela de indisponibilidade (sem confirmação de
     // presença, avisa por WhatsApp — CLAUDE.md da Apoio) nem fluxo de
     // "gerar sugestão + publicar" no Painel — o líder atribui pessoa a
-    // pessoa, culto a culto. Por isso o tour fica mais curto.
+    // pessoa, culto a culto. Depois do calendário, o tour passa por
+    // cada botão do menu (NavBar já marca todos com data-tour="nav-
+    // <chave>") antes de mostrar a checklist do dia e fechar.
     passos: [
       {
         chave: "boasvindas",
-        titulo: "Bem-vindo à Onda",
-        texto: "Este é o teu painel. Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
       },
       {
         chave: "escala",
         titulo: "A tua escala",
-        texto: "Estas são as tuas datas do mês.",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
         alvo: "escala-bloco", pagina: "inicio",
       },
       {
-        chave: "culto",
-        titulo: "A aba Culto",
-        texto: "A ordem do culto fica sempre aqui, atualizada.",
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — todos os cultos e quem serve em cada um.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-funcoes",
+        titulo: "Funções",
+        texto: "Em Funções vês a descrição de cada tarefa — o que fazer em cada uma.",
+        alvo: "nav-funcoes", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "A ordem do culto fica sempre em Culto, atualizada.",
         alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-inventario",
+        titulo: "Inventário",
+        texto: "Em Inventário aumentas ou diminuis a quantidade de um item sempre que algo acabar ou chegar novo.",
+        alvo: "nav-inventario", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
       },
       {
         chave: "fechamento",
@@ -66,27 +92,51 @@ const TOURS = {
     passos: [
       {
         chave: "boasvindas",
-        titulo: "Bem-vindo à Onda",
-        texto: "Este é o teu painel. Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
         alvo: null, pagina: null,
       },
       {
         chave: "escala",
         titulo: "A tua escala",
-        texto: "Estas são as tuas datas do mês.",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
         alvo: "escala-bloco", pagina: "inicio",
       },
       {
-        chave: "culto",
-        titulo: "A aba Culto",
-        texto: "A ordem do culto fica sempre aqui, atualizada.",
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — todos os cultos e quem serve em cada um.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "A ordem do culto fica sempre em Culto, atualizada.",
         alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-inventario",
+        titulo: "Equipamentos",
+        texto: "Em Equipamentos vês o estado de cada equipamento e reportas quando algo avaria.",
+        alvo: "nav-inventario", pagina: "inicio",
+      },
+      {
+        chave: "nav-wiki",
+        titulo: "Wiki",
+        texto: "Na Wiki ficam artigos e respostas às dúvidas do teu ministério.",
+        alvo: "nav-wiki", pagina: "inicio",
       },
       {
         chave: "indisponibilidade",
         titulo: "Indisponibilidade",
         texto: "Não podes servir nalgum domingo? Avisa por aqui.",
         alvo: "cartao-enquete", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui ficam as tarefas do teu ministério para hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
       },
       {
         chave: "fechamento",
