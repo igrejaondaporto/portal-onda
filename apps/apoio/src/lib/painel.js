@@ -33,6 +33,17 @@ export function ouvirVoluntarios(cb) {
 
 export const criarVoluntario = (dados) => chamar("criarVoluntario")(dados).then((r) => r.data);
 export const editarVoluntario = (dados) => chamar("editarVoluntario")(dados).then((r) => r.data);
+
+/** O líder muda a foto de outra pessoa da base — o próprio já muda a
+ *  sua (Perfil → enviarFotoPerfil). Só sobe ao Storage (permitido ao
+ *  líder pela storage.rules); quem chama grava a URL no Firestore via
+ *  editarVoluntario, junto com o resto do formulário. */
+export async function enviarFotoVoluntario(pessoaId, ficheiro) {
+  const comprimida = await comprimirImagem(ficheiro);
+  const destino = refStorage(storage, `bases/${BASE_ID}/pessoas/${pessoaId}`);
+  await uploadBytes(destino, comprimida, { contentType: comprimida.type });
+  return getDownloadURL(destino);
+}
 export const removerVoluntario = (pessoaId) => chamar("removerVoluntario")({ pessoaId }).then((r) => r.data);
 export const reporPin = (pessoaId) => chamar("reporPin")({ pessoaId }).then((r) => r.data);
 export const reporTodosPins = () => chamar("reporTodosPins")({}).then((r) => r.data);
