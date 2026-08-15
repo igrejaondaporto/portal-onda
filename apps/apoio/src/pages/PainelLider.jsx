@@ -3,7 +3,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
-import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
+import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
@@ -138,7 +138,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                 >
                   <div style={{ flex: 1 }}>
                     <p className="nmt">
-                      {ev.tipo || dataPorExtenso(ev.data)}
+                      {nomeEvento(ev)}
                       {ev.tipo && <span className="tag esp">especial</span>}
                     </p>
                     <p className="ds">
@@ -234,7 +234,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                 <div className="cabecalho" style={{ marginTop: 24 }}><h3>Só em cultos específicos</h3></div>
                 {Object.entries(especiaisPorEvento).map(([eventoId, fs]) => {
                   const ev = eventosRef[eventoId];
-                  const rotulo = ev ? (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data)) : eventoId;
+                  const rotulo = ev ? nomeEvento(ev) : eventoId;
                   return (
                     <div key={eventoId}>
                       <p className="cap" style={{ padding: "14px 0 4px" }}>{rotulo} · {fs.length}</p>
