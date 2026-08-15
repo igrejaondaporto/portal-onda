@@ -7,7 +7,7 @@ import {
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
 } from "../lib/painel";
 import { ouvirIndiceWiki } from "../lib/wiki";
-import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
+import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
@@ -161,7 +161,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
                 >
                   <div style={{ flex: 1 }}>
                     <p className="nmt">
-                      {ev.tipo || dataPorExtenso(ev.data)}
+                      {nomeEvento(ev)}
                       {ev.tipo && <span className="tag esp">especial</span>}
                     </p>
                     <p className="ds">
@@ -316,7 +316,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
                   const fs = filtroChecklist ? todasFs.filter((f) => f.ministerioId === filtroChecklist) : todasFs;
                   if (!fs.length) return null;
                   const ev = eventosRef[eventoId];
-                  const rotulo = ev ? (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data)) : eventoId;
+                  const rotulo = ev ? nomeEvento(ev) : eventoId;
                   return (
                     <div key={eventoId}>
                       <p className="cap" style={{ padding: "14px 0 4px" }}>{rotulo} · {fs.length}</p>

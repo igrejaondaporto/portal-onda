@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { guardarEscalaTecnica } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { nomeEvento } from "@portal/shared/lib/data.js";
 
 /** Um titular + um aprendiz opcional por ministério. Guarda tudo de
  *  uma vez (ao contrário da Apoio, que grava a cada toque) porque há
@@ -66,7 +66,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
       <div className="veu on" onClick={onFechar} />
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
-        <h2>{evento.tipo || dataPorExtenso(evento.data)}</h2>
+        <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">Titular e aprendiz por ministério · chegada {evento.horaChegada || "08:30"}</p>
 
         <p className="ds" style={{ marginTop: 10 }}>
