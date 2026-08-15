@@ -1,0 +1,32 @@
+# Não publica nada. Só lê o código e diz se rebenta.
+#
+# Existe porque o `vite build` passa verde com um hook fora de sítio —
+# foi assim que a 15/08/2026 um `useMemo` abaixo de um `return null`
+# deixou a Base Técnica em ecrã branco em produção. A regra
+# `react-hooks/rules-of-hooks` apanha exatamente esse caso, e aqui
+# apanha-o antes do merge em vez de depois do deploy.
+#
+# Cuidado ao mexer: este ficheiro é `.github/workflows/`, território
+# partilhado. Mas é um workflow à parte — não toca nos caminhos que
+# disparam o `firebase.yml` (`functions/**`, `*.rules`,
+# `firestore.indexes.json`), por isso nada aqui publica em produção.
+name: Lint
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - run: npm ci
+
+      # Sai com 1 nos erros (rules-of-hooks e companhia) e com 0 nos
+      # avisos — o que já lá estava e não parte a app não bloqueia o PR
+      # de ninguém.
+      - run: npm run lint
