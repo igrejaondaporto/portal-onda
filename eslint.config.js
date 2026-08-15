@@ -69,13 +69,15 @@ export default [
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
 
-      // Aviso enquanto sobrarem os antigos (ver a tabela no PR):
-      // limpá-los é um PR por base, e nenhum deles parte nada. Passa a
-      // erro quando as duas apps estiverem a zero.
+      // As duas apps estão a zero (PR #29 na Técnica, #31 na Apoio),
+      // por isso deixa de ser aviso: daqui para a frente um import
+      // esquecido trava o PR em vez de se acumular. Importa
+      // sobretudo para uma base nova — nasce copiada de uma destas, e
+      // é assim que não herda lixo desde o primeiro dia.
       //   ignoreRestSiblings: `const { _k, ...m } = momento` é como se
       //   tira a chave da lista antes de gravar — o `_k` existe para
       //   ficar de fora, não é esquecimento (ver SheetRevisaoOrdem).
-      "no-unused-vars": ["warn", {
+      "no-unused-vars": ["error", {
         ignoreRestSiblings: true,
         argsIgnorePattern: "^_",
         varsIgnorePattern: "^_",
@@ -98,7 +100,18 @@ export default [
     },
     rules: {
       ...js.configs.recommended.rules,
-      "no-unused-vars": "off",
+
+      // Aviso, não erro, ao contrário do frontend: falta uma
+      // ocorrência (`cMelhorias` em `functions/index.js`), e esse
+      // ficheiro **faz deploy sozinho ao entrar na `main`**. Um import
+      // por limpar não justifica arrastar um deploy de backend por
+      // arrasto — vai em PR próprio, com o smoke a seguir, e aí isto
+      // passa a erro como o resto.
+      "no-unused-vars": ["warn", {
+        ignoreRestSiblings: true,
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+      }],
 
       // `try { ... } catch {}` a sondar se uma ref existe é
       // deliberado no `verificar-isolamento.mjs` — ignorar a falha é
