@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
@@ -172,6 +172,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // fica visível até ao prazo, mesmo depois de responder — para quem
   // quiser alterar o voto ainda dentro do prazo do líder. Se o líder
   // abriu dois meses de uma vez, as duas contam pra este alerta.
+  // as mais antigas primeiro — quem perguntou há três semanas já
+  // desistiu de esperar; é essa que interessa destapar
+  const duvidasAbertas = useMemo(
+    () => wikiItens
+      .filter((w) => w.tipo === "duvida" && !w.resolvida)
+      .sort((a, b) => (a.atualizadoEm?.toMillis?.() ?? 0) - (b.atualizadoEm?.toMillis?.() ?? 0)),
+    [wikiItens]
+  );
+
   const hojeISO = new Date().toISOString().slice(0, 10);
   const enquetesDentroDoPrazo = enquetes.filter((e) => !e.prazo || hojeISO <= e.prazo);
   const carregandoRespostas = enquetesDentroDoPrazo.some((e) => !(e.id in minhasRespostas));
@@ -202,6 +211,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {/* Uma dúvida sem resposta é um guia que ainda não existe. Toca e
+        * vais direto à mais antiga — a que está à espera há mais tempo. */}
+      {souLiderBase && duvidasAbertas.length > 0 && (
+        <div className="destaque" onClick={() => onIrWiki?.(duvidasAbertas[0].id)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {duvidasAbertas.length} {duvidasAbertas.length === 1 ? "dúvida" : "dúvidas"} da equipa sem resposta
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{duvidasAbertas[0].titulo}</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>

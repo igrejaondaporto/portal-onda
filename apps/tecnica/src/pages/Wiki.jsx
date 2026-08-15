@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirIndiceWiki } from "../lib/wiki";
+import { agruparWikiPorMinisterio } from "../lib/wikiGrupos";
 import { ouvirMinisterios, ouvirVoluntarios } from "../lib/painel";
 import SheetArtigoWiki from "../components/wiki/SheetArtigoWiki";
 import SheetDuvidaWiki from "../components/wiki/SheetDuvidaWiki";
 import SheetEditorArtigo from "../components/wiki/SheetEditorArtigo";
 import SheetNovaDuvida from "../components/wiki/SheetNovaDuvida";
 
-// sem acentos, minúsculas — para a busca não depender de o utilizador
-// escrever "iluminação" com o acento certo
-const normalizar = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wikiIdFoco, focoSeq }) {
+export default function Wiki({ uid, papel, ativo, definirCabecalho, wikiIdFoco, focoSeq }) {
   const [itens, setItens] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [busca, setBusca] = useState("");
+  const [abertos, setAbertos] = useState({});
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => ouvirIndiceWiki(setItens), []);
@@ -28,28 +26,10 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wikiIdFoco, focoSeq, itens.length]);
 
-  const meusMinisterios = useMemo(
-    () => ministerios.filter((m) => pessoa?.ministerios?.[m.id]).map((m) => m.id),
-    [ministerios, pessoa]
+  const grupos = useMemo(
+    () => agruparWikiPorMinisterio(itens, ministerios, busca),
+    [itens, ministerios, busca]
   );
-
-  const lista = useMemo(() => {
-    const b = normalizar(busca);
-    const filtrados = !b ? itens : itens.filter((i) =>
-      normalizar(i.titulo).includes(b)
-      || (i.etiquetas || []).some((e) => normalizar(e).includes(b))
-      || normalizar(i.texto).includes(b)
-    );
-    return [...filtrados].sort((a, c) => {
-      const duvidaAberta = (i) => i.tipo === "duvida" && !i.resolvida;
-      if (duvidaAberta(a) !== duvidaAberta(c)) return duvidaAberta(a) ? -1 : 1;
-      const meuA = a.ministerios?.some((m) => meusMinisterios.includes(m));
-      const meuC = c.ministerios?.some((m) => meusMinisterios.includes(m));
-      if (meuA !== meuC) return meuA ? -1 : 1;
-      const ta = a.atualizadoEm?.toMillis?.() ?? 0, tc = c.atualizadoEm?.toMillis?.() ?? 0;
-      return tc - ta;
-    });
-  }, [itens, busca, meusMinisterios]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -75,39 +55,76 @@ export default function Wiki({ uid, papel, pessoa, ativo, definirCabecalho, wiki
           className="campo" value={busca} onChange={(e) => setBusca(e.target.value)}
           placeholder="Procurar por título, etiqueta ou texto"
         />
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novaDuvida" })}>
-            Nova dúvida
-          </button>
-          <button className="btn sec" style={{ flex: 1, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novoArtigo" })}>
-            Novo artigo
-          </button>
-        </div>
+        <button className="btn sec full" style={{ marginTop: 10, padding: "10px 8px", fontSize: 13 }} onClick={() => setSheet({ tipo: "novoArtigo" })}>
+          Novo artigo
+        </button>
       </div>
 
       <div className="sect">
-        {lista.length === 0 && <div className="vaz">{busca ? "Nada encontrado." : "Ainda não há nada na Wiki — cria a primeira dúvida ou artigo."}</div>}
-        {lista.map((item) => (
-          <div className="linha" style={{ cursor: "pointer" }} key={item.id} onClick={() => abrirItem(item)}>
-            <div style={{ flex: 1 }}>
-              <p className="nmt">{item.titulo}</p>
-              <p className="ds">
-                {item.ministerios?.map((id) => (
-                  <span key={id} style={{ marginRight: 8 }}>
-                    <span className="quadmin" style={{ background: corMinisterio(id) }} />{nomeMinisterio(id)}
-                  </span>
-                ))}
-                {!item.ministerios?.length && "Geral"}
-              </p>
+        {grupos.length === 0 && <div className="vaz">{busca ? "Nada encontrado." : "Ainda não há nada na Wiki — cria a primeira dúvida ou artigo."}</div>}
+        {grupos.map((g) => {
+          // A procurar, os grupos abrem sozinhos — quem escreveu uma
+          // palavra quer ver o resultado, não abrir três cartões.
+          const aberto = !!busca || !!abertos[g.chave];
+          const cor = g.cor || "var(--cinza)";
+          const emAberto = g.itens.filter((i) => i.tipo === "duvida" && !i.resolvida).length;
+          return (
+            <div className="mincartao" key={g.chave}>
+              <div className="mincartao-barra" style={{ background: cor }} />
+              <button
+                className="mincartao-cab tec-grupo-cab"
+                data-aberto={aberto ? 1 : 0}
+                aria-expanded={aberto}
+                onClick={() => setAbertos((v) => ({ ...v, [g.chave]: !v[g.chave] }))}
+              >
+                <span className="ponto" style={{ background: cor }} />
+                <span className="nome">{g.nome}</span>
+                <span className="conta">
+                  {g.itens.length} {g.itens.length === 1 ? "item" : "itens"}
+                  {emAberto > 0 && ` · ${emAberto} em aberto`}
+                </span>
+                <span className="tec-grupo-seta" aria-hidden="true">›</span>
+              </button>
+              {aberto && g.itens.map((item) => (
+                <div className="linha" style={{ cursor: "pointer" }} key={`${g.chave}-${item.id}`} onClick={() => abrirItem(item)}>
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{item.titulo}</p>
+                    <p className="ds">
+                      {item.ministerios?.map((id) => (
+                        <span key={id} style={{ marginRight: 8 }}>
+                          <span className="quadmin" style={{ background: corMinisterio(id) }} />{nomeMinisterio(id)}
+                        </span>
+                      ))}
+                      {!item.ministerios?.length && "Geral"}
+                    </p>
+                  </div>
+                  {item.tipo === "duvida" ? (
+                    <span className={`tag ${item.resolvida ? "verd" : "cinz"}`}>{item.resolvida ? "resolvida" : "em aberto"}</span>
+                  ) : item.esqueleto ? (
+                    <span className="tag cinz">por escrever</span>
+                  ) : null}
+                  <span className="seta">›</span>
+                </div>
+              ))}
             </div>
-            {item.tipo === "duvida" ? (
-              <span className={`tag ${item.resolvida ? "verd" : "cinz"}`}>{item.resolvida ? "resolvida" : "em aberto"}</span>
-            ) : item.esqueleto ? (
-              <span className="tag cinz">por escrever</span>
-            ) : null}
-            <span className="seta">›</span>
-          </div>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* No fim, e não no topo, de propósito: a pergunta só faz sentido
+        * depois de teres aberto os grupos e procurado sem encontrar. É
+        * esse o momento em que aparece. */}
+      <div className="sect">
+        <div className="tec-perguntar">
+          <p className="nmt">Não encontraste o que procuravas?</p>
+          <p className="ds">
+            Pergunta à equipa. Quem souber responde, e a resposta fica aqui
+            para a próxima pessoa que tiver a mesma dúvida.
+          </p>
+          <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setSheet({ tipo: "novaDuvida" })}>
+            Coloca aqui a tua dúvida
+          </button>
+        </div>
       </div>
 
       {sheet?.tipo === "artigo" && (
