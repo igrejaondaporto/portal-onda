@@ -174,6 +174,17 @@ service cloud.firestore {
       }
     }
 
+    // ── painel de progresso das bases (painelonda.pt) ─────
+    // leitura pública (é um placar para todos acompanharem);
+    // escrita exige sessão (anónima, criada pelo próprio painel) —
+    // o PIN 2026 é só o portão de UX, não a segurança real.
+    // Produto irmão, sem relação com o resto deste ficheiro — repo
+    // próprio em github.com/vitorhugow/painel-progresso-bases.
+    match /progressoBases/{doc} {
+      allow read:  if true;
+      allow write: if autenticado();
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
