@@ -167,13 +167,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     }
   }
 
-  if (!meuEvento) return null;
-
-  // fica visível até ao prazo, mesmo depois de responder — para quem
-  // quiser alterar o voto ainda dentro do prazo do líder. Se o líder
-  // abriu dois meses de uma vez, as duas contam pra este alerta.
-  // as mais antigas primeiro — quem perguntou há três semanas já
-  // desistiu de esperar; é essa que interessa destapar
+  // As mais antigas primeiro — quem perguntou há três semanas já
+  // desistiu de esperar; é essa que interessa destapar.
+  //
+  // Fica ACIMA do `return null` abaixo, e tem de ficar. Um hook a
+  // seguir a um return condicional não corre nas renderizações em que
+  // o componente sai mais cedo — aqui, todas as que acontecem antes de
+  // `meuEvento` chegar do Firestore. Na renderização seguinte já corre,
+  // o React conta mais hooks do que antes e mata a app inteira com o
+  // erro #310. Foi o que aconteceu em produção a 15/08/2026.
   const duvidasAbertas = useMemo(
     () => wikiItens
       .filter((w) => w.tipo === "duvida" && !w.resolvida)
@@ -181,6 +183,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     [wikiItens]
   );
 
+  if (!meuEvento) return null;
+
+  // fica visível até ao prazo, mesmo depois de responder — para quem
+  // quiser alterar o voto ainda dentro do prazo do líder. Se o líder
+  // abriu dois meses de uma vez, as duas contam pra este alerta.
   const hojeISO = new Date().toISOString().slice(0, 10);
   const enquetesDentroDoPrazo = enquetes.filter((e) => !e.prazo || hojeISO <= e.prazo);
   const carregandoRespostas = enquetesDentroDoPrazo.some((e) => !(e.id in minhasRespostas));
