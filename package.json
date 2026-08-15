@@ -13,6 +13,7 @@
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules",
     "smoke": "node scripts/smoke-functions.mjs",
+    "verificar:isolamento": "node scripts/verificar-isolamento.mjs",
     "teste:ciclo": "node scripts/e2e-ciclo-base.mjs"
   },
   "devDependencies": {

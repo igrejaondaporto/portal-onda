@@ -35,6 +35,38 @@ tela se for **mesmo** igual em todas as bases hoje e sempre; o resto
 (telas, regras de negócio específicas) vive dentro de cada `apps/*`,
 mesmo que pareça repetido entre bases no início.
 
+### Trabalhar numa base sem mexer nas outras
+
+Com uma base por pessoa, o risco deixa de ser o conflito de merge e
+passa a ser o silencioso: alterar o partilhado a pensar numa base e
+repintar as outras no deploy seguinte. Vale para quem corrige bugs
+como para quem constrói uma base nova.
+
+Cada `apps/<base>` carrega o `global.css` partilhado e, **a seguir**,
+o seu próprio `src/styles/<base>.css`. Como o CSS aplica a última
+regra de igual peso, esse ficheiro local ajusta tokens e classes sem
+tocar no partilhado — e, por viver dentro da app, nunca entra no
+bundle de outra. É o sítio por omissão de qualquer mudança visual.
+
+Componente partilhado que precisa de mudar só numa base: copiar para
+`apps/<base>/src/components/adaptados/`, com a origem, a data e o
+porquê no topo. Antes disso, tentar sempre o CSS local ou uma prop
+nova com o comportamento atual por defeito. Ver o `LEIA-ME.md` dessa
+pasta.
+
+Antes de abrir PR, para ver o que sai da tua app:
+
+```
+npm run verificar:isolamento -- <base>
+```
+
+Sai com código 1 se a branch tocar em `functions/`, nas `rules` ou em
+`packages/shared` — o que muda todas as bases, e no caso das
+functions e das rules **faz deploy sozinho ao entrar na `main`**
+(`.github/workflows/firebase.yml`). Não é proibição: é para essas
+alterações irem em PR à parte, revistas por quem cuida das outras
+bases, nunca no mesmo commit que uma correção local.
+
 | Base | App | Domínio | `CLAUDE.md` |
 |---|---|---|---|
 | Apoio | `apps/apoio` | `apoio.painelonda.pt` | `apps/apoio/CLAUDE.md` |

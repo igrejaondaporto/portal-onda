@@ -1,0 +1,96 @@
+/* ============================================================
+ * Camada visual da Base Técnica
+ * ============================================================
+ *
+ * Este ficheiro é SÓ da Técnica. Nada aqui chega a outra base.
+ *
+ * Porquê: cada app tem o seu próprio build Vite e o seu próprio
+ * Worker Cloudflare. O que vive em `apps/tecnica/` entra apenas no
+ * bundle da Técnica — a garantia é estrutural, não é combinada.
+ *
+ * Ordem de carregamento (ver `src/main.jsx`):
+ *
+ *     1º  @portal/shared/styles/global.css   ← partilhado, NÃO mexer
+ *     2º  este ficheiro                      ← o teu sítio
+ *
+ * Como o CSS aplica a última regra de igual peso, tudo o que
+ * escreveres aqui ganha ao global sem o alterar.
+ *
+ * ------------------------------------------------------------
+ * A REGRA
+ * ------------------------------------------------------------
+ * Mudança visual da Técnica  →  escreve aqui.
+ * Mudança visual de TODAS as bases  →  `packages/shared`, e aí é
+ * PR com o dono do projeto: mexe na Apoio, no Louvor, no Backstage
+ * e em qualquer base futura ao mesmo tempo.
+ *
+ * Na dúvida, escreve aqui. Trazer para o partilhado depois é fácil;
+ * descobrir que partiste outra base é caro — e só se percebe já em
+ * produção, ao domingo de manhã.
+ * ============================================================ */
+
+/* ------------------------------------------------------------
+ * 1. Tokens
+ * ------------------------------------------------------------
+ * O global.css define estes 14 tokens e usa-os 175 vezes. Trocar
+ * um valor aqui repinta a Técnica inteira de forma coerente, sem
+ * caçar regra a regra — e sem tocar nas outras bases.
+ *
+ * Descomenta o que quiseres mudar. Os valores em comentário são
+ * os que o partilhado usa hoje; deixa-os à vista para se perceber
+ * de onde se partiu.
+ * ------------------------------------------------------------ */
+
+:root {
+  /* Cores da marca */
+  /* --azul: #0019be; */
+  /* --ciano: #0092d4; */
+  /* --lima: #d8f24b; */
+  /* --magenta: #ff2e88; */
+  /* --verde: #00a88f; */
+  /* --laranja: #f5a300; */
+  /* --violeta: #7b5cff; */
+
+  /* Superfícies e texto */
+  /* --agua: #eaeeff; */
+  /* --tinta: #0a0f2e; */
+  /* --cinza: #6a7192; */
+  /* --fio: rgba(10, 15, 46, 0.11); */
+
+  /* Tipografia, gradiente e área segura do telemóvel */
+  /* --o: "Outfit", system-ui, sans-serif; */
+  /* --grad: linear-gradient(118deg, #001ed1 0%, #0019be 52%, #001594 100%); */
+  /* --sb: max(26px, env(safe-area-inset-bottom)); */
+}
+
+/* ------------------------------------------------------------
+ * 2. Ajustes de classes do partilhado
+ * ------------------------------------------------------------
+ * Quando não chega mudar um token — queres a barra mais alta, o
+ * cartão com outro raio, um espaçamento diferente só na Técnica.
+ *
+ * Repete o mesmo seletor do global.css. Mesmo peso, mas vem
+ * depois, por isso ganha. NÃO uses `!important`: quando duas
+ * regras com `!important` se cruzam, deixa de haver forma de
+ * perceber qual manda.
+ *
+ * Deixa sempre uma linha a dizer PORQUÊ — daqui a três meses a
+ * diferença face ao partilhado tem de se explicar sozinha.
+ *
+ * Exemplo:
+ *
+ *   // A Técnica mostra 5 ministérios na escala; com o padding
+ *   // do partilhado a lista não cabe sem scroll no telemóvel.
+ *   .cartao { padding: 12px; }
+ * ------------------------------------------------------------ */
+
+/* ------------------------------------------------------------
+ * 3. Estilos novos, só da Técnica
+ * ------------------------------------------------------------
+ * Classes que não existem no partilhado. Prefixa com `tec-` para
+ * se ver de imediato, ao ler o JSX, que é local e não herdado —
+ * e para nunca colidir com uma classe que o partilhado venha a
+ * criar mais tarde.
+ *
+ *   .tec-consola { ... }
+ * ------------------------------------------------------------ */
