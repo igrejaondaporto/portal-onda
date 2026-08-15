@@ -156,7 +156,7 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
-              onIrEscala={irParaEscala} onVerFuncoes={irParaFuncoes}
+              onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
             />
@@ -199,7 +199,7 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
             />
           )}
           {pagina === "painel" && (
-            <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
+            <PainelLider definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
           )}
           <p className="assinatura">
             Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
