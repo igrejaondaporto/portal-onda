@@ -18,7 +18,7 @@ import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 
-export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
+export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());

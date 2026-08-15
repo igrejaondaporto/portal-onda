@@ -3,7 +3,7 @@
  * todos e é quem marca como pago (as regras só deixam a ele). O anexo
  * (nota ou fatura) fica no Storage, o documento no Firestore.
  */
-import { collection, doc, setDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cReembolsos } from "./modelo";
