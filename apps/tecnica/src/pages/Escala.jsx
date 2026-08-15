@@ -26,7 +26,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
     const t = setTimeout(() => setRealcado(null), 1600);
     return () => clearTimeout(t);
     // focoSeq muda a cada clique no calendário, mesmo que o culto-alvo seja o mesmo de antes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventoIdFoco, focoSeq, eventosMes.length]);
 
   const temEscala = eventosMes.some((e) => (e.escala.lugares || []).some((l) => l.titularId));

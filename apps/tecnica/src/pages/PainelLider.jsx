@@ -24,7 +24,7 @@ import SheetMinisterio from "../components/painel/SheetMinisterio";
 import SheetEsqueletoWiki from "../components/painel/SheetEsqueletoWiki";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
-export default function PainelLider({ baseId, definirCabecalho, aoVoltar, onIrWiki }) {
+export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());

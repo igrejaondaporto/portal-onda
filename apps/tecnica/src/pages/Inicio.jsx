@@ -66,7 +66,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] };
       setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meuEvento?.id]);
   useEffect(() => {
     if (!souLiderBase) return;

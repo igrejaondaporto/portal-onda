@@ -46,7 +46,6 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
   // vez, ao montar; depois disso o líder escolhe o mês à vontade
   useEffect(() => {
     obterMesEnqueteRelevante().then((relevante) => { if (relevante) setMes(relevante); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => ouvirEnquete(mes, setEnquete), [mes]);
@@ -79,10 +78,10 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
   const avisos = useMemo(() => {
     if (!sugestao || !dadosGeracao) return {};
     return validarSugestao({
-      resultado: sugestao.resultado, domingos, ministerios, voluntarios,
+      resultado: sugestao.resultado, domingos, ministerios,
       indisponibilidades: dadosGeracao.indisponibilidades, respondentes,
     });
-  }, [sugestao, dadosGeracao, domingos, ministerios, voluntarios, respondentes]);
+  }, [sugestao, dadosGeracao, domingos, ministerios, respondentes]);
 
   // quantos 🔴/⚠️ ainda por resolver na tabela — mostrado na
   // confirmação antes de publicar, já que publicar reescreve os
@@ -120,7 +119,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
       setSugestao(s);
       setAlertas(calcularAlertas({
         domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
-        estatisticas, respondentes, vezesAprendizPorMinisterio,
+        estatisticas, vezesAprendizPorMinisterio,
       }));
       setPublicado(false);
     } catch (e) {
@@ -136,7 +135,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     setSugestao(s);
     setAlertas(calcularAlertas({
       domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
-      estatisticas: dadosGeracao.estatisticas, respondentes,
+      estatisticas: dadosGeracao.estatisticas,
       vezesAprendizPorMinisterio: dadosGeracao.vezesAprendizPorMinisterio,
     }));
     torrada("Sugestão regenerada");

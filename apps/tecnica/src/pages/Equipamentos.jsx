@@ -286,7 +286,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
       )}
       {sheet?.tipo === "detalheEquipamento" && (
         <SheetEquipamentoDetalhe
-          equipamento={equipamentoAtual} melhorias={melhorias} ministerios={ministerios} souLiderBase={souLiderBase}
+          equipamento={equipamentoAtual} melhorias={melhorias} ministerios={ministerios}
           onFechar={() => setSheet(null)}
           onReportarAvaria={() => setSheet({ tipo: "novaMelhoria", equipamentoId: sheet.equipamentoId })}
           onAbrirMelhoria={(melhoriaId) => setSheet({ tipo: "melhoria", melhoriaId, editar: true })}
