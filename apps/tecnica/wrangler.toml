@@ -1,4 +1,9 @@
 name = "portal-tecnica"
+# Fixo de propósito: quem tenha acesso a mais do que uma conta Cloudflare
+# publica sem ter de escolher — e sem o risco de, ao escolher mal, criar
+# um portal-tecnica novo numa conta pessoal enquanto o site real fica na
+# mesma. O id da conta não é segredo; o que autoriza é o login.
+account_id = "64f79471e56bd25e222e36b24e7f7f27"
 compatibility_date = "2024-09-23"
 
 [assets]
