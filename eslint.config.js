@@ -18,6 +18,7 @@
 
 import js from "@eslint/js";
 import globals from "globals";
+import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
@@ -46,7 +47,7 @@ export default [
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
-    plugins: { "react-hooks": reactHooks },
+    plugins: { react, "react-hooks": reactHooks },
     rules: {
       ...js.configs.recommended.rules,
 
@@ -58,10 +59,27 @@ export default [
       // parte a app. Fica à vista sem travar ninguém.
       "react-hooks/exhaustive-deps": "warn",
 
-      // Desligada por agora: são ~170 ocorrências antigas espalhadas
-      // pelas duas apps, e limpá-las é um PR por base, não este.
-      // Ligar quando estiverem tratadas.
-      "no-unused-vars": "off",
+      // **Estas duas não são opcionais numa app React.** O
+      // `no-unused-vars` do ESLint não sabe ler JSX: sem elas, dá por
+      // não usado todo o componente que só aparece dentro de JSX — o
+      // `App` do `main.jsx`, o `Inicio` do `Sessao.jsx`, e mais 150.
+      // A primeira versão desta config não as tinha e o resultado foi
+      // 169 falsos positivos que quase passaram por "código morto a
+      // limpar". Com elas, o número real é 13.
+      "react/jsx-uses-vars": "error",
+      "react/jsx-uses-react": "error",
+
+      // Aviso enquanto sobrarem os antigos (ver a tabela no PR):
+      // limpá-los é um PR por base, e nenhum deles parte nada. Passa a
+      // erro quando as duas apps estiverem a zero.
+      //   ignoreRestSiblings: `const { _k, ...m } = momento` é como se
+      //   tira a chave da lista antes de gravar — o `_k` existe para
+      //   ficar de fora, não é esquecimento (ver SheetRevisaoOrdem).
+      "no-unused-vars": ["warn", {
+        ignoreRestSiblings: true,
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+      }],
     },
   },
 
