@@ -5,7 +5,7 @@ import { obterMeusProximosDomingos, obterAtribuicoes } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { funcoesDoCulto } from "../lib/modelo";
 import { ouvirFuncoes } from "../lib/painel";
-import { nomeEvento, dataPorExtenso } from "@portal/shared/lib/data.js";
+import { nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
@@ -165,7 +165,11 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
               return (
                 <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => onVerFuncoes?.(ev.id)}>
                   <div style={{ flex: 1 }}>
-                    <p className="nmt">{ev.tipo || dataPorExtenso(ev.data)}</p>
+                    {/* num culto especial, `ev.tipo` sozinho escondia a data — e a
+                        linha de baixo só traz funções e hora de chegada. `nomeEvento`
+                        junta os dois ("Culto de Natal · 25 de dezembro") e, num
+                        domingo normal (sem `tipo`), dá exatamente a data de antes. */}
+                    <p className="nmt">{nomeEvento(ev)}</p>
                     <p className="ds">{minhas.length} {minhas.length === 1 ? "função" : "funções"} · chegada {ev.horaChegada || "08:00"}</p>
                   </div>
                   {ev.escala.liderEscala === uid ? <span className="tag lim">Líder de escala</span> : <span className="seta">›</span>}

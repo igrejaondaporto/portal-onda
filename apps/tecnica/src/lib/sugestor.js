@@ -177,7 +177,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
 
 /** Tudo que merece o olhar do líder antes de publicar — nenhum destes
  *  itens bloqueia nada, são avisos, não regras. */
-export function calcularAlertas({ domingos, ministerios, voluntarios, resultado, contagemMes, estatisticas, respondentes, vezesAprendizPorMinisterio }) {
+export function calcularAlertas({ domingos, ministerios, voluntarios, resultado, contagemMes, estatisticas, vezesAprendizPorMinisterio }) {
   const alertas = [];
 
   Object.entries(contagemMes).forEach(([uid, vezes]) => {
@@ -233,7 +233,7 @@ export function calcularAlertas({ domingos, ministerios, voluntarios, resultado,
  *  ministério nesse domingo); amarelo é só um ponto de atenção
  *  (sobrecarga no mês, não respondeu à enquete). Devolve, por slot,
  *  {titular, aprendiz} — cada um null ou {nivel: "erro"|"atencao", motivo}. */
-export function validarSugestao({ resultado, domingos, ministerios, voluntarios, indisponibilidades, respondentes }) {
+export function validarSugestao({ resultado, domingos, ministerios, indisponibilidades, respondentes }) {
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
 
