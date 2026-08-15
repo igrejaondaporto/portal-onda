@@ -34,6 +34,7 @@ const ZONAS = [
   ["firestore.rules", "permissões de TODAS as bases — deploy automático"],
   ["storage.rules", "permissões de ficheiros de TODAS as bases — deploy automático"],
   ["firestore.indexes.json", "índices de TODAS as bases — deploy automático"],
+  [".github/workflows/", "o que publica em produção — mexe em TODAS as bases"],
   ["packages/shared/src/styles/", "o visual de TODAS as bases"],
   ["packages/shared/", "código partilhado por TODAS as bases"],
   ["package-lock.json", "dependências do monorepo — conflitos difíceis de resolver à mão"],

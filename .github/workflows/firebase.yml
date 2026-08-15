@@ -1,4 +1,4 @@
-# O deploy do frontend (Cloudflare Workers) está em cloudflare.yml.
+# O deploy do frontend (Cloudflare Workers) é à parte, por app.
 # Isto trata do resto: functions, regras e índices.
 name: Firebase (functions + regras)
 
@@ -15,12 +15,41 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
+
+      # A credencial chega como secret e vive só o tempo do job. Sem
+      # este passo o firebase-tools não tem com que se autenticar — era
+      # o que faltava para o workflow correr: o ficheiro nunca era
+      # criado, e todas as execuções morriam em "Failed to authenticate".
+      - name: Escrever credencial de serviço
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::Falta o secret FIREBASE_SERVICE_ACCOUNT."
+            echo "Firebase → Definições → Contas de serviço → Gerar nova chave privada,"
+            echo "e colar o JSON inteiro em Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
       - run: npm ci --prefix functions
       - run: npm i -g firebase-tools
-      - run: firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project "$FB_PROJECT" --non-interactive
+
+      # O id do projeto vem do .firebaserc, que está versionado — não
+      # precisa de secret nenhum. Menos uma coisa para configurar, e
+      # menos uma para ficar dessincronizada.
+      - name: Deploy
         env:
-          FB_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-        # cria sa.json a partir do secret antes de correr:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: firebase deploy --only functions,firestore:rules,firestore:indexes,storage --non-interactive
+
+      # Regra do projeto: um deploy de functions não está terminado
+      # enquanto o smoke não passar. `node --check` apanha erro de
+      # sintaxe; um erro de runtime (o .exists() do Admin SDK, que já
+      # partiu o ecrã de entrada em produção) só aparece a chamar a
+      # função a sério.
+      - name: Smoke
+        run: npm ci && npm run smoke
+
       - if: always()
-        run: rm -f sa.json
+        run: rm -f "$RUNNER_TEMP/sa.json"
