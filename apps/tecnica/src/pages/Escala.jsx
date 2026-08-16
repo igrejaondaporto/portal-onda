@@ -9,6 +9,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   const [ministerios, setMinisterios] = useState([]);
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
+  const [abertos, setAbertos] = useState({}); // que cultos estão abertos
   const [contactoAberto, setContactoAberto] = useState(null); // { eventoId, pessoaId }
   const refsEventos = useRef({});
 
@@ -21,6 +22,9 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
     if (!eventoIdFoco || !eventosMes.length) return;
     const el = refsEventos.current[eventoIdFoco];
     if (!el) return;
+    // vir do calendário do Início tem de abrir o cartão, senão a pessoa
+    // toca num dia e aterra num cartão fechado, sem perceber porquê
+    setAbertos((v) => ({ ...v, [eventoIdFoco]: true }));
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     setRealcado(eventoIdFoco);
     const t = setTimeout(() => setRealcado(null), 1600);
@@ -99,28 +103,62 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
         )}
       </div>
 
-      {eventosMes.map((ev) => {
-        const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
-        return (
-          <div
-            className={`sect${realcado === ev.id ? " realce" : ""}`} key={ev.id}
-            ref={(el) => { refsEventos.current[ev.id] = el; }}
-          >
-            <div className="cabecalho">
-              <h3>
-                {ev.tipo || dataPorExtenso(ev.data)}
-                {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
-                {ev.data < hoje && " ✅"}
-              </h3>
-              {souEuNoCulto ? (
-                <span className="tag verd">Serves</span>
-              ) : (
-                <span className="cap">{(ev.escala.pessoas || []).length} pessoas</span>
-              )}
-            </div>
+      {/* Um cartão por culto, fechado. Antes vinham todos abertos com toda
+        * a gente dentro: com seis domingos e cinco pessoas em cada, chegar
+        * ao último era rolar a página inteira. O mês cabe agora num ecrã, e
+        * abre-se só o dia que interessa. */}
+      <div className="sect">
+        {eventosMes.map((ev) => {
+          const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
+          const aberto = !!abertos[ev.id];
+          const eHoje = ev.data === hoje;
+          const passou = ev.data < hoje;
+          // em que ministério sirvo nesse dia — o Responsável acumula com
+          // um operacional, por isso pode ser mais do que um
+          const meusMinisterios = ministerios
+            .filter((m) => { const l = lugarDe(ev, m.id); return l?.titularId === uid || l?.aprendizId === uid; })
+            .map((m) => m.nome);
+          return (
+            <div
+              className={`mincartao tec-culto${realcado === ev.id ? " realce" : ""}`}
+              data-serves={souEuNoCulto ? 1 : 0} data-passou={passou ? 1 : 0}
+              key={ev.id}
+              ref={(el) => { refsEventos.current[ev.id] = el; }}
+            >
+              <div className="mincartao-barra" />
+              <button
+                className="mincartao-cab tec-grupo-cab"
+                data-aberto={aberto ? 1 : 0}
+                aria-expanded={aberto}
+                onClick={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+              >
+                {/* Empilhado, não lado a lado: o nome de um culto especial é
+                  * texto livre que o líder escreve, e "Vigília de Ano Novo"
+                  * ao lado de "Serves · Responsável · Iluminação" parte as
+                  * duas colunas em duas linhas cada. Aqui nada compete pela
+                  * largura, e a data do especial deixa de ficar escondida
+                  * dentro do cartão fechado (ver MELHORIAS-ENTRE-BASES.md:
+                  * a pergunta é "a data aparece noutro sítio deste cartão?"). */}
+                <span className="tec-culto-txt">
+                  <span className="nome">
+                    {ev.tipo || dataPorExtenso(ev.data)}
+                    {eHoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
+                    {passou && " ✅"}
+                  </span>
+                  <span className="ds">
+                    {ev.tipo && `${dataPorExtenso(ev.data)} · `}
+                    {souEuNoCulto
+                      ? `Serves${meusMinisterios.length ? ` · ${meusMinisterios.join(" · ")}` : ""}`
+                      : `${(ev.escala.pessoas || []).length} pessoas`}
+                  </span>
+                </span>
+                <span className="tec-grupo-seta" aria-hidden="true">›</span>
+              </button>
+              {aberto && (<div className="tec-culto-corpo">
+            {/* a data saiu daqui — já está no cabeçalho, via nomeEvento */}
             {ev.tipo && (
               <p className="ds" style={{ padding: "6px 0 2px" }}>
-                {dataPorExtenso(ev.data)} · {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
+                {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
               </p>
             )}
             {ministerios.some((m) => lugarDe(ev, m.id)?.titularId) ? (
@@ -157,9 +195,11 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             ) : (
               <div className="vaz">Ainda ninguém escalado.</div>
             )}
-          </div>
-        );
-      })}
+              </div>)}
+            </div>
+          );
+        })}
+      </div>
       <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
     </>
   );
