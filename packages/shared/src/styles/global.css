@@ -1957,3 +1957,90 @@ textarea.campo {
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ── cabeçalho de cartão que abre e fecha ────────────────────
+ * O `.mincartao-cab` acima é um rótulo fixo. Este é a versão
+ * tocável: mesmo desenho, mas é um <button> e leva seta. Usado
+ * pelo CartaoCulto (Escala, todas as bases) e pelos grupos da
+ * Wiki da Técnica. */
+.cabtoque {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* o rótulo fixo usa 10px/12px/7px; aqui o cabeçalho é o alvo
+   * principal do dedo — leitura em pé, com pressa — e sobe para
+   * ~44px de altura */
+  padding: 13px 12px;
+}
+.cabtoque-seta {
+  flex: none;
+  margin-left: 8px;
+  color: #aeb4d0;
+  font-size: 19px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+.cabtoque[data-aberto="1"] .cabtoque-seta {
+  transform: rotate(90deg);
+}
+
+/* ── cartão de culto (Escala) ────────────────────────────────
+ * A pergunta que se faz a esta tela, de telemóvel e com pressa, é
+ * "em que domingos é que EU sirvo?". Por isso a cor não é
+ * decoração: o cartão em que a pessoa serve ganha barra e fundo, e
+ * vê-se de relance a rolar o mês, sem ler nome nenhum.
+ *
+ * Azul porque a tabela logo acima na mesma tela já usa `--azul`
+ * para dizer "tu" (`.tab td.mim`), e a legenda dela diz isso por
+ * escrito: "O teu nome aparece a azul." Duas cores para a mesma
+ * ideia no mesmo ecrã é uma a mais. */
+.cartaoculto {
+  margin-bottom: 10px;
+}
+.cartaoculto .mincartao-barra {
+  background: var(--fio);
+}
+.cartaoculto[data-sirvo="1"] .mincartao-barra {
+  background: var(--azul);
+}
+.cartaoculto[data-sirvo="1"] .cabtoque {
+  background: var(--agua);
+}
+/* o mesmo peso do `.tab td.mim`, pela mesma razão */
+.cartaoculto[data-sirvo="1"] .cartaoculto-txt .ds {
+  color: var(--azul);
+  font-weight: 700;
+}
+/* Já passou: continua a abrir e a consultar-se (é histórico), mas
+ * apaga-se — barra incluída, senão fica um traço azul vivo por cima
+ * de texto esbatido. Um domingo que já aconteceu não pode roubar o
+ * olhar ao próximo. O corpo não apaga: aberto, é para se ler. */
+.cartaoculto[data-passou="1"] .mincartao-barra,
+.cartaoculto[data-passou="1"] .cabtoque {
+  opacity: 0.5;
+}
+/* O `min-width: 0` não é enfeite: sem ele um filho de flex nunca
+ * encolhe abaixo do conteúdo, e um nome de culto comprido empurra a
+ * seta para fora do cartão. */
+.cartaoculto-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cartaoculto-txt .ds {
+  margin-top: 0;
+}
+/* A data é o assunto do cartão, não um rótulo de secção — por isso
+ * maior do que os 13px do `.mincartao-cab .nome`. */
+.cartaoculto .cabtoque .nome {
+  font-size: 15px;
+}
+.cartaoculto-corpo {
+  padding: 0 12px 6px;
+}

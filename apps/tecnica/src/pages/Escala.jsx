@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios } from "../lib/painel";
-import { MESES, dataPorExtenso, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 
 export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const [eventosMes, setEventosMes] = useState([]);
@@ -111,51 +112,23 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
         {eventosMes.map((ev) => {
           const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
           const aberto = !!abertos[ev.id];
-          const eHoje = ev.data === hoje;
-          const passou = ev.data < hoje;
           // em que ministério sirvo nesse dia — o Responsável acumula com
           // um operacional, por isso pode ser mais do que um
           const meusMinisterios = ministerios
             .filter((m) => { const l = lugarDe(ev, m.id); return l?.titularId === uid || l?.aprendizId === uid; })
             .map((m) => m.nome);
           return (
-            <div
-              className={`mincartao tec-culto${realcado === ev.id ? " realce" : ""}`}
-              data-serves={souEuNoCulto ? 1 : 0} data-passou={passou ? 1 : 0}
+            <CartaoCulto
               key={ev.id}
-              ref={(el) => { refsEventos.current[ev.id] = el; }}
+              evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
+              realcado={realcado === ev.id}
+              refCartao={(el) => { refsEventos.current[ev.id] = el; }}
+              onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+              resumo={souEuNoCulto
+                ? `Serves${meusMinisterios.length ? ` · ${meusMinisterios.join(" · ")}` : ""}`
+                : `${(ev.escala.pessoas || []).length} pessoas`}
             >
-              <div className="mincartao-barra" />
-              <button
-                className="mincartao-cab tec-grupo-cab"
-                data-aberto={aberto ? 1 : 0}
-                aria-expanded={aberto}
-                onClick={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
-              >
-                {/* Empilhado, não lado a lado: o nome de um culto especial é
-                  * texto livre que o líder escreve, e "Vigília de Ano Novo"
-                  * ao lado de "Serves · Responsável · Iluminação" parte as
-                  * duas colunas em duas linhas cada. Aqui nada compete pela
-                  * largura, e a data do especial deixa de ficar escondida
-                  * dentro do cartão fechado (ver MELHORIAS-ENTRE-BASES.md:
-                  * a pergunta é "a data aparece noutro sítio deste cartão?"). */}
-                <span className="tec-culto-txt">
-                  <span className="nome">
-                    {ev.tipo || dataPorExtenso(ev.data)}
-                    {eHoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
-                    {passou && " ✅"}
-                  </span>
-                  <span className="ds">
-                    {ev.tipo && `${dataPorExtenso(ev.data)} · `}
-                    {souEuNoCulto
-                      ? `Serves${meusMinisterios.length ? ` · ${meusMinisterios.join(" · ")}` : ""}`
-                      : `${(ev.escala.pessoas || []).length} pessoas`}
-                  </span>
-                </span>
-                <span className="tec-grupo-seta" aria-hidden="true">›</span>
-              </button>
-              {aberto && (<div className="tec-culto-corpo">
-            {/* a data saiu daqui — já está no cabeçalho, via nomeEvento */}
+            {/* a data saiu daqui — o cartão já a mostra no cabeçalho */}
             {ev.tipo && (
               <p className="ds" style={{ padding: "6px 0 2px" }}>
                 {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
@@ -195,8 +168,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             ) : (
               <div className="vaz">Ainda ninguém escalado.</div>
             )}
-              </div>)}
-            </div>
+            </CartaoCulto>
           );
         })}
       </div>

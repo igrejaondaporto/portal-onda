@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { funcoesDoCulto } from "../lib/modelo";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase } from "../lib/painel";
 import { obterAtribuicoes } from "../lib/culto";
-import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 
 export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [eventosMes, setEventosMes] = useState([]);
@@ -12,6 +13,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
   const [atribuicoesPorEvento, setAtribuicoesPorEvento] = useState({});
+  const [abertos, setAbertos] = useState({}); // que cultos estão abertos
   const [contactoAberto, setContactoAberto] = useState(null); // { eventoId, pessoaId }
   const refsEventos = useRef({});
 
@@ -31,6 +33,9 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
     if (!eventoIdFoco || !eventosMes.length) return;
     const el = refsEventos.current[eventoIdFoco];
     if (!el) return;
+    // vir do calendário do Início tem de abrir o cartão, senão a pessoa
+    // toca num dia e aterra num cartão fechado, sem perceber porquê
+    setAbertos((v) => ({ ...v, [eventoIdFoco]: true }));
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     setRealcado(eventoIdFoco);
     const t = setTimeout(() => setRealcado(null), 1600);
@@ -114,28 +119,27 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
         )}
       </div>
 
-      {eventosMes.map((ev) => {
-        const pessoasOrdenadas = ordenarEscala(ev.escala);
-        return (
-          <div
-            className={`sect${realcado === ev.id ? " realce" : ""}`} key={ev.id}
-            ref={(el) => { refsEventos.current[ev.id] = el; }}
-          >
-            <div className="cabecalho">
-              <h3>
-                {ev.tipo || dataPorExtenso(ev.data)}
-                {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
-                {ev.data < hoje && " ✅"}
-              </h3>
-              {ev.escala.pessoas.includes(uid) ? (
-                <span className="tag verd">Serves</span>
-              ) : (
-                <span className="cap">{ev.escala.pessoas.length} pessoas</span>
-              )}
-            </div>
+      {/* Um cartão por culto, fechado. Antes vinham todos abertos com toda
+        * a gente dentro, e chegar ao último era rolar a página inteira.
+        * O cartão é partilhado (nasceu na Técnica, mesmo problema); o que
+        * está cá dentro é da Apoio — lista de pessoas com as funções. */}
+      <div className="sect">
+        {eventosMes.map((ev) => {
+          const pessoasOrdenadas = ordenarEscala(ev.escala);
+          const sirvo = ev.escala.pessoas.includes(uid);
+          return (
+            <CartaoCulto
+              key={ev.id}
+              evento={ev} hoje={hoje} sirvo={sirvo} aberto={!!abertos[ev.id]}
+              realcado={realcado === ev.id}
+              refCartao={(el) => { refsEventos.current[ev.id] = el; }}
+              onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+              resumo={sirvo ? "Serves" : `${ev.escala.pessoas.length} pessoas`}
+            >
+            {/* a data saiu daqui — o cartão já a mostra no cabeçalho */}
             {ev.tipo && (
               <p className="ds" style={{ padding: "6px 0 2px" }}>
-                {dataPorExtenso(ev.data)} · {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
+                {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
               </p>
             )}
             {pessoasOrdenadas.length ? (
@@ -163,9 +167,10 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                 Ver as funções deste culto
               </button>
             )}
-          </div>
-        );
-      })}
+            </CartaoCulto>
+          );
+        })}
+      </div>
       <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
     </>
   );
