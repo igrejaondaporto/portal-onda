@@ -72,7 +72,7 @@ export default function Wiki({ uid, papel, ativo, definirCabecalho, wikiIdFoco, 
             <div className="mincartao" key={g.chave}>
               <div className="mincartao-barra" style={{ background: cor }} />
               <button
-                className="mincartao-cab tec-grupo-cab tec-min"
+                className="mincartao-cab cabtoque tec-min"
                 data-aberto={aberto ? 1 : 0}
                 aria-expanded={aberto}
                 onClick={() => setAbertos((v) => ({ ...v, [g.chave]: !v[g.chave] }))}
@@ -83,7 +83,7 @@ export default function Wiki({ uid, papel, ativo, definirCabecalho, wikiIdFoco, 
                   {g.itens.length} {g.itens.length === 1 ? "item" : "itens"}
                   {emAberto > 0 && ` · ${emAberto} em aberto`}
                 </span>
-                <span className="tec-grupo-seta" aria-hidden="true">›</span>
+                <span className="cabtoque-seta" aria-hidden="true">›</span>
               </button>
               {aberto && g.itens.map((item) => (
                 <div className="linha" style={{ cursor: "pointer" }} key={`${g.chave}-${item.id}`} onClick={() => abrirItem(item)}>
