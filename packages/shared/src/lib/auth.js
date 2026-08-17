@@ -74,8 +74,16 @@ export async function trocarPin(pinAtual, pinNovo) {
   }
 }
 
-/** O papel vem do token, não do Firestore — o cliente não o pode forjar. */
+/** O papel vem do token, não do Firestore — o cliente não o pode forjar.
+ *  `veTodasEscalas` e `podePublicarCulto` são capacidades de base (ver
+ *  bases/{b}.veEscalas e bases/{b}.culto.podePublicar no CLAUDE.md
+ *  raiz) — nas bases sem a capacidade vêm sempre false, claim ausente. */
 export async function meuPapel() {
   const t = await auth.currentUser?.getIdTokenResult();
-  return { papel: t?.claims?.papel ?? null, baseId: t?.claims?.baseId ?? null };
+  return {
+    papel: t?.claims?.papel ?? null,
+    baseId: t?.claims?.baseId ?? null,
+    veTodasEscalas: t?.claims?.ve_todas_escalas === true,
+    podePublicarCulto: t?.claims?.pode_publicar_culto === true,
+  };
 }

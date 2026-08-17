@@ -23,6 +23,7 @@ Nada pendente no momento.
 |---|---|---|---|---|
 | 2026-08 | Técnica | Botão "Gerar domingos do ano que vem" no Painel do Líder → Definições | Apoio | `gerarDomingos` já era uma Cloud Function partilhada (`functions/index.js`) — só faltava o botão. Mesmo padrão nas duas bases: mostra sempre "ano corrente + 1", chama `gerarDomingos(anoQueVem)`. |
 | 2026-08 | Técnica | Navegação de mês sem ficar presa no ano (`mudarMes` com virada dezembro→janeiro, em `Sessao.jsx`/`PainelLider.jsx`/`Calendario.jsx`) | Apoio | Mesmo código, mesma correção: `ano` passou a `useState` com setter, e as setas ‹ › deixaram de ter `disabled` nos limites do mês. |
+| 2026-08 | Técnica | Enquete de indisponibilidade (`bases/{b}/enquetes/{AAAA-MM}` + respostas, `lib/enquetes.js`, `SheetAbrirEnquete`/`SheetResponderEnquete`, alerta no Início) | Backstage | Cloud Functions (`abrirEnquete`/`fecharEnquete`/`responderEnquete`/…) e as duas Sheets já eram 100% genéricas — nenhuma tocava em ministérios, só o ecrã "Montar" da Técnica é que agrupava respostas por ministério e trazia o Sugestor de escala em cima. A Backstage ganhou uma versão mais simples, `pages/Enquetes.jsx` (lista plana de respostas, sem Sugestor — o líder monta a escala à mão no ecrã Escala, como a Apoio já faz). Se a Apoio pedir enquete um dia, é o mesmo porto: sem Sugestor, tal como a Backstage. |
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
 
@@ -46,6 +47,37 @@ Nada pendente no momento.
 | Técnica | Filtro por ministério nas Checklists do Painel do Líder | Consequência direta do ponto acima — só faz sentido quando há mais do que um agrupamento. Vem de graça para qualquer base futura que herde o padrão de ministérios. |
 | Técnica | Equipamentos em modo património (`criarEquipamento`/`guardarEquipamento`/`desativarEquipamento` na **mesma coleção** `bases/{b}/inventario` que a Apoio usa em modo consumível — nunca colidem, cada função só mexe na base de quem a chama) | A Apoio continua em modo consumível (stepper de quantidade, "abaixo do mínimo"). Uma base futura que precise de rastrear itens individuais (não uma quantidade em stock) usa este padrão direto, sem tocar nas funções da Apoio. |
 | Técnica | Melhorias — tracker de avarias/sugestões com linha do tempo, gravidade, previsão e "Transformar em artigo da Wiki" (`bases/{b}/melhorias`, 6 Cloud Functions). O campo "meta" (data-limite imutável) foi removido depois do primeiro uso real — só sobrou confusão com a Previsão; ficou só a Previsão, editável por qualquer voluntário a qualquer momento. | Não depende de ministérios nem de equipamentos — `equipamentoId`/`ministerioId` são opcionais no modelo. Qualquer base futura (com ou sem equipamentos, com ou sem ministérios) pode reaproveitar tal e qual — já sem o campo meta, que se provou desnecessário. |
+| Backstage | `horaPrevista` opcional em `bases/{b}/funcoes/{id}` — quando pelo menos uma função da fase tem hora, a checklist do Início ordena por hora em vez de por nome de quem está atribuído (`ordenarPorAtribuicao` em `Inicio.jsx`) | Pensado desde o início para qualquer base — o campo é só mais um dado da função, `undefined` nas outras não muda nada (comportamento de hoje intacto). A Técnica é a candidata óbvia se uma fase (ex.: montagem de som) crescer a ponto de precisar de sequência, não só de agrupamento por ministério. |
+
+## Buracos fechados ao construir a Backstage
+
+Não são "melhorias entre bases" no sentido de portar funcionalidade —
+são três coisas que já existiam abertas a mais do que a base dona, e
+só apareceram porque a Backstage precisava de capacidades que exigiam
+olhar para elas com cuidado. Registo aqui para não parecerem
+decisões novas se alguém for procurar o porquê:
+
+- **`eventos/{e}/escalas/{base}`** lia `allow read: if autenticado()`
+  — qualquer pessoa logada, de qualquer base, já lia a escala de
+  qualquer outra. Fechado para `minhaBase(base) || ve_todas_escalas`
+  (a capacidade nova da Backstage). `bases/{base}` continua aberto —
+  é só nome/cor/horário, nunca foi o problema.
+- **Ordem do culto** (`publicarOrdemCulto`/`lerOrdemCulto`/
+  `limparOrdemCulto`, mais a `storage.rules` do `ordem.pdf`) só
+  verificava `papel==lider_base`, sem checar a base — qualquer líder
+  (Apoio ou Técnica) já podia publicar/apagar a ordem do culto da
+  igreja toda. Fechado por `pode_publicar_culto` (claim vinda de
+  `bases/{b}.culto.podePublicar`, hoje só a Backstage).
+- **`criarCultoEspecial`** tinha o mesmo padrão — qualquer líder criava
+  um evento global (ex.: "Culto de Mulheres" da Apoio). Aqui a
+  correção teve um efeito colateral visível e combinado com o líder:
+  `escopo:"global"` passou a exigir `pode_criar_evento_global` (só a
+  Backstage); Apoio e Técnica passaram a criar os próprios cultos
+  especiais como `escopo:"base"` — visíveis só à base que os cria a
+  partir de agora (filtrado no cliente; ver nota em
+  `visivelParaBase`, `lib/painel.js` — as rules não conseguem esconder
+  isto de uma query de intervalo de datas sem quebrar o calendário de
+  toda a gente, é filtro de interface, não sigilo a sério).
 
 ## A avaliar quando a próxima base começar
 

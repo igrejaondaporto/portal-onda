@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { guardarEscalaTecnica } from "../../lib/painel";
+import { guardarEscalaTecnica, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
 /** Um titular + um aprendiz opcional por ministério. Guarda tudo de
@@ -12,6 +13,28 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  *  ver apps/tecnica/CLAUDE.md. */
 export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  const [aDispensar, setADispensar] = useState(false);
+  const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
+
+  async function alternarDispensa() {
+    setADispensar(true);
+    try {
+      if (dispensada) {
+        await reincluirBaseEmEvento(evento.id);
+        setDispensada(false);
+        torrada("De volta à escala deste evento");
+      } else {
+        await dispensarBaseDeEvento(evento.id);
+        setDispensada(true);
+        torrada("A base não serve neste evento");
+      }
+    } catch (e) {
+      torrada(e.message || "Não foi possível atualizar.");
+    } finally {
+      setADispensar(false);
+    }
+  }
+
   const [lugares, setLugares] = useState(() =>
     ministerios.map((m) => {
       const existente = evento?.escala?.lugares?.find((l) => l.ministerioId === m.id);
@@ -107,6 +130,11 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
           {aGuardar ? "A guardar…" : "Guardar escala"}
         </button>
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
+        {evento.escopo === "global" && (
+          <button className="btn sec full" style={{ marginTop: 9 }} disabled={aDispensar} onClick={alternarDispensa}>
+            {aDispensar ? "A atualizar…" : dispensada ? "Voltar a servir neste evento" : "Esta base não serve neste evento"}
+          </button>
+        )}
         {evento.tipo && onExcluir && (
           <button
             className="btn sec full"

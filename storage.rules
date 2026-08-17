@@ -37,9 +37,14 @@ service firebase.storage {
     match /eventos/{evento}/ordem.pdf {
       allow read:  if autenticado();
       // no delete, request.resource é sempre null — só se exige o
-      // contentType quando há mesmo um ficheiro a entrar (create/update)
+      // contentType quando há mesmo um ficheiro a entrar (create/update).
+      // pode_publicar_culto vem do token (ver claimsExtraDaBase em
+      // functions/index.js, a partir de bases/{b}.culto.pode_publicar) —
+      // antes disto, qualquer líder de qualquer base publicava a ordem
+      // do culto da igreja toda, sem gate nenhum.
       allow write: if autenticado()
                    && request.auth.token.papel == 'lider_base'
+                   && request.auth.token.pode_publicar_culto == true
                    && (request.resource == null || request.resource.contentType == 'application/pdf');
     }
     match /{tudo=**} { allow read, write: if false; }

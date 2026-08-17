@@ -9,7 +9,7 @@
  */
 const REGIAO = "europe-west1";
 const PROJETO = "painel-onda";
-const BASES = ["apoio", "tecnica"];
+const BASES = ["apoio", "tecnica", "backstage"];
 
 async function chamarDadosEntrada(baseId) {
   const r = await fetch(`https://${REGIAO}-${PROJETO}.cloudfunctions.net/dadosEntrada`, {

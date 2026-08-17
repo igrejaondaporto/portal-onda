@@ -58,6 +58,12 @@ export const atribuirFuncao = (eventoId, funcaoId, pessoas) =>
 export const definirFeedback = (eventoId, texto) =>
   chamar("definirFeedback")({ eventoId, texto }).then((r) => r.data);
 
+/** Notas da base que publica, por cima da ordem do culto — separado
+ *  da frase do líder de escala. Só quem tem pode_publicar_culto no
+ *  token consegue chamar isto (ver functions/index.js). */
+export const definirNotasCulto = (eventoId, notas) =>
+  chamar("definirNotasCulto")({ eventoId, notas }).then((r) => r.data);
+
 /** null se ainda não houver PDF subido para este culto. */
 export async function obterOrdemCulto(eventoId) {
   try {

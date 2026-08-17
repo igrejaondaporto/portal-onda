@@ -125,12 +125,23 @@ export async function enviarFotoFuncao(funcaoId, ficheiro) {
 /* ── escala do mês ────────────────────────────────────────── */
 const pad2 = (n) => String(n).padStart(2, "0");
 
+/** Evento escopo:"base" de outra base, ou um evento global que esta
+ *  base marcou "não servimos" — não aparece no calendário, escala,
+ *  enquete nem em lado nenhum desta app. Não é sigilo a sério (ver
+ *  CLAUDE.md raiz): o documento em si continua legível por qualquer
+ *  autenticado, isto só filtra o que a interface mostra. */
+function visivelParaBase(ev) {
+  if (ev.escopo === "base" && ev.baseId !== BASE_ID) return false;
+  if ((ev.dispensadaPor || []).includes(BASE_ID)) return false;
+  return true;
+}
+
 export async function obterEventosDoMes(ano, mesIndex) {
   const inicio = `${ano}-${pad2(mesIndex + 1)}-01`;
   const fim = new Date(Date.UTC(ano, mesIndex + 1, 1)).toISOString().slice(0, 10);
   const q = query(cEventos(), where("data", ">=", inicio), where("data", "<", fim), orderBy("data"));
   const snap = await getDocs(q);
-  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false);
+  const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false).filter(visivelParaBase);
   return Promise.all(
     eventos.map(async (ev) => {
       const esc = await getDoc(cEscala(ev.id));
@@ -154,7 +165,7 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
     pararEscalas.forEach((p) => p());
     pararEscalas = [];
 
-    const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false);
+    const eventos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((ev) => ev.ativo !== false).filter(visivelParaBase);
     if (!eventos.length) { cb([]); return; }
 
     const escalas = {};
@@ -179,6 +190,11 @@ export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
   chamar("guardarEscalaApoio")({ eventoId, pessoas, liderEscala }).then((r) => r.data);
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
+
+/** "Esta base não serve neste evento" — tira o evento global do
+ *  calendário/enquete desta base (ver visivelParaBase). Reversível. */
+export const dispensarBaseDeEvento = (eventoId) => chamar("dispensarBaseDeEvento")({ eventoId }).then((r) => r.data);
+export const reincluirBaseEmEvento = (eventoId) => chamar("reincluirBaseEmEvento")({ eventoId }).then((r) => r.data);
 
 /** Não apaga — desativa (ver CLAUDE.md). Só cultos especiais; a Cloud
  *  Function recusa domingos. */
