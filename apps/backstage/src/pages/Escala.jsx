@@ -3,7 +3,6 @@ import { funcoesDoCulto } from "../lib/modelo";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterTodasAsBases, obterEscalasDeTodasAsBases } from "../lib/painel";
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
-import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
 /** Segmento "Todas as bases" — um domingo de cada vez, as bases

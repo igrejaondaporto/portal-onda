@@ -5,7 +5,7 @@ import { obterMeusProximosDomingos, obterAtribuicoes } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { funcoesDoCulto } from "../lib/modelo";
 import { ouvirFuncoes } from "../lib/painel";
-import { nomeEvento, dataPorExtenso } from "@portal/shared/lib/data.js";
+import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
