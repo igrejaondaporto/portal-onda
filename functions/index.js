@@ -1371,10 +1371,16 @@ export const desativarMelhoria = onCall(async (req) => {
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { melhoriaId } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
-  const m = await obterMelhoria(baseId, melhoriaId);
-  if (m.abertaPor !== uid && req.auth.token.papel !== "lider_base") {
-    throw new HttpsError("permission-denied", "Só o líder da base ou quem abriu pode excluir.");
+  // Só o líder da base, por decisão dele (17/08/2026). Antes também
+  // quem abriu podia: a regra mudou porque excluir apaga o registo, e
+  // quem reportou tem a saída certa em "Concluir" — que exige nota e
+  // fica como histórico. A interface já só mostra o botão ao líder;
+  // isto fecha a mesma regra do lado do servidor, que é onde o
+  // `CLAUDE.md` manda o papel ser verificado.
+  if (req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base pode excluir uma avaria.");
   }
+  const m = await obterMelhoria(baseId, melhoriaId);
 
   const lote = db.batch();
   const ref = refMelhoria(baseId, melhoriaId);
