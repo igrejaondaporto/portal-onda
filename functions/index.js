@@ -11,6 +11,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import admin from "firebase-admin";
+import { equipamentoEmBaixo } from "./estadoEquipamento.js";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { logger } from "firebase-functions";
@@ -1201,20 +1202,32 @@ const GRAVIDADES = ["impede_culto", "atrapalha", "melhoria"];
 export const abrirMelhoria = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null, ministerioId = null, gravidade } = req.data || {};
+  // `marcaAvaria` separa as duas coisas que se abrem sobre um mesmo
+  // equipamento: "o COB esquerdo está a piscar" põe o equipamento em
+  // baixo; "comprar cabos XLR para testar" não põe — é trabalho a
+  // fazer, não uma avaria. Sem isto, qualquer melhoria ligada a um
+  // equipamento marcava-o avariado, e não havia como registar a
+  // segunda sem mentir sobre a primeira.
+  // O `true` por omissão mantém o comportamento de quem já chamava
+  // isto sem o campo (o "Reportar avaria" que já existia).
+  const {
+    melhoriaId, titulo, descricao = "", foto = null, equipamentoId = null,
+    ministerioId = null, gravidade, marcaAvaria = true,
+  } = req.data || {};
   if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta o id da melhoria.");
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!GRAVIDADES.includes(gravidade)) throw new HttpsError("invalid-argument", "Gravidade inválida.");
 
+  const avaria = !!equipamentoId && marcaAvaria !== false;
   const lote = db.batch();
   const ref = refMelhoria(baseId, melhoriaId);
   lote.set(ref, {
     titulo: titulo.trim(), descricao: descricao.trim(), foto, equipamentoId, ministerioId, gravidade,
-    estado: "aberta", previsao: null,
+    estado: "aberta", previsao: null, marcaAvaria: avaria,
     abertaPor: uid, abertaEm: admin.firestore.FieldValue.serverTimestamp(),
     resolvidaPor: null, resolvidaEm: null, notaResolucao: null, fotoResolucao: null, ativo: true,
   });
-  if (equipamentoId) {
+  if (avaria) {
     lote.set(refEquipamento(baseId, equipamentoId), { estado: "avariado" }, { merge: true });
   }
   lote.set(ref.collection("eventos").doc(), {
@@ -1228,6 +1241,31 @@ async function obterMelhoria(baseId, melhoriaId) {
   const snap = await refMelhoria(baseId, melhoriaId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Melhoria não encontrada.");
   return snap.data();
+}
+
+/**
+ * O estado do equipamento é uma consequência das melhorias abertas
+ * sobre ele, não um campo que alguém escreve à mão — não há tela em
+ * lado nenhum que o defina diretamente. Sempre que uma melhoria sai
+ * de cena (resolvida ou excluída), o estado tem de ser recalculado.
+ *
+ * Fazer isto por dedução, e não "resolver → põe ok", evita os dois
+ * enganos simétricos: dar por reparado um equipamento que ainda tem
+ * outra avaria aberta, e deixá-lo avariado para sempre quando a única
+ * avaria dele foi excluída.
+ *
+ * `ignorarId` é a melhoria que está a sair agora: ainda não commitou,
+ * por isso a leitura ainda a traz.
+ */
+async function reavaliarEstadoEquipamento(lote, baseId, equipamentoId, ignorarId) {
+  if (!equipamentoId) return;
+  const abertas = await cMelhorias(baseId)
+    .where("equipamentoId", "==", equipamentoId)
+    .where("ativo", "==", true)
+    .get();
+  const emBaixo = equipamentoEmBaixo(
+    abertas.docs.map((d) => ({ id: d.id, ...d.data() })), ignorarId);
+  lote.set(refEquipamento(baseId, equipamentoId), { estado: emBaixo ? "avariado" : "ok" }, { merge: true });
 }
 
 export const comentarMelhoria = onCall(async (req) => {
@@ -1293,9 +1331,7 @@ export const resolverMelhoria = onCall(async (req) => {
     estado: "resolvida", resolvidaPor: uid, fotoResolucao,
     resolvidaEm: admin.firestore.FieldValue.serverTimestamp(), notaResolucao: notaResolucao.trim(),
   }, { merge: true });
-  if (m.equipamentoId) {
-    lote.set(refEquipamento(baseId, m.equipamentoId), { estado: "ok" }, { merge: true });
-  }
+  await reavaliarEstadoEquipamento(lote, baseId, m.equipamentoId, melhoriaId);
   lote.set(ref.collection("eventos").doc(), {
     tipo: "resolucao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(), texto: notaResolucao.trim(),
   });
@@ -1339,7 +1375,29 @@ export const desativarMelhoria = onCall(async (req) => {
   if (m.abertaPor !== uid && req.auth.token.papel !== "lider_base") {
     throw new HttpsError("permission-denied", "Só o líder da base ou quem abriu pode excluir.");
   }
-  await refMelhoria(baseId, melhoriaId).set({ ativo: false }, { merge: true });
+
+  const lote = db.batch();
+  const ref = refMelhoria(baseId, melhoriaId);
+  lote.set(ref, { ativo: false }, { merge: true });
+  // Fica o rasto de quem desfez, mesmo com a melhoria fora das listas:
+  // o documento continua a existir (regra 5 — nada é apagado).
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "exclusao", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(),
+    texto: "Excluída.",
+  });
+
+  // O equipamento tem de voltar a `ok`, senão fica avariado para
+  // sempre: sem melhoria ativa a apontar para ele, deixa de haver
+  // sítio na app por onde o desmarcar. Era o que acontecia até aqui —
+  // bastava um toque errado no "Reportar avaria" e o equipamento
+  // ficava encravado no painel de avarias sem saída.
+  //
+  // Só se mais nenhuma melhoria ativa o mantiver em baixo: dois
+  // relatos sobre o mesmo equipamento são normais, e desfazer um não
+  // pode dar o outro por resolvido.
+  await reavaliarEstadoEquipamento(lote, baseId, m.equipamentoId, melhoriaId);
+
+  await lote.commit();
   return { ok: true };
 });
 
