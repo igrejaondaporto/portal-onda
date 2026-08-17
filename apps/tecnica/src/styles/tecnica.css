@@ -138,3 +138,41 @@
 .tec-perguntar .btn.sec {
   background: #fff;
 }
+
+/* Equipamentos — cartões que abrem
+ *
+ * Mesmo cartão da Wiki e da Escala (`.mincartao` + `.cabtoque` do
+ * partilhado). O que muda aqui é a hierarquia: o bloco das avarias
+ * vem primeiro e nasce aberto, os ministérios vêm fechados.
+ *
+ * Leva `.tec-min` no cabeçalho, como a Wiki. Cheguei a escrever aqui
+ * que nesta tela não era preciso porque o ponto da cor ao lado
+ * desfazia a dúvida — não desfaz. O "Iluminação" lê-se como dois "ii"
+ * em qualquer sítio onde apareça em negrito; é da fonte, não da tela.
+ * (Confirmado ao pixel que a Outfit não tem `l` alternativo: nenhuma
+ * das 14 features OpenType testadas muda um único ponto do desenho.) */
+.tec-equip {
+  margin-bottom: 10px;
+}
+/* O que precisa de arranjo não é mais um grupo: é o que trava um
+ * culto. Barra e ponto a magenta, como o resto dos avisos da app. */
+.tec-equip-avarias .mincartao-barra,
+.tec-equip-avarias .ponto {
+  background: var(--magenta);
+}
+.tec-equip-avarias .conta {
+  color: var(--magenta);
+  font-weight: 800;
+}
+/* Na contagem do grupo fechado, a parte da avaria destaca-se — é o
+ * que diz onde há problema sem ser preciso abrir cartão nenhum. */
+.tec-equip-avaria {
+  color: var(--magenta);
+  font-weight: 800;
+}
+/* "Em reparação" já tem alguém a tratar dela — laranja, não magenta.
+ * O magenta nesta tela quer dizer "ninguém pegou nisto ainda". */
+.tec-equip-reparacao {
+  color: var(--laranja);
+  font-weight: 800;
+}

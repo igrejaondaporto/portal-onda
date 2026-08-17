@@ -53,7 +53,12 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const [ministerios, setMinisterios] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
-  const [verTudo, setVerTudo] = useState({});
+  // Que cartões estão abertos. `undefined` = por decidir, e aí o
+  // padrão é: avarias abertas (é o que precisa de ação), ministérios
+  // fechados (é catálogo, consulta-se quando se procura alguma coisa).
+  const [abertos, setAbertos] = useState({});
+  const estaAberto = (chave) => !!(abertos[chave] ?? (chave === "avariados"));
+  const alternar = (chave) => setAbertos((v) => ({ ...v, [chave]: !(v[chave] ?? (chave === "avariados")) }));
   const [ordem, setOrdem] = useState("gravidade");
   const [expandida, setExpandida] = useState({});
   const [soAtrasadas, setSoAtrasadas] = useState(false);
@@ -146,63 +151,42 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
           )}
           {equipamentos.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
 
-          {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
-            const doM = equipamentos.filter((e) => e.ministerioId === m.id && e.estado === "ok");
-            if (!doM.length) return null;
-            const chave = m.id ?? "geral";
-            const aberto = !!verTudo[chave];
-            const visiveis = aberto ? doM : doM.slice(0, 3);
-            const cor = m.cor || "var(--cinza)";
-            return (
-              <div className="mincartao" key={chave}>
-                <div className="mincartao-barra" style={{ background: cor }} />
-                <div className="mincartao-cab">
-                  <span className="ponto" style={{ background: cor }} />
-                  <span className="nome">{m.nome}</span>
-                  <span className="conta">{doM.length} {doM.length === 1 ? "item" : "itens"}</span>
-                </div>
-                {visiveis.map((e) => (
-                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                    <div style={{ flex: 1 }}>
-                      <p className="nmt">{e.nome}</p>
-                      <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
-                    </div>
-                    {souLiderBase && (
-                      <button className="lapis" onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "editarEquipamento", equipamentoId: e.id }); }}>✎</button>
-                    )}
-                    <span className="seta">›</span>
-                  </div>
-                ))}
-                {doM.length > 3 && (
-                  <button className="btn sec full verMais" onClick={() => setVerTudo((v) => ({ ...v, [chave]: !v[chave] }))}>
-                    {aberto ? "Ver menos" : `Ver mais (${doM.length - 3})`}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
+          {/* O que está avariado vem PRIMEIRO e já aberto. Antes vinha no
+            * fim, depois de todo o equipamento que funciona — ao contrário
+            * do que interessa a quem abre isto de manhã com o projetor em
+            * baixo. Fecha-se depois de visto, mas não se esconde. */}
           {comProblema > 0 && (() => {
             const avariados = equipamentos.filter((e) => e.estado !== "ok");
-            const aberto = !!verTudo.avariados;
-            const visiveis = aberto ? avariados : avariados.slice(0, 3);
+            const aberto = estaAberto("avariados");
             return (
-              <div>
-                <p className="cap" style={{ padding: "18px 0 4px" }}>
-                  <span style={{ background: "var(--magenta)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>Avariados</span> · {comProblema}
-                </p>
-                {visiveis.map((e) => {
+              <div className="mincartao tec-equip tec-equip-avarias">
+                <div className="mincartao-barra" />
+                <button className="mincartao-cab cabtoque" data-aberto={aberto ? 1 : 0} aria-expanded={aberto} onClick={() => alternar("avariados")}>
+                  <span className="ponto" />
+                  <span className="nome">A precisar de arranjo</span>
+                  <span className="conta">{avariados.length}</span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {aberto && avariados.map((e) => {
                   const melhoriaLigada = melhorias.find((m) => m.equipamentoId === e.id && m.estado !== "resolvida");
                   return (
                     <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt">
+                      {/* O estado vai no subtítulo, não numa etiqueta à
+                        * direita: com nome + etiqueta + "Marcar resolvida"
+                        * + seta na mesma linha, um nome como "Projetor
+                        * principal" partia em duas a 375px. Aqui há espaço
+                        * de sobra e lê-se igual. */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="nmt">{e.nome}</p>
+                        <p className="ds">
                           {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
-                          {e.nome}
+                          {e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}
+                          {" · "}
+                          <b className={e.estado === "em_reparacao" ? "tec-equip-reparacao" : "tec-equip-avaria"}>
+                            {e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}
+                          </b>
                         </p>
-                        <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
                       </div>
-                      <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
                       {melhoriaLigada && (
                         <button
                           className="btn sec"
@@ -216,14 +200,51 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                     </div>
                   );
                 })}
-                {avariados.length > 3 && (
-                  <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}>
-                    {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
-                  </button>
-                )}
               </div>
             );
           })()}
+
+          {/* Grupos fechados, e cada um com TUDO o que é dele — avariados
+            * incluídos, com etiqueta. Antes o filtro era `estado === "ok"`
+            * e o projetor avariado sumia do grupo Projeção: quem fosse ver
+            * "o que temos na projeção" recebia uma resposta incompleta. */}
+          {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
+            const doM = equipamentos.filter((e) => e.ministerioId === m.id);
+            if (!doM.length) return null;
+            const chave = m.id ?? "geral";
+            const aberto = estaAberto(chave);
+            const comAvaria = doM.filter((e) => e.estado !== "ok").length;
+            const cor = m.cor || "var(--cinza)";
+            return (
+              <div className="mincartao tec-equip" key={chave}>
+                <div className="mincartao-barra" style={{ background: cor }} />
+                <button className="mincartao-cab cabtoque tec-min" data-aberto={aberto ? 1 : 0} aria-expanded={aberto} onClick={() => alternar(chave)}>
+                  <span className="ponto" style={{ background: cor }} />
+                  <span className="nome">{m.nome}</span>
+                  <span className="conta">
+                    {doM.length} {doM.length === 1 ? "item" : "itens"}
+                    {comAvaria > 0 && <b className="tec-equip-avaria"> · {comAvaria} avariado{comAvaria > 1 ? "s" : ""}</b>}
+                  </span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {aberto && doM.map((e) => (
+                  <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                    <div style={{ flex: 1 }}>
+                      <p className="nmt">{e.nome}</p>
+                      <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
+                    </div>
+                    {e.estado !== "ok" && (
+                      <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
+                    )}
+                    {souLiderBase && (
+                      <button className="lapis" onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "editarEquipamento", equipamentoId: e.id }); }}>✎</button>
+                    )}
+                    <span className="seta">›</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="sect">
