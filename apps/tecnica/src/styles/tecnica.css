@@ -188,3 +188,7 @@
 .tec-equip-corpo {
   padding: 4px 12px 8px;
 }
+/* Separa as ações do topo do conteúdo que vem a seguir. */
+.tec-equip-lista {
+  margin-top: 18px;
+}

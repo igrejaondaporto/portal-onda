@@ -137,7 +137,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   async function foiEngano(m) {
     try {
       await desativarMelhoria(m.id);
-      torrada("Desfeito. O equipamento voltou a ok.");
+      torrada("Avaria excluída. O equipamento voltou a ok.");
       setAConfirmarEngano(null);
     } catch (e) {
       torrada(e.message || "Não foi possível desfazer.");
@@ -169,6 +169,11 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
           </button>
         )}
         {equipamentos.length === 0 && melhorias.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
+
+        {/* Os botões acima são ações; daqui para baixo é conteúdo. Sem
+          * este intervalo a barra do primeiro cartão encostava ao "Novo
+          * equipamento" e lia-se como se fosse parte dele. */}
+        <div className="tec-equip-lista">
 
           {/* O que está avariado vem PRIMEIRO e já aberto. Antes vinha no
             * fim, depois de todo o equipamento que funciona — ao contrário
@@ -225,9 +230,9 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                     {melhoriaLigada && (
                       aConfirmarEngano === melhoriaLigada.id ? (
                         <div className="tec-equip-acoes">
-                          <span className="ds" style={{ flex: 1 }}>Desfazer? O equipamento volta a ok.</span>
+                          <span className="ds" style={{ flex: 1 }}>Excluir? O equipamento volta a ok.</span>
                           <button className="btn perigo" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => foiEngano(melhoriaLigada)}>
-                            Desfazer
+                            Excluir
                           </button>
                           <button className="btn sec" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => setAConfirmarEngano(null)}>
                             Não
@@ -239,10 +244,13 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                             onClick={() => setSheet({ tipo: "melhoria", melhoriaId: melhoriaLigada.id, editar: true, resolver: true })}>
                             Concluir avaria
                           </button>
-                          {(souLiderBase || melhoriaLigada.abertaPor === uid) && (
+                          {/* Excluir é só do líder da base, por decisão dele:
+                            * quem reportou pode concluir (com nota, que fica
+                            * como histórico), mas apagar o registo não. */}
+                          {souLiderBase && (
                             <button className="btn sec" style={{ flex: 1, padding: "9px 8px", fontSize: 12.5 }}
                               onClick={() => setAConfirmarEngano(melhoriaLigada.id)}>
-                              Foi engano
+                              Excluir avaria
                             </button>
                           )}
                         </div>
@@ -332,6 +340,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
               )}
             </div>
           )}
+        </div>
       </div>
 
       {sheet?.tipo === "novoEquipamento" && (
