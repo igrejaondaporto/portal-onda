@@ -26,6 +26,7 @@ packages/shared/       Código genuinamente igual em qualquer base:
                         a todas as bases de uma vez — é para isso que existe.
 apps/apoio/             App da Base de Apoio. Domínio: apoio.painelonda.pt
 apps/tecnica/           App da Base Técnica. Domínio: tecnica.painelonda.pt
+apps/backstage/         App da Backstage. Domínio: back.painelonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -71,6 +72,7 @@ bases, nunca no mesmo commit que uma correção local.
 |---|---|---|---|
 | Apoio | `apps/apoio` | `apoio.painelonda.pt` | `apps/apoio/CLAUDE.md` |
 | Técnica | `apps/tecnica` | `tecnica.painelonda.pt` | `apps/tecnica/CLAUDE.md` |
+| Backstage | `apps/backstage` | `back.painelonda.pt` | `apps/backstage/CLAUDE.md` |
 
 ## Stack
 
@@ -124,6 +126,37 @@ passar.
 Fotos, nomes, telefones e faturas de pessoas identificadas. O aviso
 curto no primeiro login basta — não há formulário em papel. Retenção:
 operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
+
+## Ao criar uma base nova
+
+Duas coisas que se esquecem fácil por não serem tela nem regra de
+negócio — fazer sempre, antes de dar a base por pronta:
+
+1. **Ícone, favicon e imagem de partilha (`og-image.png`) com o nome
+   da base.** Todas as bases usam o mesmo fundo (gradiente azul
+   `#001ed1 → #0019be → #001594`, o mesmo de sempre) — o que muda é só
+   o texto, para dar para distinguir bases à vista (separador do
+   browser, ecrã principal do telemóvel depois de instalar o PWA,
+   pré-visualização ao partilhar um link). Em cada `apps/<base>/public/`:
+   - `favicon.svg`/`favicon.ico` (pequenos): abreviação de 2-3 letras,
+     maiúsculas — `AP`, `TEC`, `BS`.
+   - `apple-touch-icon.png`, `icone-192.png`, `icone-512.png`: nome
+     curto e minúsculo, de preferência igual ao subdomínio —
+     `apoio`, `tecnica`/`técnica`, `back`.
+   - `og-image.png`: o design `igrejaonda` de sempre (logo + "PORTAL
+     DO VOLUNTÁRIO" + curva lima) fica igual; acrescenta só o nome da
+     base por baixo, maiúsculo e espaçado, a lima (`#c3dc54`).
+   Não é para desenhar à mão: gerar por script (gradiente + texto
+   centrado, fonte Outfit ou uma sans-serif redonda parecida — ver o
+   histórico da PR que criou a Backstage para o script de referência).
+2. **Conteúdo do tour de primeiro login** (`bases/{baseId}/tour/config`,
+   via `scripts/seedTour.mjs`). Não precisa de ser elaborado — uma
+   frase curta por passo, uma por cada botão principal da barra
+   inferior (`data-tour="nav-<chave>"`, gerado sozinho pelo `NavBar.jsx`)
+   mais boas-vindas/escala/checklist/fechamento, no mesmo espírito do
+   que a Apoio e a Técnica já têm. Sem isto, o primeiro login da base
+   nova não quebra (passos apontando a `data-tour` inexistente pulam
+   em silêncio — ver `TourContext.jsx`), só fica sem a visita guiada.
 
 ## Melhorias entre bases
 

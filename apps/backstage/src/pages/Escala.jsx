@@ -148,7 +148,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   return (
     <>
       {veTodasEscalas && (
-        <div className="segcontrol" style={{ display: "flex", gap: 8, padding: "0 0 14px" }}>
+        <div className="segcontrol" data-tour="escala-todas-bases" style={{ display: "flex", gap: 8, padding: "0 0 14px" }}>
           <button className={`btn ${abaEscala === "minha" ? "" : "sec"}`} style={{ flex: 1, fontSize: 13 }} onClick={() => setAbaEscala("minha")}>
             Minha base
           </button>

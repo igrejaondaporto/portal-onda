@@ -166,6 +166,86 @@ const TOURS = {
       },
     ],
   },
+
+  backstage: {
+    // Molde Apoio (mesmo menu, mesma ordem-lógica: botões do menu
+    // primeiro — não dependem de dado nenhum, aparecem sempre na hora
+    // —, checklist/calendário por último, quando meuEvento já
+    // carregou de sobra). Duas coisas só desta base entram no meio:
+    // "Todas as bases" (comum a qualquer voluntário, não só ao líder
+    // — ver bases/backstage.veEscalas) e "Enquetes"/"Publicar a ordem
+    // do culto" (só ao líder, em passosLider).
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — todos os cultos e quem serve em cada um.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "escala-todas-bases",
+        titulo: "Todas as bases",
+        texto: "Só a Backstage tem isto: toca em \"Todas as bases\" para veres quem serve em cada equipa naquele domingo — sem checklist nem progresso, só quem está escalado.",
+        alvo: "escala-todas-bases", pagina: "escala",
+      },
+      {
+        chave: "nav-funcoes",
+        titulo: "Funções",
+        texto: "Em Funções vês a descrição de cada tarefa — o que fazer em cada uma.",
+        alvo: "nav-funcoes", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "A ordem do culto fica sempre em Culto, atualizada.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-inventario",
+        titulo: "Inventário",
+        texto: "Em Inventário aumentas ou diminuis a quantidade de um item sempre que algo acabar ou chegar novo.",
+        alvo: "nav-inventario", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "nav-enquetes",
+        titulo: "Enquetes",
+        texto: "Em Enquetes abres a pergunta de indisponibilidade do mês e vês quem já respondeu, antes de montar a escala em Escala.",
+        alvo: "nav-enquetes", pagina: "inicio",
+      },
+      {
+        chave: "publicar-ordem",
+        titulo: "Publicar a ordem do culto",
+        texto: "Só a Backstage publica: em Culto, sobe o PDF que o pastor manda — as outras bases só leem o que publicas aqui.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+    ],
+  },
 };
 
 async function main() {
