@@ -6,13 +6,18 @@ import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
 /** Reportar uma avaria ou sugerir uma melhoria — qualquer voluntário.
- *  Quando aberta a partir de um equipamento (equipamentoId), esse
- *  equipamento passa a "avariado" automaticamente ao guardar. */
-export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, onGuardado }) {
+ *
+ *  `tipo` separa as duas coisas que se abrem sobre o mesmo equipamento:
+ *  uma AVARIA põe-no fora de serviço ("o COB esquerdo está a piscar");
+ *  uma MELHORIA fica ligada a ele sem o pôr em baixo ("comprar cabos
+ *  XLR para testar"). É o `marcaAvaria` que a Cloud Function usa. */
+export default function SheetNovaMelhoria({ equipamento, ministerios, tipo = "avaria", onFechar, onGuardado }) {
+  const eAvaria = tipo !== "melhoria";
   const torrada = useTorrada();
   const idRef = useRef(novaMelhoriaId());
   const inputFotoRef = useRef(null);
-  const [titulo, setTitulo] = useState(equipamento ? `Avaria — ${equipamento.nome}` : "");
+  const [titulo, setTitulo] = useState(
+    equipamento ? `${eAvaria ? "Avaria" : "Melhoria"} — ${equipamento.nome}` : "");
   const [descricao, setDescricao] = useState("");
   const [gravidade, setGravidade] = useState("atrapalha");
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
@@ -45,6 +50,7 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, 
       await abrirMelhoria({
         melhoriaId: idRef.current, titulo: t, descricao: descricao.trim(), foto,
         equipamentoId: equipamento?.id ?? null, ministerioId, gravidade,
+        marcaAvaria: eAvaria,
       });
       onGuardado("Melhoria aberta");
     } catch (e) {
@@ -58,9 +64,14 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, onFechar, 
       <div className="veu on" onClick={onFechar} />
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
-        <h2>{equipamento ? "Reportar avaria" : "Nova melhoria"}</h2>
+        <h2>{eAvaria ? "Reportar avaria" : "Reportar melhoria"}</h2>
+        <p className="ds" style={{ marginTop: 10 }}>
+          {eAvaria
+            ? "O equipamento passa a aparecer como avariado até isto ficar resolvido."
+            : "Fica registado como trabalho a fazer. O equipamento continua em serviço."}
+        </p>
         <label className="rot" style={{ marginTop: 14 }}>Título</label>
-        <input className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Canal 3 da mesa sem som" />
+        <input className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder={eAvaria ? "Ex.: Canal 3 da mesa sem som" : "Ex.: Comprar cabos XLR suplentes"} />
         <label className="rot">O que se passa</label>
         <textarea className="campo" rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descreve o que reparaste" />
         <label className="rot">Gravidade</label>

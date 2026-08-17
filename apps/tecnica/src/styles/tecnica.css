@@ -94,3 +94,101 @@
  *
  *   .tec-consola { ... }
  * ------------------------------------------------------------ */
+
+/* Wiki — maiúsculas no nome do ministério
+ *
+ * O cabeçalho tocável (`.cabtoque`) e o cartão do culto vivem agora em
+ * `packages/shared/styles/global.css`, porque a Escala das outras bases
+ * usa o mesmo. Aqui fica só o que é mesmo da Técnica: as maiúsculas.
+ *
+ * Existem por causa de uma palavra, "Iluminação". Na Outfit o `I`
+ * maiúsculo e o `l` minúsculo são o mesmo traço vertical, sem serifa
+ * nem cauda; em caixa alta e baixa o início da palavra lê-se como dois
+ * "ii" colados, e o nome do ministério é o primeiro sítio onde o olho
+ * pousa na Wiki. Em maiúsculas o `L` tem pé e desfaz-se a dúvida.
+ *
+ * Espaçar as letras não chegava: separa os dois traços, mas continuam
+ * a ser dois traços iguais. Testado com a fonte real, não de cor.
+ *
+ * Numa data ("16 de agosto") o problema não existe e as maiúsculas só
+ * gritavam — por isso a Escala usa o `.cabtoque` sem este modificador. */
+.cabtoque.tec-min .nome {
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+}
+
+/* Wiki — o convite a perguntar, no fim da página
+ *
+ * Fundo cheio e sem borda para não competir com os cartões dos
+ * grupos, que são o conteúdo. Isto é o fim do caminho, não uma
+ * quinta opção a disputar a atenção logo à entrada. */
+.tec-perguntar {
+  background: var(--agua);
+  border-radius: 14px;
+  padding: 16px;
+}
+.tec-perguntar .ds {
+  margin-top: 5px;
+}
+/* O `.btn.sec` do partilhado é `--agua` sobre branco. Aqui a caixa já
+ * é `--agua`, e o botão desaparecia nela — ficava texto azul solto,
+ * sem se perceber que era para tocar. Branco devolve-lhe a borda sem
+ * o promover a botão principal, que este não é. */
+.tec-perguntar .btn.sec {
+  background: #fff;
+}
+
+/* Equipamentos — cartões que abrem
+ *
+ * Mesmo cartão da Wiki e da Escala (`.mincartao` + `.cabtoque` do
+ * partilhado). O que muda aqui é a hierarquia: o bloco das avarias
+ * vem primeiro e nasce aberto, os ministérios vêm fechados.
+ *
+ * Leva `.tec-min` no cabeçalho, como a Wiki. Cheguei a escrever aqui
+ * que nesta tela não era preciso porque o ponto da cor ao lado
+ * desfazia a dúvida — não desfaz. O "Iluminação" lê-se como dois "ii"
+ * em qualquer sítio onde apareça em negrito; é da fonte, não da tela.
+ * (Confirmado ao pixel que a Outfit não tem `l` alternativo: nenhuma
+ * das 14 features OpenType testadas muda um único ponto do desenho.) */
+.tec-equip {
+  margin-bottom: 10px;
+}
+/* O que precisa de arranjo não é mais um grupo: é o que trava um
+ * culto. Barra e ponto a magenta, como o resto dos avisos da app. */
+.tec-equip-avarias .mincartao-barra,
+.tec-equip-avarias .ponto {
+  background: var(--magenta);
+}
+.tec-equip-avarias .conta {
+  color: var(--magenta);
+  font-weight: 800;
+}
+/* Na contagem do grupo fechado, a parte da avaria destaca-se — é o
+ * que diz onde há problema sem ser preciso abrir cartão nenhum. */
+.tec-equip-avaria {
+  color: var(--magenta);
+  font-weight: 800;
+}
+/* "Em reparação" já tem alguém a tratar dela — laranja, não magenta.
+ * O magenta nesta tela quer dizer "ninguém pegou nisto ainda". */
+.tec-equip-reparacao {
+  color: var(--laranja);
+  font-weight: 800;
+}
+/* As duas saídas de uma avaria, numa linha própria por baixo dela.
+ * Ao lado do nome não cabiam: já lá estava a etiqueta e a seta, e a
+ * 375px o nome partia em duas. */
+.tec-equip-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+.tec-equip-corpo {
+  padding: 4px 12px 8px;
+}
+/* Separa as ações do topo do conteúdo que vem a seguir. */
+.tec-equip-lista {
+  margin-top: 18px;
+}

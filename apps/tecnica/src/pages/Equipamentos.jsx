@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirEquipamentos } from "../lib/equipamentos";
-import { ouvirMelhorias, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO } from "../lib/melhorias";
+import { ouvirMelhorias, desativarMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO } from "../lib/melhorias";
 import { ouvirVoluntarios, ouvirMinisterios } from "../lib/painel";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -15,7 +15,6 @@ import SheetNovaMelhoria from "../components/equipamentos/SheetNovaMelhoria";
 const COR_MINIATURA = { alta: "var(--magenta)", media: "var(--laranja)", baixa: "var(--ciano)" };
 const RANK_GRAVIDADE = { impede_culto: 0, atrapalha: 1, melhoria: 2 };
 const RANK_ESTADO = { aberta: 0, em_curso: 1, resolvida: 2 };
-const OPCOES_ORDEM = [["gravidade", "Gravidade"], ["data", "Data"], ["previsao", "Previsão"], ["status", "Status"]];
 
 // "2026-08-16" (data) ou um Timestamp do Firestore (abertaEm) → "16 ago"
 function curta(valor) {
@@ -47,17 +46,19 @@ function ordenarMelhorias(lista, ordem) {
 export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
-  const [aba, setAba] = useState("equipamentos");
   const [equipamentos, setEquipamentos] = useState([]);
   const [melhorias, setMelhorias] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
-  const [verTudo, setVerTudo] = useState({});
-  const [ordem, setOrdem] = useState("gravidade");
+  // Que cartões estão abertos. `undefined` = por decidir, e aí o
+  // padrão é: avarias abertas (é o que precisa de ação), ministérios
+  // fechados (é catálogo, consulta-se quando se procura alguma coisa).
+  const [abertos, setAbertos] = useState({});
+  const estaAberto = (chave) => !!(abertos[chave] ?? (chave === "avariados"));
+  const alternar = (chave) => setAbertos((v) => ({ ...v, [chave]: !(v[chave] ?? (chave === "avariados")) }));
   const [expandida, setExpandida] = useState({});
-  const [soAtrasadas, setSoAtrasadas] = useState(false);
-  const [verResolvidas, setVerResolvidas] = useState(false);
+  const [aConfirmarEngano, setAConfirmarEngano] = useState(null); // melhoriaId
 
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirMelhorias(setMelhorias), []);
@@ -68,17 +69,20 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const melhoriasAtivas = melhorias.filter((m) => m.estado !== "resolvida");
   const melhoriasResolvidas = melhorias.filter((m) => m.estado === "resolvida");
   const abertas = melhoriasAtivas.length;
-  const atrasadas = melhoriasAtivas.filter((m) => corPrevisao(m).atrasada).length;
 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
       titulo: "Equipamentos",
-      subtitulo: aba === "equipamentos" ? "Som, luz e projeção" : "Avarias e sugestões",
-      chips: aba === "equipamentos" ? [`${equipamentos.length} itens`, comProblema ? `${comProblema} com problema` : "Tudo ok"] : [`${abertas} em aberto`],
+      subtitulo: "Som, luz e projeção",
+      chips: [
+        `${equipamentos.length} itens`,
+        comProblema ? `${comProblema} com problema` : "Tudo ok",
+        ...(abertas ? [`${abertas} em aberto`] : []),
+      ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, aba, equipamentos.length, comProblema, abertas]);
+  }, [ativo, equipamentos.length, comProblema, abertas]);
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome;
   const equipamentoAtual = sheet?.equipamentoId ? equipamentos.find((e) => e.id === sheet.equipamentoId) : null;
@@ -130,152 +134,214 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
     );
   }
 
+  async function foiEngano(m) {
+    try {
+      await desativarMelhoria(m.id);
+      torrada("Avaria excluída. O equipamento voltou a ok.");
+      setAConfirmarEngano(null);
+    } catch (e) {
+      torrada(e.message || "Não foi possível desfazer.");
+    }
+  }
+
   return (
     <>
-      <div className="subtabs">
-        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
-        <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>Melhorias</button>
-      </div>
+      {/* Um ecrã só. Havia duas abas — Equipamentos e Melhorias — e um
+        * mesmo equipamento vivia nas duas: "o COB esquerdo está a
+        * piscar" numa, "comprar cabos XLR para testar" na outra. Para
+        * perceber um equipamento era preciso olhar para dois sítios. */}
 
-      {aba === "equipamentos" ? (
-        <div className="sect">
-          {souLiderBase && (
-            <button className="btn sec full" style={{ marginBottom: 12 }} onClick={() => setSheet({ tipo: "novoEquipamento" })}>
-              Novo equipamento
-            </button>
-          )}
-          {equipamentos.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
+      <div className="sect">
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn full" style={{ flex: 1, padding: "12px 8px", fontSize: 13.5 }}
+            onClick={() => setSheet({ tipo: "novaMelhoria", reportar: "avaria" })}>
+            Reportar avaria
+          </button>
+          <button className="btn sec full" style={{ flex: 1, padding: "12px 8px", fontSize: 13.5 }}
+            onClick={() => setSheet({ tipo: "novaMelhoria", reportar: "melhoria" })}>
+            Reportar melhoria
+          </button>
+        </div>
+        {souLiderBase && (
+          <button className="btn sec full" style={{ marginTop: 8, padding: "10px 8px", fontSize: 13 }}
+            onClick={() => setSheet({ tipo: "novoEquipamento" })}>
+            Novo equipamento
+          </button>
+        )}
+        {equipamentos.length === 0 && melhorias.length === 0 && <div className="vaz">Ainda não há equipamentos no catálogo.</div>}
 
+        {/* Os botões acima são ações; daqui para baixo é conteúdo. Sem
+          * este intervalo a barra do primeiro cartão encostava ao "Novo
+          * equipamento" e lia-se como se fosse parte dele. */}
+        <div className="tec-equip-lista">
+
+          {/* O que está avariado vem PRIMEIRO e já aberto. Antes vinha no
+            * fim, depois de todo o equipamento que funciona — ao contrário
+            * do que interessa a quem abre isto de manhã com o projetor em
+            * baixo. Fecha-se depois de visto, mas não se esconde. */}
+          {(comProblema > 0 || abertas > 0) && (() => {
+            const avariados = equipamentos.filter((e) => e.estado !== "ok");
+            // as que não são avaria: "comprar cabos XLR", ou ligadas a um
+            // equipamento que continua em serviço. Sem isto ficavam
+            // invisíveis — era a antiga aba Melhorias que as mostrava.
+            const tarefas = melhoriasAtivas.filter(
+              (m) => !avariados.some((e) => e.id === m.equipamentoId));
+            const aberto = estaAberto("avariados");
+            return (
+              <div className="mincartao tec-equip tec-equip-avarias">
+                <div className="mincartao-barra" />
+                <button className="mincartao-cab cabtoque" data-aberto={aberto ? 1 : 0} aria-expanded={aberto} onClick={() => alternar("avariados")}>
+                  <span className="ponto" />
+                  <span className="nome">A precisar de atenção</span>
+                  <span className="conta">
+                    {avariados.length > 0 && `${avariados.length} avariado${avariados.length > 1 ? "s" : ""}`}
+                    {avariados.length > 0 && tarefas.length > 0 && " · "}
+                    {tarefas.length > 0 && `${tarefas.length} a fazer`}
+                  </span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {aberto && avariados.map((e) => {
+                  const melhoriaLigada = melhorias.find((m) => m.equipamentoId === e.id && m.estado !== "resolvida");
+                  return (
+                    <div key={e.id}>
+                    <div className="linha" style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                      {/* O estado vai no subtítulo, não numa etiqueta à
+                        * direita: com nome + etiqueta + "Marcar resolvida"
+                        * + seta na mesma linha, um nome como "Projetor
+                        * principal" partia em duas a 375px. Aqui há espaço
+                        * de sobra e lê-se igual. */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="nmt">{e.nome}</p>
+                        <p className="ds">
+                          {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
+                          {e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}
+                          {" · "}
+                          <b className={e.estado === "em_reparacao" ? "tec-equip-reparacao" : "tec-equip-avaria"}>
+                            {e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}
+                          </b>
+                        </p>
+                      </div>
+                      <span className="seta">›</span>
+                    </div>
+                    {/* As duas saídas, à vista e sem sair daqui. Antes só
+                      * havia "Marcar resolvida", e só quando existia uma
+                      * melhoria ligada — desfazer um toque errado obrigava
+                      * a ir à folha da melhoria, três telas adiante. */}
+                    {melhoriaLigada && (
+                      aConfirmarEngano === melhoriaLigada.id ? (
+                        <div className="tec-equip-acoes">
+                          <span className="ds" style={{ flex: 1 }}>Excluir? O equipamento volta a ok.</span>
+                          <button className="btn perigo" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => foiEngano(melhoriaLigada)}>
+                            Excluir
+                          </button>
+                          <button className="btn sec" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => setAConfirmarEngano(null)}>
+                            Não
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="tec-equip-acoes">
+                          <button className="btn sec" style={{ flex: 1, padding: "9px 8px", fontSize: 12.5 }}
+                            onClick={() => setSheet({ tipo: "melhoria", melhoriaId: melhoriaLigada.id, editar: true, resolver: true })}>
+                            Concluir avaria
+                          </button>
+                          {/* Excluir é só do líder da base, por decisão dele:
+                            * quem reportou pode concluir (com nota, que fica
+                            * como histórico), mas apagar o registo não. */}
+                          {souLiderBase && (
+                            <button className="btn sec" style={{ flex: 1, padding: "9px 8px", fontSize: 12.5 }}
+                              onClick={() => setAConfirmarEngano(melhoriaLigada.id)}>
+                              Excluir avaria
+                            </button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                  );
+                })}
+                {aberto && tarefas.map((m) => {
+                  const eq = m.equipamentoId ? equipamentos.find((x) => x.id === m.equipamentoId) : null;
+                  return (
+                    <div className="linha" style={{ cursor: "pointer" }} key={m.id}
+                      onClick={() => setSheet({ tipo: "melhoria", melhoriaId: m.id, editar: true })}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="nmt">{m.titulo}</p>
+                        <p className="ds">
+                          {eq ? `${eq.nome} · ` : ""}
+                          {m.estado === "em_curso" ? "Em curso" : "A fazer"}
+                        </p>
+                      </div>
+                      <span className="seta">›</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Grupos fechados, e cada um com TUDO o que é dele — avariados
+            * incluídos, com etiqueta. Antes o filtro era `estado === "ok"`
+            * e o projetor avariado sumia do grupo Projeção: quem fosse ver
+            * "o que temos na projeção" recebia uma resposta incompleta. */}
           {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
-            const doM = equipamentos.filter((e) => e.ministerioId === m.id && e.estado === "ok");
+            const doM = equipamentos.filter((e) => e.ministerioId === m.id);
             if (!doM.length) return null;
             const chave = m.id ?? "geral";
-            const aberto = !!verTudo[chave];
-            const visiveis = aberto ? doM : doM.slice(0, 3);
+            const aberto = estaAberto(chave);
+            const comAvaria = doM.filter((e) => e.estado !== "ok").length;
             const cor = m.cor || "var(--cinza)";
             return (
-              <div className="mincartao" key={chave}>
+              <div className="mincartao tec-equip" key={chave}>
                 <div className="mincartao-barra" style={{ background: cor }} />
-                <div className="mincartao-cab">
+                <button className="mincartao-cab cabtoque tec-min" data-aberto={aberto ? 1 : 0} aria-expanded={aberto} onClick={() => alternar(chave)}>
                   <span className="ponto" style={{ background: cor }} />
                   <span className="nome">{m.nome}</span>
-                  <span className="conta">{doM.length} {doM.length === 1 ? "item" : "itens"}</span>
-                </div>
-                {visiveis.map((e) => (
+                  <span className="conta">
+                    {doM.length} {doM.length === 1 ? "item" : "itens"}
+                    {comAvaria > 0 && <b className="tec-equip-avaria"> · {comAvaria} avariado{comAvaria > 1 ? "s" : ""}</b>}
+                  </span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {aberto && doM.map((e) => (
                   <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
                     <div style={{ flex: 1 }}>
                       <p className="nmt">{e.nome}</p>
                       <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
                     </div>
+                    {e.estado !== "ok" && (
+                      <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
+                    )}
                     {souLiderBase && (
                       <button className="lapis" onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "editarEquipamento", equipamentoId: e.id }); }}>✎</button>
                     )}
                     <span className="seta">›</span>
                   </div>
                 ))}
-                {doM.length > 3 && (
-                  <button className="btn sec full verMais" onClick={() => setVerTudo((v) => ({ ...v, [chave]: !v[chave] }))}>
-                    {aberto ? "Ver menos" : `Ver mais (${doM.length - 3})`}
-                  </button>
-                )}
               </div>
             );
           })}
 
-          {comProblema > 0 && (() => {
-            const avariados = equipamentos.filter((e) => e.estado !== "ok");
-            const aberto = !!verTudo.avariados;
-            const visiveis = aberto ? avariados : avariados.slice(0, 3);
-            return (
-              <div>
-                <p className="cap" style={{ padding: "18px 0 4px" }}>
-                  <span style={{ background: "var(--magenta)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>Avariados</span> · {comProblema}
-                </p>
-                {visiveis.map((e) => {
-                  const melhoriaLigada = melhorias.find((m) => m.equipamentoId === e.id && m.estado !== "resolvida");
-                  return (
-                    <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt">
-                          {e.ministerioId && <span className="quadmin" style={{ background: ministerios.find((m) => m.id === e.ministerioId)?.cor }} />}
-                          {e.nome}
-                        </p>
-                        <p className="ds">{e.ministerioId ? nomeMinisterio(e.ministerioId) : "Geral"}</p>
-                      </div>
-                      <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>
-                      {melhoriaLigada && (
-                        <button
-                          className="btn sec"
-                          style={{ padding: "8px 12px", fontSize: 12 }}
-                          onClick={(ev) => { ev.stopPropagation(); setSheet({ tipo: "melhoria", melhoriaId: melhoriaLigada.id, editar: true, resolver: true }); }}
-                        >
-                          Marcar resolvida
-                        </button>
-                      )}
-                      <span className="seta">›</span>
-                    </div>
-                  );
-                })}
-                {avariados.length > 3 && (
-                  <button className="btn sec full" style={{ marginTop: 6 }} onClick={() => setVerTudo((v) => ({ ...v, avariados: !v.avariados }))}>
-                    {aberto ? "Ver menos" : `Ver mais (${avariados.length - 3})`}
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      ) : (
-        <div className="sect">
-          <button className="btn sec full" style={{ marginBottom: 12 }} onClick={() => setSheet({ tipo: "novaMelhoria" })}>
-            Nova melhoria
-          </button>
-          {melhorias.length === 0 && <div className="vaz">Nada reportado ainda.</div>}
-          {melhorias.length > 0 && (
-            <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                <div className="ordselect" style={{ flex: 1 }}>
-                  Ordenar por
-                  <select value={ordem} onChange={(e) => setOrdem(e.target.value)}>
-                    {OPCOES_ORDEM.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
-                  </select>
-                </div>
-                <button
-                  className="tag" data-on={soAtrasadas ? 1 : 0}
-                  style={{
-                    cursor: "pointer", border: 0,
-                    ...(soAtrasadas ? { background: "var(--magenta)", color: "#fff" } : { background: "var(--fio)", color: "var(--cinza)" }),
-                  }}
-                  onClick={() => setSoAtrasadas((v) => !v)}
-                >
-                  Atrasadas{atrasadas > 0 ? ` (${atrasadas})` : ""}
-                </button>
-              </div>
-
-              {(soAtrasadas ? melhoriasAtivas.filter((m) => corPrevisao(m).atrasada) : melhoriasAtivas).length === 0 && (
-                <div className="vaz">{soAtrasadas ? "Nenhuma melhoria atrasada." : "Nada em aberto."}</div>
-              )}
-              {ordenarMelhorias(soAtrasadas ? melhoriasAtivas.filter((m) => corPrevisao(m).atrasada) : melhoriasAtivas, ordem)
-                .map((m) => cartaoMelhoria(m))}
-
-              {melhoriasResolvidas.length > 0 && (
-                <div style={{ marginTop: 18 }}>
-                  <button
-                    className="btn sec full" onClick={() => setVerResolvidas((v) => !v)}
-                  >
-                    {verResolvidas ? "Ocultar resolvidas" : `Ver resolvidas (${melhoriasResolvidas.length})`}
-                  </button>
-                  {verResolvidas && (
-                    <div style={{ marginTop: 10 }}>
-                      {ordenarMelhorias(melhoriasResolvidas, "data").map((m) => cartaoMelhoria(m))}
-                    </div>
-                  )}
+          {/* O histórico fica no fim e fechado: já não pede nada a
+            * ninguém, mas é o que alimenta os artigos da Wiki. */}
+          {melhoriasResolvidas.length > 0 && (
+            <div className="mincartao tec-equip">
+              <div className="mincartao-barra" style={{ background: "var(--verde)" }} />
+              <button className="mincartao-cab cabtoque" data-aberto={estaAberto("resolvidas") ? 1 : 0}
+                aria-expanded={estaAberto("resolvidas")} onClick={() => alternar("resolvidas")}>
+                <span className="ponto" style={{ background: "var(--verde)" }} />
+                <span className="nome">Já resolvidas</span>
+                <span className="conta">{melhoriasResolvidas.length}</span>
+                <span className="cabtoque-seta" aria-hidden="true">›</span>
+              </button>
+              {estaAberto("resolvidas") && (
+                <div className="tec-equip-corpo">
+                  {ordenarMelhorias(melhoriasResolvidas, "data").map((m) => cartaoMelhoria(m))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
-      )}
+      </div>
 
       {sheet?.tipo === "novoEquipamento" && (
         <SheetEquipamento
@@ -286,7 +352,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
       )}
       {sheet?.tipo === "detalheEquipamento" && (
         <SheetEquipamentoDetalhe
-          equipamento={equipamentoAtual} melhorias={melhorias} ministerios={ministerios} souLiderBase={souLiderBase}
+          equipamento={equipamentoAtual} melhorias={melhorias} ministerios={ministerios}
           onFechar={() => setSheet(null)}
           onReportarAvaria={() => setSheet({ tipo: "novaMelhoria", equipamentoId: sheet.equipamentoId })}
           onAbrirMelhoria={(melhoriaId) => setSheet({ tipo: "melhoria", melhoriaId, editar: true })}
@@ -302,6 +368,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
       {sheet?.tipo === "novaMelhoria" && (
         <SheetNovaMelhoria
           equipamento={equipamentoAtual} ministerios={ministerios}
+          tipo={sheet.reportar ?? "avaria"}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

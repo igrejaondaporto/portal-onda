@@ -3,7 +3,7 @@ import { criarFuncao, guardarFuncao, desativarFuncao, novoFuncaoId, enviarFotoFu
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ICF, ICF_NOMES, svgFn } from "../../lib/iconesFuncao";
 import { FASES } from "../../lib/modelo";
-import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, nomeEvento } from "@portal/shared/lib/data.js";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -103,7 +103,7 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, s
               Como líder de escala, esta função entra só no culto de{" "}
               {(() => {
                 const ev = eventosDisponiveis.find((e) => e.id === eventoAtual);
-                return ev ? (ev.tipo || dataPorExtenso(ev.data)) : "hoje";
+                return ev ? nomeEvento(ev) : "hoje";
               })()}.
             </p>
           </div>

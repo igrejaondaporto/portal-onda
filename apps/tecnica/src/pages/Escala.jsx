@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios } from "../lib/painel";
-import { MESES, dataPorExtenso, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 
 export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const [eventosMes, setEventosMes] = useState([]);
@@ -9,6 +10,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   const [ministerios, setMinisterios] = useState([]);
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
+  const [abertos, setAbertos] = useState({}); // que cultos estão abertos
   const [contactoAberto, setContactoAberto] = useState(null); // { eventoId, pessoaId }
   const refsEventos = useRef({});
 
@@ -21,12 +23,14 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
     if (!eventoIdFoco || !eventosMes.length) return;
     const el = refsEventos.current[eventoIdFoco];
     if (!el) return;
+    // vir do calendário do Início tem de abrir o cartão, senão a pessoa
+    // toca num dia e aterra num cartão fechado, sem perceber porquê
+    setAbertos((v) => ({ ...v, [eventoIdFoco]: true }));
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     setRealcado(eventoIdFoco);
     const t = setTimeout(() => setRealcado(null), 1600);
     return () => clearTimeout(t);
     // focoSeq muda a cada clique no calendário, mesmo que o culto-alvo seja o mesmo de antes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventoIdFoco, focoSeq, eventosMes.length]);
 
   const temEscala = eventosMes.some((e) => (e.escala.lugares || []).some((l) => l.titularId));
@@ -100,28 +104,34 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
         )}
       </div>
 
-      {eventosMes.map((ev) => {
-        const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
-        return (
-          <div
-            className={`sect${realcado === ev.id ? " realce" : ""}`} key={ev.id}
-            ref={(el) => { refsEventos.current[ev.id] = el; }}
-          >
-            <div className="cabecalho">
-              <h3>
-                {ev.tipo || dataPorExtenso(ev.data)}
-                {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
-                {ev.data < hoje && " ✅"}
-              </h3>
-              {souEuNoCulto ? (
-                <span className="tag verd">Serves</span>
-              ) : (
-                <span className="cap">{(ev.escala.pessoas || []).length} pessoas</span>
-              )}
-            </div>
+      {/* Um cartão por culto, fechado. Antes vinham todos abertos com toda
+        * a gente dentro: com seis domingos e cinco pessoas em cada, chegar
+        * ao último era rolar a página inteira. O mês cabe agora num ecrã, e
+        * abre-se só o dia que interessa. */}
+      <div className="sect">
+        {eventosMes.map((ev) => {
+          const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
+          const aberto = !!abertos[ev.id];
+          // em que ministério sirvo nesse dia — o Responsável acumula com
+          // um operacional, por isso pode ser mais do que um
+          const meusMinisterios = ministerios
+            .filter((m) => { const l = lugarDe(ev, m.id); return l?.titularId === uid || l?.aprendizId === uid; })
+            .map((m) => m.nome);
+          return (
+            <CartaoCulto
+              key={ev.id}
+              evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
+              realcado={realcado === ev.id}
+              refCartao={(el) => { refsEventos.current[ev.id] = el; }}
+              onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+              resumo={souEuNoCulto
+                ? `Serves${meusMinisterios.length ? ` · ${meusMinisterios.join(" · ")}` : ""}`
+                : `${(ev.escala.pessoas || []).length} pessoas`}
+            >
+            {/* a data saiu daqui — o cartão já a mostra no cabeçalho */}
             {ev.tipo && (
               <p className="ds" style={{ padding: "6px 0 2px" }}>
-                {dataPorExtenso(ev.data)} · {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
+                {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
               </p>
             )}
             {ministerios.some((m) => lugarDe(ev, m.id)?.titularId) ? (
@@ -158,9 +168,10 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             ) : (
               <div className="vaz">Ainda ninguém escalado.</div>
             )}
-          </div>
-        );
-      })}
+            </CartaoCulto>
+          );
+        })}
+      </div>
       <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
     </>
   );

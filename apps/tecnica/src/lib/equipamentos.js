@@ -8,7 +8,7 @@
  */
 import { doc, onSnapshot, query, where } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
+import { storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cInventario } from "./modelo";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 

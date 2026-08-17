@@ -7,7 +7,6 @@ import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
@@ -25,7 +24,7 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onVerFuncoes, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);

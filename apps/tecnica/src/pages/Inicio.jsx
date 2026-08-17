@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
@@ -66,7 +66,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] };
       setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meuEvento?.id]);
   useEffect(() => {
     if (!souLiderBase) return;
@@ -167,6 +166,22 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     }
   }
 
+  // As mais antigas primeiro — quem perguntou há três semanas já
+  // desistiu de esperar; é essa que interessa destapar.
+  //
+  // Fica ACIMA do `return null` abaixo, e tem de ficar. Um hook a
+  // seguir a um return condicional não corre nas renderizações em que
+  // o componente sai mais cedo — aqui, todas as que acontecem antes de
+  // `meuEvento` chegar do Firestore. Na renderização seguinte já corre,
+  // o React conta mais hooks do que antes e mata a app inteira com o
+  // erro #310. Foi o que aconteceu em produção a 15/08/2026.
+  const duvidasAbertas = useMemo(
+    () => wikiItens
+      .filter((w) => w.tipo === "duvida" && !w.resolvida)
+      .sort((a, b) => (a.atualizadoEm?.toMillis?.() ?? 0) - (b.atualizadoEm?.toMillis?.() ?? 0)),
+    [wikiItens]
+  );
+
   if (!meuEvento) return null;
 
   // fica visível até ao prazo, mesmo depois de responder — para quem
@@ -202,6 +217,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {/* Uma dúvida sem resposta é um guia que ainda não existe. Toca e
+        * vais direto à mais antiga — a que está à espera há mais tempo. */}
+      {souLiderBase && duvidasAbertas.length > 0 && (
+        <div className="destaque" onClick={() => onIrWiki?.(duvidasAbertas[0].id)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {duvidasAbertas.length} {duvidasAbertas.length === 1 ? "dúvida" : "dúvidas"} da equipa sem resposta
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{duvidasAbertas[0].titulo}</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>

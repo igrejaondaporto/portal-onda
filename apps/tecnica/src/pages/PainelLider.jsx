@@ -7,7 +7,7 @@ import {
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
 } from "../lib/painel";
 import { ouvirIndiceWiki } from "../lib/wiki";
-import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
+import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
@@ -24,7 +24,7 @@ import SheetMinisterio from "../components/painel/SheetMinisterio";
 import SheetEsqueletoWiki from "../components/painel/SheetEsqueletoWiki";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
-export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
+export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -83,6 +83,17 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirIndiceWiki(setWikiItens), []);
+
+  // A dúvida publica-se logo e fica visível a todos — quem souber
+  // responde sem esperar por ninguém. O que faltava era chegarem aqui:
+  // sem isto, o líder só dava com elas por acaso, a navegar na Wiki.
+  // Mais antigas primeiro: são as que estão à espera há mais tempo.
+  const duvidasAbertas = useMemo(
+    () => wikiItens
+      .filter((w) => w.tipo === "duvida" && !w.resolvida)
+      .sort((a, b) => (a.atualizadoEm?.toMillis?.() ?? 0) - (b.atualizadoEm?.toMillis?.() ?? 0)),
+    [wikiItens]
+  );
 
   const recarregarMes = useCallback(() => {
     obterEventosDoMes(ano, mes).then(setEventosMes);
@@ -150,7 +161,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                 >
                   <div style={{ flex: 1 }}>
                     <p className="nmt">
-                      {ev.tipo || dataPorExtenso(ev.data)}
+                      {nomeEvento(ev)}
                       {ev.tipo && <span className="tag esp">especial</span>}
                     </p>
                     <p className="ds">
@@ -305,7 +316,7 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
                   const fs = filtroChecklist ? todasFs.filter((f) => f.ministerioId === filtroChecklist) : todasFs;
                   if (!fs.length) return null;
                   const ev = eventosRef[eventoId];
-                  const rotulo = ev ? (ev.tipo ? `${ev.tipo} · ${dataPorExtenso(ev.data)}` : dataPorExtenso(ev.data)) : eventoId;
+                  const rotulo = ev ? nomeEvento(ev) : eventoId;
                   return (
                     <div key={eventoId}>
                       <p className="cap" style={{ padding: "14px 0 4px" }}>{rotulo} · {fs.length}</p>
@@ -335,7 +346,18 @@ export default function PainelLider({ baseId, definirCabecalho, aoVoltar }) {
             </div>
             <p className="ds" style={{ padding: "8px 0 2px" }}>
               {wikiItens.length} publicados · {wikiItens.filter((w) => w.esqueleto).length} por escrever
+              {duvidasAbertas.length > 0 && ` · ${duvidasAbertas.length} por responder`}
             </p>
+            {/* As dúvidas primeiro: são o que tem alguém à espera do outro
+              * lado. Cada uma é matéria-prima para um guia — abre, e se a
+              * resposta certa lá estiver, transformas em artigo. */}
+            {duvidasAbertas.map((w) => (
+              <div className="linha" style={{ cursor: "pointer" }} key={w.id} onClick={() => onIrWiki?.(w.id)}>
+                <div style={{ flex: 1 }}><p className="nmt">{w.titulo}</p></div>
+                <span className="tag cinz">por responder</span>
+                <span className="seta">›</span>
+              </div>
+            ))}
             {wikiItens.filter((w) => w.esqueleto).map((w) => (
               <div className="linha" key={w.id}>
                 <div style={{ flex: 1 }}><p className="nmt">{w.titulo}</p></div>

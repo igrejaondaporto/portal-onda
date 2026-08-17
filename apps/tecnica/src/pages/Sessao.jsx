@@ -218,7 +218,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           )}
           {pagina === "painel" && (
-            <PainelLider baseId={baseId} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
+            <PainelLider definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} onIrWiki={irParaWiki} />
           )}
           <p className="assinatura">
             Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>

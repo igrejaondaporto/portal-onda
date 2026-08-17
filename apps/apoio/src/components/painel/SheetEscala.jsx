@@ -3,7 +3,7 @@ import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reinclui
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
-import { dataPorExtenso, dataCurta } from "@portal/shared/lib/data.js";
+import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
@@ -84,7 +84,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
       <div className="veu on" onClick={onFechar} />
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
-        <h2>{evento.tipo || dataPorExtenso(evento.data)}</h2>
+        <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">{pessoas.length} pessoas · chegada {evento.horaChegada || "08:00"}</p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
           Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.

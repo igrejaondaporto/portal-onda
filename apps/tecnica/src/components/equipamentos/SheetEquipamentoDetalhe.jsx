@@ -9,7 +9,7 @@ const ESTADOS = {
  *  histórico de melhorias ligadas e o atalho para reportar uma nova
  *  avaria. Editar o catálogo (nome, modelo, local…) é pelo lápis na
  *  lista de Equipamentos, só o líder o vê — ver SheetEquipamento.jsx. */
-export default function SheetEquipamentoDetalhe({ equipamento, melhorias, ministerios, souLiderBase, onFechar, onReportarAvaria, onAbrirMelhoria }) {
+export default function SheetEquipamentoDetalhe({ equipamento, melhorias, ministerios, onFechar, onReportarAvaria, onAbrirMelhoria }) {
   if (!equipamento) return null;
   const nomeMinisterio = ministerios.find((m) => m.id === equipamento.ministerioId)?.nome;
   const ligadas = melhorias.filter((m) => m.equipamentoId === equipamento.id);
