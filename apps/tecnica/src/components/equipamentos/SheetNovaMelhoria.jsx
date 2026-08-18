@@ -16,8 +16,9 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, tipo = "av
   const torrada = useTorrada();
   const idRef = useRef(novaMelhoriaId());
   const inputFotoRef = useRef(null);
+  const varias = (equipamento?.quantidade ?? 1) > 1;
   const [titulo, setTitulo] = useState(
-    equipamento ? `${eAvaria ? "Avaria" : "Melhoria"} — ${equipamento.nome}` : "");
+    equipamento ? `${eAvaria ? "Avaria" : "Melhoria"} — ${equipamento.nome} ` : "");
   const [descricao, setDescricao] = useState("");
   const [gravidade, setGravidade] = useState("atrapalha");
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
@@ -70,6 +71,14 @@ export default function SheetNovaMelhoria({ equipamento, ministerios, tipo = "av
             ? "O equipamento passa a aparecer como avariado até isto ficar resolvido."
             : "Fica registado como trabalho a fazer. O equipamento continua em serviço."}
         </p>
+        {/* O registo é um só para as N unidades, por isso é aqui que se
+          * diz qual delas — "COB esquerdo". Sem esta nota, quem reporta
+          * escreve só "COB" e quem for arranjar não sabe a qual ir. */}
+        {varias && eAvaria && (
+          <p className="ds" style={{ marginTop: 6, color: "var(--magenta)", fontWeight: 700 }}>
+            Há {equipamento.quantidade} unidades deste equipamento — diz no título qual delas.
+          </p>
+        )}
         <label className="rot" style={{ marginTop: 14 }}>Título</label>
         <input className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder={eAvaria ? "Ex.: Canal 3 da mesa sem som" : "Ex.: Comprar cabos XLR suplentes"} />
         <label className="rot">O que se passa</label>

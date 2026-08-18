@@ -306,7 +306,12 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                   <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
                     <div style={{ flex: 1 }}>
                       <p className="nmt">{e.nome}</p>
-                      <p className="ds">{[e.modelo, e.local].filter(Boolean).join(" · ") || "Sem detalhes"}</p>
+                      <p className="ds">
+                        {[
+                          (e.quantidade ?? 1) > 1 ? `${e.quantidade} unidades` : null,
+                          e.modelo, e.local,
+                        ].filter(Boolean).join(" · ") || "Sem detalhes"}
+                      </p>
                     </div>
                     {e.estado !== "ok" && (
                       <span className={`tag ${e.estado === "em_reparacao" ? "lim" : ""}`}>{e.estado === "em_reparacao" ? "Em reparação" : "Avariado"}</span>

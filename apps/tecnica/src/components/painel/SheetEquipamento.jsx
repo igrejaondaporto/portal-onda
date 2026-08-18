@@ -12,6 +12,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
   const [nome, setNome] = useState(equipamento?.nome ?? "");
   const [modelo, setModelo] = useState(equipamento?.modelo ?? "");
   const [nSerie, setNSerie] = useState(equipamento?.nSerie ?? "");
+  const [quantidade, setQuantidade] = useState(String(equipamento?.quantidade ?? 1));
   const [local, setLocal] = useState(equipamento?.local ?? "");
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
   const [foto, setFoto] = useState(equipamento?.foto ?? null);
@@ -40,7 +41,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
     if (!n) return torrada("O equipamento precisa de um nome");
     setAEnviar(true);
     try {
-      const dados = { itemId: idRef.current, nome: n, modelo, nSerie, local, ministerioId, foto };
+      const dados = { itemId: idRef.current, nome: n, modelo, nSerie, local, ministerioId, foto, quantidade: Number(quantidade || 1) };
       if (equipamento) {
         await guardarEquipamento(dados);
         onGuardado("Equipamento atualizado");
@@ -71,6 +72,14 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
         <h2>{equipamento ? "Editar equipamento" : "Novo equipamento"}</h2>
         <label className="rot" style={{ marginTop: 14 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Mesa de som" />
+        {/* Um registo por modelo, com quantas unidades há — não uma ficha
+          * por unidade. Comprar um terceiro COB obrigaria a inventar um
+          * "COB central", e o sítio onde está pendurado não é identidade
+          * do equipamento. Qual delas avariou diz-se na avaria. */}
+        <label className="rot">Quantas unidades</label>
+        <input className="campo" type="number" inputMode="numeric" min="1" max="999"
+          value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
+
         <label className="rot">Modelo</label>
         <input className="campo" value={modelo} onChange={(e) => setModelo(e.target.value)} placeholder="Ex.: Behringer X32" />
         <label className="rot">Nº de série</label>
