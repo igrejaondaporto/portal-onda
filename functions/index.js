@@ -54,6 +54,26 @@ const refPessoa = (b, p) => db.doc(`bases/${b}/pessoas/${p}`);
 const refGlobal = (p) => db.doc(`pessoas/${p}`);
 const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
 
+/* ── CLAIMS EXTRA DERIVADOS DA CONFIG DA BASE ──────────────────
+ * As regras leem sempre do token, nunca do Firestore (ver CLAUDE.md
+ * raiz, regra 4) — por isso quem entra ou troca de base carrega estas
+ * capacidades no próprio token, lidas uma vez aqui a partir de
+ * bases/{baseId}. Só entram no token quando true, para o ficar pequeno.
+ *   ve_todas_escalas      — bases/{b}.veEscalas === "todas"
+ *   pode_publicar_culto   — bases/{b}.culto.podePublicar === true
+ *   pode_criar_evento_global — por agora, só o líder da própria base
+ *     com esta flag; pensado para incluir admin_igreja mais tarde
+ *     sem mexer outra vez nas regras. */
+async function claimsExtraDaBase(baseId) {
+  const snap = await db.doc(`bases/${baseId}`).get();
+  const b = snap.exists ? snap.data() : {};
+  const extra = {};
+  if (b.veEscalas === "todas") extra.ve_todas_escalas = true;
+  if (b.culto?.podePublicar === true) extra.pode_publicar_culto = true;
+  if (b.eventos?.podeCriarGlobal === true) extra.pode_criar_evento_global = true;
+  return extra;
+}
+
 /* ── INDISPONIBILIDADE PARTILHADA ENTRE BASES ─────────────────
  * Quem serve em mais do que uma base não pode ser escalado no mesmo
  * culto em nenhuma delas ao mesmo tempo — para N bases, não só duas:
@@ -81,6 +101,16 @@ async function basesDaPessoa(uid) {
   const g = await refGlobal(uid).get();
   const bases = g.exists ? g.data().bases || {} : {};
   return Object.keys(bases).filter((b) => bases[b]);
+}
+
+/** Cópia do nome de quem serve, gravada junto da escala — nunca uma
+ *  junção (ver CLAUDE.md raiz: "o Firestore não faz junções"). Existe
+ *  para a Backstage (ve_todas_escalas) conseguir mostrar nomes na
+ *  tela "Todas as bases" sem ganhar leitura de bases/{b}/pessoas de
+ *  bases que não são a dela — as regras não abrem isso de propósito. */
+async function nomesDePessoas(baseId, ids) {
+  const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
+  return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
 }
 
 /** Lança failed-precondition se `uid` já tem uma entrada de OUTRA
@@ -207,6 +237,7 @@ export const entrar = onCall(async (req) => {
   const token = await admin.auth().createCustomToken(pessoaId, {
     baseId,
     papel: pessoa.papel === "lider_base" ? "lider_base" : "voluntario",
+    ...(await claimsExtraDaBase(baseId)),
   });
   return { token, deveTrocarPin: !!s.provisorio };
 });
@@ -239,6 +270,19 @@ function exigeLider(req) {
   const baseId = req.auth?.token?.baseId;
   if (!baseId || req.auth.token.papel !== "lider_base") {
     throw new HttpsError("permission-denied", "Só o líder da base pode fazer isto.");
+  }
+  return baseId;
+}
+
+/** Só a(s) base(s) com bases/{b}.culto.podePublicar podem publicar/
+ *  apagar a ordem do culto — antes disto, qualquer líder de qualquer
+ *  base conseguia mexer na ordem do culto da igreja toda, sem gate
+ *  nenhum. A claim vem do token (ver claimsExtraDaBase), nunca lida
+ *  do Firestore aqui. */
+function exigePodePublicarCulto(req) {
+  const baseId = exigeLider(req);
+  if (req.auth.token.pode_publicar_culto !== true) {
+    throw new HttpsError("permission-denied", "A tua base não pode publicar a ordem do culto.");
   }
   return baseId;
 }
@@ -462,6 +506,7 @@ export const trocarBase = onCall(async (req) => {
   const token = await admin.auth().createCustomToken(uid, {
     baseId: novoBaseId,
     papel: snap.data().papel === "lider_base" ? "lider_base" : "voluntario",
+    ...(await claimsExtraDaBase(novoBaseId)),
   });
   return { token };
 });
@@ -557,6 +602,7 @@ export const guardarEscalaTecnica = onCall(async (req) => {
   await ref.set({
     baseId, liderEscala: liderEscala || null,
     lugares: lugaresLimpos, pessoas: [...pessoas],
+    pessoasNomes: await nomesDePessoas(baseId, pessoas),
   }, { merge: true });
 
   for (const id of adicionadas) {
@@ -605,13 +651,65 @@ export const guardarEscalaApoio = onCall(async (req) => {
     if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, "apoio", id);
   }
 
-  await ref.set({ baseId, liderEscala: liderEscala || null, pessoas }, { merge: true });
+  await ref.set({
+    baseId, liderEscala: liderEscala || null, pessoas,
+    pessoasNomes: await nomesDePessoas(baseId, pessoas),
+  }, { merge: true });
 
   for (const id of adicionadas) {
     if (multiBase.has(id)) await marcarIndisponivel(eventoId, "apoio", id, "escalado");
   }
   for (const id of removidas) {
     if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, "apoio", id);
+  }
+  return { ok: true };
+});
+
+/* ── ESCALA (Backstage) ──────────────────────────────────────
+ * Mesmo formato da Apoio (lista simples, sem ministérios). Função
+ * própria, não reaproveita guardarEscalaApoio, porque cada base tem
+ * a sua — mesmo padrão da Técnica/Apoio (ver comentários acima). */
+export const guardarEscalaBackstage = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, liderEscala = null, pessoas: pessoasRecebidas } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(pessoasRecebidas)) throw new HttpsError("invalid-argument", "Faltam as pessoas.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  const pessoas = [...new Set(pessoasRecebidas.filter(Boolean))];
+
+  const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
+  const pessoasNovas = new Set(pessoas);
+  const adicionadas = pessoas.filter((id) => !pessoasAntigas.has(id));
+  const removidas = [...pessoasAntigas].filter((id) => !pessoasNovas.has(id));
+  const multiBase = new Set();
+  for (const id of new Set([...adicionadas, ...removidas])) {
+    if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
+  }
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, baseId, id);
+  }
+
+  await ref.set({
+    baseId, liderEscala: liderEscala || null, pessoas,
+    pessoasNomes: await nomesDePessoas(baseId, pessoas),
+  }, { merge: true });
+
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, baseId, id, "escalado");
+  }
+  for (const id of removidas) {
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
   return { ok: true };
 });
@@ -772,7 +870,7 @@ function analisar(linhas) {
 
 export const lerOrdemCulto = onCall(async (req) => {
   const { eventoId, caminhoStorage } = req.data || {};
-  exigeLider(req);
+  exigePodePublicarCulto(req);
   if (!eventoId || caminhoStorage !== `eventos/${eventoId}/ordem.pdf`) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
@@ -794,7 +892,7 @@ export const lerOrdemCulto = onCall(async (req) => {
  * isso passa por aqui, tal como a frase e o feedback. Grava só
  * depois do líder confirmar no ecrã de revisão; nada é automático. */
 export const publicarOrdemCulto = onCall(async (req) => {
-  exigeLider(req);
+  exigePodePublicarCulto(req);
   const { eventoId, momentos, avisos, inicio, fim, portasAbertas, pdfUrl, origem } = req.data || {};
   if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -837,7 +935,7 @@ export const publicarOrdemCulto = onCall(async (req) => {
  * campo ordem — volta a ficar "à espera do PDF", como nunca tivesse
  * sido enviado nada. */
 export const limparOrdemCulto = onCall(async (req) => {
-  exigeLider(req);
+  exigePodePublicarCulto(req);
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
@@ -847,6 +945,25 @@ export const limparOrdemCulto = onCall(async (req) => {
     if (e.code !== 404) throw e;                      // já não havia ficheiro, tudo bem
   }
   await db.doc(`eventos/${eventoId}`).update({ ordem: admin.firestore.FieldValue.delete() });
+  return { ok: true };
+});
+
+/* ── NOTAS DA BASE QUE PUBLICA, POR CIMA DA ORDEM DO CULTO ─────
+ * Separado de `frase` (do líder de escala, já existia) — estas notas
+ * são visivelmente da base que publica (ver CLAUDE.md da Backstage),
+ * nunca confundidas com o que o pastor escreveu no PDF. Campo vazio
+ * não existe: string vazia apaga o campo, não deixa "" gravado. */
+export const definirNotasCulto = onCall(async (req) => {
+  const uid = req.auth.uid;
+  exigePodePublicarCulto(req);
+  const { eventoId, notas } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  const limpo = String(notas ?? "").trim();
+  await db.doc(`eventos/${eventoId}`).set({
+    notas: limpo || admin.firestore.FieldValue.delete(),
+    notasPor: limpo ? uid : admin.firestore.FieldValue.delete(),
+    notasEm: limpo ? admin.firestore.FieldValue.serverTimestamp() : admin.firestore.FieldValue.delete(),
+  }, { merge: true });
   return { ok: true };
 });
 
@@ -936,13 +1053,30 @@ export const gerarDomingos = onCall(async (req) => {
 });
 
 /* ── CULTO ESPECIAL (fora dos domingos) ───────────────────── */
+/* ── CULTO ESPECIAL: escopo global vs. de uma base ─────────────
+ * `escopo:"global"` é o que sempre existiu (ex.: Culto de Mulheres da
+ * Apoio) — visível e disponível à igreja toda, sem pedir confirmação
+ * extra: continua aberto a qualquer líder, exatamente como hoje.
+ * `escopo:"base"` é novo — evento privado de uma base (ex.: um ensaio
+ * só da Técnica). Fica no mesmo documento global (não há como evitar,
+ * ver nota em obterEventosDoMes) mas as outras bases filtram-no da
+ * própria interface — não é sigilo Firestore, é "não aparece". Só
+ * quem tem a claim pode_criar_evento_global (hoje só a Backstage)
+ * cria escopo:"global"; qualquer líder cria escopo:"base" para a
+ * própria base. */
 export const criarCultoEspecial = onCall(async (req) => {
-  exigeLider(req);
-  const { data, tipo, horaCulto = "10:30", horaChegada = "08:00" } = req.data || {};
+  const baseId = exigeLider(req);
+  const { data, tipo, horaCulto = "10:30", horaChegada = "08:00", escopo } = req.data || {};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data || ""))) {
     throw new HttpsError("invalid-argument", "Data inválida.");
   }
   if (!tipo?.trim()) throw new HttpsError("invalid-argument", "Falta o nome do culto.");
+  if (escopo !== "global" && escopo !== "base") {
+    throw new HttpsError("invalid-argument", "Falta dizer se o culto é global ou só desta base.");
+  }
+  if (escopo === "global" && req.auth.token.pode_criar_evento_global !== true) {
+    throw new HttpsError("permission-denied", "A tua base não pode criar eventos globais.");
+  }
 
   // o culto é da igreja toda — por isso é a Cloud Function que grava,
   // não uma escrita direta do cliente (ver firestore.rules)
@@ -952,6 +1086,7 @@ export const criarCultoEspecial = onCall(async (req) => {
 
   await ref.set({
     data, tipo: tipo.trim(), horaCulto, horaChegada,
+    escopo, baseId: escopo === "base" ? baseId : null, dispensadaPor: [],
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { eventoId: data };
@@ -963,7 +1098,7 @@ export const criarCultoEspecial = onCall(async (req) => {
  * continuam no histórico. Só cultos especiais (fora dos domingos):
  * os domingos são geridos por `gerarDomingos`, nunca à mão. */
 export const excluirCultoEspecial = onCall(async (req) => {
-  exigeLider(req);
+  const baseId = exigeLider(req);
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
@@ -973,8 +1108,38 @@ export const excluirCultoEspecial = onCall(async (req) => {
   if (!snap.data().tipo) {
     throw new HttpsError("failed-precondition", "Domingos não se excluem — só cultos especiais.");
   }
+  // um evento escopo:"base" só a própria base o exclui — um global
+  // continua aberto a qualquer líder, como sempre foi
+  if (snap.data().escopo === "base" && snap.data().baseId !== baseId) {
+    throw new HttpsError("permission-denied", "Este culto é de outra base.");
+  }
 
   await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── DISPENSAR UMA BASE DE UM EVENTO GLOBAL ───────────────────
+ * "Esta base não serve neste evento" — tira-a da próxima geração da
+ * enquete desse evento (ver SheetAbrirEnquete/useCultosDoMes) e do
+ * calendário dela. Só reversível chamando outra vez sem a base no
+ * array (ver reincluirBaseEmEvento, mesmo padrão do array-union). */
+export const dispensarBaseDeEvento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  await db.doc(`eventos/${eventoId}`).update({
+    dispensadaPor: admin.firestore.FieldValue.arrayUnion(baseId),
+  });
+  return { ok: true };
+});
+
+export const reincluirBaseEmEvento = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  await db.doc(`eventos/${eventoId}`).update({
+    dispensadaPor: admin.firestore.FieldValue.arrayRemove(baseId),
+  });
   return { ok: true };
 });
 

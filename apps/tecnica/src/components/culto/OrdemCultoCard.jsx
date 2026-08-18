@@ -1,14 +1,16 @@
 import { useRef, useState } from "react";
-import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto, limparOrdemCulto } from "../../lib/culto";
+import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto, limparOrdemCulto, definirNotasCulto } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { nomeEvento, hojeISO } from "@portal/shared/lib/data.js";
+import { nomeEvento, hojeISO, haAtras } from "@portal/shared/lib/data.js";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
 import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
 
 /** Um culto no separador Culto → Ordem. Fechado mostra só a data e o
  *  estado; aberto mostra a cronologia publicada, ou o botão de subir/
- *  rever o PDF enquanto o líder ainda não publicou. */
-export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, chegada, pdfUrlExistente, onPdfEnviado, onVerFuncoes }) {
+ *  rever o PDF enquanto o líder ainda não publicou.
+ *  `podePublicar` = líder da base com bases/{b}.culto.podePublicar
+ *  (hoje só a Backstage) — as outras bases só leem. */
+export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, chegada, pdfUrlExistente, onPdfEnviado, onNotasGuardadas, onVerFuncoes }) {
   const torrada = useTorrada();
   const inputRef = useRef(null);
   const [aEnviar, setAEnviar] = useState(false);
@@ -16,9 +18,31 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
   const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
   const [revisao, setRevisao] = useState(null);
   const [sugestao, setSugestao] = useState(null);
+  const [aEditarNotas, setAEditarNotas] = useState(false);
+  const [notasRascunho, setNotasRascunho] = useState("");
+  const [aEnviarNotas, setAEnviarNotas] = useState(false);
 
   const publicado = !!evento.ordem;
   const pdfUrl = evento.ordem?.pdfUrl ?? pdfUrlExistente;
+
+  function abrirEdicaoNotas() {
+    setNotasRascunho(evento.notas || "");
+    setAEditarNotas(true);
+  }
+
+  async function guardarNotas() {
+    setAEnviarNotas(true);
+    try {
+      await definirNotasCulto(evento.id, notasRascunho);
+      onNotasGuardadas?.(evento.id, notasRascunho.trim() || null);
+      setAEditarNotas(false);
+      torrada("Notas guardadas");
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar as notas.");
+    } finally {
+      setAEnviarNotas(false);
+    }
+  }
 
   async function escolherPdf(ficheiro) {
     if (ficheiro.type !== "application/pdf") return torrada("Tem de ser um PDF.");
@@ -83,7 +107,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
           <p className="nm">{nomeEvento(evento)}</p>
           <p className="ds">
             {publicado
-              ? `Publicado · ${evento.ordem.momentos.length} momentos`
+              ? `Publicado · ${evento.ordem.momentos.length} momentos · atualizada ${haAtras(evento.ordem.publicadoEm)}`
               : pdfUrl ? "PDF enviado · por rever e publicar" : "À espera do PDF"}
           </p>
         </div>
@@ -92,10 +116,41 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
 
       {aberto && (
         <div className="oc-corpo">
+          {(evento.notas || podePublicar) && (
+            <div className="caixa" style={{ background: "#F4F1FF", border: 0, marginBottom: 14 }}>
+              <p className="cap" style={{ color: "var(--violeta)" }}>Notas da Backstage</p>
+              {aEditarNotas ? (
+                <>
+                  <textarea
+                    className="campo" rows={3} style={{ marginTop: 8 }}
+                    value={notasRascunho} onChange={(e) => setNotasRascunho(e.target.value)}
+                    placeholder="Ex.: o pastor pediu para adiantar 10 min"
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviarNotas} onClick={guardarNotas}>
+                      {aEnviarNotas ? "A guardar…" : "Guardar"}
+                    </button>
+                    <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviarNotas} onClick={() => setAEditarNotas(false)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {evento.notas && <p style={{ fontSize: 13.5, lineHeight: 1.6, marginTop: 6 }}>{evento.notas}</p>}
+                  {podePublicar && (
+                    <button className="btn sec" style={{ marginTop: 8, padding: "8px 14px", fontSize: 12.5 }} onClick={abrirEdicaoNotas}>
+                      {evento.notas ? "Editar notas" : "Escrever nota"}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {publicado ? (
             <>
               <OrdemCultoTimeline ordem={evento.ordem} chegada={chegada} hoje={evento.data === hojeISO()} />
-              {souLiderBase && !aConfirmarLimpar && (
+              {podePublicar && !aConfirmarLimpar && (
                 <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
                   <button
                     className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aEnviar}
@@ -111,7 +166,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
                   </button>
                 </div>
               )}
-              {souLiderBase && aConfirmarLimpar && (
+              {podePublicar && aConfirmarLimpar && (
                 <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 16 }}>
                   <p style={{ fontSize: 13, fontWeight: 600 }}>Limpar a ordem publicada?</p>
                   <p className="ds" style={{ marginTop: 4 }}>
@@ -145,7 +200,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
               ) : (
                 <div className="vaz">O líder costuma subir o ficheiro à quinta-feira.</div>
               )}
-              {souLiderBase && (
+              {podePublicar && (
                 <button
                   className="btn sec full" style={{ marginTop: 12 }} disabled={aEnviar}
                   onClick={() => (pdfUrl ? reverExistente() : inputRef.current.click())}
@@ -153,7 +208,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
                   {aEnviar ? "A ler o ficheiro…" : pdfUrl ? "Rever e publicar" : "Subir ficheiro"}
                 </button>
               )}
-              {souLiderBase && pdfUrl && !aConfirmarRemover && (
+              {podePublicar && pdfUrl && !aConfirmarRemover && (
                 <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
                   <button
                     className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar}
@@ -169,7 +224,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
                   </button>
                 </div>
               )}
-              {souLiderBase && pdfUrl && aConfirmarRemover && (
+              {podePublicar && pdfUrl && aConfirmarRemover && (
                 <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
                   <p style={{ fontSize: 13, fontWeight: 600 }}>Remover este PDF?</p>
                   <p className="ds" style={{ marginTop: 4 }}>
@@ -212,7 +267,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, souLiderBase, 
         </div>
       )}
 
-      {souLiderBase && (
+      {podePublicar && (
         <input
           ref={inputRef} type="file" accept="application/pdf" style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; if (f) escolherPdf(f); }}

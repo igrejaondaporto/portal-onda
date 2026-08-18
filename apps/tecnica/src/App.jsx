@@ -24,8 +24,8 @@ export default function App() {
         // teclado do PIN parado sem resposta visível.
         setACarregar(true);
         if (utilizador) {
-          const { papel, baseId } = await meuPapel();
-          setSessao({ uid: utilizador.uid, papel, baseId });
+          const { papel, baseId, podePublicarCulto } = await meuPapel();
+          setSessao({ uid: utilizador.uid, papel, baseId, podePublicarCulto });
           // recalculado do zero a cada resolução — funciona tanto por
           // `entrar` (PIN) como por `trocarBase` (troca entre domínios),
           // sem depender de nenhum dos dois avisar o tour.

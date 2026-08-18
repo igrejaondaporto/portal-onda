@@ -50,3 +50,19 @@ export function dataTimestamp(ts) {
   const d = ts.toDate();
   return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3).toLowerCase()}`;
 }
+
+/** Timestamp do Firestore → "agora" / "há 2h" / "há 3 dias" / a data,
+ *  passado uma semana. É duração (agora − então), não calendário —
+ *  não tem o problema de fuso do resto deste ficheiro. */
+export function haAtras(ts) {
+  if (!ts?.toDate) return "agora";
+  const ms = Date.now() - ts.toDate().getTime();
+  const min = Math.round(ms / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const dias = Math.round(h / 24);
+  if (dias < 7) return `há ${dias} dia${dias === 1 ? "" : "s"}`;
+  return dataTimestamp(ts);
+}

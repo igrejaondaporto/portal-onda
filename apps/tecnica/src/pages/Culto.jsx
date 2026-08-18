@@ -7,8 +7,9 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, onVerFuncoes }) {
+export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto }) {
   const souLiderBase = papel === "lider_base";
+  const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -73,11 +74,12 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
       {aba === "ordem" ? (
         eventosMes.map((ev) => (
           <OrdemCultoCard
-            key={ev.id} evento={ev} souLiderBase={souLiderBase}
+            key={ev.id} evento={ev} podePublicar={podePublicar}
             aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
             chegada={ev.horaChegada || base?.horaChegada || "08:00"}
             pdfUrlExistente={ordens[ev.id]}
             onPdfEnviado={(eventoId, url) => setOrdens((o) => ({ ...o, [eventoId]: url }))}
+            onNotasGuardadas={(eventoId, notas) => setEventosMes((lista) => lista.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}
             onVerFuncoes={onVerFuncoes}
           />
         ))

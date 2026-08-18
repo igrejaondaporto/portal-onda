@@ -64,7 +64,7 @@ function useCultosDoMes(mes) {
     if (eventos.some((e) => e.id === data)) return torrada("Já há um culto nesse dia.");
     setACriarEspecial(true);
     try {
-      await criarCultoEspecial({ data, tipo: nome, horaCulto: "10:30", horaChegada: "08:00" });
+      await criarCultoEspecial({ data, tipo: nome, escopo: "base", horaCulto: "10:30", horaChegada: "08:00" });
       const novo = { id: data, data, tipo: nome };
       setEventos((evs) => [...evs, novo].sort((a, b) => a.data.localeCompare(b.data)));
       setSelecionados((s) => ({ ...s, [data]: true }));

@@ -15,6 +15,10 @@ service cloud.firestore {
     function minhaBase(b)       { return autenticado() && request.auth.token.baseId == b; }
     function souLiderBase(b)    { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
     function euSou(p)           { return autenticado() && request.auth.uid == p; }
+    // capacidade de base (Backstage e o que vier a seguir) — carregada
+    // no token por entrar/trocarBase a partir de bases/{b}.veEscalas,
+    // nunca lida do Firestore aqui (ver CLAUDE.md raiz, regra 4)
+    function vejoTodasEscalas() { return autenticado() && request.auth.token.ve_todas_escalas == true; }
 
     // ── identidade global — só nome/foto/quais bases, para o login
     // único e o seletor de base. O que é específico de cada base
@@ -35,8 +39,10 @@ service cloud.firestore {
     match /bases/{base} {
       // o documento em si é só nome/horas/cor — nada sensível — para o
       // seletor de base conseguir mostrar o nome de uma base que não é
-      // a ativa no token. As subcoleções abaixo continuam fechadas à
-      // base do token (minhaBase), isto não abre nada por baixo.
+      // a ativa no token, e para quem "vê todas as escalas" mostrar o
+      // nome/cor de cada base na tela "Todas as bases". As subcoleções
+      // abaixo continuam fechadas à base do token (minhaBase), isto
+      // não abre nada por baixo — é só nome/cor/horário.
       allow read:  if autenticado();
       allow write: if false;                       // só por função
 
@@ -149,8 +155,11 @@ service cloud.firestore {
       // guardarEscalaApoio) — é lá que se valida o cruzamento entre
       // bases (quem serve nas duas não fica escalado nas duas no
       // mesmo culto). Já não é escrita direta do cliente em nenhuma.
+      // Leitura: quem serve em cada base é a coisa sensível aqui
+      // (nomes) — só a própria base lê a sua, mais quem tiver a
+      // capacidade "vê todas as escalas" (hoje só a Backstage).
       match /escalas/{base} {
-        allow read:  if autenticado();
+        allow read:  if minhaBase(base) || vejoTodasEscalas();
         allow write: if false;
       }
 

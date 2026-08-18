@@ -25,7 +25,7 @@ export default function SheetNovoCulto({ ano, mes, onFechar, onGuardado }) {
     setAEnviar(true);
     try {
       await criarCultoEspecial({
-        data, tipo: n,
+        data, tipo: n, escopo: "base",
         horaCulto: horaCulto.trim() || "10:30",
         horaChegada: horaChegada.trim() || "08:00",
       });
