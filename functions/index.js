@@ -721,8 +721,11 @@ export const guardarEscalaBackstage = onCall(async (req) => {
     if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, baseId, id);
   }
 
+  const liderAntigo = snap.exists ? snap.data().liderEscala || null : null;
+  const novoLider = liderEscala || null;
+
   await ref.set({
-    baseId, liderEscala: liderEscala || null, pessoas,
+    baseId, liderEscala: novoLider, pessoas,
   }, { merge: true });
 
   for (const id of adicionadas) {
@@ -731,8 +734,39 @@ export const guardarEscalaBackstage = onCall(async (req) => {
   for (const id of removidas) {
     if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
+
+  // é sempre uma pessoa só a fazer tudo nesta base — por isso, ao
+  // escalar (ou trocar) quem serve, essa pessoa já fica responsável
+  // por todas as funções do dia dela, sem a líder ter de as atribuir
+  // uma a uma. Só dispara quando o titular muda de facto (nunca ao
+  // gravar de novo com o mesmo titular, ex.: só a juntar um aprendiz)
+  // — assim não apaga ajustes que a líder já tenha feito função a
+  // função. A líder continua livre para trocar ou acrescentar depois.
+  if (novoLider && novoLider !== liderAntigo) {
+    await atribuirTodasFuncoesAoTitular(eventoId, baseId, novoLider, uid);
+  }
+
   return { ok: true };
 });
+
+/** Atribui uma pessoa a todas as funções do catálogo + as só deste
+ *  culto, substituindo quem lá estava — mesmo formato de escrita do
+ *  atribuirFuncao, para o resto do sistema (checklist, "servem
+ *  contigo") não precisar de caso especial. */
+async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atualizadoPor) {
+  const funcoesSnap = await db.collection(`bases/${baseId}/funcoes`).get();
+  const doCulto = funcoesSnap.docs.filter((d) => !d.data().eventoId || d.data().eventoId === eventoId);
+  if (!doCulto.length) return;
+  const lote = db.batch();
+  for (const f of doCulto) {
+    lote.set(db.doc(`eventos/${eventoId}/atribuicoes/${f.id}`), {
+      baseId, funcaoId: f.id, pessoas: [titularId],
+      nomeFuncao: f.data().nome,
+      atualizadoPor, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await lote.commit();
+}
 
 /* ── ESCALA DE TODAS AS BASES (Backstage) ──────────────────────
  * Só quem tem a claim ve_todas_escalas (ver claimsExtraDaBase) — lê
