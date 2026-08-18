@@ -134,6 +134,11 @@ service cloud.firestore {
       }
 
       // ── reembolsos ───────────────────────────────────────
+      // submetido → aprovado|indeferido (líder) → pago (Financeiro,
+      // ainda por construir). O dono só escreve ao criar; depois disso
+      // o único campo que lhe pertence é vistoPeloVoluntario — para
+      // fechar o aviso de "indeferido" no Início sem poder tocar em
+      // mais nada (estado, comentarioLider… continuam só do líder).
       match /reembolsos/{r} {
         allow read:   if souLiderBase(base) || resource.data.pessoaId == request.auth.uid;
         allow create: if minhaBase(base)
@@ -141,7 +146,9 @@ service cloud.firestore {
                       && request.resource.data.estado == 'submetido'
                       && request.resource.data.valor is number
                       && request.resource.data.valor > 0;
-        allow update: if souLiderBase(base);
+        allow update: if souLiderBase(base)
+                      || (resource.data.pessoaId == request.auth.uid
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vistoPeloVoluntario']));
         allow delete: if false;
       }
     }
