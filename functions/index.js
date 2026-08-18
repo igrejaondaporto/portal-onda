@@ -291,7 +291,7 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null } = req.data || {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
@@ -302,7 +302,7 @@ export const criarVoluntario = onCall(async (req) => {
     if (jaAqui.exists) throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
 
     await refPessoa(baseId, pessoaExistenteId).set({
-      nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true,
+      nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true, genero,
       foto: globalSnap.data().foto ?? null,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
       ...comMinisterios,
@@ -319,7 +319,7 @@ export const criarVoluntario = onCall(async (req) => {
   const provisorio = pinProvisorio(papel);
   const ref = db.collection(`bases/${baseId}/pessoas`).doc();
   await ref.set({
-    nome: nome.trim(), telefone, papel, ativo: true, foto: null,
+    nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     ...comMinisterios,
   });
@@ -386,7 +386,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -404,7 +404,7 @@ export const editarVoluntario = onCall(async (req) => {
     outros.forEach((d) => { if (d.id !== pessoaId) lote.update(d.ref, { papel: "voluntario" }); });
     await lote.commit();
   }
-  const dados = { nome: nome.trim(), telefone, papel };
+  const dados = { nome: nome.trim(), telefone, papel, genero: genero ?? null };
   // ministerios: { audio: "titular"|"aprendiz", ... } — só bases com
   // ministérios enviam isto; nas outras o campo nunca aparece.
   if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;

@@ -66,3 +66,11 @@ export function haAtras(ts) {
   if (dias < 7) return `há ${dias} dia${dias === 1 ? "" : "s"}`;
   return dataTimestamp(ts);
 }
+
+/** Concordância de género — `pessoa.genero` é "f"/"m", opcional (ver
+ *  `bases/{b}/pessoas/{uid}.genero`). Sem género definido, mantém a
+ *  forma masculina — é o que a interface já mostrava antes de o campo
+ *  existir, para ninguém que ainda não preencheu isto ver a app mudar
+ *  de repente. */
+export const concordar = (pessoa, masculino, feminino) =>
+  pessoa?.genero === "f" ? feminino : masculino;

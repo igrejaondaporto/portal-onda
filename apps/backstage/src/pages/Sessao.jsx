@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
+import { concordar } from "@portal/shared/lib/data.js";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
@@ -140,7 +141,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
             <div className="eu">
               <div style={{ textAlign: "right" }}>
                 <b>{pessoa?.nome ?? "…"}</b>
-                <p>{lider ? "Líder da base" : "Voluntário"}</p>
+                <p>{lider ? "Líder da base" : concordar(pessoa, "Voluntário", "Voluntária")}</p>
               </div>
               <BotaoTrocarBase baseIdAtual={baseId} basesDisponiveis={basesDisponiveis} />
               <span
