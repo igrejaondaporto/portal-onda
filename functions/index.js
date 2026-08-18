@@ -1533,14 +1533,34 @@ export const transformarDuvidaEmArtigo = onCall(async (req) => {
  * campo `estado`, que aqui vem sempre das Melhorias, nunca à mão. */
 const refEquipamento = (baseId, id) => db.doc(`bases/${baseId}/inventario/${id}`);
 
+/**
+ * Quantas unidades iguais há daquele equipamento. Um registo com
+ * `quantidade: 2` em vez de duas fichas "COB esquerdo" e "COB
+ * direito": comprar um terceiro passaria a obrigar a inventar um
+ * "COB central", e o nome do sítio onde está pendurado não é
+ * identidade do equipamento.
+ *
+ * Qual das unidades avariou fica dito na avaria, não aqui — o estado
+ * do registo continua a ser um só, e é o título da melhoria que diz
+ * "COB esquerdo".
+ */
+function quantidadeValida(v) {
+  if (v === undefined || v === null || v === "") return 1;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > 999) {
+    throw new HttpsError("invalid-argument", "A quantidade tem de ser um número inteiro entre 1 e 999.");
+  }
+  return n;
+}
+
 export const criarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
-    ministerioId, foto, estado: "ok", ativo: true,
+    ministerioId, foto, quantidade: quantidadeValida(quantidade), estado: "ok", ativo: true,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { itemId };
@@ -1548,12 +1568,12 @@ export const criarEquipamento = onCall(async (req) => {
 
 export const guardarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
-    ministerioId, foto,
+    ministerioId, foto, quantidade: quantidadeValida(quantidade),
   }, { merge: true });
   return { ok: true };
 });
