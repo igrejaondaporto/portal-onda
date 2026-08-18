@@ -50,7 +50,7 @@ function TodasAsBases() {
                 <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
                   {b.itens.map((it, i) => (
                     <span key={i}>
-                      {it.ministerio}: {it.titular ?? "—"}{it.aprendiz ? ` (com ${it.aprendiz})` : ""}
+                      <b>{it.ministerio}</b>: {it.titular ?? "—"}{it.aprendiz ? ` (com ${it.aprendiz})` : ""}
                       {i < b.itens.length - 1 ? " · " : ""}
                     </span>
                   ))}

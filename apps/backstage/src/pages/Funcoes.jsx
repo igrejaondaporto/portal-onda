@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { FASES, funcoesDoCulto, podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, reordenarFuncoes } from "../lib/painel";
 import { ouvirAtribuicoes, ouvirChecklist, atribuirFuncao, obterMeuEvento } from "../lib/culto";
-import { dataPorExtenso, dataCurta } from "@portal/shared/lib/data.js";
+import { MESES, dataPorExtenso, dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaFuncao from "../components/funcoes/LinhaFuncao";
 import SheetEscolher from "../components/funcoes/SheetEscolher";
 import SheetFuncao from "../components/painel/SheetFuncao";
 
-export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, mudarMes, irParaMesDoEvento, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [eventoId, setEventoId] = useState(eventoIdFoco ?? null);
@@ -20,21 +20,36 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
   const [aberta, setAberta] = useState(null);
   const [sheet, setSheet] = useState(null);
 
+  // o alvo (toque num dia, ou "o meu próximo culto" por omissão) manda
+  // no mês partilhado com a Escala/Culto — sem isto, chegar aqui vindo
+  // de um culto de outro mês mostrava as setas apontando para o mês
+  // errado. focoSeq muda a cada navegação para aqui, mesmo que o alvo
+  // seja o mesmo de antes.
   useEffect(() => {
-    if (eventoIdFoco) setEventoId(eventoIdFoco);
-    else obterMeuEvento(uid).then((ev) => setEventoId(ev?.id ?? null));
-    // focoSeq muda a cada navegação para aqui, mesmo que o alvo seja o mesmo de antes
+    if (eventoIdFoco) {
+      setEventoId(eventoIdFoco);
+      irParaMesDoEvento(eventoIdFoco);
+    } else {
+      obterMeuEvento(uid).then((ev) => {
+        if (!ev) return;
+        setEventoId(ev.id);
+        irParaMesDoEvento(ev.id);
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, eventoIdFoco, focoSeq]);
 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
 
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+
+  // as setas ‹ › trocam de mês sem passar por eventoIdFoco — quando o
+  // culto selecionado já não está na lista, cai no primeiro do mês novo
   useEffect(() => {
-    if (!eventoId) return;
-    const ano = Number(eventoId.slice(0, 4)), mes = Number(eventoId.slice(5, 7)) - 1;
-    return ouvirEventosDoMes(ano, mes, setEventosMes);
-  }, [eventoId]);
+    if (!eventosMes.length) { setEventoId(null); return; }
+    setEventoId((atual) => (eventosMes.some((e) => e.id === atual) ? atual : eventosMes[0].id));
+  }, [eventosMes]);
 
   useEffect(() => {
     if (!eventoId) return;
@@ -101,7 +116,15 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
 
   return (
     <>
-      <div className="menu" style={{ position: "static", border: 0, padding: "14px 0 4px", background: "none", backdropFilter: "none" }}>
+      <div className="cabecalho" style={{ paddingTop: 14 }}>
+        <h3>{MESES[mes]} {ano}</h3>
+        <span className="calnav">
+          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+        </span>
+      </div>
+      {!eventosMes.length && <div className="vaz">Sem cultos marcados neste mês.</div>}
+      <div className="menu" style={{ position: "static", border: 0, padding: "4px 0 4px", background: "none", backdropFilter: "none" }}>
         {eventosMes.map((e) => (
           <button key={e.id} data-on={e.id === evento.id ? 1 : 0} onClick={() => setEventoId(e.id)}>
             {e.tipo ? "✦ " : ""}{dataCurta(e.data)}

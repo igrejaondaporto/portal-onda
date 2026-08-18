@@ -65,13 +65,24 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   opcional): quando presente, a checklist da fase ordena pela hora,
   como linha do tempo, em vez de por nome. Só nesta base — nas outras
   o campo fica `undefined`, comportamento igual ao de hoje.
-- **A escala é uma pessoa só por culto**, não uma equipa (diferente
-  de Apoio/Técnica). `SheetEscala.jsx` troca em vez de acumular —
-  tocar noutro nome substitui quem lá estava. `pessoas` e `liderEscala`
-  continuam a existir no documento (mesmo formato das outras bases,
-  para o resto do sistema — checklist, "servem contigo",
-  `obterMeuEvento`… — não precisar de caso especial), só que
-  `pessoas` nunca passa de 1.
+- **A escala é normalmente uma pessoa só por culto**, não uma equipa
+  (diferente de Apoio/Técnica). `SheetEscala.jsx` troca em vez de
+  acumular — tocar noutro nome substitui quem lá estava. `pessoas` e
+  `liderEscala` continuam a existir no documento (mesmo formato das
+  outras bases, para o resto do sistema — checklist, "servem
+  contigo", `obterMeuEvento`… — não precisar de caso especial).
+- **Cada voluntário tem um `nivel`: `"titular"` ou `"aprendiz"`**
+  (`bases/backstage/pessoas/{id}.nivel`, editável em `SheetPessoa.jsx`).
+  Diferente da Técnica, aqui não há ministério onde pendurar o nível —
+  é um campo só, plano, por pessoa. **Um aprendiz nunca serve
+  sozinho**: escalar um aprendiz junta-o ao titular já escolhido (ou
+  pede para escolher um titular primeiro); tirar o titular tira também
+  o aprendiz — nesse caso `pessoas` passa a ter 2 ids, sempre
+  `[titular, aprendiz]`, nunca só o aprendiz. Validado em
+  `guardarEscalaBackstage` (Cloud Function), não só no cliente. A
+  "Montar escala" das enquetes só sugere titulares — é um preenchimento
+  rápido de 1 nome, sem par; para escalar um aprendiz usa-se o
+  `SheetEscala.jsx` completo (Painel do Líder → Escala).
 - **`bases/backstage.feedbackAberto = true`** — em Culto → Feedbacks,
   qualquer voluntário escreve, não só o líder de escala do culto
   (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras
@@ -113,5 +124,6 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
 
 - Módulo de pedidos do pastor, chat ou mensagens — é rádio.
 - Progresso, checklist ou presença de outras bases em "Todas as bases".
-- Ministérios, níveis ou aprendiz.
+- Ministérios (o `nivel` titular/aprendiz existe, ver acima, mas sem
+  ministério nenhum onde pendurar — é sempre um campo plano por pessoa).
 - Wiki, por agora.
