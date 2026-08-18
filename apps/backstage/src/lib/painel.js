@@ -9,7 +9,7 @@
  */
 import {
   query, where, orderBy, onSnapshot, getDocs, getDoc,
-  doc, collection, setDoc, updateDoc, writeBatch, serverTimestamp,
+  doc, setDoc, updateDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -222,19 +222,10 @@ export const gerarDomingos = (ano) => chamar("gerarDomingos")({ ano }).then((r) 
 
 /* ── "Todas as bases" (só quem tem ve_todas_escalas no token) ──────
  * Só leitura, só de escalas já publicadas — sem progresso, checklist
- * ou presença de outras bases (ver CLAUDE.md desta app). Os nomes vêm
- * de eventos/{e}/escalas/{base}.pessoasNomes, uma cópia gravada pela
- * Cloud Function — nunca de bases/{outraBase}/pessoas, que as regras
- * não abrem para esta capacidade de propósito. */
-export async function obterTodasAsBases() {
-  const snap = await getDocs(collection(db, "bases"));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
-}
-
-export async function obterEscalasDeTodasAsBases(eventoId, bases) {
-  const snaps = await Promise.all(bases.map((b) => getDoc(doc(db, `eventos/${eventoId}/escalas/${b.id}`))));
-  return Object.fromEntries(bases.map((b, i) => {
-    const s = snaps[i];
-    return [b.id, s.exists() ? s.data() : null];
-  }));
-}
+ * ou presença de outras bases (ver CLAUDE.md desta app). Os nomes (e
+ * o ministério, na Técnica) vêm sempre resolvidos na hora pela Cloud
+ * Function escalasCrossBase (Admin SDK) — nunca de uma cópia gravada
+ * na escrita, que ficaria desatualizada, nem de bases/{outraBase}/
+ * pessoas, que as regras não abrem para esta capacidade de propósito. */
+export const obterEscalasDeTodasAsBases = (eventoId) =>
+  chamar("escalasCrossBase")({ eventoId }).then((r) => r.data.bases);

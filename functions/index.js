@@ -104,11 +104,8 @@ async function basesDaPessoa(uid) {
   return Object.keys(bases).filter((b) => bases[b]);
 }
 
-/** Cópia do nome de quem serve, gravada junto da escala — nunca uma
- *  junção (ver CLAUDE.md raiz: "o Firestore não faz junções"). Existe
- *  para a Backstage (ve_todas_escalas) conseguir mostrar nomes na
- *  tela "Todas as bases" sem ganhar leitura de bases/{b}/pessoas de
- *  bases que não são a dela — as regras não abrem isso de propósito. */
+/** Nomes de um conjunto de pessoas de uma base, para telas que
+ *  resolvem em tempo real (nunca guardar cópia — ver escalasCrossBase). */
 async function nomesDePessoas(baseId, ids) {
   const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
   return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
@@ -603,7 +600,6 @@ export const guardarEscalaTecnica = onCall(async (req) => {
   await ref.set({
     baseId, liderEscala: liderEscala || null,
     lugares: lugaresLimpos, pessoas: [...pessoas],
-    pessoasNomes: await nomesDePessoas(baseId, pessoas),
   }, { merge: true });
 
   for (const id of adicionadas) {
@@ -654,7 +650,6 @@ export const guardarEscalaApoio = onCall(async (req) => {
 
   await ref.set({
     baseId, liderEscala: liderEscala || null, pessoas,
-    pessoasNomes: await nomesDePessoas(baseId, pessoas),
   }, { merge: true });
 
   for (const id of adicionadas) {
@@ -703,7 +698,6 @@ export const guardarEscalaBackstage = onCall(async (req) => {
 
   await ref.set({
     baseId, liderEscala: liderEscala || null, pessoas,
-    pessoasNomes: await nomesDePessoas(baseId, pessoas),
   }, { merge: true });
 
   for (const id of adicionadas) {
@@ -713,6 +707,68 @@ export const guardarEscalaBackstage = onCall(async (req) => {
     if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
   return { ok: true };
+});
+
+/* ── ESCALA DE TODAS AS BASES (Backstage) ──────────────────────
+ * Só quem tem a claim ve_todas_escalas (ver claimsExtraDaBase) — lê
+ * a escala publicada de cada base para um evento, sempre em tempo
+ * real (nunca uma cópia gravada na escrita, que ficaria desatualizada
+ * se alguém mudasse de nome depois, ou nunca existiria em escalas já
+ * gravadas antes desta função existir). Cada base resolve os nomes a
+ * partir de bases/{baseId}/pessoas — Admin SDK, ignora as rules que
+ * de propósito não deixam o cliente ler pessoas de outra base. Duas
+ * formas de escala: lista simples (Apoio/Backstage) ou lugares por
+ * ministério (Técnica) — devolve os dois formatos já com nomes. */
+export const escalasCrossBase = onCall(async (req) => {
+  if (req.auth?.token?.ve_todas_escalas !== true) {
+    throw new HttpsError("permission-denied", "Sem acesso à escala de outras bases.");
+  }
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const basesSnap = await db.collection("bases").get();
+  const bases = basesSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((b) => b.ativa !== false)
+    .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
+
+  const resultado = await Promise.all(bases.map(async (b) => {
+    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null };
+    const escalaSnap = await db.doc(`eventos/${eventoId}/escalas/${b.id}`).get();
+    if (!escalaSnap.exists) return { ...base, tipo: "vazio" };
+    const escala = escalaSnap.data();
+
+    if (Array.isArray(escala.lugares) && escala.lugares.length) {
+      const idsPessoas = [...new Set(escala.lugares.flatMap((l) => [l.titularId, l.aprendizId]).filter(Boolean))];
+      const idsMinisterios = [...new Set(escala.lugares.map((l) => l.ministerioId).filter(Boolean))];
+      const [pessoasSnaps, ministeriosSnaps] = await Promise.all([
+        Promise.all(idsPessoas.map((id) => refPessoa(b.id, id).get())),
+        Promise.all(idsMinisterios.map((id) => db.doc(`bases/${b.id}/ministerios/${id}`).get())),
+      ]);
+      const nomePessoa = Object.fromEntries(pessoasSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+      const nomeMinisterio = Object.fromEntries(ministeriosSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+      const itens = escala.lugares
+        .filter((l) => l.titularId)
+        .map((l) => ({
+          ministerio: nomeMinisterio[l.ministerioId] ?? l.ministerioId,
+          titular: nomePessoa[l.titularId] ?? null,
+          aprendiz: l.aprendizId ? (nomePessoa[l.aprendizId] ?? null) : null,
+        }));
+      if (!itens.length) return { ...base, tipo: "vazio" };
+      return { ...base, tipo: "lugares", itens };
+    }
+
+    const pessoas = escala.pessoas || [];
+    if (!pessoas.length) return { ...base, tipo: "vazio" };
+    const nomes = await nomesDePessoas(b.id, pessoas);
+    return {
+      ...base, tipo: "pessoas",
+      nomes: pessoas.map((id) => nomes[id] ?? null).filter(Boolean),
+      liderEscalaNome: escala.liderEscala ? (nomes[escala.liderEscala] ?? null) : null,
+    };
+  }));
+
+  return { bases: resultado };
 });
 
 /* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────

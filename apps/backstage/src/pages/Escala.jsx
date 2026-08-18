@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { funcoesDoCulto } from "../lib/modelo";
-import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterTodasAsBases, obterEscalasDeTodasAsBases, obterProximoEvento } from "../lib/painel";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEscalasDeTodasAsBases, obterProximoEvento } from "../lib/painel";
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
@@ -13,17 +13,15 @@ import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.j
  *  terminou, pergunta presencialmente". Base sem escala publicada
  *  aparece a dizer isso, não desaparece — a ausência é informação. */
 function TodasAsBases() {
-  const [bases, setBases] = useState([]);
   const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
-  const [escalas, setEscalas] = useState(null);
+  const [bases, setBases] = useState(null); // null = a carregar
 
-  useEffect(() => { obterTodasAsBases().then(setBases); }, []);
   useEffect(() => { obterProximoEvento().then(setEvento); }, []);
   useEffect(() => {
-    if (!evento || !bases.length) { setEscalas(null); return; }
-    setEscalas(null);
-    obterEscalasDeTodasAsBases(evento.id, bases).then(setEscalas);
-  }, [evento, bases]);
+    if (!evento) { setBases(null); return; }
+    setBases(null);
+    obterEscalasDeTodasAsBases(evento.id).then(setBases);
+  }, [evento]);
 
   return (
     <div className="sect">
@@ -38,26 +36,33 @@ function TodasAsBases() {
         <>
           <p className="ds" style={{ marginBottom: 10 }}>{evento.tipo || dataPorExtenso(evento.data)}</p>
 
-          {escalas === null && <div className="vaz">A carregar…</div>}
+          {bases === null && <div className="vaz">A carregar…</div>}
 
-          {escalas && bases.map((b) => {
-            const escala = escalas[b.id];
-            const nomes = escala?.pessoas || [];
-            return (
-              <div key={b.id} className="caixa" style={{ marginTop: 10 }}>
-                <div className="cabecalho">
-                  <h3 style={{ color: b.cor }}>{b.nome}</h3>
-                </div>
-                {!escala || !nomes.length ? (
-                  <p className="ds" style={{ marginTop: 4 }}>Escala ainda não publicada.</p>
-                ) : (
-                  <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
-                    {nomes.map((id) => escala.pessoasNomes?.[id] ?? "—").join(", ")}
-                  </p>
-                )}
+          {bases && bases.map((b) => (
+            <div key={b.baseId} className="caixa" style={{ marginTop: 10 }}>
+              <div className="cabecalho">
+                <h3 style={{ color: b.cor }}>{b.nome}</h3>
               </div>
-            );
-          })}
+              {b.tipo === "vazio" && (
+                <p className="ds" style={{ marginTop: 4 }}>Escala ainda não publicada.</p>
+              )}
+              {b.tipo === "lugares" && (
+                <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
+                  {b.itens.map((it, i) => (
+                    <span key={i}>
+                      {it.ministerio}: {it.titular ?? "—"}{it.aprendiz ? ` (com ${it.aprendiz})` : ""}
+                      {i < b.itens.length - 1 ? " · " : ""}
+                    </span>
+                  ))}
+                </p>
+              )}
+              {b.tipo === "pessoas" && (
+                <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
+                  {b.nomes.join(", ")}
+                </p>
+              )}
+            </div>
+          ))}
         </>
       )}
     </div>

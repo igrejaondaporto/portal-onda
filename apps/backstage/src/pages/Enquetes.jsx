@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getDoc } from "firebase/firestore";
 import { ouvirVoluntarios, obterEventosDoMes, obterEstatisticasEscala, guardarEscala } from "../lib/painel";
 import { cEscala } from "../lib/modelo";
-import { ouvirEnquetesMontar, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
+import { ouvirEnquetesMontar, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -148,11 +148,14 @@ function MontarEscala({ enquete, voluntarios, respostas, eventosPorId }) {
   );
 }
 
-function CartaoEnquete({ enquete, voluntarios, eventosPorId }) {
+function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
   const torrada = useTorrada();
   const [respostas, setRespostas] = useState([]);
   const [aFechar, setAFechar] = useState(false);
   const [aReabrir, setAReabrir] = useState(false);
+  const [mostrarMontar, setMostrarMontar] = useState(false);
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
   const fechada = enquete.estado === "fechada";
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
@@ -192,6 +195,18 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId }) {
     window.open(`https://wa.me/${telefoneWa(pessoa.telefone)}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
+  async function excluir() {
+    setAExcluir(true);
+    try {
+      await excluirEnquete(enquete.id);
+      torrada("Enquete excluída");
+      onExcluida?.();
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+      setAExcluir(false);
+    }
+  }
+
   return (
     <div className="caixa" style={{ marginTop: 14 }}>
       <div className="cabecalho">
@@ -221,17 +236,39 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId }) {
         </>
       )}
 
-      {fechada && (
+      <button className="btn sec full" style={{ marginTop: 16 }} onClick={() => setMostrarMontar((v) => !v)}>
+        {mostrarMontar ? "Ocultar montar escala" : "Montar escala"}
+      </button>
+      {mostrarMontar && (
         <MontarEscala enquete={enquete} voluntarios={voluntarios} respostas={respostas} eventosPorId={eventosPorId} />
       )}
 
       {fechada ? (
-        <button className="btn sec full" style={{ marginTop: 16 }} disabled={aReabrir} onClick={reabrir}>
+        <button className="btn sec full" style={{ marginTop: 9 }} disabled={aReabrir} onClick={reabrir}>
           {aReabrir ? "A reabrir…" : "🔒 Reabrir"}
         </button>
       ) : (
-        <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
+        <button className="btn sec full" style={{ marginTop: 9 }} disabled={aFechar} onClick={fechar}>
           {aFechar ? "A fechar…" : "Fechar enquete"}
+        </button>
+      )}
+
+      {aConfirmarExcluir ? (
+        <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
+          <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir esta enquete?</p>
+          <p className="ds" style={{ marginTop: 4 }}>As respostas apagam-se junto. Não afeta a escala já gravada.</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aExcluir} onClick={excluir}>
+              {aExcluir ? "A excluir…" : "Excluir"}
+            </button>
+            <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={() => setAConfirmarExcluir(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={() => setAConfirmarExcluir(true)}>
+          Excluir enquete
         </button>
       )}
     </div>
