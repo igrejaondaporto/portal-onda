@@ -3,7 +3,7 @@ import { onSnapshot } from "firebase/firestore";
 import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
-import { ouvirReembolsos } from "../lib/reembolsos";
+import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
@@ -41,6 +41,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aEditarFrase, setAEditarFrase] = useState(false);
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
+  const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [verChecklistToda, setVerChecklistToda] = useState(false);
@@ -71,6 +72,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     if (!souLiderBase) return;
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
+  useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirEnquetesAbertas(setEnquetes), []);
   useEffect(() => {
@@ -105,6 +107,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
+  const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+
+  function fecharAvisoReembolso() {
+    marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
+  }
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
@@ -217,6 +224,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {reembolsoIndeferido && (
+        <div className="destaque" style={{ background: "var(--magenta)" }} onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>O teu pedido de reembolso</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Indeferido · {eur(reembolsoIndeferido.valor)}
+            </p>
+            {reembolsoIndeferido.comentarioLider && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{reembolsoIndeferido.comentarioLider}</p>
+            )}
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>

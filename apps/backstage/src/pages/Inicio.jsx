@@ -3,7 +3,7 @@ import { onSnapshot } from "firebase/firestore";
 import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, obterMeuEvento } from "../lib/culto";
-import { ouvirReembolsos } from "../lib/reembolsos";
+import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto, MESES, concordar } from "@portal/shared/lib/data.js";
@@ -42,6 +42,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [atribuicoes, setAtribuicoes] = useState({});
   const [eventosMes, setEventosMes] = useState([]);
   const [pendentes, setPendentes] = useState([]);
+  const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
@@ -70,6 +71,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     if (!souLiderBase) return;
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
+  useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
   useEffect(() => ouvirInventario(setInventario), []);
   useEffect(() => ouvirEnquetesAbertas(setEnquetes), []);
   useEffect(() => {
@@ -117,6 +119,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
+  const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+
+  function fecharAvisoReembolso() {
+    marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -191,6 +198,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {reembolsoIndeferido && (
+        <div className="destaque" style={{ background: "var(--magenta)" }} onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>O teu pedido de reembolso</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Indeferido · {eur(reembolsoIndeferido.valor)}
+            </p>
+            {reembolsoIndeferido.comentarioLider && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{reembolsoIndeferido.comentarioLider}</p>
+            )}
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>

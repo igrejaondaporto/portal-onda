@@ -35,5 +35,23 @@ export async function criarReembolso(uid, { descricao, valor, ficheiro }) {
   return ref.id;
 }
 
+/** Aprovar/indeferir são do líder — as regras já só deixam a ele
+ *  (souLiderBase). "Aprovado" fica à espera do painel do Financeiro
+ *  (ainda por construir); até lá, marcarPago não tem quem a chame. */
+export const aprovarReembolso = (reembolsoId) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/reembolsos/${reembolsoId}`), {
+    estado: "aprovado", comentarioLider: null, decididoEm: serverTimestamp(),
+  });
+
+export const indeferirReembolso = (reembolsoId, comentario) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/reembolsos/${reembolsoId}`), {
+    estado: "indeferido", comentarioLider: comentario, decididoEm: serverTimestamp(), vistoPeloVoluntario: false,
+  });
+
+/** Só o dono do pedido chama isto (fecha o aviso no Início depois de
+ *  ler o motivo) — as regras só deixam mexer neste campo, nada mais. */
+export const marcarReembolsoVisto = (reembolsoId) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/reembolsos/${reembolsoId}`), { vistoPeloVoluntario: true });
+
 export const marcarPago = (reembolsoId) =>
   updateDoc(doc(db, `bases/${BASE_ID}/reembolsos/${reembolsoId}`), { estado: "pago" });

@@ -3,7 +3,7 @@ import { onSnapshot } from "firebase/firestore";
 import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
-import { ouvirReembolsos } from "../lib/reembolsos";
+import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -38,6 +38,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aEditarFrase, setAEditarFrase] = useState(false);
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
+  const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
@@ -47,6 +48,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+  useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
   // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
@@ -84,6 +86,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
+  const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+
+  function fecharAvisoReembolso() {
+    marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -156,6 +163,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {reembolsoIndeferido && (
+        <div className="destaque" style={{ background: "var(--magenta)" }} onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>O teu pedido de reembolso</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Indeferido · {eur(reembolsoIndeferido.valor)}
+            </p>
+            {reembolsoIndeferido.comentarioLider && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{reembolsoIndeferido.comentarioLider}</p>
+            )}
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>
