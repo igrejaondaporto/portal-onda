@@ -19,6 +19,24 @@ export async function entrarComPin(pessoaId, pin) {
   }
 }
 
+/** Entrada de dev — mesmo mecanismo do PIN (bloqueio de tentativas
+ *  incluído), mas sem pessoa nenhuma por trás: dá acesso de líder da
+ *  base sem depender do código de ninguém. Ver `entrarComoDev` em
+ *  functions/index.js. */
+export async function entrarComoDev(senha) {
+  try {
+    const { data } = await chamar("entrarComoDev")({ baseId: BASE_ID, senha });
+    await signInWithCustomToken(auth, data.token);
+    return { ok: true };
+  } catch (e) {
+    const d = e.details || {};
+    if (e.message === "bloqueado" || d.bloqueado) {
+      return { ok: false, bloqueado: true, faltamSegundos: d.faltamSegundos ?? 900 };
+    }
+    return { ok: false, restam: d.restam ?? null };
+  }
+}
+
 export const sair = () => signOut(auth);
 
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um
