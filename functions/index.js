@@ -362,12 +362,16 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null } = req.data || {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
   // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
   // ministério onde pendurar, ao contrário do nivel por-ministério da
   // Técnica). Nas outras bases o campo nunca aparece.
   const comNivel = nivel ? { nivel } : {};
+  // cargo: etiqueta livre (ex.: "Auxiliar", Comunicação) — sem poder
+  // nenhum associado, é só o que aparece a par do nome. Nas outras
+  // bases o campo nunca aparece.
+  const comCargo = cargo ? { cargo: String(cargo).trim() } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
   if (pessoaExistenteId) {
@@ -397,7 +401,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: globalSnap.data().foto ?? null,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel,
+      ...comMinisterios, ...comNivel, ...comCargo,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -413,7 +417,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel,
+    ...comMinisterios, ...comNivel, ...comCargo,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -479,7 +483,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -502,6 +506,7 @@ export const editarVoluntario = onCall(async (req) => {
   // ministérios enviam isto; nas outras o campo nunca aparece.
   if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
   if (nivel) dados.nivel = nivel;
+  if (cargo !== undefined) dados.cargo = cargo ? String(cargo).trim() : null;
   // o próprio já muda a sua foto por escrita direta (firestore.rules
   // permite ao dono); isto é só o líder a mudar a foto de outra
   // pessoa — o upload em si já passou pelo Storage antes de chegar
@@ -849,6 +854,65 @@ async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atuali
   }
   await lote.commit();
 }
+
+/* ── ESCALA (Base Comunicação) ──────────────────────────────
+ * Lugares por ministério, como a Técnica — mas sem "Responsável"
+ * rotativo: a Comunicação só tem o líder da base fixo (ver
+ * apps/comunicacao/CLAUDE.md), por isso só ele pode gravar a escala
+ * e `liderEscala` não é usado (fica sempre null). */
+export const guardarEscalaComunicacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (req.auth.token.papel !== "lider_base") {
+    throw new HttpsError("permission-denied", "Só o líder da base pode fazer isto.");
+  }
+
+  const { eventoId, lugares } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(lugares)) throw new HttpsError("invalid-argument", "Faltam os lugares.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+
+  const pessoas = new Set();
+  const usados = new Set();
+  const lugaresLimpos = lugares.map((l) => {
+    if (!l?.ministerioId) throw new HttpsError("invalid-argument", "Lugar sem ministério.");
+    for (const id of [l.titularId, l.aprendizId]) {
+      if (!id) continue;
+      if (usados.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
+      usados.add(id);
+      pessoas.add(id);
+    }
+    return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
+  });
+
+  // quem serve em mais do que uma base não pode ficar escalado nas
+  // duas no mesmo culto (mesma regra da Técnica/Apoio/Backstage).
+  const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
+  const adicionadas = [...pessoas].filter((id) => !pessoasAntigas.has(id));
+  const removidas = [...pessoasAntigas].filter((id) => !pessoas.has(id));
+  const multiBase = new Set();
+  for (const id of new Set([...adicionadas, ...removidas])) {
+    if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
+  }
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, baseId, id);
+  }
+
+  await ref.set({
+    baseId, liderEscala: null,
+    lugares: lugaresLimpos, pessoas: [...pessoas],
+  }, { merge: true });
+
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, baseId, id, "escalado");
+  }
+  for (const id of removidas) {
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
+  }
+  return { ok: true };
+});
 
 /* ── ESCALA DE TODAS AS BASES (Backstage) ──────────────────────
  * Só quem tem a claim ve_todas_escalas (ver claimsExtraDaBase) — lê
@@ -1583,6 +1647,58 @@ export const desativarEquipamento = onCall(async (req) => {
   const { itemId } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   await refEquipamento(baseId, itemId).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── EQUIPAMENTOS (Base Comunicação) ───────────────────────────
+ * Custódia, não stock — só dois itens, quem está com cada um e desde
+ * quando (ver apps/comunicacao/CLAUDE.md). Não é a mesma coleção do
+ * "Equipamentos" da Técnica (esse é o inventário em modo património,
+ * bases/{b}/inventario) — aqui é bases/{b}/equipamentos, e passar um
+ * item tem de gravar o histórico na mesma escrita, por isso é sempre
+ * por função, nunca setDoc direto do cliente. */
+const refEquipamentoComunicacao = (baseId, id) => db.doc(`bases/${baseId}/equipamentos/${id}`);
+
+export const criarEquipamentoComunicacao = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { itemId, nome, icone = null, responsavelId = null } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  await refEquipamentoComunicacao(baseId, itemId).set({
+    nome: nome.trim(), icone, responsavelId, ativo: true,
+    desde: responsavelId ? admin.firestore.FieldValue.serverTimestamp() : null,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  if (responsavelId) {
+    await refEquipamentoComunicacao(baseId, itemId).collection("historico").add({
+      paraId: responsavelId, deId: null, em: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  return { itemId };
+});
+
+// qualquer voluntário passa — não é uma decisão do líder, é só dizer
+// quem ficou com o quê (ver briefing da base: "Passar" no Início)
+export const passarEquipamento = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { itemId, paraId } = req.data || {};
+  if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
+  if (!paraId) throw new HttpsError("invalid-argument", "Falta escolher quem fica com o equipamento.");
+
+  const ref = refEquipamentoComunicacao(baseId, itemId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data().ativo === false) throw new HttpsError("not-found", "Equipamento não encontrado.");
+
+  const paraSnap = await refPessoa(baseId, paraId).get();
+  if (!paraSnap.exists || paraSnap.data().ativo === false) {
+    throw new HttpsError("invalid-argument", "Essa pessoa não está ativa nesta base.");
+  }
+
+  const deId = snap.data().responsavelId ?? null;
+  const agora = admin.firestore.FieldValue.serverTimestamp();
+  await ref.set({ responsavelId: paraId, desde: agora }, { merge: true });
+  await ref.collection("historico").add({ deId, paraId, em: agora });
   return { ok: true };
 });
 

@@ -65,7 +65,7 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
-      // ── ministérios (Base Técnica) ────────────────────────
+      // ── ministérios (Base Técnica, Comunicação) ───────────
       match /ministerios/{ministerio} {
         allow read:  if minhaBase(base);
         allow write: if souLiderBase(base);
@@ -91,6 +91,19 @@ service cloud.firestore {
         allow read:  if minhaBase(base);
         allow write: if false;                     // só por função
         match /eventos/{evento} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
+      }
+
+      // ── equipamentos (Base Comunicação): custódia, não stock —
+      // dois itens, quem está com cada um e desde quando. Passar um
+      // item grava o histórico na mesma escrita (garantia que só a
+      // função dá), por isso é sempre por Cloud Function. ──
+      match /equipamentos/{item} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+        match /historico/{h} {
           allow read:  if minhaBase(base);
           allow write: if false;                   // só por função
         }
