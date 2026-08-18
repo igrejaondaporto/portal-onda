@@ -17,6 +17,7 @@ import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
+import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 
 export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
@@ -257,6 +258,18 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
 
           <div className="sect">
             <div className="cabecalho">
+              <h3>Comunicação</h3>
+            </div>
+            <p className="ds" style={{ padding: "8px 0 2px" }}>
+              Peças gráficas, vídeo ou fotografia — pede à Comunicação e acompanha pelo WhatsApp deles até saíres com a entrega.
+            </p>
+            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "abrirSolicitacao" })}>
+              Pedir à Comunicação
+            </button>
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho">
               <h3>Definições da base</h3>
               <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "definicoesBase" })}>
                 Editar
@@ -343,6 +356,12 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
         <SheetFuncao
           funcao={sheet.funcaoId ? funcoes.find((f) => f.id === sheet.funcaoId) : null}
           eventosDisponiveis={eventosMes}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "abrirSolicitacao" && (
+        <SheetAbrirSolicitacao
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

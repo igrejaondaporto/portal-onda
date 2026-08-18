@@ -1702,6 +1702,144 @@ export const passarEquipamento = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── SOLICITAÇÕES (raiz — a Comunicação atende as outras bases) ──
+ * Coleção na raiz, não aninhada em bases/comunicacao: é escrita por
+ * líderes de QUALQUER base e lida por duas bases ao mesmo tempo (quem
+ * pediu + a Comunicação). Sempre por Cloud Function, como Wiki/
+ * Melhorias — aqui ainda mais: foraDoPrazo tem de ser calculado no
+ * servidor, nunca aceite do cliente (ver CLAUDE-comunicacao.md §5.1). */
+const STATUS_SOLICITACAO = ["fila", "producao", "revisao", "entregue", "recusada"];
+const refSolicitacao = (id) => db.doc(`solicitacoes/${id}`);
+
+async function nomeDaPessoa(baseId, uid) {
+  const s = await refPessoa(baseId, uid).get();
+  return s.exists ? s.data().nome : null;
+}
+
+async function slaDiasMinimosComunicacao() {
+  const s = await db.doc("bases/comunicacao").get();
+  return s.exists ? (s.data().slaDiasMinimos ?? 10) : 10;
+}
+
+function diasEntre(hojeISO, prazoISO) {
+  const MS_DIA = 24 * 60 * 60 * 1000;
+  return Math.round((new Date(`${prazoISO}T00:00:00Z`) - new Date(`${hojeISO}T00:00:00Z`)) / MS_DIA);
+}
+
+export const abrirSolicitacao = onCall(async (req) => {
+  const baseId = exigeLider(req); // qualquer líder de base — a de quem pede, não a da Comunicação
+  const uid = req.auth.uid;
+  const { titulo, oQue, ondeUsa, textoFinal = "", linkReferencia = "", prazo } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
+  if (!oQue?.trim()) throw new HttpsError("invalid-argument", "Falta descrever o que precisas.");
+  if (!ondeUsa?.trim()) throw new HttpsError("invalid-argument", "Falta dizer onde isto vai ser usado.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
+
+  const slaDiasMinimos = await slaDiasMinimosComunicacao();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const foraDoPrazo = diasEntre(hoje, prazo) < slaDiasMinimos;
+
+  const solicitanteNome = await nomeDaPessoa(baseId, uid);
+  const ref = db.collection("solicitacoes").doc();
+  await ref.set({
+    titulo: titulo.trim(), baseSolicitanteId: baseId, solicitanteId: uid, solicitanteNome,
+    oQue: oQue.trim(), ondeUsa: ondeUsa.trim(),
+    textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(),
+    prazo, foraDoPrazo, status: "fila",
+    responsavelId: null, responsavelNome: null, entregaUrl: null, entregueEm: null,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    historico: [{ de: null, para: "fila", porId: uid, porNome: solicitanteNome, em: admin.firestore.Timestamp.now() }],
+  });
+  return { id: ref.id, foraDoPrazo };
+});
+
+// só quem está em "fila" ainda é do solicitante — depois disso é a
+// Comunicação que decide (ver firestore.rules)
+const CAMPOS_EDITAVEIS_SOLICITANTE = ["titulo", "oQue", "ondeUsa", "textoFinal", "linkReferencia", "prazo"];
+
+export const editarSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { id, ...campos } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.solicitanteId !== uid) throw new HttpsError("permission-denied", "Só quem abriu pode editar.");
+  if (s.status !== "fila") throw new HttpsError("failed-precondition", "Já saiu da fila — já não dá para editar sozinho.");
+
+  const dados = {};
+  for (const chave of CAMPOS_EDITAVEIS_SOLICITANTE) {
+    if (campos[chave] === undefined) continue;
+    dados[chave] = typeof campos[chave] === "string" ? campos[chave].trim() : campos[chave];
+  }
+  if (!Object.keys(dados).length) throw new HttpsError("invalid-argument", "Nada para guardar.");
+  if (dados.titulo === "") throw new HttpsError("invalid-argument", "Falta o título.");
+  if (dados.prazo) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.prazo)) throw new HttpsError("invalid-argument", "Prazo inválido.");
+    const slaDiasMinimos = await slaDiasMinimosComunicacao();
+    dados.foraDoPrazo = diasEntre(new Date().toISOString().slice(0, 10), dados.prazo) < slaDiasMinimos;
+  }
+  await ref.set(dados, { merge: true });
+  return { ok: true };
+});
+
+// qualquer membro da Comunicação, não só o líder — "assumir sem
+// passar pelo líder" (ver briefing §6.3)
+export const assumirSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação assume solicitações.");
+  const { id } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.status === "entregue" || s.status === "recusada") {
+    throw new HttpsError("failed-precondition", "Esta solicitação já foi fechada.");
+  }
+  const nome = await nomeDaPessoa(baseId, uid);
+  const novoStatus = s.status === "fila" ? "producao" : s.status;
+  const historicoEntry = { de: s.status, para: novoStatus, porId: uid, porNome: nome, em: admin.firestore.Timestamp.now() };
+  await ref.set({
+    responsavelId: uid, responsavelNome: nome, status: novoStatus,
+    historico: [...(s.historico || []), historicoEntry],
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const mudarStatusSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação muda o estado.");
+  const { id, novoStatus, entregaUrl, motivo = "" } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  if (!STATUS_SOLICITACAO.includes(novoStatus)) throw new HttpsError("invalid-argument", "Estado inválido.");
+  if (novoStatus === "entregue" && !entregaUrl?.trim()) {
+    throw new HttpsError("invalid-argument", "Falta o link da entrega.");
+  }
+  if (novoStatus === "recusada" && !motivo.trim()) {
+    throw new HttpsError("invalid-argument", "Falta o motivo da recusa.");
+  }
+
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  const nome = await nomeDaPessoa(baseId, uid);
+  const historicoEntry = {
+    de: s.status, para: novoStatus, porId: uid, porNome: nome,
+    em: admin.firestore.Timestamp.now(), ...(motivo.trim() ? { motivo: motivo.trim() } : {}),
+  };
+  const dados = { status: novoStatus, historico: [...(s.historico || []), historicoEntry] };
+  if (novoStatus === "entregue") {
+    dados.entregaUrl = entregaUrl.trim();
+    dados.entregueEm = admin.firestore.FieldValue.serverTimestamp();
+  }
+  await ref.set(dados, { merge: true });
+  return { ok: true };
+});
+
 /* ── MELHORIAS (Base Técnica) ─────────────────────────────────
  * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta,
  * define a previsão e resolve; só o líder reabre uma melhoria já

@@ -67,6 +67,15 @@
       ]
     },
     {
+      "collectionGroup": "solicitacoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "responsavelId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "prazo", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "enquetes",
       "queryScope": "COLLECTION",
       "fields": [

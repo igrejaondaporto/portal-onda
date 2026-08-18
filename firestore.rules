@@ -203,6 +203,19 @@ service cloud.firestore {
       }
     }
 
+    // ── solicitações à Comunicação ─────────────────────────
+    // Raiz, não bases/comunicacao: é escrita por líderes de QUALQUER
+    // base e lida por duas bases (quem pediu + a Comunicação). Toda a
+    // escrita passa por Cloud Function (abrirSolicitacao/
+    // editarSolicitacao/assumirSolicitacao/mudarStatusSolicitacao) —
+    // foraDoPrazo tem de ser calculado no servidor, e cada mudança de
+    // estado grava histórico na mesma escrita, coisa que as regras não
+    // garantem sozinhas.
+    match /solicitacoes/{id} {
+      allow read:  if minhaBase(resource.data.baseSolicitanteId) || minhaBase('comunicacao');
+      allow write: if false;                     // só por função
+    }
+
     // ── painel de progresso das bases (painelonda.pt) ─────
     // leitura pública (é um placar para todos acompanharem);
     // escrita exige sessão (anónima, criada pelo próprio painel) —
