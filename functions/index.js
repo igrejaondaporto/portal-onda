@@ -104,11 +104,18 @@ async function basesDaPessoa(uid) {
   return Object.keys(bases).filter((b) => bases[b]);
 }
 
-/** Nomes de um conjunto de pessoas de uma base, para telas que
- *  resolvem em tempo real (nunca guardar cópia — ver escalasCrossBase). */
+/** Nomes (+ foto, telefone) de um conjunto de pessoas de uma base,
+ *  para telas que resolvem em tempo real (nunca guardar cópia — ver
+ *  escalasCrossBase). O telefone só sai daqui para quem tem
+ *  `ve_todas_escalas` — é a mesma capacidade elevada que já lê a
+ *  escala de qualquer base, para poder chamar quem serve noutra base
+ *  quando precisa (contacto por WhatsApp, como já existe dentro da
+ *  própria base). */
 async function nomesDePessoas(baseId, ids) {
   const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
-  return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [s.id, { nome: s.data().nome, foto: s.data().foto ?? null }]));
+  return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [
+    s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+  ]));
 }
 
 /** Lança failed-precondition se `uid` já tem uma entrada de OUTRA
@@ -764,7 +771,9 @@ export const escalasCrossBase = onCall(async (req) => {
         Promise.all(idsMinisterios.map((id) => db.doc(`bases/${b.id}/ministerios/${id}`).get())),
       ]);
       const pessoaResumo = Object.fromEntries(
-        pessoasSnaps.filter((s) => s.exists).map((s) => [s.id, { nome: s.data().nome, foto: s.data().foto ?? null }])
+        pessoasSnaps.filter((s) => s.exists).map((s) => [
+          s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+        ])
       );
       const nomeMinisterio = Object.fromEntries(ministeriosSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
       const itens = escala.lugares
