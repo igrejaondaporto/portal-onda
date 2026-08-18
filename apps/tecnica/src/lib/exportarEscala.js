@@ -113,7 +113,7 @@ export function desenharEscalaCanvas({ mesLabel, domingos, ministerios, resultad
 
   ctx.fillStyle = COR_CINZA;
   ctx.font = "500 11px Arial";
-  ctx.fillText("tecnica.painelonda.pt", pad, y + rodapeAlt / 2);
+  ctx.fillText("tecnica.igrejaonda.pt", pad, y + rodapeAlt / 2);
 
   return canvas;
 }

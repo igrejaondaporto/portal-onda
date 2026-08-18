@@ -14,7 +14,7 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Em produção em `apoio.painelonda.pt`. O protótipo original
+Em produção em `apoio.igrejaonda.pt`. O protótipo original
 (`../../PROTOTIPO.html`, na raiz do monorepo) foi a especificação
 visual e funcional inicial — já todo portado.
 

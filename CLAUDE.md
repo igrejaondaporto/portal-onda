@@ -24,9 +24,9 @@ packages/shared/       Código genuinamente igual em qualquer base:
                         Avatar/lightbox, cache offline, o sistema visual
                         base (styles/global.css). Uma correção aqui chega
                         a todas as bases de uma vez — é para isso que existe.
-apps/apoio/             App da Base de Apoio. Domínio: apoio.painelonda.pt
-apps/tecnica/           App da Base Técnica. Domínio: tecnica.painelonda.pt
-apps/backstage/         App da Backstage. Domínio: back.painelonda.pt
+apps/apoio/             App da Base de Apoio. Domínio: apoio.igrejaonda.pt
+apps/tecnica/           App da Base Técnica. Domínio: tecnica.igrejaonda.pt
+apps/backstage/         App da Backstage. Domínio: back.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -70,9 +70,9 @@ bases, nunca no mesmo commit que uma correção local.
 
 | Base | App | Domínio | `CLAUDE.md` |
 |---|---|---|---|
-| Apoio | `apps/apoio` | `apoio.painelonda.pt` | `apps/apoio/CLAUDE.md` |
-| Técnica | `apps/tecnica` | `tecnica.painelonda.pt` | `apps/tecnica/CLAUDE.md` |
-| Backstage | `apps/backstage` | `back.painelonda.pt` | `apps/backstage/CLAUDE.md` |
+| Apoio | `apps/apoio` | `apoio.igrejaonda.pt` | `apps/apoio/CLAUDE.md` |
+| Técnica | `apps/tecnica` | `tecnica.igrejaonda.pt` | `apps/tecnica/CLAUDE.md` |
+| Backstage | `apps/backstage` | `back.igrejaonda.pt` | `apps/backstage/CLAUDE.md` |
 
 ## Stack
 
