@@ -108,7 +108,7 @@ async function basesDaPessoa(uid) {
  *  resolvem em tempo real (nunca guardar cópia — ver escalasCrossBase). */
 async function nomesDePessoas(baseId, ids) {
   const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
-  return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+  return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [s.id, { nome: s.data().nome, foto: s.data().foto ?? null }]));
 }
 
 /** Lança failed-precondition se `uid` já tem uma entrada de OUTRA
@@ -763,14 +763,16 @@ export const escalasCrossBase = onCall(async (req) => {
         Promise.all(idsPessoas.map((id) => refPessoa(b.id, id).get())),
         Promise.all(idsMinisterios.map((id) => db.doc(`bases/${b.id}/ministerios/${id}`).get())),
       ]);
-      const nomePessoa = Object.fromEntries(pessoasSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+      const pessoaResumo = Object.fromEntries(
+        pessoasSnaps.filter((s) => s.exists).map((s) => [s.id, { nome: s.data().nome, foto: s.data().foto ?? null }])
+      );
       const nomeMinisterio = Object.fromEntries(ministeriosSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
       const itens = escala.lugares
         .filter((l) => l.titularId)
         .map((l) => ({
           ministerio: nomeMinisterio[l.ministerioId] ?? l.ministerioId,
-          titular: nomePessoa[l.titularId] ?? null,
-          aprendiz: l.aprendizId ? (nomePessoa[l.aprendizId] ?? null) : null,
+          titular: pessoaResumo[l.titularId] ?? null,
+          aprendiz: l.aprendizId ? (pessoaResumo[l.aprendizId] ?? null) : null,
         }));
       if (!itens.length) return { ...base, tipo: "vazio" };
       return { ...base, tipo: "lugares", itens };
@@ -778,11 +780,11 @@ export const escalasCrossBase = onCall(async (req) => {
 
     const pessoas = escala.pessoas || [];
     if (!pessoas.length) return { ...base, tipo: "vazio" };
-    const nomes = await nomesDePessoas(b.id, pessoas);
+    const resumo = await nomesDePessoas(b.id, pessoas);
     return {
       ...base, tipo: "pessoas",
-      nomes: pessoas.map((id) => nomes[id] ?? null).filter(Boolean),
-      liderEscalaNome: escala.liderEscala ? (nomes[escala.liderEscala] ?? null) : null,
+      pessoas: pessoas.map((id) => (resumo[id] ? { id, ...resumo[id] } : null)).filter(Boolean),
+      liderEscalaId: escala.liderEscala || null,
     };
   }));
 
