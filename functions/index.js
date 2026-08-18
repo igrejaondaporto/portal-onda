@@ -1692,6 +1692,49 @@ export const definirPrevisao = onCall(async (req) => {
   return { ok: true };
 });
 
+/**
+ * Quem fica encarregue de tratar de uma melhoria. Vários, de
+ * propósito: "comprei os cabos, agora alguém tem de os testar no
+ * domingo" são duas pessoas no mesmo assunto, não duas melhorias.
+ *
+ * Fica na melhoria e não numa subcoleção porque o Início precisa de
+ * responder a "o que é meu?" numa leitura só — o `wikiIndice` existe
+ * pela mesma razão, o Firestore não faz junções.
+ *
+ * Qualquer voluntário pode atribuir, incluindo a si próprio: quem
+ * está a tratar do assunto sabe melhor do que o líder quem falta
+ * chamar, e o líder vê tudo à mesma no painel.
+ */
+export const definirResponsaveisMelhoria = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { melhoriaId, responsaveis } = req.data || {};
+  if (!melhoriaId) throw new HttpsError("invalid-argument", "Falta a melhoria.");
+  if (!Array.isArray(responsaveis)) throw new HttpsError("invalid-argument", "Responsáveis inválidos.");
+
+  // Só gente ativa DESTA base: um uid à mão no pedido não pode pôr
+  // alguém de outra base — ou já desativado — a aparecer nas tarefas.
+  const limpos = [...new Set(responsaveis.filter((x) => typeof x === "string" && x))];
+  if (limpos.length > 12) throw new HttpsError("invalid-argument", "Responsáveis a mais.");
+  for (const p of limpos) {
+    const snap = await db.doc(`bases/${baseId}/pessoas/${p}`).get();
+    if (!snap.exists || snap.data().ativo === false) {
+      throw new HttpsError("invalid-argument", "Só voluntários ativos desta base.");
+    }
+  }
+
+  await obterMelhoria(baseId, melhoriaId);
+  const ref = refMelhoria(baseId, melhoriaId);
+  const lote = db.batch();
+  lote.set(ref, { responsaveis: limpos }, { merge: true });
+  lote.set(ref.collection("eventos").doc(), {
+    tipo: "responsaveis", autorId: uid, quando: admin.firestore.FieldValue.serverTimestamp(),
+    texto: String(limpos.length),
+  });
+  await lote.commit();
+  return { ok: true };
+});
+
 export const resolverMelhoria = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
