@@ -246,6 +246,64 @@ const TOURS = {
       },
     ],
   },
+  comunicacao: {
+    // Molde Técnica (ministérios, checklist filtrada por ministério em
+    // vez de "todas as funções") + o bloco de Equipamentos, que não
+    // existe em nenhuma outra base — custódia dos dois itens, não um
+    // separador próprio (ver apps/comunicacao/CLAUDE.md).
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — titular e aprendiz de cada ministério, em cada culto.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-funcoes",
+        titulo: "Funções",
+        texto: "Em Funções vês a descrição de cada tarefa — o que fazer em cada uma.",
+        alvo: "nav-funcoes", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "A ordem do culto fica sempre em Culto, atualizada.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "O teu ministério",
+        texto: "Aqui em cima ficam as funções do teu ministério para hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês — toca num culto para escolher o titular e o aprendiz de cada ministério.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
 };
 
 async function main() {
