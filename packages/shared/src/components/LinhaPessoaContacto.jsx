@@ -7,31 +7,36 @@ import { linkWhatsApp } from "../lib/data";
 export default function LinhaPessoaContacto({ pessoa, resumo, corMinisterio, tagExtra, funcoesDaPessoa, aberta, onToggle }) {
   const link = linkWhatsApp(pessoa.telefone);
   return (
-    <div className="linha" style={{ alignItems: "flex-start", cursor: "pointer" }} onClick={onToggle}>
+    <div className="linha" style={{ alignItems: "flex-start", cursor: "pointer", flexWrap: "wrap" }} onClick={onToggle}>
       <Avatar pessoa={pessoa} />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <p className="nmt">{pessoa.nome}</p>
         <p className="ds">
           {corMinisterio && <span className="quadmin" style={{ background: corMinisterio }} />}
           {resumo}
         </p>
-        {aberta && (
-          <div className="aberto" onClick={(e) => e.stopPropagation()} style={{ paddingTop: 12 }}>
-            {link ? (
-              <a className="btn sec full" href={link} target="_blank" rel="noopener">
-                Chamar no WhatsApp
-              </a>
-            ) : (
-              <p className="ds">Sem contacto no perfil.</p>
-            )}
-            {funcoesDaPessoa?.length > 0 && (
-              <p style={{ marginTop: 10 }}>{funcoesDaPessoa.map((f) => f.nome).join(", ")}</p>
-            )}
-          </div>
-        )}
       </div>
       {tagExtra}
       <span className="seta">{aberta ? "⌃" : "⌄"}</span>
+      {/* fora da coluna flex:1 e de propósito depois do tagExtra/seta no
+          DOM: uma etiqueta larga (ex.: "Líder de escala") espremia esta
+          coluna a ~100px, forçando o botão a três linhas. Como item
+          próprio com flex-basis:100%, ocupa sempre a largura toda da
+          linha, nunca fica preso ao espaço que sobra dos outros itens. */}
+      {aberta && (
+        <div className="aberto" onClick={(e) => e.stopPropagation()} style={{ paddingTop: 12, flexBasis: "100%" }}>
+          {link ? (
+            <a className="btn sec full" href={link} target="_blank" rel="noopener">
+              Chamar no WhatsApp
+            </a>
+          ) : (
+            <p className="ds">Sem contacto no perfil.</p>
+          )}
+          {funcoesDaPessoa?.length > 0 && (
+            <p style={{ marginTop: 10 }}>{funcoesDaPessoa.map((f) => f.nome).join(", ")}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
