@@ -4,6 +4,7 @@ import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEsca
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import Avatar from "@portal/shared/components/Avatar.jsx";
 
 /** Segmento "Todas as bases" — só o próximo domingo (ou próximo culto,
  *  se houver um antes), as bases empilhadas com os nomes de quem
@@ -38,31 +39,64 @@ function TodasAsBases() {
 
           {bases === null && <div className="vaz">A carregar…</div>}
 
-          {bases && bases.map((b) => (
-            <div key={b.baseId} className="caixa" style={{ marginTop: 10 }}>
-              <div className="cabecalho">
-                <h3 style={{ color: b.cor }}>{b.nome}</h3>
-              </div>
-              {b.tipo === "vazio" && (
-                <p className="ds" style={{ marginTop: 4 }}>Escala ainda não publicada.</p>
-              )}
-              {b.tipo === "lugares" && (
-                <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
-                  {b.itens.map((it, i) => (
-                    <span key={i}>
-                      <b>{it.ministerio}</b>: {it.titular ?? "—"}{it.aprendiz ? ` (com ${it.aprendiz})` : ""}
-                      {i < b.itens.length - 1 ? " · " : ""}
-                    </span>
-                  ))}
-                </p>
-              )}
-              {b.tipo === "pessoas" && (
-                <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
-                  {b.nomes.join(", ")}
-                </p>
-              )}
-            </div>
-          ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 4 }}>
+            {bases && bases.map((b) => {
+              const contagem = b.tipo === "pessoas" ? b.pessoas.length : b.tipo === "lugares" ? b.itens.length : 0;
+              return (
+                <div
+                  key={b.baseId} className="caixa"
+                  style={{ margin: 0, borderLeft: `4px solid ${b.cor || "var(--azul)"}`, borderTopLeftRadius: 10, borderBottomLeftRadius: 10 }}
+                >
+                  <div className="cabecalho">
+                    <h3 style={{ color: b.cor || undefined }}>{b.nome}</h3>
+                    {contagem > 0 && <span className="cap">{contagem} {contagem === 1 ? "pessoa" : "pessoas"}</span>}
+                  </div>
+
+                  {b.tipo === "vazio" && (
+                    <p className="ds" style={{ marginTop: 6 }}>Escala ainda não publicada.</p>
+                  )}
+
+                  {b.tipo === "pessoas" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+                      {b.pessoas.map((p) => (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                          <Avatar pessoa={p} tamanho={36} fonte={14} />
+                          <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600 }}>{p.nome}</span>
+                          {p.id === b.liderEscalaId && <span className="tag lim">Líder de escala</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {b.tipo === "lugares" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
+                      {b.itens.map((it, i) => (
+                        <div key={i}>
+                          <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 7 }}>
+                            {it.ministerio}
+                          </p>
+                          {it.titular ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                              <Avatar pessoa={it.titular} tamanho={36} fonte={14} />
+                              <span style={{ fontSize: 14.5, fontWeight: 600 }}>{it.titular.nome}</span>
+                            </div>
+                          ) : (
+                            <p className="ds">Por definir</p>
+                          )}
+                          {it.aprendiz && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 8, marginLeft: 14 }}>
+                              <Avatar pessoa={it.aprendiz} tamanho={30} fonte={12} />
+                              <span style={{ fontSize: 13, color: "var(--cinza)" }}>{it.aprendiz.nome} · aprendiz</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
     </div>
