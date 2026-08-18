@@ -13,12 +13,17 @@ import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Funcoes from "./Funcoes";
 import Culto from "./Culto";
+import Solicitacoes from "./Solicitacoes";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
 
+// prancheta — não existe no ICO padrão do NavBar (packages/shared)
+const ICONE_SOLICITACOES = '<path d="M8 3h8a1 1 0 0 1 1 1v1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1V4a1 1 0 0 1 1-1z"/><path d="M9 3h6v3H9z"/><path d="M8 12h8M8 16h5"/>';
+
 const ABAS = [
   ["inicio", "Início"],
-  ["escala", "Escala"],
+  ["escala", "Agenda"],
+  ["solicitacoes", "Solicitações", ICONE_SOLICITACOES],
   ["funcoes", "Funções"],
   ["culto", "Culto"],
 ];
@@ -173,7 +178,11 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
+              onIrSolicitacoes={() => irPara("solicitacoes")}
             />
+          </div>
+          <div style={{ display: pagina === "solicitacoes" ? "" : "none" }}>
+            <Solicitacoes uid={uid} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
             <Funcoes
