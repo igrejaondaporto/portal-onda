@@ -27,6 +27,7 @@ packages/shared/       Código genuinamente igual em qualquer base:
 apps/apoio/             App da Base de Apoio. Domínio: apoio.igrejaonda.pt
 apps/tecnica/           App da Base Técnica. Domínio: tecnica.igrejaonda.pt
 apps/backstage/         App da Backstage. Domínio: back.igrejaonda.pt
+apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -73,6 +74,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Apoio | `apps/apoio` | `apoio.igrejaonda.pt` | `apps/apoio/CLAUDE.md` |
 | Técnica | `apps/tecnica` | `tecnica.igrejaonda.pt` | `apps/tecnica/CLAUDE.md` |
 | Backstage | `apps/backstage` | `back.igrejaonda.pt` | `apps/backstage/CLAUDE.md` |
+| Comunicação | `apps/comunicacao` | `comunicacao.igrejaonda.pt` | `apps/comunicacao/CLAUDE.md` |
 
 ## Stack
 
