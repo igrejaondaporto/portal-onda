@@ -15,6 +15,7 @@ export default function SheetPessoa({
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
   const [genero, setGenero] = useState(pessoa?.genero ?? null);
+  const [nivel, setNivel] = useState(pessoa?.nivel ?? "titular");
   const [foto, setFoto] = useState(pessoa?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -42,10 +43,10 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, genero });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, genero, nivel });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel, genero };
+        const dados = { nome: n, telefone: telefone.trim(), papel, genero, nivel };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -122,6 +123,12 @@ export default function SheetPessoa({
           <button data-on={genero === "f" ? 1 : 0} onClick={() => setGenero("f")}>Feminino</button>
         </div>
         <p className="ds" style={{ marginTop: 8 }}>Só ajusta o texto da interface (ex.: "escalada" em vez de "escalado").</p>
+        <label className="rot" style={{ marginTop: 14 }}>Nível</label>
+        <div className="subtabs">
+          <button data-on={nivel === "titular" ? 1 : 0} onClick={() => setNivel("titular")}>Titular</button>
+          <button data-on={nivel === "aprendiz" ? 1 : 0} onClick={() => setNivel("aprendiz")}>Aprendiz</button>
+        </div>
+        <p className="ds" style={{ marginTop: 8 }}>Um aprendiz nunca serve sozinho — a escala tem de o juntar a um titular.</p>
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>

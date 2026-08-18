@@ -8,7 +8,7 @@ import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import MelhoriasTab from "../components/culto/MelhoriasTab";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, feedbackAberto }) {
+export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, feedbackAberto }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
@@ -67,6 +67,17 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>Melhorias</button>
       </div>
+
+      {aba !== "melhorias" && (
+        <div className="cabecalho" style={{ paddingTop: 14 }}>
+          <h3>{MESES[mes]} {ano}</h3>
+          <span className="calnav">
+            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+          </span>
+        </div>
+      )}
+      {aba !== "melhorias" && !eventosMes.length && <div className="vaz">Sem cultos marcados neste mês.</div>}
 
       {aba === "melhorias" ? (
         <MelhoriasTab uid={uid} papel={papel} />

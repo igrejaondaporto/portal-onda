@@ -35,14 +35,40 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     }
   }
 
-  // a Backstage escala só uma pessoa por culto (não uma equipa, ver
-  // CLAUDE.md desta app) — tocar noutra pessoa substitui quem lá
-  // estava, nunca acumula. Tocar na mesma pessoa outra vez limpa.
+  // a Backstage escala normalmente uma pessoa só por culto (não uma
+  // equipa, ver CLAUDE.md desta app) — tocar noutra pessoa substitui
+  // quem lá estava. A exceção é o aprendiz: nunca serve sozinho, por
+  // isso escalar um aprendiz junta-o ao titular já escolhido (ou pede
+  // para escolher um titular primeiro); tirar o titular tira também
+  // o aprendiz, que não pode ficar sozinho.
+  const nivelDe = (id) => voluntarios.find((p) => p.id === id)?.nivel ?? "titular";
+  const titularAtual = pessoas.find((id) => nivelDe(id) !== "aprendiz") ?? null;
+  const aprendizAtual = pessoas.find((id) => nivelDe(id) === "aprendiz") ?? null;
+
   function escolher(id) {
     const anterior = { pessoas, liderEscala };
-    const jaEEssa = pessoas.length === 1 && pessoas[0] === id;
-    const novasPessoas = jaEEssa ? [] : [id];
-    const novoLider = jaEEssa ? null : id;
+    const ehAprendiz = nivelDe(id) === "aprendiz";
+    let novasPessoas, novoLider;
+
+    if (ehAprendiz) {
+      if (aprendizAtual === id) {
+        novasPessoas = titularAtual ? [titularAtual] : [];
+        novoLider = titularAtual;
+      } else if (!titularAtual) {
+        torrada("Escala primeiro um titular — o aprendiz não pode servir sozinho.");
+        return;
+      } else {
+        novasPessoas = [titularAtual, id];
+        novoLider = titularAtual;
+      }
+    } else if (titularAtual === id) {
+      novasPessoas = [];
+      novoLider = null;
+    } else {
+      novasPessoas = aprendizAtual ? [id, aprendizAtual] : [id];
+      novoLider = id;
+    }
+
     setPessoas(novasPessoas);
     setLiderEscala(novoLider);
     persistir(novasPessoas, novoLider, anterior);
@@ -81,11 +107,12 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">
-          {pessoas.length ? concordar(voluntarios.find((v) => v.id === pessoas[0]), "Escalado", "Escalada") : "Por escalar"}
+          {titularAtual ? concordar(voluntarios.find((v) => v.id === titularAtual), "Escalado", "Escalada") : "Por escalar"}
+          {aprendizAtual ? ` · com ${voluntarios.find((v) => v.id === aprendizAtual)?.nome} (aprendiz)` : ""}
           {" · chegada "}{evento.horaChegada || "08:00"}
         </p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
-          Um só nome por culto — tocar noutro substitui quem estava.
+          Um titular por culto — tocar noutro substitui quem estava. Um aprendiz junta-se ao titular, nunca serve sozinho.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>
           <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
@@ -107,9 +134,13 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                 <span style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                   <Avatar pessoa={p} tamanho={38} fonte={15} />
                   <span style={{ flex: 1 }}>
-                    <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+                    <b style={{ fontSize: 15.5, fontWeight: 700 }}>
+                      {p.nome}{p.nivel === "aprendiz" ? " · aprendiz" : ""}
+                    </b>
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                      {dentro ? concordar(p, "escalado", "escalada") : "fora deste culto"}
+                      {dentro
+                        ? (p.id === aprendizAtual ? "escalado como aprendiz" : concordar(p, "escalado", "escalada"))
+                        : "fora deste culto"}
                     </span>
                     <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
                       {statTexto}

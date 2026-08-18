@@ -82,9 +82,12 @@ function MontarEscala({ enquete, voluntarios, respostas, eventosPorId }) {
     return !(r.indisponivelEm || []).includes(domingoId);
   };
 
+  // só titulares — "Montar escala" preenche um nome só por domingo,
+  // sem par para o aprendiz nunca ficar sozinho (ver SheetEscala.jsx
+  // para escalar um aprendiz, que junta os dois).
   function candidatosPara(domingoId) {
     return [...voluntarios]
-      .filter((p) => disponivelEm(p.id, domingoId))
+      .filter((p) => p.nivel !== "aprendiz" && disponivelEm(p.id, domingoId))
       .sort((a, b) => {
         const va = estatisticas[a.id]?.vezes ?? 0, vb = estatisticas[b.id]?.vezes ?? 0;
         return va - vb || a.nome.localeCompare(b.nome, "pt");
