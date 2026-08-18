@@ -28,7 +28,7 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Em construção em `back.painelonda.pt`. Ponto de partida: cópia
+Em construção em `back.igrejaonda.pt`. Ponto de partida: cópia
 literal de `apps/apoio` (mesmo padrão usado para a Técnica), mais o
 módulo de enquetes de indisponibilidade portado de `apps/tecnica`
 (a Apoio ainda não tem esse módulo).

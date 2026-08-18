@@ -40,7 +40,7 @@ export async function entrarComoDev(senha) {
 export const sair = () => signOut(auth);
 
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um
- *  domínio separados (apoio.painelonda.pt, tecnica.painelonda.pt…) —
+ *  domínio separados (apoio.igrejaonda.pt, tecnica.igrejaonda.pt…) —
  *  trocar os claims do token sozinho não muda qual app está a
  *  correr no browser. Por isso isto navega mesmo para o domínio da
  *  base nova, levando o token novo na fragment da URL (nunca vai para
@@ -54,7 +54,15 @@ export async function trocarBase(novoBaseId) {
       await signInWithCustomToken(auth, data.token);
       return { ok: true };
     }
-    const url = `https://${novoBaseId}.painelonda.pt/#tok=${encodeURIComponent(data.token)}`;
+    // O domínio sai de onde esta app está a correr, não de uma
+    // constante: troca-se só o primeiro rótulo. A 17/08/2026 as bases
+    // mudaram de `painelonda.pt` para `igrejaonda.pt` e esta linha,
+    // que tinha o domínio escrito à mão, ficou a mandar toda a gente
+    // para um sítio que já não existia. Assim a próxima mudança de
+    // domínio não parte nada — basta os subdomínios continuarem a ser
+    // o baseId, que é o que os torna endereçáveis.
+    const dominio = window.location.hostname.split(".").slice(1).join(".");
+    const url = `https://${novoBaseId}.${dominio}/#tok=${encodeURIComponent(data.token)}`;
     window.location.assign(url);
     // devolve o url mesmo tendo tentado navegar sozinho — numa app instalada
     // (PWA) ou nalgum browser, a navegação para outro domínio por script
