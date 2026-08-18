@@ -71,6 +71,7 @@ async function claimsExtraDaBase(baseId) {
   if (b.veEscalas === "todas") extra.ve_todas_escalas = true;
   if (b.culto?.podePublicar === true) extra.pode_publicar_culto = true;
   if (b.eventos?.podeCriarGlobal === true) extra.pode_criar_evento_global = true;
+  if (b.feedbackAberto === true) extra.feedback_aberto = true;
   return extra;
 }
 
@@ -730,7 +731,15 @@ export const definirFrase = onCall(async (req) => {
 export const definirFeedback = onCall(async (req) => {
   const { eventoId, texto } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
-  const { uid } = await exigeLiderDoCulto(req, eventoId);
+  // bases/{b}.feedbackAberto (hoje só a Backstage) — qualquer voluntário
+  // da base escreve, não só o líder de escala do culto. Nas outras
+  // bases o comportamento não muda: só líder de escala/líder da base.
+  let uid = req.auth?.uid;
+  if (req.auth?.token?.feedback_aberto === true) {
+    if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  } else {
+    ({ uid } = await exigeLiderDoCulto(req, eventoId));
+  }
   const limpo = String(texto ?? "").trim();
   await db.doc(`eventos/${eventoId}`).set(
     limpo ? { feedback: { texto: limpo, autorUid: uid } } : { feedback: null },

@@ -35,22 +35,17 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     }
   }
 
-  function alternar(id) {
+  // a Backstage escala só uma pessoa por culto (não uma equipa, ver
+  // CLAUDE.md desta app) — tocar noutra pessoa substitui quem lá
+  // estava, nunca acumula. Tocar na mesma pessoa outra vez limpa.
+  function escolher(id) {
     const anterior = { pessoas, liderEscala };
-    let novoLider = liderEscala;
-    const dentro = pessoas.includes(id);
-    const novasPessoas = dentro ? pessoas.filter((x) => x !== id) : [...pessoas, id];
-    if (dentro && liderEscala === id) novoLider = null;
-    if (!dentro && !liderEscala) novoLider = id;
+    const jaEEssa = pessoas.length === 1 && pessoas[0] === id;
+    const novasPessoas = jaEEssa ? [] : [id];
+    const novoLider = jaEEssa ? null : id;
     setPessoas(novasPessoas);
     setLiderEscala(novoLider);
     persistir(novasPessoas, novoLider, anterior);
-  }
-
-  function definirLider(id) {
-    const anterior = { pessoas, liderEscala };
-    setLiderEscala(id);
-    persistir(pessoas, id, anterior);
   }
 
   async function alternarDispensa() {
@@ -85,9 +80,9 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
-        <p className="sb2">{pessoas.length} pessoas · chegada {evento.horaChegada || "08:00"}</p>
+        <p className="sb2">{pessoas.length ? "Escalado" : "Por escalar"} · chegada {evento.horaChegada || "08:00"}</p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
-          Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.
+          Um só nome por culto — tocar noutro substitui quem estava.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>
           <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
@@ -96,7 +91,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
         <div style={{ marginTop: 12 }}>
           {voluntariosOrdenados.map((p) => {
             const dentro = pessoas.includes(p.id);
-            const lid = liderEscala === p.id;
             const stat = estatisticas[p.id];
             const semServico = !stat?.vezes;
             const statTexto = semServico
@@ -104,18 +98,15 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
               : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
             return (
               <div
-                className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
-                key={p.id}
+                className="opcao" style={{ cursor: "pointer", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
+                key={p.id} onClick={() => escolher(p.id)}
               >
-                <span
-                  onClick={() => alternar(p.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
-                >
+                <span style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                   <Avatar pessoa={p} tamanho={38} fonte={15} />
                   <span style={{ flex: 1 }}>
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                      {dentro ? (lid ? "líder de escala" : "na escala") : "fora deste culto"}
+                      {dentro ? "escalado" : "fora deste culto"}
                     </span>
                     <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
                       {statTexto}
@@ -123,14 +114,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                     </span>
                   </span>
                 </span>
-                {dentro && (
-                  <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">
-                    ★
-                  </button>
-                )}
-                <span className={`chk${dentro ? " on" : ""}`} onClick={() => alternar(p.id)} style={{ cursor: "pointer" }}>
-                  ✓
-                </span>
+                <span className={`chk${dentro ? " on" : ""}`}>✓</span>
               </div>
             );
           })}

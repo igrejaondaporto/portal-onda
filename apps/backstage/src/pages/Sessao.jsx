@@ -48,7 +48,7 @@ function MenuComTour({ baseId, papel, irPara, ...props }) {
   return <MenuEu {...props} papel={papel} onAbrirTour={reverTour} />;
 }
 
-export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublicarCulto, mostrarTourAoEntrar }) {
+export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublicarCulto, feedbackAberto, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [basesDisponiveis, setBasesDisponiveis] = useState([]); // outras bases em que a pessoa serve
   const [menuAberto, setMenuAberto] = useState(false);
@@ -199,6 +199,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
               podePublicarCulto={podePublicarCulto}
+              feedbackAberto={feedbackAberto}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>

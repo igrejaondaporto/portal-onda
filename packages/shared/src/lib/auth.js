@@ -85,5 +85,6 @@ export async function meuPapel() {
     baseId: t?.claims?.baseId ?? null,
     veTodasEscalas: t?.claims?.ve_todas_escalas === true,
     podePublicarCulto: t?.claims?.pode_publicar_culto === true,
+    feedbackAberto: t?.claims?.feedback_aberto === true,
   };
 }

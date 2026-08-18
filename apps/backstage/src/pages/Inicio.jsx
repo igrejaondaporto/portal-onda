@@ -100,7 +100,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
 
-  const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
+  // além de quem está marcado líder de escala deste culto, o líder da
+  // base também escreve a mensagem — não fica preso a alguém ter
+  // sido explicitamente escolhido na Escala (definirFrase já aceita
+  // as duas coisas do lado do servidor, ver exigeLiderDoCulto)
+  const souLiderEscala = (!!meuEvento && meuEvento.escala.liderEscala === uid) || souLiderBase;
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
   const funcoesCulto = meuEvento ? funcoesDoCulto(funcoes, meuEvento.id) : [];
   const minhas = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(uid));

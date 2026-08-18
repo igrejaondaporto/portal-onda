@@ -7,7 +7,7 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto }) {
+export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, feedbackAberto }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
@@ -79,10 +79,12 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
       ) : (
         <>
           <p className="nota" style={{ marginTop: 16 }}>
-            Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
+            {feedbackAberto
+              ? "Depois do culto, qualquer voluntário escreve o que correu bem e o que faltou. Fica aqui para toda a base ler."
+              : "Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler."}
           </p>
           {eventosMes.map((ev) => {
-            const pode = podeDistribuir(papel, uid, ev.escala);
+            const pode = feedbackAberto || podeDistribuir(papel, uid, ev.escala);
             const autorPessoa = ev.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.feedback.autorUid) : null;
             return (
               <div className="sect" key={ev.id}>
@@ -98,7 +100,7 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
                     <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.feedback.texto}</p>
                     <div className="linha" style={{ border: 0, padding: "14px 0 0" }}>
                       {autorPessoa && <Avatar pessoa={autorPessoa} tamanho={34} fonte={14} />}
-                      <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "líder de escala"} · líder de escala</p></div>
+                      <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "alguém da base"}</p></div>
                       {pode && (
                         <button className="btn sec" style={{ padding: "8px 15px", fontSize: 12.5 }} onClick={() => setSheetFeedback(ev.id)}>
                           Editar
