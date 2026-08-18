@@ -65,6 +65,27 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   opcional): quando presente, a checklist da fase ordena pela hora,
   como linha do tempo, em vez de por nome. Só nesta base — nas outras
   o campo fica `undefined`, comportamento igual ao de hoje.
+- **A escala é uma pessoa só por culto**, não uma equipa (diferente
+  de Apoio/Técnica). `SheetEscala.jsx` troca em vez de acumular —
+  tocar noutro nome substitui quem lá estava. `pessoas` e `liderEscala`
+  continuam a existir no documento (mesmo formato das outras bases,
+  para o resto do sistema — checklist, "servem contigo",
+  `obterMeuEvento`… — não precisar de caso especial), só que
+  `pessoas` nunca passa de 1.
+- **`bases/backstage.feedbackAberto = true`** — em Culto → Feedbacks,
+  qualquer voluntário escreve, não só o líder de escala do culto
+  (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras
+  bases continua só líder de escala/líder da base.
+- **Montar escala** (dentro de Enquetes, só depois da enquete
+  fechar): por domingo, sugere quem está disponível e há mais tempo
+  sem servir (`obterEstatisticasEscala`, já existente) — o líder
+  escolhe no `<select>` (aceita a sugestão ou troca) e grava direto,
+  sem sugestor de ministérios/lugares como a Técnica tem, porque aqui
+  é sempre uma pessoa só.
+- **"Todas as bases" mostra só o próximo culto**, nunca o mês —
+  `obterProximoEvento()` em `lib/painel.js`. É uma visão geral rápida
+  ("quem serve amanhã em cada base"), não outro calendário para
+  navegar.
 
 ## Detalhes decididos, iguais à Apoio
 

@@ -111,11 +111,11 @@ export function textoWhatsApp(enquetes) {
   const lista = Array.isArray(enquetes) ? enquetes : [enquetes];
   if (lista.length === 1) {
     const { mes, prazo } = lista[0];
-    return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeDoMes(mes)}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${dataPorExtensoTexto(prazo)}.\n\ntecnica.painelonda.pt 🙏`;
+    return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeDoMes(mes)}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${dataPorExtensoTexto(prazo)}.\n\nback.painelonda.pt 🙏`;
   }
   const nomes = lista.map((e) => nomeDoMes(e.mes)).join(" e ");
   const prazos = lista.map((e) => `${nomeDoMes(e.mes)}: até ${dataPorExtensoTexto(e.prazo)}`).join("\n");
-  return `Pessoal, já estão abertas as enquetes de indisponibilidade de ${nomes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal — vai pedir os dois meses seguidos.\n\nPrazos:\n${prazos}\n\ntecnica.painelonda.pt 🙏`;
+  return `Pessoal, já estão abertas as enquetes de indisponibilidade de ${nomes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal — vai pedir os dois meses seguidos.\n\nPrazos:\n${prazos}\n\nback.painelonda.pt 🙏`;
 }
 
 export const linkWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(texto)}`;

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { ouvirVoluntarios, obterEventosDoMes } from "../lib/painel";
+import { getDoc } from "firebase/firestore";
+import { ouvirVoluntarios, obterEventosDoMes, obterEstatisticasEscala, guardarEscala } from "../lib/painel";
+import { cEscala } from "../lib/modelo";
 import { ouvirEnquetesMontar, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds, fecharEnquete, reabrirEnquete, textoWhatsApp, linkWhatsApp } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
@@ -45,6 +47,103 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Sugestão de escala — só depois da enquete fechar (mesmo momento da
+ *  Técnica). A Backstage escala uma pessoa só por culto (ver CLAUDE.md
+ *  desta app), por isso não há lugares/ministérios para preencher: é
+ *  só sugerir, por domingo, quem está disponível e há mais tempo sem
+ *  servir. O líder confirma ou troca por outro nome, culto a culto —
+ *  nunca publica sozinho. */
+function MontarEscala({ enquete, voluntarios, respostas, eventosPorId }) {
+  const torrada = useTorrada();
+  const [estatisticas, setEstatisticas] = useState({});
+  const [escalas, setEscalas] = useState({}); // { [domingoId]: pessoaId | null }
+  const [aCarregar, setACarregar] = useState(true);
+  const [aGuardar, setAGuardar] = useState({}); // { [domingoId]: bool }
+
+  useEffect(() => { obterEstatisticasEscala(90).then(setEstatisticas); }, []);
+  useEffect(() => {
+    let cancelado = false;
+    setACarregar(true);
+    Promise.all((enquete.domingos || []).map((id) => getDoc(cEscala(id)).then((s) => [id, s.exists() ? (s.data().pessoas?.[0] ?? null) : null])))
+      .then((pares) => { if (!cancelado) { setEscalas(Object.fromEntries(pares)); setACarregar(false); } });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enquete.id]);
+
+  const respostaDe = (pessoaId) => respostas.find((r) => r.id === pessoaId);
+  const disponivelEm = (pessoaId, domingoId) => {
+    const r = respostaDe(pessoaId);
+    if (!r) return true; // não respondeu — trata como disponível, mas fica sinalizado à parte
+    if (r.semIndisponibilidade) return true;
+    return !(r.indisponivelEm || []).includes(domingoId);
+  };
+
+  function candidatosPara(domingoId) {
+    return [...voluntarios]
+      .filter((p) => disponivelEm(p.id, domingoId))
+      .sort((a, b) => {
+        const va = estatisticas[a.id]?.vezes ?? 0, vb = estatisticas[b.id]?.vezes ?? 0;
+        return va - vb || a.nome.localeCompare(b.nome, "pt");
+      });
+  }
+
+  async function escolher(domingoId, pessoaId) {
+    const anterior = escalas[domingoId] ?? null;
+    setEscalas((e) => ({ ...e, [domingoId]: pessoaId || null }));
+    setAGuardar((g) => ({ ...g, [domingoId]: true }));
+    try {
+      await guardarEscala(domingoId, { pessoas: pessoaId ? [pessoaId] : [], liderEscala: pessoaId || null });
+    } catch (e) {
+      setEscalas((s) => ({ ...s, [domingoId]: anterior }));
+      torrada(e.message || "Não foi possível guardar.");
+    } finally {
+      setAGuardar((g) => ({ ...g, [domingoId]: false }));
+    }
+  }
+
+  if (aCarregar) return <div className="vaz" style={{ marginTop: 14 }}>A carregar sugestão…</div>;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <label className="rot">Montar escala</label>
+      {(enquete.domingos || []).map((domingoId) => {
+        const ev = eventosPorId[domingoId];
+        const candidatos = candidatosPara(domingoId);
+        const escolhido = escalas[domingoId] ?? null;
+        const sugestao = candidatos[0]?.id ?? null;
+        const naoRespondeu = escolhido && !respostaDe(escolhido);
+        return (
+          <div className="caixa" style={{ marginTop: 8 }} key={domingoId}>
+            <p className="nmt">{ev?.tipo || dataPorExtenso(ev?.data || domingoId)}</p>
+            <select
+              className="campo" style={{ marginTop: 8 }}
+              value={escolhido ?? ""}
+              disabled={aGuardar[domingoId]}
+              onChange={(e) => escolher(domingoId, e.target.value || null)}
+            >
+              <option value="">Por definir</option>
+              {candidatos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id === sugestao ? "★ " : ""}{p.nome}
+                  {estatisticas[p.id]?.vezes ? ` · ${estatisticas[p.id].vezes}x recente` : " · ainda não serviu"}
+                </option>
+              ))}
+            </select>
+            {!escolhido && sugestao && (
+              <p className="ds" style={{ marginTop: 6 }}>
+                ★ sugestão: {candidatos[0].nome} — quem há mais tempo não serve, entre quem está disponível.
+              </p>
+            )}
+            {naoRespondeu && (
+              <p className="ds" style={{ marginTop: 6, color: "var(--magenta)" }}>Esta pessoa ainda não respondeu à enquete.</p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -120,6 +219,10 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId }) {
             </div>
           ))}
         </>
+      )}
+
+      {fechada && (
+        <MontarEscala enquete={enquete} voluntarios={voluntarios} respostas={respostas} eventosPorId={eventosPorId} />
       )}
 
       {fechada ? (

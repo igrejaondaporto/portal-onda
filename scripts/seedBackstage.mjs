@@ -27,6 +27,7 @@ async function main() {
     veEscalas: "todas",
     culto: { podePublicar: true },
     eventos: { podeCriarGlobal: true },
+    feedbackAberto: true,
     escala: { maxPorMesRecomendado: 2, aprendizContaParaLimite: true },
   }, { merge: true });
 

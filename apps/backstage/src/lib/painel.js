@@ -150,6 +150,21 @@ export async function obterEventosDoMes(ano, mesIndex) {
   );
 }
 
+/** O próximo culto a partir de hoje — este mês ou o seguinte, para
+ *  "Todas as bases" nunca precisar de o utilizador navegar por mês
+ *  (ver CLAUDE.md desta app: "não quero que mostre o mês todo"). */
+export async function obterProximoEvento() {
+  const hoje = new Date();
+  const hojeStr = hojeISOData();
+  const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const [esteMes, proxMes] = await Promise.all([
+    obterEventosDoMes(hoje.getFullYear(), hoje.getMonth()),
+    obterEventosDoMes(proximo.getFullYear(), proximo.getMonth()),
+  ]);
+  return [...esteMes, ...proxMes].find((ev) => ev.data >= hojeStr) ?? null;
+}
+const hojeISOData = () => new Date().toISOString().slice(0, 10);
+
 /** Como obterEventosDoMes, mas ao vivo — quando o líder da base muda a
  *  escala, quem está a olhar para o mês vê a alteração sem dar refresh.
  *  Não há junções no Firestore, por isso ouve os eventos do mês e depois

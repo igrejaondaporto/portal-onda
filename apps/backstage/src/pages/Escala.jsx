@@ -1,80 +1,65 @@
 import { useEffect, useRef, useState } from "react";
 import { funcoesDoCulto } from "../lib/modelo";
-import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterTodasAsBases, obterEscalasDeTodasAsBases } from "../lib/painel";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterTodasAsBases, obterEscalasDeTodasAsBases, obterProximoEvento } from "../lib/painel";
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
-/** Segmento "Todas as bases" — um domingo de cada vez, as bases
- *  empilhadas com os nomes de quem serve. Só leitura, sem progresso
- *  nem checklist (ver CLAUDE.md desta app: "se precisa saber se outra
- *  base terminou, pergunta presencialmente"). Base sem escala
- *  publicada aparece a dizer isso, não desaparece — a ausência é
- *  informação. */
-function TodasAsBases({ eventosMes, mes, ano }) {
+/** Segmento "Todas as bases" — só o próximo domingo (ou próximo culto,
+ *  se houver um antes), as bases empilhadas com os nomes de quem
+ *  serve. Nunca o mês todo: é uma visão geral rápida, não outro
+ *  calendário para navegar (ver CLAUDE.md desta app). Só leitura, sem
+ *  progresso nem checklist — "se precisa saber se outra base
+ *  terminou, pergunta presencialmente". Base sem escala publicada
+ *  aparece a dizer isso, não desaparece — a ausência é informação. */
+function TodasAsBases() {
   const [bases, setBases] = useState([]);
-  const [eventoId, setEventoId] = useState(null);
-  const [escalas, setEscalas] = useState(null); // null = a carregar
+  const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
+  const [escalas, setEscalas] = useState(null);
 
   useEffect(() => { obterTodasAsBases().then(setBases); }, []);
+  useEffect(() => { obterProximoEvento().then(setEvento); }, []);
   useEffect(() => {
-    if (!eventosMes.length) { setEventoId(null); return; }
-    setEventoId((atual) => (eventosMes.some((e) => e.id === atual) ? atual : eventosMes[0].id));
-  }, [eventosMes]);
-  useEffect(() => {
-    if (!eventoId || !bases.length) { setEscalas(null); return; }
+    if (!evento || !bases.length) { setEscalas(null); return; }
     setEscalas(null);
-    obterEscalasDeTodasAsBases(eventoId, bases).then(setEscalas);
-  }, [eventoId, bases]);
-
-  const evento = eventosMes.find((e) => e.id === eventoId);
+    obterEscalasDeTodasAsBases(evento.id, bases).then(setEscalas);
+  }, [evento, bases]);
 
   return (
     <div className="sect">
       <div className="cabecalho">
-        <h3>{MESES[mes]} {ano}</h3>
+        <h3>Próximo culto</h3>
       </div>
-      {eventosMes.length ? (
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "4px 0 12px" }}>
-          {eventosMes.map((ev) => (
-            <button
-              key={ev.id}
-              className={`btn ${ev.id === eventoId ? "" : "sec"}`}
-              style={{ fontSize: 12.5, padding: "8px 14px", whiteSpace: "nowrap" }}
-              onClick={() => setEventoId(ev.id)}
-            >
-              {dataCurta(ev.data)}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="vaz">Sem cultos este mês.</div>
-      )}
+
+      {evento === undefined && <div className="vaz">A carregar…</div>}
+      {evento === null && <div className="vaz">Sem cultos marcados.</div>}
 
       {evento && (
-        <p className="ds" style={{ marginBottom: 10 }}>{evento.tipo || dataPorExtenso(evento.data)}</p>
+        <>
+          <p className="ds" style={{ marginBottom: 10 }}>{evento.tipo || dataPorExtenso(evento.data)}</p>
+
+          {escalas === null && <div className="vaz">A carregar…</div>}
+
+          {escalas && bases.map((b) => {
+            const escala = escalas[b.id];
+            const nomes = escala?.pessoas || [];
+            return (
+              <div key={b.id} className="caixa" style={{ marginTop: 10 }}>
+                <div className="cabecalho">
+                  <h3 style={{ color: b.cor }}>{b.nome}</h3>
+                </div>
+                {!escala || !nomes.length ? (
+                  <p className="ds" style={{ marginTop: 4 }}>Escala ainda não publicada.</p>
+                ) : (
+                  <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
+                    {nomes.map((id) => escala.pessoasNomes?.[id] ?? "—").join(", ")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
-
-      {evento && escalas === null && <div className="vaz">A carregar…</div>}
-
-      {evento && escalas && bases.map((b) => {
-        const escala = escalas[b.id];
-        const nomes = escala?.pessoas || [];
-        return (
-          <div key={b.id} className="caixa" style={{ marginTop: 10 }}>
-            <div className="cabecalho">
-              <h3 style={{ color: b.cor }}>{b.nome}</h3>
-            </div>
-            {!escala || !nomes.length ? (
-              <p className="ds" style={{ marginTop: 4 }}>Escala ainda não publicada.</p>
-            ) : (
-              <p style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.6 }}>
-                {nomes.map((id) => escala.pessoasNomes?.[id] ?? "—").join(", ")}
-              </p>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -157,7 +142,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
         </div>
       )}
       {abaEscala === "todas" ? (
-        <TodasAsBases eventosMes={eventosMes} mes={mes} ano={ano} />
+        <TodasAsBases />
       ) : (
       <>
       <div className="sect">
