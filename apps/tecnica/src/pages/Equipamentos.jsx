@@ -204,7 +204,16 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
                   const melhoriaLigada = melhorias.find((m) => m.equipamentoId === e.id && m.estado !== "resolvida");
                   return (
                     <div key={e.id}>
-                    <div className="linha" style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id })}>
+                    {/* Toca-se para ver o histórico da avaria, não a ficha
+                      * do equipamento. Aqui já se sabe que está avariado —
+                      * abrir uma folha com "Reportar avaria" à frente é
+                      * oferecer outra vez o que já foi feito. Reportar tem
+                      * o seu sítio: o botão do topo e a ficha do
+                      * equipamento, nos grupos por ministério. */}
+                    <div className="linha" style={{ cursor: "pointer" }}
+                      onClick={() => (melhoriaLigada
+                        ? setSheet({ tipo: "melhoria", melhoriaId: melhoriaLigada.id, editar: true })
+                        : setSheet({ tipo: "detalheEquipamento", equipamentoId: e.id }))}>
                       {/* O estado vai no subtítulo, não numa etiqueta à
                         * direita: com nome + etiqueta + "Marcar resolvida"
                         * + seta na mesma linha, um nome como "Projetor

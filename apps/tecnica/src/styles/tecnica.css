@@ -197,13 +197,13 @@
  *
  * Abriam sempre os dois, com 4 e 16 linhas dentro. O painel é para
  * administrar de vez em quando, não para ler de cima a baixo. */
+/* O espaço vem em CIMA de cada cartão, não em baixo, e sem
+ * `:first-of-type`. Tentei antes com `.tec-cartao:first-of-type` e não
+ * funcionou: `:first-of-type` conta o primeiro elemento do mesmo TIPO
+ * entre irmãos, e o irmão anterior é o `<div class="sect">` — ou seja,
+ * o primeiro div nunca é o cartão e a regra não pegava. Entre cartões
+ * as margens colapsam, por isso 18px continua a ser 18px. */
 .tec-cartao {
-  margin-bottom: 12px;
-}
-/* O `.sect` acima traz o seu próprio espaço em cima, não em baixo — o
- * primeiro cartão colava-se ao botão anterior e lia-se como se fosse
- * parte dele. Mesmo defeito que já tinha aparecido nos Equipamentos. */
-.tec-cartao:first-of-type {
   margin-top: 18px;
 }
 .tec-cartao-corpo {

@@ -35,7 +35,8 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
   // mês) — mas só na primeira vez; depois disso é o clique que manda,
   // incluindo fechar tudo ao clicar outra vez na data já aberta
   const escolheuPadrao = useRef(false);
-  useEffect(() => { escolheuPadrao.current = false; setCardAberto(null); }, [mes, ano]);
+  const [filtroCulto, setFiltroCulto] = useState(null); // null = decide sozinho
+  useEffect(() => { escolheuPadrao.current = false; setCardAberto(null); setFiltroCulto(null); }, [mes, ano]);
   useEffect(() => {
     if (escolheuPadrao.current || !eventosMes.length) return;
     escolheuPadrao.current = true;
@@ -57,6 +58,17 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
 
   const hoje = hojeISO();
 
+  // A ordem do culto serve para preparar o próximo, não para reler os
+  // que já passaram. Com o mês todo na lista, chegar ao domingo 23 no
+  // fim de agosto obrigava a rolar por cima de quatro cultos mortos.
+  // Os anteriores continuam a um toque — são histórico, não lixo.
+  const proximos = eventosMes.filter((e) => e.data >= hoje);
+  const anteriores = eventosMes.filter((e) => e.data < hoje);
+  // Num mês já passado não há "próximos": aí abre nos anteriores, senão
+  // navegar para trás dava uma página vazia sem explicação.
+  const verAnteriores = filtroCulto === "anteriores" || (filtroCulto === null && !proximos.length && anteriores.length > 0);
+  const listaOrdem = verAnteriores ? anteriores : proximos;
+
   return (
     <>
       <div className="cabecalho">
@@ -72,7 +84,23 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
       <p className="ds" style={{ margin: "6px 0 2px" }}>{MESES[mes]} {ano}</p>
 
       {aba === "ordem" ? (
-        eventosMes.map((ev) => (
+        <>
+        {anteriores.length > 0 && proximos.length > 0 && (
+          <div className="subtabs" style={{ marginTop: 0 }}>
+            <button data-on={!verAnteriores ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
+              Próximos ({proximos.length})
+            </button>
+            <button data-on={verAnteriores ? 1 : 0} onClick={() => setFiltroCulto("anteriores")}>
+              Anteriores ({anteriores.length})
+            </button>
+          </div>
+        )}
+        {listaOrdem.length === 0 && (
+          <div className="vaz">
+            {anteriores.length ? "Não há mais cultos este mês." : "Ainda não há cultos neste mês."}
+          </div>
+        )}
+        {listaOrdem.map((ev) => (
           <OrdemCultoCard
             key={ev.id} evento={ev} podePublicar={podePublicar}
             aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
@@ -82,7 +110,8 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
             onNotasGuardadas={(eventoId, notas) => setEventosMes((lista) => lista.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}
             onVerFuncoes={onVerFuncoes}
           />
-        ))
+        ))}
+        </>
       ) : (
         <>
           <p className="nota" style={{ marginTop: 16 }}>
