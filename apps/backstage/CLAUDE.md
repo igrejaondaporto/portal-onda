@@ -83,6 +83,15 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   "Montar escala" das enquetes só sugere titulares — é um preenchimento
   rápido de 1 nome, sem par; para escalar um aprendiz usa-se o
   `SheetEscala.jsx` completo (Painel do Líder → Escala).
+- **Escalar o titular já atribui todas as funções do dia a essa
+  pessoa** (`atribuirTodasFuncoesAoTitular`, chamada de dentro de
+  `guardarEscalaBackstage` — nunca do cliente, é a mesma escrita que
+  `atribuirFuncao` faria função a função, só que para todas de uma
+  vez). Só dispara quando o titular muda de facto (novo ou trocado),
+  nunca ao regravar a escala com o mesmo titular — por exemplo, só
+  juntar um aprendiz não reatribui nada, para não apagar ajustes que a
+  líder já tenha feito função a função. A líder continua livre para
+  trocar ou acrescentar pessoas por função depois, em Funções.
 - **`bases/backstage.feedbackAberto = true`** — em Culto → Feedbacks,
   qualquer voluntário escreve, não só o líder de escala do culto
   (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras

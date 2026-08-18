@@ -86,8 +86,8 @@ function TodasAsBases() {
                           {it.titular ? (
                             <LinhaPessoaContacto
                               pessoa={it.titular} resumo="Titular · toca para chamar no WhatsApp"
-                              aberta={contactoAberto === `${b.baseId}:${it.titular.id}`}
-                              onToggle={() => alternarContacto(`${b.baseId}:${it.titular.id}`)}
+                              aberta={contactoAberto === `${b.baseId}:${i}:titular`}
+                              onToggle={() => alternarContacto(`${b.baseId}:${i}:titular`)}
                             />
                           ) : (
                             <p className="ds">Por definir</p>
@@ -95,8 +95,8 @@ function TodasAsBases() {
                           {it.aprendiz && (
                             <LinhaPessoaContacto
                               pessoa={it.aprendiz} resumo="Aprendiz · toca para chamar no WhatsApp"
-                              aberta={contactoAberto === `${b.baseId}:${it.aprendiz.id}`}
-                              onToggle={() => alternarContacto(`${b.baseId}:${it.aprendiz.id}`)}
+                              aberta={contactoAberto === `${b.baseId}:${i}:aprendiz`}
+                              onToggle={() => alternarContacto(`${b.baseId}:${i}:aprendiz`)}
                             />
                           )}
                         </div>
