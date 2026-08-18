@@ -129,7 +129,7 @@ operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
 
 ## Ao criar uma base nova
 
-Duas coisas que se esquecem fácil por não serem tela nem regra de
+Três coisas que se esquecem fácil por não serem tela nem regra de
 negócio — fazer sempre, antes de dar a base por pronta:
 
 1. **Ícone, favicon e imagem de partilha (`og-image.png`) com o nome
@@ -157,6 +157,15 @@ negócio — fazer sempre, antes de dar a base por pronta:
    que a Apoio e a Técnica já têm. Sem isto, o primeiro login da base
    nova não quebra (passos apontando a `data-tour` inexistente pulam
    em silêncio — ver `TourContext.jsx`), só fica sem a visita guiada.
+3. **O gatilho do acesso de dev, no `Entrada.jsx` da base nova.**
+   A Cloud Function (`entrarComoDev`) e a senha (`config/devAccess`,
+   partilhada — uma só para todas as bases, ver
+   `scripts/definirSenhaDev.mjs`) já servem qualquer base sem mais
+   nada; o que falta por base é só embrulhar o logo no
+   `GatilhoDev` (5 toques abrem a `SheetAcessoDev`), copiando o padrão
+   de `apps/apoio/src/pages/Entrada.jsx` — duas linhas (import +
+   `<GatilhoDev>` à volta do `<span className="logo">`). Sem isto, a
+   base nova só entra por PIN, como antes de este mecanismo existir.
 
 ## Melhorias entre bases
 
