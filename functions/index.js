@@ -312,8 +312,25 @@ export const criarVoluntario = onCall(async (req) => {
     const jaAqui = await refPessoa(baseId, pessoaExistenteId).get();
     if (jaAqui.exists) throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
 
+    // procurarPessoaGlobal (buscar por telefone) não devolve o
+    // telefone nos resultados — e quem liga por essa via nem sempre o
+    // reescreve, achando que "é a mesma pessoa" já basta. Sem isto,
+    // ligar alguém a uma base nova apagava o telefone que já tinha
+    // noutra base (aconteceu: o Breno tinha o número guardado na
+    // Apoio, ficou em branco ao ligar à Técnica). Se quem liga não
+    // mandou um telefone, herda de qualquer outra base onde a pessoa
+    // já tenha um guardado.
+    let telefoneFinal = telefone;
+    if (!telefoneFinal) {
+      const outrasBases = Object.keys(globalSnap.data().bases || {}).filter((b) => b !== baseId);
+      for (const outraBase of outrasBases) {
+        const outroSnap = await refPessoa(outraBase, pessoaExistenteId).get();
+        if (outroSnap.exists && outroSnap.data().telefone) { telefoneFinal = outroSnap.data().telefone; break; }
+      }
+    }
+
     await refPessoa(baseId, pessoaExistenteId).set({
-      nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true, genero,
+      nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: globalSnap.data().foto ?? null,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
       ...comMinisterios, ...comNivel,
@@ -367,6 +384,7 @@ export const procurarPessoaGlobal = onCall(async (req) => {
       pessoaId: d.id,
       nome: d.data().nome,
       foto: d.data().foto ?? null,
+      telefone: d.data().telefone ?? "",
       bases: Object.keys(bases).filter((b) => bases[b]),
     });
   }
