@@ -4,7 +4,6 @@ import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEsca
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
-import Avatar from "@portal/shared/components/Avatar.jsx";
 
 /** Segmento "Todas as bases" — só o próximo domingo (ou próximo culto,
  *  se houver um antes), as bases empilhadas com os nomes de quem
@@ -16,13 +15,17 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 function TodasAsBases() {
   const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
   const [bases, setBases] = useState(null); // null = a carregar
+  const [contactoAberto, setContactoAberto] = useState(null); // "baseId:pessoaId"
 
   useEffect(() => { obterProximoEvento().then(setEvento); }, []);
   useEffect(() => {
     if (!evento) { setBases(null); return; }
     setBases(null);
+    setContactoAberto(null);
     obterEscalasDeTodasAsBases(evento.id).then(setBases);
   }, [evento]);
+
+  const alternarContacto = (chave) => setContactoAberto((c) => (c === chave ? null : chave));
 
   return (
     <div className="sect">
@@ -57,37 +60,44 @@ function TodasAsBases() {
                   )}
 
                   {b.tipo === "pessoas" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                      {b.pessoas.map((p) => (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                          <Avatar pessoa={p} tamanho={36} fonte={14} />
-                          <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600 }}>{p.nome}</span>
-                          {p.id === b.liderEscalaId && <span className="tag lim">Líder de escala</span>}
-                        </div>
-                      ))}
+                    <div style={{ marginTop: 8 }}>
+                      {b.pessoas.map((p) => {
+                        const chave = `${b.baseId}:${p.id}`;
+                        return (
+                          <LinhaPessoaContacto
+                            key={p.id} pessoa={p}
+                            resumo="Toca para chamar no WhatsApp"
+                            tagExtra={p.id === b.liderEscalaId ? <span className="tag lim">Líder de escala</span> : null}
+                            aberta={contactoAberto === chave}
+                            onToggle={() => alternarContacto(chave)}
+                          />
+                        );
+                      })}
                     </div>
                   )}
 
                   {b.tipo === "lugares" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                       {b.itens.map((it, i) => (
                         <div key={i}>
-                          <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 7 }}>
+                          <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, margin: "10px 0 2px" }}>
                             {it.ministerio}
                           </p>
                           {it.titular ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                              <Avatar pessoa={it.titular} tamanho={36} fonte={14} />
-                              <span style={{ fontSize: 14.5, fontWeight: 600 }}>{it.titular.nome}</span>
-                            </div>
+                            <LinhaPessoaContacto
+                              pessoa={it.titular} resumo="Titular · toca para chamar no WhatsApp"
+                              aberta={contactoAberto === `${b.baseId}:${it.titular.id}`}
+                              onToggle={() => alternarContacto(`${b.baseId}:${it.titular.id}`)}
+                            />
                           ) : (
                             <p className="ds">Por definir</p>
                           )}
                           {it.aprendiz && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 8, marginLeft: 14 }}>
-                              <Avatar pessoa={it.aprendiz} tamanho={30} fonte={12} />
-                              <span style={{ fontSize: 13, color: "var(--cinza)" }}>{it.aprendiz.nome} · aprendiz</span>
-                            </div>
+                            <LinhaPessoaContacto
+                              pessoa={it.aprendiz} resumo="Aprendiz · toca para chamar no WhatsApp"
+                              aberta={contactoAberto === `${b.baseId}:${it.aprendiz.id}`}
+                              onToggle={() => alternarContacto(`${b.baseId}:${it.aprendiz.id}`)}
+                            />
                           )}
                         </div>
                       ))}
