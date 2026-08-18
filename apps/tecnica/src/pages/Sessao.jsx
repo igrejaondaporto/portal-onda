@@ -133,10 +133,12 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <AvisoOffline />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
-            <span className="logo">
+            {/* O logo leva ao Início. Antes só a barra de baixo o fazia,
+              * e o canto superior esquerdo é onde a mão vai por hábito. */}
+            <button className="logo tec-logo-botao" onClick={() => irPara("inicio")} aria-label="Ir para o Início">
               <i>igreja</i>
               <b>onda</b>
-            </span>
+            </button>
             <div className="eu">
               <div style={{ textAlign: "right" }}>
                 <b>{pessoa?.nome ?? "…"}</b>

@@ -51,6 +51,11 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
   const [aGerarDomingos, setAGerarDomingos] = useState(false);
+  // Ministérios e Voluntários abriam sempre, os dois, com 4 e 16 linhas
+  // dentro. O painel é para administrar de vez em quando, não para ler
+  // de cima a baixo — por isso nascem fechados.
+  const [abertos, setAbertos] = useState({});
+  const alternar = (k) => setAbertos((v) => ({ ...v, [k]: !v[k] }));
 
   const anoQueVem = hoje.getFullYear() + 1;
   async function gerarDomingosDoAnoQueVem() {
@@ -180,13 +185,23 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
             </button>
           </div>
 
-          <div className="sect">
-            <div className="cabecalho">
-              <h3>Ministérios</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "ministerio", ministerioId: null })}>
-                Novo
+          <div className="mincartao tec-cartao">
+            <div className="mincartao-barra" />
+            <button className="mincartao-cab cabtoque" data-aberto={abertos.ministerios ? 1 : 0}
+              aria-expanded={!!abertos.ministerios} onClick={() => alternar("ministerios")}>
+              <span className="nome">Ministérios</span>
+              <span className="conta">{ministerios.length}</span>
+              <span className="cabtoque-seta" aria-hidden="true">›</span>
+            </button>
+            {/* A ação vive DENTRO do cartão, não ao lado do cabeçalho:
+              * um botão colado à seta deixa por decidir onde é que se
+              * toca para abrir e onde é que se toca para criar. Criar um
+              * ministério é raro; abrir a lista é o gesto de todos os
+              * dias, e fica com a linha toda para si. */}
+            {abertos.ministerios && (<div className="tec-cartao-corpo">
+              <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setSheet({ tipo: "ministerio", ministerioId: null })}>
+                Novo ministério
               </button>
-            </div>
             {ministerios.length ? ministerios.map((m) => (
               <div className="linha" key={m.id}>
                 <span className="bola" style={{ width: 34, height: 34, background: m.cor }} />
@@ -204,15 +219,21 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
             )) : (
               <div className="vaz">Ainda sem ministérios — cria o Áudio, Iluminação, Projeção…</div>
             )}
+            </div>)}
           </div>
 
-          <div className="sect">
-            <div className="cabecalho">
-              <h3>Voluntários</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>
-                Adicionar
+          <div className="mincartao tec-cartao">
+            <div className="mincartao-barra" />
+            <button className="mincartao-cab cabtoque" data-aberto={abertos.voluntarios ? 1 : 0}
+              aria-expanded={!!abertos.voluntarios} onClick={() => alternar("voluntarios")}>
+              <span className="nome">Voluntários</span>
+              <span className="conta">{voluntarios.length}</span>
+              <span className="cabtoque-seta" aria-hidden="true">›</span>
+            </button>
+            {abertos.voluntarios && (<div className="tec-cartao-corpo">
+              <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>
+                Adicionar voluntário
               </button>
-            </div>
             {voluntarios.map((p) => (
               <div className="linha" key={p.id}>
                 <Avatar pessoa={p} tamanho={38} fonte={15} />
@@ -256,6 +277,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
                 </div>
               </div>
             )}
+            </div>)}
           </div>
         </div>
 

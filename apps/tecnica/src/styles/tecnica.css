@@ -192,3 +192,25 @@
 .tec-equip-lista {
   margin-top: 18px;
 }
+
+/* Painel do líder — Ministérios e Voluntários em cartões
+ *
+ * Abriam sempre os dois, com 4 e 16 linhas dentro. O painel é para
+ * administrar de vez em quando, não para ler de cima a baixo. */
+.tec-cartao {
+  margin-bottom: 12px;
+}
+.tec-cartao-corpo {
+  padding: 0 12px 10px;
+}
+
+/* O logo do cabeçalho leva ao Início — herda o desenho de `.logo` do
+ * partilhado e só perde a moldura de <button>. */
+.tec-logo-botao {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
