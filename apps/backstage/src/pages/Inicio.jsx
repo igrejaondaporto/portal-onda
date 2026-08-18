@@ -9,7 +9,6 @@ import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "..
 import { dataPorExtenso, eur, nomeCurto, MESES, concordar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
-import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
@@ -107,7 +106,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const souLiderEscala = (!!meuEvento && meuEvento.escala.liderEscala === uid) || souLiderBase;
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
   const funcoesCulto = meuEvento ? funcoesDoCulto(funcoes, meuEvento.id) : [];
-  const minhas = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(uid));
+
+  // é sempre a pessoa escalada a fazer tudo — por isso, uma função sem
+  // atribuição própria (nenhum documento gravado) mostra-se já com o
+  // titular do dia. Uma função "limpa" de propósito (documento gravado
+  // com `pessoas: []`) fica mesmo vazia, não volta a mostrar o titular.
+  const titularId = meuEvento?.escala.liderEscala ?? null;
+  const atribuicoesEfetivas = { ...atribuicoes };
+  if (titularId) {
+    funcoesCulto.forEach((f) => {
+      if (!(f.id in atribuicoesEfetivas)) atribuicoesEfetivas[f.id] = [titularId];
+    });
+  }
+
+  const minhas = funcoesCulto.filter((f) => (atribuicoesEfetivas[f.id] || []).includes(uid));
   const total = funcoesCulto.length;
   const feitas = Object.keys(checklist).length;
   const pct = total ? Math.round((feitas / total) * 100) : 0;
@@ -248,52 +260,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         ) : null}
 
-        <div className="blococor" data-tour="checklist-bloco">
-          <div className="cabecalho">
-            <h3>As tuas funções</h3>
-            <span className="cap">{dataPorExtenso(meuEvento.data)}</span>
-          </div>
-          {minhas.length ? (
-            FASES.map(([k, t]) => {
-              const doF = ordenarPorAtribuicao(minhas.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
-              if (!doF.length) return null;
-              return (
-                <div key={k}>
-                  <div className="fasecab"><h4>{t}</h4><em>{doF.filter((f) => checklist[f.id]).length}/{doF.length}</em></div>
-                  {doF.map((f) => {
-                    const ok = !!checklist[f.id];
-                    const outros = (atribuicoes[f.id] || []).filter((id) => id !== uid);
-                    return (
-                      <div
-                        className={`linha${ok ? " feita" : ""}`} key={f.id} style={{ cursor: "pointer" }}
-                        onClick={() => alternarFeito(f.id)}
-                      >
-                        <button className={`chk${ok ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarFeito(f.id); }}>✓</button>
-                        <div style={{ flex: 1 }}>
-                          <p className="nmt">{f.horaPrevista ? `${f.horaPrevista} · ${f.nome}` : f.nome}</p>
-                          <p className="ds">
-                            {ok
-                              ? `Feito às ${checklist[f.id].hora}`
-                              : outros.length
-                                ? `Contigo: ${outros.map((id) => voluntarios.find((p) => p.id === id)?.nome).filter(Boolean).join(" e ")}`
-                                : (f.descricao || "").slice(0, 52) + ((f.descricao || "").length > 52 ? "…" : "")}
-                          </p>
-                        </div>
-                        <Bola funcao={f} tamanho={34} />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })
-          ) : (
-            <div className="vaz" style={{ border: 0 }}>
-              {liderNome ? `${liderNome} ainda não distribuiu as funções deste domingo.` : "O líder de escala ainda não foi definido."}
-            </div>
-          )}
-        </div>
-
-        <div className="sect">
+        <div className="sect" data-tour="checklist-bloco">
           <div className="cabecalho"><h3>Como está o domingo</h3><span className="cap">{feitas} de {total}</span></div>
           <div className="barra"><i style={{ width: `${pct}%` }} /></div>
           <p className="ds" style={{ marginTop: 10 }}>
@@ -311,7 +278,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
               {FASES.map(([k, t]) => {
-                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoesEfetivas, checklist, voluntarios);
                 if (!doF.length) return null;
                 const fe = doF.filter((f) => checklist[f.id]).length;
                 return (
@@ -319,7 +286,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                     <div className="fasecab"><h4>{t}</h4><em>{fe}/{doF.length}</em></div>
                     {doF.map((f) => {
                       const ok = !!checklist[f.id];
-                      const ids = atribuicoes[f.id] || [];
+                      const ids = atribuicoesEfetivas[f.id] || [];
                       return (
                         <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
                           <button className={`chk${ok ? " on" : ""}`} onClick={() => alternarFeito(f.id)}>✓</button>
@@ -360,7 +327,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             meuEvento.escala.pessoas.filter((id) => id !== uid).map((id) => {
               const p = voluntarios.find((x) => x.id === id);
               if (!p) return null;
-              const fs = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(id));
+              const fs = funcoesCulto.filter((f) => (atribuicoesEfetivas[f.id] || []).includes(id));
               const fe = fs.filter((f) => checklist[f.id]).length;
               return (
                 <LinhaPessoaContacto

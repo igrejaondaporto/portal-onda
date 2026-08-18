@@ -83,15 +83,30 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   "Montar escala" das enquetes só sugere titulares — é um preenchimento
   rápido de 1 nome, sem par; para escalar um aprendiz usa-se o
   `SheetEscala.jsx` completo (Painel do Líder → Escala).
-- **Escalar o titular já atribui todas as funções do dia a essa
-  pessoa** (`atribuirTodasFuncoesAoTitular`, chamada de dentro de
-  `guardarEscalaBackstage` — nunca do cliente, é a mesma escrita que
-  `atribuirFuncao` faria função a função, só que para todas de uma
-  vez). Só dispara quando o titular muda de facto (novo ou trocado),
-  nunca ao regravar a escala com o mesmo titular — por exemplo, só
-  juntar um aprendiz não reatribui nada, para não apagar ajustes que a
-  líder já tenha feito função a função. A líder continua livre para
-  trocar ou acrescentar pessoas por função depois, em Funções.
+- **Escalar o titular já mostra/atribui todas as funções do dia a essa
+  pessoa** — duas camadas:
+  1. `atribuirTodasFuncoesAoTitular`, chamada de dentro de
+     `guardarEscalaBackstage` (nunca do cliente), grava a mesma escrita
+     que `atribuirFuncao` faria função a função, para todas de uma vez.
+     Só dispara quando o titular muda de facto (novo ou trocado), nunca
+     ao regravar a escala com o mesmo titular — por exemplo, só juntar
+     um aprendiz não reatribui nada, para não apagar ajustes que a
+     líder já tenha feito função a função.
+  2. `Funcoes.jsx` e `Inicio.jsx` (bloco "Como está o domingo") também
+     calculam uma `atribuicoesEfetivas` no cliente: qualquer função
+     **sem documento próprio** em `eventos/{e}/atribuicoes` (não só sem
+     gente lá dentro) mostra-se já com o titular do dia, mesmo sem
+     depender do gatilho da Cloud Function — cobre escalas gravadas
+     antes desta funcionalidade existir, e qualquer função nova
+     ("só deste culto") criada depois da escala. Uma função "limpa" de
+     propósito (`atribuirFuncao(..., [])`, documento existe com
+     `pessoas:[]`) fica mesmo vazia — não volta a mostrar o titular.
+  A líder continua livre para trocar ou acrescentar pessoas por função
+  depois, em Funções — cada toque aí grava um documento real.
+- **"As tuas funções" não existe no Início desta base** (existe na
+  Apoio/Técnica). Como é sempre uma pessoa só a servir, seria sempre
+  igual a "todas as funções do dia" — redundante com "Como está o
+  domingo", logo abaixo. Removido de propósito, não esquecido.
 - **`bases/backstage.feedbackAberto = true`** — em Culto → Feedbacks,
   qualquer voluntário escreve, não só o líder de escala do culto
   (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras

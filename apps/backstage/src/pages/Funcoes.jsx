@@ -62,10 +62,23 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
   const funcoesCulto = evento ? funcoesDoCulto(funcoes, evento.id) : [];
   const especiais = evento ? funcoes.filter((f) => f.eventoId === evento.id) : [];
   const pode = evento ? podeDistribuir(papel, uid, evento.escala) : false;
-  const nomeLiderEscala = evento?.escala.liderEscala
-    ? voluntarios.find((p) => p.id === evento.escala.liderEscala)?.nome
+  const titularId = evento?.escala.liderEscala ?? null;
+  const nomeLiderEscala = titularId
+    ? voluntarios.find((p) => p.id === titularId)?.nome
     : null;
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
+
+  // é sempre a pessoa escalada a fazer tudo — por isso, uma função sem
+  // atribuição própria (nenhum documento gravado, `atribuirFuncao`
+  // nunca chamado para ela) mostra-se já com o titular do dia. É só
+  // aparência: uma função "limpa" de propósito (documento gravado com
+  // `pessoas: []`) fica mesmo vazia — não volta a mostrar o titular.
+  const atribuicoesEfetivas = { ...atribuicoes };
+  if (titularId) {
+    funcoesCulto.forEach((f) => {
+      if (!(f.id in atribuicoesEfetivas)) atribuicoesEfetivas[f.id] = [titularId];
+    });
+  }
 
   useEffect(() => {
     if (!ativo || !evento) return;
@@ -82,7 +95,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
   }, [ativo, evento, funcoesCulto.length, especiais.length, nomeLiderEscala]);
 
   async function alternar(funcaoId, pessoaId) {
-    const atuais = atribuicoes[funcaoId] || [];
+    const atuais = atribuicoesEfetivas[funcaoId] || [];
     const novo = atuais.includes(pessoaId) ? atuais.filter((x) => x !== pessoaId) : [...atuais, pessoaId];
     try {
       await atribuirFuncao(evento.id, funcaoId, novo);
@@ -173,13 +186,13 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
       {FASES.map(([k, t, d]) => {
         const doF = funcoesCulto.filter((f) => f.fase === k);
         if (!doF.length) return null;
-        const semDono = doF.filter((f) => !(atribuicoes[f.id] || []).length).length;
+        const semDono = doF.filter((f) => !(atribuicoesEfetivas[f.id] || []).length).length;
         return (
           <div key={k}>
             <div className="fasecab"><h4>{t}</h4><span>{d}</span><em>{semDono ? `${semDono} livres` : "completo"}</em></div>
             {doF.map((f, i) => (
               <LinhaFuncao
-                key={f.id} f={f} ids={atribuicoes[f.id] || []} voluntarios={voluntarios}
+                key={f.id} f={f} ids={atribuicoesEfetivas[f.id] || []} voluntarios={voluntarios}
                 feita={!!checklist[f.id]} aberta={aberta === f.id} pode={pode} souLiderBase={souLiderBase}
                 uid={uid} nomeLiderBase={nomeLiderBase}
                 onAbrir={() => setAberta(aberta === f.id ? null : f.id)}
@@ -196,7 +209,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
       {sheet?.tipo === "escolher" && (
         <SheetEscolher
           funcao={funcoes.find((f) => f.id === sheet.funcaoId)}
-          evento={evento} voluntarios={voluntarios} atribuicoes={atribuicoes}
+          evento={evento} voluntarios={voluntarios} atribuicoes={atribuicoesEfetivas}
           onFechar={() => setSheet(null)}
           onAlternar={(pid) => alternar(sheet.funcaoId, pid)}
           onLimpar={() => { limpar(sheet.funcaoId); setSheet(null); }}
