@@ -1,0 +1,52 @@
+# Deploy garantido dos três frontends via `wrangler deploy`.
+#
+# Existe uma integração nativa Cloudflare↔GitHub ("Workers Builds")
+# que também constrói e publica a cada push — mas já se confirmou
+# (2026-08-18, ver MELHORIAS-ENTRE-BASES.md / CLAUDE.md da Backstage)
+# que o check dela pode ficar verde sem publicar de facto em produção.
+# Este workflow é o que garante o deploy: corre sempre, sem depender
+# de nada no dashboard da Cloudflare. Os dois não colidem — `wrangler
+# deploy` é idempotente, só ativa uma versão nova.
+name: Cloudflare (deploy dos frontends)
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/**", "packages/shared/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [apoio, tecnica, backstage]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - run: npm ci
+      - run: npm run build --workspace=apps/${{ matrix.app }}
+
+      - name: Publicar
+        working-directory: apps/${{ matrix.app }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "64f79471e56bd25e222e36b24e7f7f27"
+        run: npx wrangler deploy
+
+  # Purga uma vez só, depois dos três deploys — mais barato do que
+  # purgar por app, e as três apps partilham a mesma zona painelonda.pt.
+  purgar_cache:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Purgar cache da zona painelonda.pt
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/09db732292673906d99d0569acce8a95/purge_cache" \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'
