@@ -56,8 +56,18 @@ export const podeDistribuir = (papel, uid, escala) =>
 export const meusLugares = (escala, uid) =>
   (escala?.lugares || []).filter((l) => l.titularId === uid || l.aprendizId === uid);
 
+/** A checklist do líder da base não é de um ministério — é do papel.
+ *  Guarda-se em `funcoes` como as outras, com este `ministerioId`
+ *  reservado, para não ter de existir um ministério "Líder" a poluir
+ *  a tabela da escala e o seletor de quem serve. */
+export const MINISTERIO_LIDER_BASE = "lider_base";
+
 /** Funções (itens da checklist) dos ministérios em que a pessoa serve
- *  naquele culto — é o que substitui "todas as funções" na Técnica. */
-export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid) =>
+ *  naquele culto — é o que substitui "todas as funções" na Técnica.
+ *  O líder da base recebe ainda a checklist do papel dele, sirva ou
+ *  não nesse domingo: as tarefas dele são de preparar a semana, não
+ *  de estar na cabine. */
+export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid, souLiderBase = false) =>
   funcoesDoCulto(funcoes, eventoId).filter((f) =>
-    meusLugares(escala, uid).some((l) => l.ministerioId === f.ministerioId));
+    (souLiderBase && f.ministerioId === MINISTERIO_LIDER_BASE)
+    || meusLugares(escala, uid).some((l) => l.ministerioId === f.ministerioId));

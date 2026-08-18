@@ -200,6 +200,12 @@
 .tec-cartao {
   margin-bottom: 12px;
 }
+/* O `.sect` acima traz o seu próprio espaço em cima, não em baixo — o
+ * primeiro cartão colava-se ao botão anterior e lia-se como se fosse
+ * parte dele. Mesmo defeito que já tinha aparecido nos Equipamentos. */
+.tec-cartao:first-of-type {
+  margin-top: 18px;
+}
 .tec-cartao-corpo {
   padding: 0 12px 10px;
 }
@@ -213,4 +219,16 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+}
+
+/* Setas de reordenar a checklist. `.calbt` é o botão redondo pequeno
+ * que a navegação de mês já usa — mesmo desenho, outro sítio. */
+.tec-ordem {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.tec-ordem .calbt:disabled {
+  opacity: 0.3;
+  cursor: default;
 }

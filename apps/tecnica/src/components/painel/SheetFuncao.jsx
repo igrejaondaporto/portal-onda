@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { criarFuncao, guardarFuncao, desativarFuncao, novoFuncaoId, enviarFotoFuncao } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ICF, ICF_NOMES, svgFn } from "../../lib/iconesFuncao";
-import { FASES } from "../../lib/modelo";
+import { FASES, MINISTERIO_LIDER_BASE } from "../../lib/modelo";
 import { dataPorExtenso, nomeEvento } from "@portal/shared/lib/data.js";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
@@ -111,11 +111,18 @@ export default function SheetFuncao({ funcao, ministerios, ministerioAtual, even
         )}
         {ministerios?.length > 0 && (
           <>
-            <label className="rot">Ministério</label>
-            <div className="subtabs">
+            <label className="rot">De quem é esta tarefa</label>
+            <div className="subtabs" style={{ flexWrap: "wrap" }}>
               {ministerios.map((m) => (
                 <button key={m.id} data-on={ministerioId === m.id ? 1 : 0} onClick={() => setMinisterioId(m.id)}>{m.nome}</button>
               ))}
+              {/* O líder da base não é um ministério — é um papel. A
+                * checklist dele aparece-lhe sirva ou não nesse domingo,
+                * porque são tarefas de preparar a semana. */}
+              <button data-on={ministerioId === MINISTERIO_LIDER_BASE ? 1 : 0}
+                onClick={() => setMinisterioId(MINISTERIO_LIDER_BASE)}>
+                Líder da base
+              </button>
             </div>
           </>
         )}

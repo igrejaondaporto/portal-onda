@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
-import { FASES } from "../lib/modelo";
+import { FASES, MINISTERIO_LIDER_BASE } from "../lib/modelo";
 import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
-  obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
+  obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial, reordenarFuncoes,
 } from "../lib/painel";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
@@ -137,6 +137,29 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   }, [voluntarios.length, ministerios.length, catalogo.length]);
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
+
+  // Os ministérios mais o papel do líder da base. Não é um ministério
+  // de verdade — não entra na escala nem no seletor de quem serve —,
+  // mas tem checklist própria e por isso aparece aqui como grupo.
+  const gruposChecklist = [
+    ...ministerios,
+    { id: MINISTERIO_LIDER_BASE, nome: "Líder da base", cor: "var(--tinta)" },
+  ];
+
+  /** Troca dois itens de sítio dentro da fase e grava a fase inteira.
+   *  A fase toda, e não só os dois: gravar apenas o par deixaria ordens
+   *  empatadas com as dos vizinhos e a lista voltaria a saltar. */
+  async function mover(lista, i, delta) {
+    const j = i + delta;
+    if (j < 0 || j >= lista.length) return;
+    const nova = [...lista];
+    [nova[i], nova[j]] = [nova[j], nova[i]];
+    try {
+      await reordenarFuncoes(nova);
+    } catch (e) {
+      torrada(e.message || "Não foi possível reordenar.");
+    }
+  }
 
   return (
     <>
@@ -294,16 +317,16 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
             </div>
             {!ministerios.length && <div className="vaz">Cria os ministérios primeiro.</div>}
             {ministerios.length > 1 && (
-              <div className="subtabs" style={{ marginTop: 0 }}>
+              <div className="subtabs" style={{ marginTop: 0, flexWrap: "wrap" }}>
                 <button data-on={filtroChecklist === null ? 1 : 0} onClick={() => setFiltroChecklist(null)}>Todos</button>
-                {ministerios.map((m) => (
+                {gruposChecklist.map((m) => (
                   <button key={m.id} data-on={filtroChecklist === m.id ? 1 : 0} onClick={() => setFiltroChecklist(m.id)}>
                     {m.nome}
                   </button>
                 ))}
               </div>
             )}
-            {ministerios.filter((m) => !filtroChecklist || m.id === filtroChecklist).map((m) => {
+            {gruposChecklist.filter((m) => !filtroChecklist || m.id === filtroChecklist).map((m) => {
               const doMinisterio = catalogo.filter((f) => f.ministerioId === m.id);
               if (!doMinisterio.length) return null;
               return (
@@ -315,13 +338,24 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
                     return (
                       <div key={k}>
                         <p className="ds" style={{ padding: "6px 0 2px" }}>{t}</p>
-                        {doF.map((f) => (
+                        {doF.map((f, i) => (
                           <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
                             <Bola funcao={f} tamanho={34} />
                             <div style={{ flex: 1 }}>
                               <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
                               <p className="ds">{f.descricao ? (f.foto ? "Com foto" : "Sem foto") : "Falta a explicação"}</p>
                             </div>
+                            {/* A ordem da checklist é a ordem em que as coisas
+                              * se fazem no culto — quando muda, tem de se poder
+                              * mudar aqui. Só dentro da fase: uma tarefa do
+                              * pré-culto nunca passa para depois do culto por
+                              * se carregar numa seta. */}
+                            {doF.length > 1 && (
+                              <span className="tec-ordem" onClick={(e) => e.stopPropagation()}>
+                                <button className="calbt" disabled={i === 0} aria-label="Subir" onClick={() => mover(doF, i, -1)}>↑</button>
+                                <button className="calbt" disabled={i === doF.length - 1} aria-label="Descer" onClick={() => mover(doF, i, 1)}>↓</button>
+                              </span>
+                            )}
                             <span className="seta">›</span>
                           </div>
                         ))}

@@ -104,7 +104,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
   const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
   const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
-  const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid) : [];
+  const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid, souLiderBase) : [];
   const funcoesCulto = meuEvento ? funcoes.filter((f) => !f.eventoId || f.eventoId === meuEvento.id) : [];
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
