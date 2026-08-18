@@ -2,15 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import {
   ouvirMelhoria, ouvirEventosMelhoria, comentarMelhoria, definirEstadoMelhoria,
   definirPrevisao, resolverMelhoria, transformarMelhoriaEmArtigoWiki, desativarMelhoria,
+  definirResponsaveisMelhoria,
   enviarFotoResolucaoMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO,
 } from "../../lib/melhorias";
+import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 
 const NOMES_EVENTO = {
   abertura: "abriu a melhoria", comentario: "comentou", estado: "mudou o estado para",
-  previsao: "definiu a previsão para", resolucao: "resolveu",
+  previsao: "definiu a previsão para", resolucao: "resolveu", exclusao: "excluiu", responsaveis: "mudou quem trata disto",
 };
+
+/** O evento guarda a chave crua (`em_curso`, `2026-08-23`) porque é
+ *  isso que a Cloud Function escreve. Mostrar isso ao voluntário era
+ *  deixar escapar o nome interno do campo para a tela — daí o mapa
+ *  para o mesmo texto que as etiquetas usam. */
+function textoDoEvento(ev) {
+  if (ev.tipo === "estado") return ESTADO_INFO[ev.texto]?.texto ?? ev.texto;
+  if (ev.tipo === "previsao") return /^\d{4}-\d{2}-\d{2}$/.test(ev.texto) ? dataPorExtenso(ev.texto) : ev.texto;
+  return ev.texto;
+}
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
 /** Só leitura quando aberta a partir da linha (toque no cartão); os
@@ -24,6 +36,7 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
   const [eventos, setEventos] = useState([]);
   const aEditar = editarInicial;
   const [comentario, setComentario] = useState("");
+  const [aGuardarResp, setAGuardarResp] = useState(false);
   const [previsao, setPrevisao] = useState("");
   const [notaResolucao, setNotaResolucao] = useState("");
   const [fotoResolucao, setFotoResolucao] = useState(null);
@@ -142,6 +155,19 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
   const estInfo = ESTADO_INFO[melhoria.estado];
   const { atrasada, texto: previsaoTexto } = corPrevisao(melhoria);
 
+  async function alternarResponsavel(pid) {
+    const atuais = melhoria?.responsaveis || [];
+    const novos = atuais.includes(pid) ? atuais.filter((x) => x !== pid) : [...atuais, pid];
+    setAGuardarResp(true);
+    try {
+      await definirResponsaveisMelhoria(melhoriaId, novos);
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar.");
+    } finally {
+      setAGuardarResp(false);
+    }
+  }
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -174,7 +200,7 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
             <div style={{ flex: 1 }}>
               <p className="nmt" style={{ fontSize: 14 }}>
                 {nomeDe(ev.autorId)} {NOMES_EVENTO[ev.tipo] ?? ev.tipo}
-                {(ev.tipo === "estado" || ev.tipo === "previsao") ? ` ${ev.texto}` : ""}
+                {(ev.tipo === "estado" || ev.tipo === "previsao") ? ` ${textoDoEvento(ev)}` : ""}
               </p>
               {(ev.tipo === "comentario" || ev.tipo === "abertura" || ev.tipo === "resolucao") && ev.texto && (
                 <p className="ds" style={{ marginTop: 2 }}>{ev.texto}</p>
@@ -192,6 +218,23 @@ export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equ
 
         {aEditar && (
           <>
+            {/* Quem fica encarregue. Vários de propósito: "comprei os
+              * cabos" e "testa-os no domingo" são duas pessoas no mesmo
+              * assunto, não duas melhorias. Aparece no Início de cada um. */}
+            <label className="rot" style={{ marginTop: 16 }}>Quem trata disto</label>
+            <div className="subtabs" style={{ flexWrap: "wrap", margin: 0 }}>
+              {voluntarios.filter((v) => v.ativo !== false).map((v) => (
+                <button key={v.id} disabled={aGuardarResp}
+                  data-on={(melhoria.responsaveis || []).includes(v.id) ? 1 : 0}
+                  onClick={() => alternarResponsavel(v.id)}>
+                  {v.nome}
+                </button>
+              ))}
+            </div>
+            {(melhoria.responsaveis || []).length === 0 && (
+              <p className="ds" style={{ marginTop: 6 }}>Ninguém encarregue ainda. Aparece no Início de quem escolheres.</p>
+            )}
+
             <label className="rot" style={{ marginTop: 16 }}>Previsão de quem está a tratar</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input className="campo" type="date" value={previsao} onChange={(e) => setPrevisao(e.target.value)} />

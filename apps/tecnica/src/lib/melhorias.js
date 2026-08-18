@@ -89,3 +89,13 @@ export function corPrevisao({ estado, previsao }) {
   }
   return { atrasada: false, texto: `Previsão ${previsao}` };
 }
+
+/** Quem trata de quê. Vários por melhoria: "comprei os cabos" e
+ *  "testa-os no domingo" são duas pessoas no mesmo assunto. */
+export const definirResponsaveisMelhoria = (melhoriaId, responsaveis) =>
+  chamar("definirResponsaveisMelhoria")({ melhoriaId, responsaveis }).then((r) => r.data);
+
+/** As melhorias por fazer de uma pessoa — para o Início dela. Não vai
+ *  ao Firestore: filtra a lista que a tela já ouve. */
+export const minhasTarefas = (melhorias, uid) =>
+  (melhorias || []).filter((m) => m.estado !== "resolvida" && (m.responsaveis || []).includes(uid));

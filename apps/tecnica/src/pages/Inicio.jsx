@@ -5,6 +5,7 @@ import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMini
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
+import { ouvirMelhorias, minhasTarefas } from "../lib/melhorias";
 import { ouvirIndiceWiki } from "../lib/wiki";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
@@ -43,6 +44,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [pendentes, setPendentes] = useState([]);
   const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
+  const [melhorias, setMelhorias] = useState([]);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [verChecklistToda, setVerChecklistToda] = useState(false);
   const [wikiItens, setWikiItens] = useState([]);
@@ -58,6 +60,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirIndiceWiki(setWikiItens), []);
+  useEffect(() => ouvirMelhorias(setMelhorias), []);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
   // o líder mudar quem serve ou o líder de culto, não é preciso refresh.
@@ -172,6 +175,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       setAEnviarFrase(false);
     }
   }
+
+  // O que alguém encarregou esta pessoa de fazer. Sem hook de
+  // propósito: é um filtro barato, e assim não há risco de acabar
+  // abaixo de um `return null` como já aconteceu uma vez aqui.
+  const tarefas = minhasTarefas(melhorias, uid);
 
   // As mais antigas primeiro — quem perguntou há três semanas já
   // desistiu de esperar; é essa que interessa destapar.
@@ -302,6 +310,34 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               {meusLugaresHoje.filter((l) => l.aprendizId === uid).map((l) => nomeDe(l.titularId)).filter(Boolean).join(" e ")}
               {" "}— acompanha e pergunta.
             </p>
+          </div>
+        )}
+
+        {/* Antes da checklist de propósito: ao domingo de manhã, o que
+          * alguém te pediu para fazer vem antes da rotina de sempre.
+          * "Testa os COB com os cabos novos" tem de ser a primeira coisa
+          * que se lê, não algo a descobrir na aba dos Equipamentos. */}
+        {tarefas.length > 0 && (
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>A tua vez</h3>
+              <span className="cap">{tarefas.length}</span>
+            </div>
+            {tarefas.map((m) => {
+              const eq = m.equipamentoId ? equipamentos.find((x) => x.id === m.equipamentoId) : null;
+              return (
+                <div className="linha" style={{ cursor: "pointer" }} key={m.id} onClick={() => onIrInventario?.()}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{m.titulo}</p>
+                    <p className="ds">
+                      {eq ? `${eq.nome} · ` : ""}
+                      {m.estado === "em_curso" ? "Em curso" : "Por começar"}
+                    </p>
+                  </div>
+                  <span className="seta">›</span>
+                </div>
+              );
+            })}
           </div>
         )}
 
