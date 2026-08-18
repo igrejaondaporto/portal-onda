@@ -107,6 +107,11 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   Apoio/Técnica). Como é sempre uma pessoa só a servir, seria sempre
   igual a "todas as funções do dia" — redundante com "Como está o
   domingo", logo abaixo. Removido de propósito, não esquecido.
+- **"Deixa uma palavra à tua equipa" (a frase do líder de escala)
+  também não existe aqui** (existe na Apoio/Técnica, `definirFrase`
+  continua lá para elas — Cloud Function partilhada, não se mexeu).
+  Sentido para uma equipa de várias pessoas se motivarem antes do
+  culto; sem sentido a falar sozinho. Removido de propósito.
 - **`bases/backstage.feedbackAberto = true`** — em Culto → Feedbacks,
   qualquer voluntário escreve, não só o líder de escala do culto
   (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras

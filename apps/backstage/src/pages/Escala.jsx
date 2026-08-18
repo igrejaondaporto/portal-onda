@@ -168,7 +168,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   for (let i = 0; i < maxLin; i++) {
     linhas.push(
       <tr key={i}>
-        <td className="papel">{i === 0 ? "Voluntários" : ""}</td>
+        <td className="papel">{i === 0 ? "Treinamento" : ""}</td>
         {eventosMes.map((ev) => {
           const outros = ev.escala.pessoas.filter((id) => id !== ev.escala.liderEscala);
           const p = outros[i] ? pessoaPorId(outros[i]) : null;

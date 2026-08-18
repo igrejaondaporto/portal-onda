@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
-import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
+import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
@@ -41,9 +41,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [checklist, setChecklist] = useState({});
   const [atribuicoes, setAtribuicoes] = useState({});
   const [eventosMes, setEventosMes] = useState([]);
-  const [frase, setFrase] = useState("");
-  const [aEditarFrase, setAEditarFrase] = useState(false);
-  const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
@@ -97,13 +94,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return () => { p1(); p2(); };
   }, [meuEvento?.id]);
 
-  useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
-
-  // além de quem está marcado líder de escala deste culto, o líder da
-  // base também escreve a mensagem — não fica preso a alguém ter
-  // sido explicitamente escolhido na Escala (definirFrase já aceita
-  // as duas coisas do lado do servidor, ver exigeLiderDoCulto)
-  const souLiderEscala = (!!meuEvento && meuEvento.escala.liderEscala === uid) || souLiderBase;
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
   const funcoesCulto = meuEvento ? funcoesDoCulto(funcoes, meuEvento.id) : [];
 
@@ -169,22 +159,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     }
   }
 
-  async function guardarFrase() {
-    if (!meuEvento) return;
-    setAEnviarFrase(true);
-    try {
-      const fraseGuardada = frase.trim();
-      await definirFrase(meuEvento.id, fraseGuardada);
-      setMeuEvento((ev) => ({ ...ev, frase: fraseGuardada }));
-      setAEditarFrase(false);
-      torrada("A tua equipa vai ver isto no Início");
-    } catch (e) {
-      torrada(e.message || "Não foi possível guardar.");
-    } finally {
-      setAEnviarFrase(false);
-    }
-  }
-
   if (!meuEvento) return null;
 
   const hojeISO = new Date().toISOString().slice(0, 10);
@@ -223,43 +197,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       )}
     <div className="duas">
       <div>
-        {souLiderEscala ? (
-          aEditarFrase ? (
-            <div className="caixa">
-              <textarea
-                className="campo" rows={3} value={frase} onChange={(e) => setFrase(e.target.value)}
-                placeholder="Uma frase curta que os anima antes de começar"
-              />
-              <button className="btn full" style={{ marginTop: 12 }} disabled={aEnviarFrase} onClick={guardarFrase}>Guardar</button>
-              <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { setAEditarFrase(false); setFrase(meuEvento.frase ?? ""); }}>
-                Cancelar
-              </button>
-            </div>
-          ) : meuEvento.frase ? (
-            <div className="frase">
-              <p className="cap" style={{ color: "rgba(10,15,46,.6)" }}>A tua palavra para a equipa</p>
-              <p className="txt" style={{ marginTop: 8 }}>{meuEvento.frase}</p>
-              <button
-                className="btn sec" style={{ marginTop: 14, padding: "9px 16px", fontSize: 13, background: "rgba(10,15,46,.09)", color: "var(--tinta)" }}
-                onClick={() => setAEditarFrase(true)}
-              >
-                Alterar
-              </button>
-            </div>
-          ) : (
-            <div className="convite" onClick={() => setAEditarFrase(true)}>
-              <p className="cap">És o líder de escala de {dataPorExtenso(meuEvento.data)}</p>
-              <p style={{ fontSize: 17, fontWeight: 700, marginTop: 7, letterSpacing: "-.03em" }}>Deixa uma palavra à tua equipa</p>
-              <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
-            </div>
-          )
-        ) : meuEvento.frase ? (
-          <div className="frase">
-            <p className="txt">“{meuEvento.frase}”</p>
-            <p className="aut">{liderNome ?? "líder de escala"} · líder de escala de {dataPorExtenso(meuEvento.data)}</p>
-          </div>
-        ) : null}
-
         <div className="sect" data-tour="checklist-bloco">
           <div className="cabecalho"><h3>Como está o domingo</h3><span className="cap">{feitas} de {total}</span></div>
           <div className="barra"><i style={{ width: `${pct}%` }} /></div>
