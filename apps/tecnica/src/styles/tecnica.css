@@ -232,3 +232,14 @@
   opacity: 0.3;
   cursor: default;
 }
+
+/* Filtro Próximos/Anteriores da Ordem do culto.
+ *
+ * O `.oc-cartao` do partilhado só tem margem ENTRE cartões
+ * (`.oc-cartao + .oc-cartao`) — o primeiro nunca teve espaço em cima,
+ * porque antes vinha logo a seguir ao rótulo do mês. Ao meter o filtro
+ * no meio, ficou encostado em cima e em baixo. O espaço tem de vir
+ * daqui, e o de baixo iguala os 14px que separam os cartões. */
+.tec-filtro-culto {
+  margin: 12px 0 14px;
+}
