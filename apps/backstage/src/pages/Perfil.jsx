@@ -5,7 +5,7 @@ import { obterMeusProximosDomingos, obterAtribuicoes } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { funcoesDoCulto } from "../lib/modelo";
 import { ouvirFuncoes } from "../lib/painel";
-import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, concordar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
@@ -47,7 +47,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
     definirCabecalho({
       titulo: "Perfil",
       subtitulo: "As tuas informações",
-      chips: [souLiderBase ? "Líder da base" : "Voluntário", `${domingos.length} domingo${domingos.length === 1 ? "" : "s"}`],
+      chips: [souLiderBase ? "Líder da base" : concordar(pessoa, "Voluntário", "Voluntária"), `${domingos.length} domingo${domingos.length === 1 ? "" : "s"}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [souLiderBase, domingos.length]);
@@ -122,7 +122,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
           </div>
           {expandida && <ImagemExpandida src={pessoa.foto} alt={pessoa.nome} onFechar={() => setExpandida(false)} />}
           <p style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.03em", marginTop: 14 }}>{pessoa?.nome ?? "…"}</p>
-          <p className="ds">{souLiderBase ? "Líder da Backstage" : "Voluntário da Backstage"}</p>
+          <p className="ds">{souLiderBase ? "Líder da Backstage" : concordar(pessoa, "Voluntário da Backstage", "Voluntária da Backstage")}</p>
           <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
           <button className="btn sec" style={{ marginTop: 14 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
             {aEnviarFoto ? "A enviar…" : pessoa?.foto ? "Trocar foto" : "Juntar foto"}
@@ -173,7 +173,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
               );
             })
           ) : (
-            <div className="vaz">Não estás escalado nos próximos tempos.</div>
+            <div className="vaz">Não estás {concordar(pessoa, "escalado", "escalada")} nos próximos tempos.</div>
           )}
         </div>
         <div className="sect">

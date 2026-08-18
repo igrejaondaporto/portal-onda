@@ -6,6 +6,7 @@ import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
+import MelhoriasTab from "../components/culto/MelhoriasTab";
 
 export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, feedbackAberto }) {
   const souLiderBase = papel === "lider_base";
@@ -49,8 +50,10 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
     if (!ativo) return;
     definirCabecalho({
       titulo: "Culto",
-      subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
-      chips: aba === "ordem" ? [MESES[mes]] : [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`],
+      subtitulo: aba === "ordem"
+        ? "A ordem do culto que o pastor envia"
+        : aba === "feedbacks" ? "O que ficou registado de cada domingo" : "O que precisa de ser melhorado",
+      chips: aba === "ordem" ? [MESES[mes]] : aba === "feedbacks" ? [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`] : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes, eventosMes.length, comFeedback]);
@@ -62,9 +65,12 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
       <div className="subtabs">
         <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
+        <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>Melhorias</button>
       </div>
 
-      {aba === "ordem" ? (
+      {aba === "melhorias" ? (
+        <MelhoriasTab uid={uid} papel={papel} />
+      ) : aba === "ordem" ? (
         eventosMes.map((ev) => (
           <OrdemCultoCard
             key={ev.id} evento={ev} podePublicar={podePublicar}

@@ -76,16 +76,29 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   qualquer voluntário escreve, não só o líder de escala do culto
   (`definirFeedback` aceita pela claim `feedback_aberto`). Nas outras
   bases continua só líder de escala/líder da base.
-- **Montar escala** (dentro de Enquetes, só depois da enquete
-  fechar): por domingo, sugere quem está disponível e há mais tempo
-  sem servir (`obterEstatisticasEscala`, já existente) — o líder
-  escolhe no `<select>` (aceita a sugestão ou troca) e grava direto,
-  sem sugestor de ministérios/lugares como a Técnica tem, porque aqui
-  é sempre uma pessoa só.
+- **Montar escala** (dentro de cada enquete, botão à parte — não
+  precisa de a enquete estar fechada, o líder decide quando): por
+  domingo, sugere quem está disponível e há mais tempo sem servir
+  (`obterEstatisticasEscala`, já existente) — o líder escolhe no
+  `<select>` (aceita a sugestão ou troca) e grava direto, sem
+  sugestor de ministérios/lugares como a Técnica tem, porque aqui é
+  sempre uma pessoa só. "Excluir enquete" também vive aqui.
 - **"Todas as bases" mostra só o próximo culto**, nunca o mês —
   `obterProximoEvento()` em `lib/painel.js`. É uma visão geral rápida
   ("quem serve amanhã em cada base"), não outro calendário para
-  navegar.
+  navegar. Os nomes (e o ministério, na Técnica) vêm da Cloud Function
+  `escalasCrossBase` — sempre resolvidos na hora a partir de
+  `bases/{outraBase}/pessoas` pelo Admin SDK, nunca uma cópia gravada
+  na escrita (ficaria desatualizada) nem uma leitura direta do
+  cliente (as rules não abrem `pessoas` de outra base de propósito).
+- **Melhorias** (aba dentro de Culto, ao lado de Feedbacks): mesmas
+  Cloud Functions da Técnica (`abrirMelhoria`/`comentarMelhoria`/
+  `definirEstadoMelhoria`/`definirPrevisao`/`resolverMelhoria`/
+  `desativarMelhoria` — já genéricas, `equipamentoId`/`ministerioId`
+  sempre `null` aqui), sem equipamento nem ministério ligados e sem
+  "Transformar em artigo da Wiki" (não há Wiki nesta base). Ativas
+  com filtro de gravidade por cima, resolvidas num grupo fechado no
+  fim — `apps/backstage/src/components/culto/MelhoriasTab.jsx`.
 
 ## Detalhes decididos, iguais à Apoio
 
@@ -101,4 +114,4 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
 - Módulo de pedidos do pastor, chat ou mensagens — é rádio.
 - Progresso, checklist ou presença de outras bases em "Todas as bases".
 - Ministérios, níveis ou aprendiz.
-- Wiki e Melhorias, por agora.
+- Wiki, por agora.

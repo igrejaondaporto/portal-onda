@@ -28,6 +28,8 @@ export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);
 export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
+export const cMelhorias   = () => collection(db, `bases/${BASE_ID}/melhorias`);
+export const cEventosMelhoria = (melhoriaId) => collection(db, `bases/${BASE_ID}/melhorias/${melhoriaId}/eventos`);
 
 export const FASES = [
   ["pre",     "Pré-culto",      "Antes de abrir as portas"],

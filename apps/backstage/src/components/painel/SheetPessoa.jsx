@@ -14,6 +14,7 @@ export default function SheetPessoa({
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
+  const [genero, setGenero] = useState(pessoa?.genero ?? null);
   const [foto, setFoto] = useState(pessoa?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -41,10 +42,10 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, genero });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel };
+        const dados = { nome: n, telefone: telefone.trim(), papel, genero };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -115,6 +116,12 @@ export default function SheetPessoa({
           <button data-on={papel === "lider_base" ? 1 : 0} onClick={() => setPapel("lider_base")}>Líder da base</button>
         </div>
         <p className="ds" style={{ marginTop: 8 }}>O líder da base tem código de 6 dígitos e acesso a tudo.</p>
+        <label className="rot" style={{ marginTop: 14 }}>Tratamento</label>
+        <div className="subtabs">
+          <button data-on={genero === "m" ? 1 : 0} onClick={() => setGenero("m")}>Masculino</button>
+          <button data-on={genero === "f" ? 1 : 0} onClick={() => setGenero("f")}>Feminino</button>
+        </div>
+        <p className="ds" style={{ marginTop: 8 }}>Só ajusta o texto da interface (ex.: "escalada" em vez de "escalado").</p>
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>

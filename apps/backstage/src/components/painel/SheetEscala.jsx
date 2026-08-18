@@ -3,7 +3,7 @@ import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reinclui
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
-import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
+import { nomeEvento, dataCurta, concordar } from "@portal/shared/lib/data.js";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
@@ -80,7 +80,10 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
-        <p className="sb2">{pessoas.length ? "Escalado" : "Por escalar"} · chegada {evento.horaChegada || "08:00"}</p>
+        <p className="sb2">
+          {pessoas.length ? concordar(voluntarios.find((v) => v.id === pessoas[0]), "Escalado", "Escalada") : "Por escalar"}
+          {" · chegada "}{evento.horaChegada || "08:00"}
+        </p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
           Um só nome por culto — tocar noutro substitui quem estava.
         </p>
@@ -106,7 +109,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                   <span style={{ flex: 1 }}>
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                      {dentro ? "escalado" : "fora deste culto"}
+                      {dentro ? concordar(p, "escalado", "escalada") : "fora deste culto"}
                     </span>
                     <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
                       {statTexto}

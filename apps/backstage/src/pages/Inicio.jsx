@@ -6,7 +6,7 @@ import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirF
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
-import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, eur, nomeCurto, MESES, concordar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
@@ -126,7 +126,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>,
       subtitulo: sirvo
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
-        : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
+        : `Ainda não estás ${concordar(pessoa, "escalado", "escalada")} — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: sirvo
         ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} ${minhas.length === 1 ? "função" : "funções"}` : "Funções por distribuir"]
         : [],
