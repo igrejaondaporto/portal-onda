@@ -7,9 +7,8 @@ monorepo).
 ## O que é
 
 A equipa que produz conteúdo (fotografia, vídeo, social media, design)
-e — a partir da Fase 2 — atende pedidos das outras bases. É a primeira
-base do painel com trabalho que não é só de domingo: tem prazo, não
-escala.
+e atende pedidos das outras bases. É a primeira base do painel com
+trabalho que não é só de domingo: tem prazo, não escala.
 
 Uso real: telemóvel pessoal, em pé, com pressa, antes de abrir as
 portas. Não é um dashboard de escritório. Se uma tarefa exige mais de
@@ -17,11 +16,13 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Fase 1 em construção: configuração da base, membros, Início (com
-Equipamentos), Escala, Funções, Culto. Ponto de partida: cópia de
-`apps/tecnica` (é a que já tem ministérios) + o Funções em separador
-da Apoio (a Técnica não tem essa aba, mete tudo na checklist do
-Início — a Comunicação tem as duas coisas).
+Fases 1 e 2 feitas: configuração da base, membros, Início (com
+Equipamentos), Agenda (Domingo/Produção), Solicitações, Funções,
+Culto. Ponto de partida: cópia de `apps/tecnica` (é a que já tem
+ministérios) + o Funções em separador da Apoio (a Técnica não tem
+essa aba, mete tudo na checklist do Início — a Comunicação tem as
+duas coisas). Fases 3 (Brand/Acervo/Wiki) e 4 (Área do líder) por
+fazer.
 
 O briefing completo (`CLAUDE-comunicacao.md`, partilhado à parte) é a
 especificação de produto. Este ficheiro documenta só onde a
@@ -115,16 +116,50 @@ notas), isso pede um planeamento à parte antes de qualquer código —
 mexe no modelo `eventos`/`escalas`, que hoje assume um culto global
 só, para todas as bases (ver `CLAUDE.md` raiz, regra 7).
 
-## Navegação (Fase 1)
+## Navegação
 
-Barra inferior: `Início · Escala · Funções · Culto`. Sem Inventário
-(a Comunicação não tem esse conceito — ver Equipamentos acima). Sem
-Solicitações/Wiki/Brand ainda (Fases 2/3). O menu final do briefing
-(`Início · Agenda · Solicitações · Funções · Culto · Wiki · Brand`,
-com "Agenda" substituindo "Escala" por duas abas Domingo/Produção) só
-faz sentido quando Solicitações existir de facto — renomear "Escala"
-para "Agenda" agora criaria uma aba "Produção" sempre vazia. Fica para
-a Fase 2, junto com a coleção `solicitacoes`.
+Barra inferior: `Início · Agenda · Solicitações · Funções · Culto`.
+Sem Inventário (a Comunicação não tem esse conceito — ver
+Equipamentos acima). Sem Wiki/Brand ainda (Fase 3). "Agenda" é a
+antiga "Escala" (chave interna continua `escala`, só o rótulo mudou)
+com duas sub-abas por cima: **Domingo** (a escala de sempre) e
+**Produção** — consulta a `solicitacoes` filtrada por
+`responsavelId == eu` (ver `CLAUDE-comunicacao.md` §5.6 — nunca uma
+coleção própria, senão desincroniza de Solicitações).
+
+## Solicitações
+
+```js
+solicitacoes/{id}                    // raiz — escrito por líderes de
+  titulo, baseSolicitanteId,         // QUALQUER base, lido por essa
+  solicitanteId, solicitanteNome,    // base + a Comunicação
+  oQue, ondeUsa, textoFinal, linkReferencia,
+  prazo, foraDoPrazo,                // calculado no servidor
+  status: fila|producao|revisao|entregue|recusada,
+  responsavelId, responsavelNome, entregaUrl, entregueEm,
+  historico: [{ de, para, porId, porNome, em, motivo? }]
+```
+
+Toda a escrita passa por Cloud Function (`abrirSolicitacao`,
+`editarSolicitacao`, `assumirSolicitacao`, `mudarStatusSolicitacao`) —
+regra `solicitacoes/{id}: write: false`. Não é o que o rascunho de
+regras do briefing (§7) sugeria (escrita direta do cliente com
+validação por regra); segui o padrão já usado em Wiki/Melhorias
+(autoria mista + histórico obrigatório = sempre função, nunca
+`setDoc` direto), porque `foraDoPrazo` tem de vir do servidor e o
+histórico tem de ser gravado na mesma escrita que muda o estado.
+
+`editarSolicitacao` (solicitante edita enquanto `status == "fila"`)
+está implementada e testada (`node --check`), mas **sem UI nesta
+fase** — nenhuma tela chama. Se um dia o solicitante precisar de
+corrigir um pedido já aberto, é aí que entra.
+
+**"Pedir à Comunicação"** vive no Painel do líder de Apoio/Técnica/
+Backstage (não numa aba nova nessas apps — é `SheetAbrirSolicitacao`,
+`packages/shared`, a única coisa desta fase que é genuinamente igual
+em qualquer base). Visível a qualquer líder de base, inclui o aviso
+de prazo curto antes de enviar (lê `bases/comunicacao.slaDiasMinimos`,
+público a quem tem sessão).
 
 ## Detalhes que valem para esta base como as outras
 
@@ -138,12 +173,6 @@ a Fase 2, junto com a coleção `solicitacoes`.
 
 ## Próximas fases (ver briefing completo)
 
-- **Fase 2**: coleção `solicitacoes` (raiz, cross-base), aba
-  Solicitações, aba Produção dentro de Escala/Agenda, e o ponto de
-  entrada "Abrir solicitação" dentro de Apoio/Técnica/Backstage — essa
-  parte toca as outras apps, por isso pede plano próprio revisto com
-  atenção redobrada antes de escrever código (mandato do próprio
-  briefing, seção 11).
 - **Fase 3**: Brand (`marcas` + subcoleção `recursos`, raiz — leitura
   para todas as bases), Acervo (`acervo`, raiz), Wiki desta base
   (`bases/comunicacao/artigos`, categoria passo/dúvida/artigo, sem
