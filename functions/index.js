@@ -291,8 +291,12 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null } = req.data || {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
+  // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
+  // ministério onde pendurar, ao contrário do nivel por-ministério da
+  // Técnica). Nas outras bases o campo nunca aparece.
+  const comNivel = nivel ? { nivel } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
   if (pessoaExistenteId) {
@@ -305,7 +309,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone, papel, ativo: true, genero,
       foto: globalSnap.data().foto ?? null,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios,
+      ...comMinisterios, ...comNivel,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -321,7 +325,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios,
+    ...comMinisterios, ...comNivel,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -386,7 +390,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -408,6 +412,7 @@ export const editarVoluntario = onCall(async (req) => {
   // ministerios: { audio: "titular"|"aprendiz", ... } — só bases com
   // ministérios enviam isto; nas outras o campo nunca aparece.
   if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
+  if (nivel) dados.nivel = nivel;
   // o próprio já muda a sua foto por escrita direta (firestore.rules
   // permite ao dono); isto é só o líder a mudar a foto de outra
   // pessoa — o upload em si já passou pelo Storage antes de chegar
@@ -683,6 +688,19 @@ export const guardarEscalaBackstage = onCall(async (req) => {
   }
 
   const pessoas = [...new Set(pessoasRecebidas.filter(Boolean))];
+
+  // um aprendiz nunca serve sozinho (mesma regra da Técnica) — precisa
+  // de estar acompanhado por pelo menos um titular no mesmo culto.
+  // Validado aqui, não só no cliente: é a garantia real, o SheetEscala
+  // é só a experiência que evita chegar a este erro na prática.
+  if (pessoas.length) {
+    const pessoasSnap = await Promise.all(pessoas.map((id) => refPessoa(baseId, id).get()));
+    const temAprendiz = pessoasSnap.some((s) => s.exists && s.data().nivel === "aprendiz");
+    const temTitular = pessoasSnap.some((s) => s.exists && s.data().nivel !== "aprendiz");
+    if (temAprendiz && !temTitular) {
+      throw new HttpsError("invalid-argument", "Um aprendiz não pode servir sozinho — junta um titular.");
+    }
+  }
 
   const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
   const pessoasNovas = new Set(pessoas);
