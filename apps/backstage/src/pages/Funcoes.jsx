@@ -139,6 +139,9 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
             {souLiderBase ? "És líder da base, podes editar qualquer data." : `És o líder de escala de ${dataPorExtenso(evento.data)}. Só podes editar este domingo.`}
             {" "}Cada função aceita mais do que uma pessoa.
           </p>
+          <p className="ds" style={{ marginTop: 4 }}>
+            Ao escalar alguém, essa pessoa já fica responsável por todas as funções do dia — muda ou acrescenta quem quiseres aqui.
+          </p>
         </div>
       ) : (
         <div className="caixa">
