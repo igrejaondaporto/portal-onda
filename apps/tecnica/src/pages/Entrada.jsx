@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obterDadosEntrada } from "@portal/shared/lib/pessoas.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import SheetPin from "@portal/shared/components/SheetPin.jsx";
+import GatilhoDev from "@portal/shared/components/GatilhoDev.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 
 function TituloBase({ nome }) {
@@ -46,10 +47,12 @@ export default function Entrada({ onDeveTrocarPin }) {
       <div className="crista entrada">
         <div>
           <div className="lin">
-            <span className="logo">
-              <i>igreja</i>
-              <b>onda</b>
-            </span>
+            <GatilhoDev>
+              <span className="logo">
+                <i>igreja</i>
+                <b>onda</b>
+              </span>
+            </GatilhoDev>
             <span className="cap" style={{ color: "rgba(255,255,255,.8)" }}>
               Porto · Maia
             </span>

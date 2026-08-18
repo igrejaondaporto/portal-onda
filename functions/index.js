@@ -247,6 +247,70 @@ export const entrar = onCall(async (req) => {
   return { token, deveTrocarPin: !!s.provisorio };
 });
 
+/* ── ACESSO DEV ────────────────────────────────────────────
+ * Entrada paralela ao PIN, para quem constrói o sistema continuar a
+ * testar qualquer base sem depender do código de nenhum líder (que
+ * muda assim que a base é entregue, e o dev deixa de saber). Não é
+ * uma pessoa — o uid "dev-admin" nunca existe em bases/{b}/pessoas,
+ * por isso nunca aparece em listas de Voluntários nem pode ser
+ * escalado. A senha (não um PIN de 4-6 dígitos — dá acesso total a
+ * qualquer base) fica só em config/devAccess/privado/auth, hash
+ * scrypt igual ao do PIN, gravado por scripts/definirSenhaDev.mjs
+ * (Admin SDK, nunca por um cliente — config/** cai no catch-all
+ * "allow read, write: if false" do firestore.rules). Mesmo bloqueio
+ * de tentativas do PIN (MAX_1/MAX_2/BLOQUEIO_MS), guardado no mesmo
+ * documento. Cada entrada fica registada em logs/acessosDev, para
+ * haver rasto de quando foi usado. */
+const refSegredoDev = () => db.doc("config/devAccess/privado/auth");
+
+export const entrarComoDev = onCall(async (req) => {
+  const { baseId, senha } = req.data || {};
+  if (!baseId || !senha) throw new HttpsError("invalid-argument", "Dados de entrada inválidos.");
+
+  const baseSnap = await db.doc(`bases/${baseId}`).get();
+  if (!baseSnap.exists) throw new HttpsError("not-found", "errado");
+
+  const segredoRef = refSegredoDev();
+  const sSnap = await segredoRef.get();
+  if (!sSnap.exists) throw new HttpsError("permission-denied", "errado");
+
+  const s = sSnap.data();
+  const agora = Date.now();
+  const bloqueadoAte = s.bloqueadoAte?.toMillis?.() ?? 0;
+
+  if (bloqueadoAte > agora) {
+    throw new HttpsError("resource-exhausted", "bloqueado", {
+      faltamSegundos: Math.ceil((bloqueadoAte - agora) / 1000),
+    });
+  }
+
+  if (!confere(String(senha), s.hash)) {
+    const falhas = (s.falhas ?? 0) + 1;
+    const limite = s.jaBloqueou ? MAX_2 : MAX_1;
+    const bloqueia = falhas >= limite;
+    await segredoRef.set({
+      falhas: bloqueia ? 0 : falhas,
+      jaBloqueou: s.jaBloqueou || bloqueia,
+      bloqueadoAte: bloqueia ? admin.firestore.Timestamp.fromMillis(agora + BLOQUEIO_MS) : null,
+    }, { merge: true });
+    throw new HttpsError("permission-denied", bloqueia ? "bloqueado" : "errado",
+      { restam: bloqueia ? 0 : limite - falhas, bloqueado: bloqueia });
+  }
+
+  await segredoRef.set({ falhas: 0, jaBloqueou: false, bloqueadoAte: null }, { merge: true });
+  await db.collection("logs/acessosDev/entradas").add({
+    baseId, em: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const token = await admin.auth().createCustomToken("dev-admin", {
+    baseId,
+    papel: "lider_base",
+    dev: true,
+    ...(await claimsExtraDaBase(baseId)),
+  });
+  return { token };
+});
+
 /* ── TROCAR O PRÓPRIO PIN ─────────────────────────────────── */
 export const trocarPin = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
