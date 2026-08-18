@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [apoio, tecnica, backstage]
+        app: [apoio, tecnica, backstage, comunicacao]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,8 +36,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: "64f79471e56bd25e222e36b24e7f7f27"
         run: npx wrangler deploy
 
-  # Purga uma vez só, depois dos três deploys — mais barato do que
-  # purgar por app, e as três apps partilham a mesma zona painelonda.pt.
+  # Purga uma vez só, depois dos quatro deploys — mais barato do que
+  # purgar por app, e as quatro apps partilham a mesma zona.
   purgar_cache:
     needs: deploy
     runs-on: ubuntu-latest
