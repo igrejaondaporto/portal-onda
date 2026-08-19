@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios, ouvirEquipamentos } from "../lib/painel";
-import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
+import { ouvirChecklist, marcarFeito, desmarcarFeito, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
+import { ouvirTransferenciasPendentes, aceitarTransferencia, recusarTransferencia } from "../lib/solicitacoes";
 import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
@@ -34,9 +35,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [ministerios, setMinisterios] = useState([]);
   const [checklist, setChecklist] = useState({});
   const [eventosMes, setEventosMes] = useState([]);
-  const [frase, setFrase] = useState("");
-  const [aEditarFrase, setAEditarFrase] = useState(false);
-  const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
   const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
@@ -47,8 +45,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [minhasRespostas, setMinhasRespostas] = useState({}); // { [mes]: resposta|null }
   const [eventosEnquete, setEventosEnquete] = useState({});
   const [aResponderEnquete, setAResponderEnquete] = useState(false);
+  const [transferencias, setTransferencias] = useState([]);
+  const [aResponderTransferencia, setAResponderTransferencia] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
+  useEffect(() => ouvirTransferenciasPendentes(uid, setTransferencias), [uid]);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -90,8 +91,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirChecklist(meuEvento.id, setChecklist);
   }, [meuEvento?.id]);
 
-  useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
-
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
   const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
   const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
@@ -130,20 +129,17 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     escrita.catch((e) => torrada(e.message || "Não foi possível atualizar."));
   }
 
-  async function guardarFrase() {
-    if (!meuEvento) return;
-    setAEnviarFrase(true);
-    try {
-      const fraseGuardada = frase.trim();
-      await definirFrase(meuEvento.id, fraseGuardada);
-      setMeuEvento((ev) => ({ ...ev, frase: fraseGuardada }));
-      setAEditarFrase(false);
-      torrada("A tua equipa vai ver isto no Início");
-    } catch (e) {
-      torrada(e.message || "Não foi possível guardar.");
-    } finally {
-      setAEnviarFrase(false);
-    }
+  async function aceitar(id) {
+    setAResponderTransferencia(true);
+    try { await aceitarTransferencia(id); torrada("Ficaste responsável por este pedido"); }
+    catch (e) { torrada(e.message || "Não foi possível aceitar."); }
+    finally { setAResponderTransferencia(false); }
+  }
+  async function recusar(id) {
+    setAResponderTransferencia(true);
+    try { await recusarTransferencia(id); torrada("Voltou para a fila"); }
+    catch (e) { torrada(e.message || "Não foi possível recusar."); }
+    finally { setAResponderTransferencia(false); }
   }
 
   // fica visível até ao prazo, mesmo depois de responder — para quem
@@ -159,6 +155,28 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
+      {transferencias.map((s) => (
+        <div className="destaque" style={{ background: "var(--violeta)" }} key={s.id}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>{s.transferePendente?.deNome} transferiu-te um pedido</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>{s.titulo}</p>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button
+                className="btn" style={{ padding: "9px 16px", fontSize: 13, background: "#fff", color: "var(--violeta)" }}
+                disabled={aResponderTransferencia} onClick={() => aceitar(s.id)}
+              >
+                Aceitar
+              </button>
+              <button
+                className="btn sec" style={{ padding: "9px 16px", fontSize: 13, background: "rgba(255,255,255,.18)", color: "#fff" }}
+                disabled={aResponderTransferencia} onClick={() => recusar(s.id)}
+              >
+                Recusar
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>
@@ -201,42 +219,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       )}
     <div className="duas">
       <div>
-        {souLiderBase ? (
-          aEditarFrase ? (
-            <div className="caixa">
-              <textarea
-                className="campo" rows={3} value={frase} onChange={(e) => setFrase(e.target.value)}
-                placeholder="Uma frase curta que os anima antes de começar"
-              />
-              <button className="btn full" style={{ marginTop: 12 }} disabled={aEnviarFrase} onClick={guardarFrase}>Guardar</button>
-              <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { setAEditarFrase(false); setFrase(meuEvento.frase ?? ""); }}>
-                Cancelar
-              </button>
-            </div>
-          ) : meuEvento.frase ? (
-            <div className="frase">
-              <p className="cap" style={{ color: "rgba(10,15,46,.6)" }}>A tua palavra para a equipa</p>
-              <p className="txt" style={{ marginTop: 8 }}>{meuEvento.frase}</p>
-              <button
-                className="btn sec" style={{ marginTop: 14, padding: "9px 16px", fontSize: 13, background: "rgba(10,15,46,.09)", color: "var(--tinta)" }}
-                onClick={() => setAEditarFrase(true)}
-              >
-                Alterar
-              </button>
-            </div>
-          ) : (
-            <div className="convite" onClick={() => setAEditarFrase(true)}>
-              <p className="cap">Domingo, {dataPorExtenso(meuEvento.data)}</p>
-              <p style={{ fontSize: 17, fontWeight: 700, marginTop: 7, letterSpacing: "-.03em" }}>Deixa uma palavra à tua equipa</p>
-              <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
-            </div>
-          )
-        ) : meuEvento.frase ? (
-          <div className="frase">
-            <p className="txt">“{meuEvento.frase}”</p>
-            <p className="aut">líder da base · {dataPorExtenso(meuEvento.data)}</p>
-          </div>
-        ) : null}
+        <p className="cap">Domingo, {dataPorExtenso(meuEvento.data)}</p>
 
         {souAprendiz && (
           <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 14 }}>

@@ -188,7 +188,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           </div>
           <div style={{ display: pagina === "solicitacoes" ? "" : "none" }}>
-            <Solicitacoes uid={uid} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
+            <Solicitacoes uid={uid} papel={papel} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
             <Funcoes

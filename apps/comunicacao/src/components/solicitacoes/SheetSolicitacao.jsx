@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { assumirSolicitacao, mudarStatusSolicitacao } from "../../lib/solicitacoes";
+import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao } from "../../lib/solicitacoes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -8,15 +8,28 @@ const ROTULO_STATUS = {
   entregue: "Entregue", recusada: "Recusada",
 };
 
-export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
+/** O fluxo tem um gate: quem produz manda para revisão (com o link),
+ *  só o líder aprova (→ entregue) ou devolve (→ produção) — pedido
+ *  explícito: "a revisão é feita por um líder". Antes, quem produzia
+ *  também marcava "Entregue" sozinho; agora esse botão só existe para
+ *  o líder, e só depois de revisao. */
+export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios, voluntarios, onFechar }) {
   const torrada = useTorrada();
+  const souLider = papel === "lider_base";
   const [entregaUrl, setEntregaUrl] = useState(solicitacao.entregaUrl ?? "");
-  const [motivo, setMotivo] = useState("");
+  const [motivoRecusa, setMotivoRecusa] = useState("");
+  const [motivoDevolver, setMotivoDevolver] = useState("");
   const [aRecusar, setARecusar] = useState(false);
+  const [aDevolver, setADevolver] = useState(false);
+  const [aTransferir, setATransferir] = useState(false);
+  const [paraId, setParaId] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
   if (!solicitacao) return null;
   const fechada = solicitacao.status === "entregue" || solicitacao.status === "recusada";
+  const souResponsavel = solicitacao.responsavelId === uid;
+  const ministerio = ministerios.find((m) => m.id === solicitacao.ministerioId);
+  const candidatosTransferencia = voluntarios.filter((p) => p.id !== uid);
 
   async function assumir() {
     setAEnviar(true);
@@ -30,27 +43,60 @@ export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
     }
   }
 
-  async function mudar(novoStatus, extra = {}) {
+  async function enviarParaRevisao() {
+    if (!entregaUrl.trim()) return torrada("Falta o link da entrega, para o líder rever.");
     setAEnviar(true);
     try {
-      await mudarStatusSolicitacao({ id: solicitacao.id, novoStatus, ...extra });
-      torrada(`Passou para ${ROTULO_STATUS[novoStatus]}`);
-      if (novoStatus === "entregue" || novoStatus === "recusada") onFechar();
+      await mudarStatusSolicitacao({ id: solicitacao.id, novoStatus: "revisao", entregaUrl: entregaUrl.trim() });
+      torrada("Enviado para revisão");
     } catch (e) {
-      torrada(e.message || "Não foi possível atualizar.");
+      torrada(e.message || "Não foi possível enviar.");
     } finally {
       setAEnviar(false);
     }
   }
 
-  function entregar() {
-    if (!entregaUrl.trim()) return torrada("Falta o link da entrega.");
-    mudar("entregue", { entregaUrl: entregaUrl.trim() });
+  async function aprovar() {
+    setAEnviar(true);
+    try {
+      await mudarStatusSolicitacao({ id: solicitacao.id, novoStatus: "entregue" });
+      torrada("Marcado como entregue");
+      onFechar();
+    } catch (e) {
+      torrada(e.message || "Não foi possível aprovar.");
+    } finally {
+      setAEnviar(false);
+    }
+  }
+
+  async function devolver() {
+    setAEnviar(true);
+    try {
+      await mudarStatusSolicitacao({ id: solicitacao.id, novoStatus: "producao", motivo: motivoDevolver.trim() });
+      torrada("Devolvido para produção");
+    } catch (e) {
+      torrada(e.message || "Não foi possível devolver.");
+    } finally {
+      setAEnviar(false);
+    }
   }
 
   function recusar() {
-    if (!motivo.trim()) return torrada("Falta o motivo.");
-    mudar("recusada", { motivo: motivo.trim() });
+    if (!motivoRecusa.trim()) return torrada("Falta o motivo.");
+    setAEnviar(true);
+    mudarStatusSolicitacao({ id: solicitacao.id, novoStatus: "recusada", motivo: motivoRecusa.trim() })
+      .then(() => { torrada("Passou para Recusada"); onFechar(); })
+      .catch((e) => torrada(e.message || "Não foi possível recusar."))
+      .finally(() => setAEnviar(false));
+  }
+
+  function transferir() {
+    if (!paraId) return torrada("Escolhe para quem.");
+    setAEnviar(true);
+    transferirSolicitacao(solicitacao.id, paraId)
+      .then(() => { torrada("A aguardar que aceite"); setATransferir(false); })
+      .catch((e) => torrada(e.message || "Não foi possível transferir."))
+      .finally(() => setAEnviar(false));
   }
 
   return (
@@ -63,6 +109,11 @@ export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
           {solicitacao.baseSolicitanteId} · {solicitacao.solicitanteNome} · prazo {dataPorExtenso(solicitacao.prazo)}
           {solicitacao.foraDoPrazo && " · fora do prazo mínimo"}
         </p>
+        {ministerio && (
+          <p className="ds" style={{ marginTop: 6 }}>
+            <span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}
+          </p>
+        )}
 
         <label className="rot" style={{ marginTop: 14 }}>O que precisa</label>
         <p className="ds">{solicitacao.oQue}</p>
@@ -86,26 +137,28 @@ export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
           {ROTULO_STATUS[solicitacao.status]}
           {solicitacao.responsavelNome && ` · ${solicitacao.responsavelNome}`}
         </p>
+        {solicitacao.entregaUrl && solicitacao.status !== "producao" && (
+          <p className="ds" style={{ marginTop: 4 }}>
+            Entrega: <a href={solicitacao.entregaUrl} target="_blank" rel="noreferrer">{solicitacao.entregaUrl}</a>
+          </p>
+        )}
+        {solicitacao.transferePendente && (
+          <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 10 }}>
+            <p className="ds">A transferir para {solicitacao.transferePendente.paraNome} — a aguardar resposta.</p>
+          </div>
+        )}
 
-        {!fechada && !solicitacao.responsavelId && (
+        {!fechada && !solicitacao.responsavelId && !solicitacao.transferePendente && (
           <button className="btn full" style={{ marginTop: 14 }} disabled={aEnviar} onClick={assumir}>Assumir</button>
         )}
 
-        {!fechada && solicitacao.responsavelId === uid && (
+        {!fechada && souResponsavel && solicitacao.status === "producao" && (
           <>
-            {solicitacao.status === "producao" && (
-              <button className="btn sec full" style={{ marginTop: 10 }} disabled={aEnviar} onClick={() => mudar("revisao")}>
-                Passar para revisão
-              </button>
-            )}
-            {solicitacao.status === "revisao" && (
-              <button className="btn sec full" style={{ marginTop: 10 }} disabled={aEnviar} onClick={() => mudar("producao")}>
-                Voltar para produção
-              </button>
-            )}
             <label className="rot" style={{ marginTop: 14 }}>Link da entrega</label>
             <input className="campo" value={entregaUrl} onChange={(e) => setEntregaUrl(e.target.value)} placeholder="Drive, Canva…" />
-            <button className="btn full" style={{ marginTop: 10 }} disabled={aEnviar} onClick={entregar}>Marcar como entregue</button>
+            <button className="btn full" style={{ marginTop: 10 }} disabled={aEnviar} onClick={enviarParaRevisao}>
+              Enviar para revisão
+            </button>
 
             {!aRecusar ? (
               <button className="btn sec full" style={{ marginTop: 10, color: "var(--magenta)" }} onClick={() => setARecusar(true)}>
@@ -114,7 +167,7 @@ export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
             ) : (
               <div className="caixa" style={{ marginTop: 10 }}>
                 <label className="rot">Motivo</label>
-                <textarea className="campo" rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Porque não dá para fazer" />
+                <textarea className="campo" rows={2} value={motivoRecusa} onChange={(e) => setMotivoRecusa(e.target.value)} placeholder="Porque não dá para fazer" />
                 <button className="btn" style={{ marginTop: 10, background: "var(--magenta)" }} disabled={aEnviar} onClick={recusar}>
                   Confirmar recusa
                 </button>
@@ -123,12 +176,63 @@ export default function SheetSolicitacao({ solicitacao, uid, onFechar }) {
           </>
         )}
 
+        {!fechada && solicitacao.status === "revisao" && (
+          souLider ? (
+            <>
+              <button className="btn full" style={{ marginTop: 14 }} disabled={aEnviar} onClick={aprovar}>
+                Aprovar e marcar como entregue
+              </button>
+              {!aDevolver ? (
+                <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setADevolver(true)}>
+                  Devolver para produção
+                </button>
+              ) : (
+                <div className="caixa" style={{ marginTop: 10 }}>
+                  <label className="rot">O que falta ajustar (opcional)</label>
+                  <textarea className="campo" rows={2} value={motivoDevolver} onChange={(e) => setMotivoDevolver(e.target.value)} placeholder="Para quem produziu saber o que rever" />
+                  <button className="btn sec" style={{ marginTop: 10 }} disabled={aEnviar} onClick={devolver}>
+                    Confirmar devolução
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 14 }}>
+              <p className="ds">Em revisão pelo líder — aguarda a decisão dele.</p>
+            </div>
+          )
+        )}
+
+        {!fechada && !solicitacao.transferePendente && (
+          !aTransferir ? (
+            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setATransferir(true)}>
+              Transferir para…
+            </button>
+          ) : (
+            <div className="caixa" style={{ marginTop: 10 }}>
+              <label className="rot">Transferir para</label>
+              <select className="campo" value={paraId} onChange={(e) => setParaId(e.target.value)}>
+                <option value="">Escolhe alguém</option>
+                {candidatosTransferencia.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar} onClick={transferir}>Transferir</button>
+                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar} onClick={() => setATransferir(false)}>Cancelar</button>
+              </div>
+            </div>
+          )
+        )}
+
         {solicitacao.historico?.length > 0 && (
           <>
             <label className="rot" style={{ marginTop: 14 }}>Histórico</label>
             {solicitacao.historico.map((h, i) => (
               <p className="ds" key={i}>
-                {h.para} — {h.porNome ?? "alguém"}{h.motivo ? ` · ${h.motivo}` : ""}
+                {h.tipo === "transferencia" ? `${h.porNome ?? "alguém"} transferiu para ${h.para}`
+                  : h.tipo === "transferencia_aceite" ? `${h.porNome ?? "alguém"} aceitou a transferência`
+                  : h.tipo === "transferencia_recusada" ? `${h.porNome ?? "alguém"} recusou a transferência — voltou para a fila`
+                  : `${ROTULO_STATUS[h.para] ?? h.para} — ${h.porNome ?? "alguém"}`}
+                {h.motivo ? ` · ${h.motivo}` : ""}
               </p>
             ))}
           </>

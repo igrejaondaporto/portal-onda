@@ -48,9 +48,9 @@ diferente — não são a mesma coleção:
   desde quando) — `bases/comunicacao/equipamentos`, nada a ver com o
   "Equipamentos" da Técnica (esse é o Inventário em modo património,
   `bases/tecnica/inventario`).
-- **Wiki**: `bases/comunicacao/artigos`, não `bases/tecnica/wiki` — schema
-  mais simples (sem ministérios, sem esqueletos), ver seção própria
-  abaixo.
+- **Wiki**: mesmo path e schema de `bases/tecnica/wiki` — cópia 1:1 a
+  pedido do líder (ver seção própria abaixo), depois de uma primeira
+  versão simplificada que não teve editor nenhum.
 - **Enquetes**: `bases/comunicacao/enquetes` — **mesmo path, mesmo
   schema, mesma regra** da enquete de indisponibilidade de
   Técnica/Backstage (`write: false`, só por Cloud Function). O
@@ -141,19 +141,26 @@ solicitacoes/{id}                    // raiz — escrito por líderes de
   solicitanteId, solicitanteNome,    // base + a Comunicação
   oQue, ondeUsa, textoFinal, linkReferencia,
   prazo, foraDoPrazo,                // calculado no servidor
+  ministerioId,                      // para que ministério é (Fotografia,
+                                      // Social Media…) — escolhido por
+                                      // quem pede, não por quem produz
   status: fila|producao|revisao|entregue|recusada,
   responsavelId, responsavelNome, entregaUrl, entregueEm,
-  historico: [{ de, para, porId, porNome, em, motivo? }]
+  transferePendente: { paraId, paraNome, deId, deNome, em } | null,
+  historico: [{ de, para, porId, porNome, em, motivo? }
+              | { tipo: "transferencia"|"transferencia_aceite"|"transferencia_recusada", ... }]
 ```
 
 Toda a escrita passa por Cloud Function (`abrirSolicitacao`,
-`editarSolicitacao`, `assumirSolicitacao`, `mudarStatusSolicitacao`) —
-regra `solicitacoes/{id}: write: false`. Não é o que o rascunho de
-regras do briefing (§7) sugeria (escrita direta do cliente com
-validação por regra); segui o padrão já usado em Wiki/Melhorias
-(autoria mista + histórico obrigatório = sempre função, nunca
-`setDoc` direto), porque `foraDoPrazo` tem de vir do servidor e o
-histórico tem de ser gravado na mesma escrita que muda o estado.
+`editarSolicitacao`, `assumirSolicitacao`, `mudarStatusSolicitacao`,
+`transferirSolicitacao`, `aceitarTransferencia`,
+`recusarTransferencia`) — regra `solicitacoes/{id}: write: false`.
+Não é o que o rascunho de regras do briefing (§7) sugeria (escrita
+direta do cliente com validação por regra); segui o padrão já usado
+em Wiki/Melhorias (autoria mista + histórico obrigatório = sempre
+função, nunca `setDoc` direto), porque `foraDoPrazo` tem de vir do
+servidor e o histórico tem de ser gravado na mesma escrita que muda
+o estado.
 
 `editarSolicitacao` (solicitante edita enquanto `status == "fila"`)
 está implementada e testada (`node --check`), mas **sem UI nesta
@@ -165,7 +172,41 @@ Backstage (não numa aba nova nessas apps — é `SheetAbrirSolicitacao`,
 `packages/shared`, a única coisa desta fase que é genuinamente igual
 em qualquer base). Visível a qualquer líder de base, inclui o aviso
 de prazo curto antes de enviar (lê `bases/comunicacao.slaDiasMinimos`,
-público a quem tem sessão).
+público a quem tem sessão) e o seletor de ministério — lê
+`bases/comunicacao/ministerios` mesmo sem ser da Comunicação, via
+carve-out na regra (`base == 'comunicacao' && autenticado()`, mesma
+lógica de `marcas`/`acervo`: nome/cor de ministério não é sensível).
+
+**A revisão é feita por um líder — pedido explícito, mudou o fluxo
+original.** Antes, quem produzia marcava "Entregue" sozinho a
+qualquer momento; agora `producao → revisao` (quem produz, com o
+link da entrega — sem link não sai da produção) e `revisao →
+entregue` / `revisao → producao` (só o líder, aprova ou devolve) são
+transições distintas, cada uma com quem pode fazê-la
+(`TRANSICOES_SOLICITACAO` em `functions/index.js`). `recusar`
+continua livre para quem produz, em qualquer estado aberto.
+
+**Transferir**: qualquer voluntário da Comunicação transfere uma
+solicitação (própria ou não) para outro — não é decisão do líder.
+Fica `transferePendente` até quem recebe decidir: aceita (fica
+responsável, some o pendente) ou recusa (`status` volta a `fila`,
+`responsavelId` limpo — pedido explícito do líder). Enquanto pendente,
+ninguém mais assume nem transfere de novo. Quem recebe vê um banner
+no Início (`ouvirTransferenciasPendentes`, query por
+`transferePendente.paraId`) com Aceitar/Recusar diretos — não abre
+a solicitação para decidir.
+
+**Kanban** (`Solicitacoes.jsx`): quatro colunas fixas — Fila,
+Produção, Revisão, Entregue (Recusada fica fora, por trás de "Ver
+recusadas" — não é um estado a monitorizar no dia a dia). Cor da
+barra do card é o ministério, não o estado (o estado já é a coluna).
+Arrastar (`draggable` nativo) só funciona a rato — é um atalho a
+mais para desktop, nunca o único caminho, porque o uso real é
+telemóvel e HTML5 drag-and-drop não funciona bem a toque. Uma
+transição que precise de dado extra (`producao → revisao` precisa do
+link) não se larga direto: abre o card, que já sabe pedir o que
+falta. As outras transições sem input (assumir, aprovar, devolver)
+acontecem direto ao largar.
 
 ## Detalhes que valem para esta base como as outras
 

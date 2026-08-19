@@ -31,5 +31,16 @@ export function ouvirMinhaProducao(uid, cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+/** Transferências à minha espera — para o banner no Início. Uma
+ *  equality num campo do mapa (transferePendente.paraId), sem
+ *  orderBy, não precisa de índice composto. */
+export function ouvirTransferenciasPendentes(uid, cb) {
+  const q = query(cSolicitacoes(), where("transferePendente.paraId", "==", uid));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
 export const assumirSolicitacao = (id) => chamar("assumirSolicitacao")({ id }).then((r) => r.data);
 export const mudarStatusSolicitacao = (dados) => chamar("mudarStatusSolicitacao")(dados).then((r) => r.data);
+export const transferirSolicitacao = (id, paraId) => chamar("transferirSolicitacao")({ id, paraId }).then((r) => r.data);
+export const aceitarTransferencia = (id) => chamar("aceitarTransferencia")({ id }).then((r) => r.data);
+export const recusarTransferencia = (id) => chamar("recusarTransferencia")({ id }).then((r) => r.data);

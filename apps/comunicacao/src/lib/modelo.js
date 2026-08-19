@@ -9,9 +9,8 @@
  *   bases/{base}/funcoes/{funcao}                    ← eventoId=null → catálogo
  *   bases/{base}/ministerios/{ministerio}
  *   bases/{base}/equipamentos/{item}/historico/{h}   ← custódia, não stock (ver CLAUDE.md desta base)
- *   bases/{base}/artigos/{artigo}                    ← Wiki, sem editor no app (ver CLAUDE.md)
- *   bases/{base}/enquetes/{id}/respostas/{pessoa}    ← genérica (pergunta/opções) — não confundir com
- *                                                       a enquete de indisponibilidade de Técnica/Backstage
+ *   bases/{base}/wiki/{id}/respostas/{id}            ← mesmo modelo da Técnica (artigos+dúvidas)
+ *   bases/{base}/enquetes/{id}/respostas/{pessoa}    ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/reembolsos/{r}
  *   marcas/{marca}/recursos/{recurso}                ← raiz, leitura de TODAS as bases (Brand)
  *   acervo/{item}                                    ← raiz, leitura de TODAS as bases
@@ -29,7 +28,9 @@ export const cFuncoes     = () => collection(db, `bases/${BASE_ID}/funcoes`);
 export const cMinisterios = () => collection(db, `bases/${BASE_ID}/ministerios`);
 export const cEquipamentos = () => collection(db, `bases/${BASE_ID}/equipamentos`);
 export const cHistoricoEquipamento = (itemId) => collection(db, `bases/${BASE_ID}/equipamentos/${itemId}/historico`);
-export const cArtigos     = () => collection(db, `bases/${BASE_ID}/artigos`);
+export const cWiki         = () => collection(db, `bases/${BASE_ID}/wiki`);
+export const cRespostasWiki = (wikiId) => collection(db, `bases/${BASE_ID}/wiki/${wikiId}/respostas`);
+export const cWikiIndiceDoc = () => doc(db, "wikiIndice", BASE_ID);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (enqueteId) => collection(db, `bases/${BASE_ID}/enquetes/${enqueteId}/respostas`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);

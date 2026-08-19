@@ -1,12 +1,10 @@
 /**
- * Checklist e atribuições de um culto, e a frase do líder de escala.
+ * Checklist e atribuições de um culto.
  *
  * Checklist escreve-se direto no Firestore — as regras já só deixam
  * quem está na escala desse culto fazê-lo. Atribuições passam pela
  * Cloud Function atribuirFuncao: é lá que se confirma que quem manda
- * é o líder de escala DESTE culto (ou o líder da base). A frase mexe
- * no documento do evento, que é global e write:false — por isso passa
- * pela Cloud Function definirFrase.
+ * é o líder de escala DESTE culto (ou o líder da base).
  */
 import { collection, doc, getDocs, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -48,9 +46,6 @@ export const marcarFeito = (eventoId, funcaoId, uid) =>
 
 export const desmarcarFeito = (eventoId, funcaoId) =>
   deleteDoc(doc(db, `eventos/${eventoId}/checklist/${funcaoId}`));
-
-export const definirFrase = (eventoId, frase) =>
-  chamar("definirFrase")({ eventoId, frase }).then((r) => r.data);
 
 export const atribuirFuncao = (eventoId, funcaoId, pessoas) =>
   chamar("atribuirFuncao")({ eventoId, funcaoId, pessoas }).then((r) => r.data);
