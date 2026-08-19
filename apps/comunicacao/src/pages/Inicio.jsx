@@ -4,12 +4,14 @@ import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios, ouvirEquipamentos } from "../lib/painel";
 import { ouvirChecklist, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetPassarEquipamento from "../components/inicio/SheetPassarEquipamento";
+import SheetResponderEnquete from "../components/SheetResponderEnquete";
 
 const ORDEM_FASE = { pre: 0, durante: 1, pos: 2 };
 
@@ -41,6 +43,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aPassar, setAPassar] = useState(null); // itemId
   const [contactoAberto, setContactoAberto] = useState(null);
   const [verChecklistToda, setVerChecklistToda] = useState(false);
+  const [enquetesAbertas, setEnquetesAbertas] = useState([]);
+  const [minhasRespostas, setMinhasRespostas] = useState({}); // { [enqueteId]: resposta|null }
+  const [aResponderEnquete, setAResponderEnquete] = useState(null); // enqueteId
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -49,6 +54,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
+  useEffect(() => ouvirEnquetesAbertas(setEnquetesAbertas), []);
+  useEffect(() => {
+    const paragens = enquetesAbertas.map((e) =>
+      ouvirMinhaResposta(e.id, uid, (r) => setMinhasRespostas((m) => ({ ...m, [e.id]: r })))
+    );
+    return () => paragens.forEach((p) => p());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enquetesAbertas.map((e) => e.id).join(","), uid]);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
   // o líder mudar quem serve, não é preciso refresh.
@@ -78,6 +91,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid) : [];
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+  const enquetePorResponder = enquetesAbertas.find((e) => !minhasRespostas[e.id]);
 
   function fecharAvisoReembolso() {
     marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
@@ -130,6 +144,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
+      {enquetePorResponder && (
+        <div className="destaque" onClick={() => setAResponderEnquete(enquetePorResponder.id)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Enquete aberta</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>{enquetePorResponder.pergunta}</p>
+            {enquetePorResponder.prazo && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Até {dataPorExtenso(enquetePorResponder.prazo)}</p>
+            )}
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
       {souLiderBase && pendentes.length > 0 && (
         <div className="destaque" onClick={() => onIrReembolsos?.()}>
           <div>
@@ -325,6 +351,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         voluntarios={voluntarios}
         onFechar={() => setAPassar(null)}
         onGuardado={(msg) => { setAPassar(null); torrada(msg); }}
+      />
+    )}
+    {aResponderEnquete && (
+      <SheetResponderEnquete
+        enquete={enquetesAbertas.find((e) => e.id === aResponderEnquete)}
+        uid={uid}
+        minhaResposta={minhasRespostas[aResponderEnquete]}
+        onFechar={() => setAResponderEnquete(null)}
+        onGuardado={(msg) => { setAResponderEnquete(null); torrada(msg); }}
       />
     )}
     </>

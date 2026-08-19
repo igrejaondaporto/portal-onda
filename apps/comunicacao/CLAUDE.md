@@ -16,13 +16,13 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Fases 1, 2 e 3 feitas: configuração da base, membros, Início (com
-Equipamentos), Agenda (Domingo/Produção), Solicitações, Funções,
-Culto, Brand (Marcas + Acervo) e Wiki. Ponto de partida: cópia de
+As quatro fases do briefing estão feitas: configuração da base,
+membros, Início (com Equipamentos), Agenda (Domingo/Produção),
+Solicitações, Funções, Culto, Brand (Marcas + Acervo), Wiki, e a Área
+do líder (Escala sugerida + Enquetes). Ponto de partida: cópia de
 `apps/tecnica` (é a que já tem ministérios) + o Funções em separador
 da Apoio (a Técnica não tem essa aba, mete tudo na checklist do
-Início — a Comunicação tem as duas coisas). Fase 4 (Área do líder)
-por fazer.
+Início — a Comunicação tem as duas coisas).
 
 O briefing completo (`CLAUDE-comunicacao.md`, partilhado à parte) é a
 especificação de produto. Este ficheiro documenta só onde a
@@ -51,10 +51,10 @@ diferente — não são a mesma coleção:
 - **Wiki**: `bases/comunicacao/artigos`, não `bases/tecnica/wiki` — schema
   mais simples (sem ministérios, sem esqueletos), ver seção própria
   abaixo.
-- **Enquetes**: ainda não construídas (Fase 4). Quando forem, não vão
-  apontar para `bases/*/enquetes` (essa é a enquete de indisponibilidade
-  para montar escala — semântica completamente diferente da enquete
-  de opções do briefing).
+- **Enquetes**: `bases/comunicacao/enquetes` — **mesmo nome de coleção**
+  que a enquete de indisponibilidade de Técnica/Backstage (o briefing
+  usa esse path, §5.5), mas schema e regra diferentes por base — ver
+  seção própria abaixo. Não confundir os dois ao ler `firestore.rules`.
 
 ## Ministérios
 
@@ -232,8 +232,42 @@ componente que a Técnica usa para ministério), sem índice `wikiIndice`
 à parte — a coleção é pequena o suficiente para ler inteira de uma
 vez.
 
-## Próximas fases (ver briefing completo)
+## Enquetes
 
-- **Fase 4**: Área do líder — escala sugerida (lógica condicional,
-  sem IA) e enquetes (pergunta/opções genéricas — não confundir com a
-  enquete de indisponibilidade que já existe noutras bases).
+```js
+bases/comunicacao/enquetes/{id}          // MESMA coleção da enquete
+  pergunta, opcoes: string[],            // de indisponibilidade de
+  multiplaEscolha, prazo?,               // Técnica/Backstage, schema
+  criadoPorId, ativa, criadoEm           // e regra diferentes (ver
+bases/comunicacao/enquetes/{id}/respostas/{uid}  // firestore.rules:
+  opcoes: string[], em                             // gate por base)
+```
+
+Escrita direta do cliente (não Cloud Function): criar/fechar exige
+`souLiderBase('comunicacao')`; responder exige ser o próprio dono do
+documento **e** que a enquete ainda esteja `ativa` (checado na regra
+via `get()`, para não deixar responder depois de encerrada). Diferente
+da indisponibilidade, que é sempre por função porque excluir/reabrir
+tem de limpar respostas antigas — aqui não há esse efeito colateral.
+
+Líder cria/encerra em Painel do líder → Enquetes (`SheetEnquete`,
+`SheetRespostasEnquete` — resultado por opção com barra, e quem ainda
+não respondeu). Voluntário responde num banner "Enquete aberta" no
+Início (`SheetResponderEnquete`, reaproveita `.opcao`/`.chk` que já
+existem para escolher função em Funções — nenhuma classe nova).
+
+## Escala sugerida
+
+`lib/sugestor.js` — só `if`s, sem IA, botão "Sugestão automática"
+dentro do editor de escala (`SheetEscalaMinisterios`). Preenche só os
+lugares vazios (nunca troca o que o líder já escolheu) com quem, em
+cada ministério, está há mais tempo sem servir
+(`obterEstatisticasEscala`, já genérica, reaproveitada de
+`lib/painel.js`), sem repetir pessoa no mesmo culto.
+
+**Mais simples que o sugestor da Técnica de propósito**: esta base não
+tem enquete de indisponibilidade (não faz sentido construir uma só
+para isto — a Comunicação usa `enquetes` para pergunta/opções
+genéricas, ver acima), por isso não há "quem está de fora este
+domingo" a filtrar. Se um dia isso fizer falta a sério, é aí que entra
+— não antes.

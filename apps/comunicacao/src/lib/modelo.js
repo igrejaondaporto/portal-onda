@@ -10,6 +10,8 @@
  *   bases/{base}/ministerios/{ministerio}
  *   bases/{base}/equipamentos/{item}/historico/{h}   ← custódia, não stock (ver CLAUDE.md desta base)
  *   bases/{base}/artigos/{artigo}                    ← Wiki, sem editor no app (ver CLAUDE.md)
+ *   bases/{base}/enquetes/{id}/respostas/{pessoa}    ← genérica (pergunta/opções) — não confundir com
+ *                                                       a enquete de indisponibilidade de Técnica/Backstage
  *   bases/{base}/reembolsos/{r}
  *   marcas/{marca}/recursos/{recurso}                ← raiz, leitura de TODAS as bases (Brand)
  *   acervo/{item}                                    ← raiz, leitura de TODAS as bases
@@ -28,6 +30,8 @@ export const cMinisterios = () => collection(db, `bases/${BASE_ID}/ministerios`)
 export const cEquipamentos = () => collection(db, `bases/${BASE_ID}/equipamentos`);
 export const cHistoricoEquipamento = (itemId) => collection(db, `bases/${BASE_ID}/equipamentos/${itemId}/historico`);
 export const cArtigos     = () => collection(db, `bases/${BASE_ID}/artigos`);
+export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
+export const cRespostasEnquete = (enqueteId) => collection(db, `bases/${BASE_ID}/enquetes/${enqueteId}/respostas`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
 export const cMarcas      = () => collection(db, "marcas");
 export const cRecursos    = (marcaId) => collection(db, `marcas/${marcaId}/recursos`);

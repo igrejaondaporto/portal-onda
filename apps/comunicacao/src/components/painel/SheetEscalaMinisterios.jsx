@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { guardarEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
+import { guardarEscala, dispensarBaseDeEvento, reincluirBaseEmEvento, obterEstatisticasEscala } from "../../lib/painel";
+import { sugerirLugares } from "../../lib/sugestor";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
@@ -42,8 +43,23 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
     })
   );
   const [aGuardar, setAGuardar] = useState(false);
+  const [aSugerir, setASugerir] = useState(false);
 
   if (!evento) return null;
+
+  // só IFs, sem IA (ver lib/sugestor.js) — preenche o que está vazio,
+  // nunca troca quem o líder já escolheu à mão
+  async function sugerir() {
+    setASugerir(true);
+    try {
+      const estatisticas = await obterEstatisticasEscala(90);
+      setLugares((atual) => sugerirLugares(ministerios, voluntarios, estatisticas, atual));
+    } catch (e) {
+      torrada(e.message || "Não foi possível sugerir.");
+    } finally {
+      setASugerir(false);
+    }
+  }
 
   const pessoasNoNivel = (ministerioId, nivel) =>
     voluntarios.filter((p) => p.ministerios?.[ministerioId] === nivel);
@@ -83,6 +99,11 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">Titular e aprendiz por ministério · chegada {evento.horaChegada || "08:30"}</p>
+
+        <button className="btn sec full" style={{ marginTop: 14 }} disabled={aSugerir} onClick={sugerir}>
+          {aSugerir ? "A sugerir…" : "Sugestão automática"}
+        </button>
+        <p className="ds" style={{ marginTop: 6 }}>Preenche só os lugares vazios, com quem serviu há mais tempo. Revê antes de guardar.</p>
 
         {ministerios.map((m) => {
           const lugar = lugares.find((l) => l.ministerioId === m.id);
