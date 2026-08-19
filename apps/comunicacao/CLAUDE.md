@@ -51,10 +51,14 @@ diferente — não são a mesma coleção:
 - **Wiki**: `bases/comunicacao/artigos`, não `bases/tecnica/wiki` — schema
   mais simples (sem ministérios, sem esqueletos), ver seção própria
   abaixo.
-- **Enquetes**: `bases/comunicacao/enquetes` — **mesmo nome de coleção**
-  que a enquete de indisponibilidade de Técnica/Backstage (o briefing
-  usa esse path, §5.5), mas schema e regra diferentes por base — ver
-  seção própria abaixo. Não confundir os dois ao ler `firestore.rules`.
+- **Enquetes**: `bases/comunicacao/enquetes` — **mesmo path, mesmo
+  schema, mesma regra** da enquete de indisponibilidade de
+  Técnica/Backstage (`write: false`, só por Cloud Function). O
+  briefing (§5.5) descrevia uma enquete genérica de pergunta/opções;
+  chegámos a construir essa versão e o líder pediu para a excluir —
+  "totalmente inútil", o que ele queria mesmo era a indisponibilidade
+  que já existe nas outras bases, porque alimenta a Escala sugerida.
+  Ver seção própria abaixo.
 
 ## Ministérios
 
@@ -245,29 +249,44 @@ componente que a Técnica usa para ministério), sem índice `wikiIndice`
 à parte — a coleção é pequena o suficiente para ler inteira de uma
 vez.
 
-## Enquetes
+## Enquetes (indisponibilidade — não é a genérica que o briefing pedia)
 
 ```js
-bases/comunicacao/enquetes/{id}          // MESMA coleção da enquete
-  pergunta, opcoes: string[],            // de indisponibilidade de
-  multiplaEscolha, prazo?,               // Técnica/Backstage, schema
-  criadoPorId, ativa, criadoEm           // e regra diferentes (ver
-bases/comunicacao/enquetes/{id}/respostas/{uid}  // firestore.rules:
-  opcoes: string[], em                             // gate por base)
+bases/comunicacao/enquetes/{mes}         // {mes} = "AAAA-MM", igual a
+  domingos: string[],                    // Técnica/Backstage
+  estado: aberta|fechada, ativo,
+  abertaEm, prazo?, escalaPublicada?
+bases/comunicacao/enquetes/{mes}/respostas/{uid}
+  indisponivelEm: string[], semIndisponibilidade, nota, respondidoEm
 ```
 
-Escrita direta do cliente (não Cloud Function): criar/fechar exige
-`souLiderBase('comunicacao')`; responder exige ser o próprio dono do
-documento **e** que a enquete ainda esteja `ativa` (checado na regra
-via `get()`, para não deixar responder depois de encerrada). Diferente
-da indisponibilidade, que é sempre por função porque excluir/reabrir
-tem de limpar respostas antigas — aqui não há esse efeito colateral.
+`write: false` nos dois níveis — só por Cloud Function
+(`abrirEnquete`, `fecharEnquete`, `reabrirEnquete`, `excluirEnquete`,
+`responderEnquete`, `marcarEscalaPublicada`, em `functions/index.js`),
+**já genéricas por `baseId`** — não foi preciso mexer no backend para
+a Comunicação ganhar isto, só `lib/enquetes.js` (`apps/comunicacao`,
+portado quase 1:1 de `apps/tecnica`) e as telas.
 
-Líder cria/encerra em Painel do líder → Enquetes (`SheetEnquete`,
-`SheetRespostasEnquete` — resultado por opção com barra, e quem ainda
-não respondeu). Voluntário responde num banner "Enquete aberta" no
-Início (`SheetResponderEnquete`, reaproveita `.opcao`/`.chk` que já
-existem para escolher função em Funções — nenhuma classe nova).
+**Não é o que o briefing pedia.** O §5.5 descrevia uma enquete
+genérica (pergunta + opções, criador escolhe o que perguntar) —
+chegámos a construir essa versão inteira (`SheetEnquete`,
+`SheetRespostasEnquete`, regra própria com `base=='comunicacao'`) e o
+líder mandou excluir: "totalmente inútil, as enquetes que eu quero é
+as enquetes para Indisponibilidades mesmo, que dali já tira as infos
+para montar a escala." Ficou o mecanismo real de indisponibilidade,
+igual ao da Técnica/Backstage — mesmo path, mesmo schema, mesma regra.
+Sem "Responsável" rotativo nem lugares travados (ver Ministérios
+acima), por isso a versão da Comunicação não tem o resto da
+complexidade da Técnica (texto para WhatsApp por lugar, alertas de
+sobrecarga) — só abrir/fechar/responder e o que o sugestor precisa.
+
+Líder abre/gere em Painel do líder → Indisponibilidades
+(`SheetAbrirEnquete` para abrir um mês, `SheetIndisponibilidade` para
+ver respostas por domingo, quem falta responder, encerrar/reabrir/
+excluir — todos portados de `apps/tecnica` sem alteração de schema).
+Voluntário responde num banner no Início ("A precisar de ti —
+indisponibilidades de {mês}", `SheetResponderEnquete`) — mesmo
+componente e texto da Técnica.
 
 ## Escala sugerida
 
@@ -278,9 +297,12 @@ cada ministério, está há mais tempo sem servir
 (`obterEstatisticasEscala`, já genérica, reaproveitada de
 `lib/painel.js`), sem repetir pessoa no mesmo culto.
 
-**Mais simples que o sugestor da Técnica de propósito**: esta base não
-tem enquete de indisponibilidade (não faz sentido construir uma só
-para isto — a Comunicação usa `enquetes` para pergunta/opções
-genéricas, ver acima), por isso não há "quem está de fora este
-domingo" a filtrar. Se um dia isso fizer falta a sério, é aí que entra
-— não antes.
+**Usa a indisponibilidade real** (ver Enquetes acima): antes de
+sugerir, `SheetEscalaMinisterios` busca as respostas do mês do culto
+(`obterRespostas`, one-shot, não live) e passa a
+`indisponiveisNoCulto(respostas, evento.id)` — quem marcou aquele
+domingo como indisponível nunca é sugerido, mas continua escolhível à
+mão no `<select>` (a exclusão é só da sugestão automática, não uma
+regra de negócio). Sem enquete aberta para o mês, o conjunto de
+indisponíveis fica vazio — a sugestão nunca trava por falta dela, só
+perde a restrição.

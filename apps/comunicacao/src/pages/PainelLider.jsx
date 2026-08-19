@@ -6,7 +6,7 @@ import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios, ouvirEquipamentos,
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
 } from "../lib/painel";
-import { ouvirEnquetes } from "../lib/enquetes";
+import { ouvirEnquetesMontar, obterEventosPorIds } from "../lib/enquetes";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -22,11 +22,11 @@ import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetFuncao from "../components/painel/SheetFuncao";
 import SheetMinisterio from "../components/painel/SheetMinisterio";
 import SheetEquipamento from "../components/painel/SheetEquipamento";
-import SheetEnquete from "../components/painel/SheetEnquete";
-import SheetRespostasEnquete from "../components/painel/SheetRespostasEnquete";
+import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
+import SheetIndisponibilidade from "../components/painel/SheetIndisponibilidade";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 
-export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
+export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -37,6 +37,7 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
   const [funcoes, setFuncoes] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [enquetes, setEnquetes] = useState([]);
+  const [eventosEnquete, setEventosEnquete] = useState({});
   const [eventosMes, setEventosMes] = useState([]);
   const [eventosRef, setEventosRef] = useState({});
   const [sheet, setSheet] = useState(null);
@@ -85,7 +86,14 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirEquipamentos(setEquipamentos), []);
-  useEffect(() => ouvirEnquetes(setEnquetes), []);
+  useEffect(() => ouvirEnquetesMontar(setEnquetes), []);
+  useEffect(() => {
+    const ids = [...new Set(enquetes.flatMap((e) => e.domingos || []))];
+    const faltam = ids.filter((id) => !eventosEnquete[id]);
+    if (!faltam.length) return;
+    obterEventosPorIds(faltam).then((novos) => setEventosEnquete((prev) => ({ ...prev, ...novos })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enquetes.map((e) => e.id).join(",")]);
 
   const recarregarMes = useCallback(() => {
     obterEventosDoMes(ano, mes).then(setEventosMes);
@@ -334,18 +342,21 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
 
           <div className="sect">
             <div className="cabecalho">
-              <h3>Enquetes</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "enquete" })}>
-                Nova
+              <h3>Indisponibilidades</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "abrirEnquete" })}>
+                Abrir enquete
               </button>
             </div>
+            <p className="ds" style={{ padding: "8px 0 2px" }}>
+              "Sugestão automática" (dentro de cada culto, em Escala) usa isto para não sugerir quem está de fora.
+            </p>
             {enquetes.length ? enquetes.map((e) => (
-              <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "respostasEnquete", enqueteId: e.id })}>
+              <div className="linha" style={{ cursor: "pointer" }} key={e.id} onClick={() => setSheet({ tipo: "indisponibilidade", enqueteId: e.id })}>
                 <div style={{ flex: 1 }}>
-                  <p className="nmt">{e.pergunta}</p>
-                  <p className="ds">{e.opcoes.length} opções</p>
+                  <p className="nmt">{MESES[Number(e.id.split("-")[1]) - 1]} {e.id.split("-")[0]}</p>
+                  <p className="ds">{(e.domingos || []).length} cultos</p>
                 </div>
-                <span className={`tag ${e.ativa ? "verd" : "cinz"}`}>{e.ativa ? "aberta" : "encerrada"}</span>
+                <span className={`tag ${e.estado === "aberta" ? "verd" : "cinz"}`}>{e.estado === "aberta" ? "aberta" : "fechada"}</span>
               </div>
             )) : (
               <div className="vaz">Ainda sem enquetes.</div>
@@ -460,17 +471,17 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
-      {sheet?.tipo === "enquete" && (
-        <SheetEnquete
-          uid={uid}
+      {sheet?.tipo === "abrirEnquete" && (
+        <SheetAbrirEnquete
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
-      {sheet?.tipo === "respostasEnquete" && (
-        <SheetRespostasEnquete
+      {sheet?.tipo === "indisponibilidade" && (
+        <SheetIndisponibilidade
           enquete={enquetes.find((e) => e.id === sheet.enqueteId)}
           voluntarios={voluntarios}
+          eventosPorId={eventosEnquete}
           onFechar={() => setSheet(null)}
           onMudou={() => {}}
         />

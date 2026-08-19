@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { guardarEscala, dispensarBaseDeEvento, reincluirBaseEmEvento, obterEstatisticasEscala } from "../../lib/painel";
-import { sugerirLugares } from "../../lib/sugestor";
+import { obterRespostas } from "../../lib/enquetes";
+import { sugerirLugares, indisponiveisNoCulto } from "../../lib/sugestor";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
@@ -48,12 +49,21 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
   if (!evento) return null;
 
   // só IFs, sem IA (ver lib/sugestor.js) — preenche o que está vazio,
-  // nunca troca quem o líder já escolheu à mão
+  // nunca troca quem o líder já escolheu à mão. Vai buscar a enquete
+  // de indisponibilidade do mês deste culto (evento.id é "AAAA-MM-DD")
+  // para não sugerir quem marcou que não pode — se não houver enquete
+  // nesse mês, segue sem essa restrição, nunca trava por causa disso.
   async function sugerir() {
     setASugerir(true);
     try {
-      const estatisticas = await obterEstatisticasEscala(90);
-      setLugares((atual) => sugerirLugares(ministerios, voluntarios, estatisticas, atual));
+      const mes = evento.id.slice(0, 7);
+      const [estatisticas, respostas] = await Promise.all([
+        obterEstatisticasEscala(90),
+        obterRespostas(mes).catch(() => []),
+      ]);
+      const indisponiveis = indisponiveisNoCulto(respostas, evento.id);
+      setLugares((atual) => sugerirLugares(ministerios, voluntarios, estatisticas, atual, indisponiveis));
+      if (indisponiveis.size) torrada(`${indisponiveis.size} pessoa${indisponiveis.size === 1 ? "" : "s"} de fora por indisponibilidade`);
     } catch (e) {
       torrada(e.message || "Não foi possível sugerir.");
     } finally {
