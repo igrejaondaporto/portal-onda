@@ -124,20 +124,25 @@ só, para todas as bases (ver `CLAUDE.md` raiz, regra 7).
 
 ## Navegação
 
-Barra inferior: `Início · Agenda · Solicitações · Funções · Culto ·
-Wiki · Brand` — o menu final do briefing, completo. Sem Inventário (a
-Comunicação não tem esse conceito — ver Equipamentos acima). "Agenda"
-é a antiga "Escala" (chave interna continua `escala`, só o rótulo
-mudou) com duas sub-abas por cima: **Domingo** (a escala de sempre) e
-**Solicitações** — o mesmo `Solicitacoes.jsx` da aba principal,
-embrulhado ali dentro (`<Solicitacoes uid papel ativo definirCabecalho>`,
-mesmas props que recebe como página própria). O briefing (§5.6)
-sugeria uma vista filtrada só do que a pessoa produz — construída e
-depois removida a pedido do líder ("não tem uso"): sem sentido ter um
-resumo pobre quando o quadro completo (ver Solicitações abaixo) cabe
-ali do mesmo jeito e já tem tudo. As duas entradas (Agenda →
-Solicitações, e a aba própria na barra) mostram o mesmo estado ao
-vivo — não há cópia nem coleção paralela, é o mesmo componente.
+Barra inferior: `Início · Agenda · Funções · Culto · Wiki · Brand` —
+**sem "Solicitações" própria**, diferente do menu que o briefing
+original sugeria. "Agenda" é a antiga "Escala" (chave interna continua `escala`,
+só o rótulo mudou) com duas sub-abas por cima: **Domingo** (a escala
+de sempre) e **Solicitações** — o `Solicitacoes.jsx` inteiro
+(`<Solicitacoes uid papel ativo definirCabecalho>`), quadro Kanban e
+tudo, embrulhado ali dentro.
+
+Passou por três formas até aqui, todas a pedido do líder depois de
+testar: (1) o briefing pedia uma aba própria na barra, mais uma vista
+filtrada só do que a pessoa produz dentro de Agenda — "A tua
+produção", uma lista sem ação nenhuma; (2) essa lista saiu, e a
+sub-aba passou a embrulhar o `Solicitacoes.jsx` completo, com a aba
+própria na barra a continuar a existir em paralelo, as duas a mostrar
+o mesmo estado ao vivo; (3) a aba própria saiu da barra — "não tem
+uso [...] deixa ele apenas como um menu secundário em Agenda". Hoje
+só há um caminho para lá: Agenda → Solicitações. Sem coleção
+paralela nem cópia de estado — é sempre o mesmo componente, só muda
+onde é montado.
 
 ## Solicitações
 

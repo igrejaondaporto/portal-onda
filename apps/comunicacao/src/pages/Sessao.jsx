@@ -13,21 +13,20 @@ import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Funcoes from "./Funcoes";
 import Culto from "./Culto";
-import Solicitacoes from "./Solicitacoes";
 import Wiki from "./Wiki";
 import Brand from "./Brand";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
 
 // ícones que não existem no ICO padrão do NavBar (packages/shared)
-const ICONE_SOLICITACOES = '<path d="M8 3h8a1 1 0 0 1 1 1v1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1V4a1 1 0 0 1 1-1z"/><path d="M9 3h6v3H9z"/><path d="M8 12h8M8 16h5"/>';
 const ICONE_WIKI = '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>';
 const ICONE_BRAND = '<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="13.5" cy="17.5" r="2.5"/>';
 
+// Solicitações não é aba própria — pedido do líder: vive só como
+// sub-aba dentro de Agenda (ver Escala.jsx), a barra fica mais curta.
 const ABAS = [
   ["inicio", "Início"],
   ["escala", "Agenda"],
-  ["solicitacoes", "Solicitações", ICONE_SOLICITACOES],
   ["funcoes", "Funções"],
   ["culto", "Culto"],
   ["wiki", "Wiki", ICONE_WIKI],
@@ -185,9 +184,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               ativo={pagina === "escala"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
             />
-          </div>
-          <div style={{ display: pagina === "solicitacoes" ? "" : "none" }}>
-            <Solicitacoes uid={uid} papel={papel} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
             <Funcoes
