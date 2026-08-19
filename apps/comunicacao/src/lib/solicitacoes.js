@@ -18,19 +18,6 @@ export function ouvirSolicitacoes(cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
-/** Só as que estou a produzir eu — para a aba Produção dentro da
- *  Escala/Agenda (ver CLAUDE-comunicacao.md §5.6: é uma consulta,
- *  nunca uma coleção própria). */
-export function ouvirMinhaProducao(uid, cb) {
-  const q = query(
-    cSolicitacoes(),
-    where("responsavelId", "==", uid),
-    where("status", "in", ["fila", "producao", "revisao"]),
-    orderBy("prazo")
-  );
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
-}
-
 /** Transferências à minha espera — para o banner no Início. Uma
  *  equality num campo do mapa (transferePendente.paraId), sem
  *  orderBy, não precisa de índice composto. */

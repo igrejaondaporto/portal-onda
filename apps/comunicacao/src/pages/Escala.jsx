@@ -1,41 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios } from "../lib/painel";
-import { ouvirMinhaProducao } from "../lib/solicitacoes";
-import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
+import Solicitacoes from "./Solicitacoes";
 
-const ROTULO_STATUS = { fila: "Na fila", producao: "Em produção", revisao: "Em revisão" };
-
-/** A aba Produção não tem coleção própria — é uma consulta a
- *  solicitacoes (ver CLAUDE-comunicacao.md §5.6). Sem sheet de
- *  detalhe aqui: abre em Solicitações, é lá que se muda o estado. */
-function AbaProducao({ uid, onVerSolicitacoes }) {
-  const [minhas, setMinhas] = useState([]);
-  useEffect(() => ouvirMinhaProducao(uid, setMinhas), [uid]);
-
-  return (
-    <div className="sect">
-      <div className="cabecalho"><h3>A tua produção</h3></div>
-      {minhas.length === 0 ? (
-        <div className="vaz">Nada atribuído a ti agora.</div>
-      ) : (
-        minhas.map((s) => (
-          <div className="linha" style={{ cursor: "pointer" }} key={s.id} onClick={onVerSolicitacoes}>
-            <div style={{ flex: 1 }}>
-              <p className="nmt">{s.titulo}</p>
-              <p className="ds">{s.baseSolicitanteId} · prazo {dataPorExtenso(s.prazo)}</p>
-            </div>
-            <span className="tag cinz">{ROTULO_STATUS[s.status]}</span>
-          </div>
-        ))
-      )}
-      <p className="nota">Muda o estado ou marca a entrega em Solicitações.</p>
-    </div>
-  );
-}
-
-export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes, onIrSolicitacoes }) {
+export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [aba, setAba] = useState("domingo");
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -71,13 +41,13 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   const hoje = hojeISO();
 
   useEffect(() => {
-    if (!ativo) return;
+    // a aba Solicitações define o próprio cabeçalho (é a mesma
+    // Solicitacoes.jsx da aba principal) — aqui só quando é Domingo
+    if (!ativo || aba !== "domingo") return;
     definirCabecalho({
       titulo: "Agenda",
-      subtitulo: aba === "domingo" ? `Os cultos de ${MESES[mes].toLowerCase()}` : "O que estás a produzir",
-      chips: aba === "domingo"
-        ? [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:30"}` : "Escala por definir"]
-        : [],
+      subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
+      chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:30"}` : "Escala por definir"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, eventosMes.length, temEscala, mes, base, aba]);
@@ -88,11 +58,11 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
     <>
       <div className="subtabs" style={{ marginTop: 4 }}>
         <button data-on={aba === "domingo" ? 1 : 0} onClick={() => setAba("domingo")}>Domingo</button>
-        <button data-on={aba === "producao" ? 1 : 0} onClick={() => setAba("producao")}>Produção</button>
+        <button data-on={aba === "solicitacoes" ? 1 : 0} onClick={() => setAba("solicitacoes")}>Solicitações</button>
       </div>
 
-      {aba === "producao" ? (
-        <AbaProducao uid={uid} onVerSolicitacoes={onIrSolicitacoes} />
+      {aba === "solicitacoes" ? (
+        <Solicitacoes uid={uid} papel={papel} ativo={ativo && aba === "solicitacoes"} definirCabecalho={definirCabecalho} />
       ) : (
       <>
       <div className="sect">

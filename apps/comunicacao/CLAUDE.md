@@ -17,7 +17,7 @@ três toques, está mal desenhada.
 ## Estado
 
 As quatro fases do briefing estão feitas: configuração da base,
-membros, Início (com Equipamentos), Agenda (Domingo/Produção),
+membros, Início (com Equipamentos), Agenda (Domingo/Solicitações),
 Solicitações, Funções, Culto, Brand (Marcas + Acervo), Wiki, e a Área
 do líder (Escala sugerida + Enquetes). Ponto de partida: cópia de
 `apps/tecnica` (é a que já tem ministérios) + o Funções em separador
@@ -129,9 +129,15 @@ Wiki · Brand` — o menu final do briefing, completo. Sem Inventário (a
 Comunicação não tem esse conceito — ver Equipamentos acima). "Agenda"
 é a antiga "Escala" (chave interna continua `escala`, só o rótulo
 mudou) com duas sub-abas por cima: **Domingo** (a escala de sempre) e
-**Produção** — consulta a `solicitacoes` filtrada por
-`responsavelId == eu` (ver `CLAUDE-comunicacao.md` §5.6 — nunca uma
-coleção própria, senão desincroniza de Solicitações).
+**Solicitações** — o mesmo `Solicitacoes.jsx` da aba principal,
+embrulhado ali dentro (`<Solicitacoes uid papel ativo definirCabecalho>`,
+mesmas props que recebe como página própria). O briefing (§5.6)
+sugeria uma vista filtrada só do que a pessoa produz — construída e
+depois removida a pedido do líder ("não tem uso"): sem sentido ter um
+resumo pobre quando o quadro completo (ver Solicitações abaixo) cabe
+ali do mesmo jeito e já tem tudo. As duas entradas (Agenda →
+Solicitações, e a aba própria na barra) mostram o mesmo estado ao
+vivo — não há cópia nem coleção paralela, é o mesmo componente.
 
 ## Solicitações
 
