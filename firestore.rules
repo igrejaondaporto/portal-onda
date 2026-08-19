@@ -126,20 +126,19 @@ service cloud.firestore {
         }
       }
 
-      // ── enquetes: MESMO nome de coleção, DUAS semânticas por base —
-      // não confundir. Em Técnica/Backstage é a enquete mensal de
-      // indisponibilidade (documento por mês, sempre por Cloud
-      // Function — apagar/reabrir tem de limpar respostas antigas,
-      // ver functions/index.js). Na Comunicação (§5.5 do briefing) é
-      // uma enquete genérica de pergunta/opções, sem esse efeito
-      // colateral, por isso escreve direto — mas só nessa base. ──
-      match /enquetes/{id} {
+      // ── enquetes de indisponibilidade: um documento por mês,
+      // aberto/fechado só pelo líder. Voto privado — cada voluntário
+      // só lê a própria resposta, o líder vê o conjunto. Sempre por
+      // Cloud Function (abrir/fechar/responder), em QUALQUER base —
+      // apagar/reabrir tem de limpar respostas antigas na mesma
+      // escrita, e é o que alimenta a Escala sugerida (ver
+      // CLAUDE.md da Comunicação e functions/index.js). ──
+      match /enquetes/{mes} {
         allow read:  if minhaBase(base);
-        allow write: if base == 'comunicacao' && souLiderBase(base);
+        allow write: if false;                     // só por função
         match /respostas/{pessoa} {
           allow read:  if souLiderBase(base) || euSou(pessoa);
-          allow write: if base == 'comunicacao' && euSou(pessoa)
-                       && get(/databases/$(database)/documents/bases/$(base)/enquetes/$(id)).data.ativa == true;
+          allow write: if false;                   // só por função
         }
       }
 
