@@ -125,6 +125,14 @@
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "abertaEm", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "enquetes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativa", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
