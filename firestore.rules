@@ -138,6 +138,16 @@ service cloud.firestore {
         }
       }
 
+      // ── wiki da Comunicação: leitura+busca no cliente, sem editor
+      // no app nesta fase (dívida consciente, ver CLAUDE.md desta
+      // base) — o conteúdo entra por fora do app, nunca por escrita
+      // do cliente. Diferente de bases/{b}/wiki (Técnica): sem
+      // ministérios, sem esqueletos, sem dúvidas com resposta. ──
+      match /artigos/{artigo} {
+        allow read:  if minhaBase(base);
+        allow write: if false;
+      }
+
       // ── tour de primeiro login: conteúdo dos passos, por base.
       // Muda raramente (escrito por script, não pelo líder) — lido só
       // sob demanda (getDoc pontual), nunca com onSnapshot. ──
@@ -214,6 +224,26 @@ service cloud.firestore {
     match /solicitacoes/{id} {
       allow read:  if minhaBase(resource.data.baseSolicitanteId) || minhaBase('comunicacao');
       allow write: if false;                     // só por função
+    }
+
+    // ── Brand: marcas + acervo ──────────────────────────────
+    // Raiz, não bases/comunicacao: leitura para TODAS as bases (o
+    // líder de Kids precisa do logo certo tanto quanto a Comunicação
+    // — briefing §6.7). Escrita só do líder da Comunicação. Sem
+    // autoria mista nem histórico obrigatório (ao contrário de
+    // Solicitações), por isso escrita direta do cliente já chega,
+    // como funcoes/{ministerio}. ──
+    match /marcas/{marca} {
+      allow read:  if autenticado();
+      allow write: if souLiderBase('comunicacao');
+      match /recursos/{recurso} {
+        allow read:  if autenticado();
+        allow write: if souLiderBase('comunicacao');
+      }
+    }
+    match /acervo/{item} {
+      allow read:  if autenticado();
+      allow write: if souLiderBase('comunicacao');
     }
 
     // ── painel de progresso das bases (painelonda.pt) ─────
