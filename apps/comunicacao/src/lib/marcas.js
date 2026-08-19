@@ -6,7 +6,9 @@
  * (ao contrário de Solicitações).
  */
 import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
-import { db } from "@portal/shared/lib/firebase.js";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@portal/shared/lib/firebase.js";
+import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 import { cMarcas, cRecursos } from "./modelo";
 
 export function ouvirMarcas(cb) {
@@ -23,6 +25,17 @@ export async function criarMarca(id, dados) {
 
 export const guardarMarca = (id, dados) => updateDoc(doc(db, `marcas/${id}`), dados);
 export const desativarMarca = (id) => updateDoc(doc(db, `marcas/${id}`), { ativo: false });
+
+/** Único upload de Brand/Acervo — decisão explícita do líder, reverte
+ *  a regra "sem upload" só para este campo (ver CLAUDE.md desta base).
+ *  900px chega de sobra: é uma foto de fundo de card pequeno, não um
+ *  ficheiro de trabalho como os do Acervo (esses continuam por link). */
+export async function enviarFotoMarca(marcaId, ficheiro) {
+  const comprimida = await comprimirImagem(ficheiro, { maxDimensao: 900 });
+  const destino = refStorage(storage, `marcas/${marcaId}`);
+  await uploadBytes(destino, comprimida, { contentType: comprimida.type });
+  return getDownloadURL(destino);
+}
 
 export function ouvirRecursos(marcaId, cb) {
   const q = query(cRecursos(marcaId), orderBy("ordem"), orderBy("titulo"));

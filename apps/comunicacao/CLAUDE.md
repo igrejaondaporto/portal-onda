@@ -214,6 +214,19 @@ Miniatura do recurso: `thumbUrl` se preenchido, senão a inicial do
 título (mesmo padrão de Melhorias) — sem emoji por tipo, decisão
 explícita do líder para não inventar uma convenção nova.
 
+**Foto da marca é upload, não link — reversão deliberada da regra
+"sem upload" do briefing.** O princípio 2 do briefing dizia "nada de
+upload de arquivo no painel, em qualquer tela"; o líder pediu
+explicitamente um campo de upload para a foto de fundo do card (com o
+tamanho ideal escrito por baixo — 600×400px, 3:2). Só este campo
+muda: os recursos dentro do kit e o Acervo continuam por link, como
+o briefing sempre pediu. Implementação é o mesmo padrão já usado para
+foto de função/pessoa (`comprimirImagem` a 900px, Storage, ver
+`storage.rules` — `marcas/{ficheiro}`, só o líder da Comunicação
+escreve). `SheetMarca` gera o id da marca já na abertura (mesmo para
+"nova"), para o upload ter um caminho antes de o documento existir no
+Firestore — igual ao `novoFuncaoId`.
+
 ## Wiki
 
 ```js
