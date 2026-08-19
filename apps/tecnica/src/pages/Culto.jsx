@@ -84,7 +84,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
       <p className="ds" style={{ margin: "6px 0 2px" }}>{MESES[mes]} {ano}</p>
 
       {aba === "ordem" ? (
-        <>
+        <div style={{ marginTop: 16 }}>
         {anteriores.length > 0 && proximos.length > 0 && (
           <div className="subtabs tec-filtro-culto">
             <button data-on={!verAnteriores ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
@@ -111,7 +111,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
             onVerFuncoes={onVerFuncoes}
           />
         ))}
-        </>
+        </div>
       ) : (
         <>
           <p className="nota" style={{ marginTop: 16 }}>

@@ -65,7 +65,8 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
       </div>
 
       {aba === "ordem" ? (
-        eventosMes.map((ev) => (
+        <div style={{ marginTop: 16 }}>
+        {eventosMes.map((ev) => (
           <OrdemCultoCard
             key={ev.id} evento={ev} podePublicar={podePublicar}
             aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
@@ -75,7 +76,8 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
             onNotasGuardadas={(eventoId, notas) => setEventosMes((lista) => lista.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}
             onVerFuncoes={onVerFuncoes}
           />
-        ))
+        ))}
+        </div>
       ) : (
         <>
           <p className="nota" style={{ marginTop: 16 }}>
