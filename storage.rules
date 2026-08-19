@@ -34,6 +34,16 @@ service firebase.storage {
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
     }
+    // Brand (Comunicação): foto de fundo do card de cada marca. Raiz,
+    // não bases/comunicacao — a coleção marcas também é raiz (leitura
+    // para todas as bases, ver firestore.rules). Único upload de
+    // Brand/Acervo — os recursos dentro do kit e o Acervo continuam
+    // só por link (ver CLAUDE.md desta base, decisão explícita do
+    // líder de reverter a regra "sem upload" só para este campo).
+    match /marcas/{ficheiro} {
+      allow read:  if autenticado();
+      allow write: if lider('comunicacao') && imagem();
+    }
     match /eventos/{evento}/ordem.pdf {
       allow read:  if autenticado();
       // no delete, request.resource é sempre null — só se exige o
