@@ -66,15 +66,20 @@ service cloud.firestore {
       }
 
       // ── ministérios (Base Técnica, Comunicação) ───────────
+      // Comunicação também lê para quem NÃO é da Comunicação: quem
+      // abre uma solicitação (SheetAbrirSolicitacao, qualquer base)
+      // escolhe o ministério certo (Fotografia/Social Media/...) —
+      // mesma lógica do carve-out de marcas/acervo (nome/cor não é
+      // sensível). As outras bases continuam fechadas a minhaBase. ──
       match /ministerios/{ministerio} {
-        allow read:  if minhaBase(base);
+        allow read:  if minhaBase(base) || (base == 'comunicacao' && autenticado());
         allow write: if souLiderBase(base);
       }
 
-      // ── wiki (Base Técnica): autoria mista (líder cria esqueletos,
-      // qualquer voluntário escreve/edita/responde) e cada write tem
-      // de recalcular wikiIndice/{base} — por isso passa sempre pela
-      // Cloud Function, nunca escrita direta do cliente. ──
+      // ── wiki (Técnica, Comunicação): autoria mista (líder cria
+      // esqueletos, qualquer voluntário escreve/edita/responde) e
+      // cada write tem de recalcular wikiIndice/{base} — por isso
+      // passa sempre pela Cloud Function, nunca escrita direta. ──
       match /wiki/{artigo} {
         allow read:  if minhaBase(base);
         allow write: if false;                     // só por função
@@ -140,16 +145,6 @@ service cloud.firestore {
           allow read:  if souLiderBase(base) || euSou(pessoa);
           allow write: if false;                   // só por função
         }
-      }
-
-      // ── wiki da Comunicação: leitura+busca no cliente, sem editor
-      // no app nesta fase (dívida consciente, ver CLAUDE.md desta
-      // base) — o conteúdo entra por fora do app, nunca por escrita
-      // do cliente. Diferente de bases/{b}/wiki (Técnica): sem
-      // ministérios, sem esqueletos, sem dúvidas com resposta. ──
-      match /artigos/{artigo} {
-        allow read:  if minhaBase(base);
-        allow write: if false;
       }
 
       // ── tour de primeiro login: conteúdo dos passos, por base.

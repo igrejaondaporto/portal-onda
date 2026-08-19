@@ -1726,14 +1726,23 @@ function diasEntre(hojeISO, prazoISO) {
   return Math.round((new Date(`${prazoISO}T00:00:00Z`) - new Date(`${hojeISO}T00:00:00Z`)) / MS_DIA);
 }
 
+async function exigeMinisterioComunicacaoAtivo(ministerioId) {
+  if (!ministerioId) throw new HttpsError("invalid-argument", "Falta escolher para que ministério é.");
+  const snap = await db.doc(`bases/comunicacao/ministerios/${ministerioId}`).get();
+  if (!snap.exists || snap.data().ativo === false) {
+    throw new HttpsError("invalid-argument", "Esse ministério não existe.");
+  }
+}
+
 export const abrirSolicitacao = onCall(async (req) => {
   const baseId = exigeLider(req); // qualquer líder de base — a de quem pede, não a da Comunicação
   const uid = req.auth.uid;
-  const { titulo, oQue, ondeUsa, textoFinal = "", linkReferencia = "", prazo } = req.data || {};
+  const { titulo, oQue, ondeUsa, textoFinal = "", linkReferencia = "", prazo, ministerioId } = req.data || {};
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!oQue?.trim()) throw new HttpsError("invalid-argument", "Falta descrever o que precisas.");
   if (!ondeUsa?.trim()) throw new HttpsError("invalid-argument", "Falta dizer onde isto vai ser usado.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
+  await exigeMinisterioComunicacaoAtivo(ministerioId);
 
   const slaDiasMinimos = await slaDiasMinimosComunicacao();
   const hoje = new Date().toISOString().slice(0, 10);
@@ -1743,10 +1752,11 @@ export const abrirSolicitacao = onCall(async (req) => {
   const ref = db.collection("solicitacoes").doc();
   await ref.set({
     titulo: titulo.trim(), baseSolicitanteId: baseId, solicitanteId: uid, solicitanteNome,
-    oQue: oQue.trim(), ondeUsa: ondeUsa.trim(),
+    oQue: oQue.trim(), ondeUsa: ondeUsa.trim(), ministerioId,
     textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(),
     prazo, foraDoPrazo, status: "fila",
     responsavelId: null, responsavelNome: null, entregaUrl: null, entregueEm: null,
+    transferePendente: null,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     historico: [{ de: null, para: "fila", porId: uid, porNome: solicitanteNome, em: admin.firestore.Timestamp.now() }],
   });
@@ -1755,7 +1765,7 @@ export const abrirSolicitacao = onCall(async (req) => {
 
 // só quem está em "fila" ainda é do solicitante — depois disso é a
 // Comunicação que decide (ver firestore.rules)
-const CAMPOS_EDITAVEIS_SOLICITANTE = ["titulo", "oQue", "ondeUsa", "textoFinal", "linkReferencia", "prazo"];
+const CAMPOS_EDITAVEIS_SOLICITANTE = ["titulo", "oQue", "ondeUsa", "textoFinal", "linkReferencia", "prazo", "ministerioId"];
 
 export const editarSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
@@ -1781,6 +1791,7 @@ export const editarSolicitacao = onCall(async (req) => {
     const slaDiasMinimos = await slaDiasMinimosComunicacao();
     dados.foraDoPrazo = diasEntre(new Date().toISOString().slice(0, 10), dados.prazo) < slaDiasMinimos;
   }
+  if (dados.ministerioId !== undefined) await exigeMinisterioComunicacaoAtivo(dados.ministerioId);
   await ref.set(dados, { merge: true });
   return { ok: true };
 });
@@ -1799,6 +1810,9 @@ export const assumirSolicitacao = onCall(async (req) => {
   if (s.status === "entregue" || s.status === "recusada") {
     throw new HttpsError("failed-precondition", "Esta solicitação já foi fechada.");
   }
+  if (s.transferePendente) {
+    throw new HttpsError("failed-precondition", "Há uma transferência por aceitar — espera essa decisão primeiro.");
+  }
   const nome = await nomeDaPessoa(baseId, uid);
   const novoStatus = s.status === "fila" ? "producao" : s.status;
   const historicoEntry = { de: s.status, para: novoStatus, porId: uid, porNome: nome, em: admin.firestore.Timestamp.now() };
@@ -1809,15 +1823,22 @@ export const assumirSolicitacao = onCall(async (req) => {
   return { ok: true };
 });
 
+// Quem pode mover para onde. "responsavel" = uid == s.responsavelId;
+// "lider" = req.auth.token.papel == 'lider_base'. A revisão é o líder
+// a aprovar (nunca quem produziu) — pedido explícito: "a revisão é
+// feita por um líder". producao→revisao é o próprio a dizer "acabei,
+// olha lá isto"; revisao→entregue/producao é sempre o líder a decidir.
+const TRANSICOES_SOLICITACAO = {
+  producao: { revisao: "responsavel" },
+  revisao: { entregue: "lider", producao: "lider" },
+};
+
 export const mudarStatusSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação muda o estado.");
   const { id, novoStatus, entregaUrl, motivo = "" } = req.data || {};
   if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
   if (!STATUS_SOLICITACAO.includes(novoStatus)) throw new HttpsError("invalid-argument", "Estado inválido.");
-  if (novoStatus === "entregue" && !entregaUrl?.trim()) {
-    throw new HttpsError("invalid-argument", "Falta o link da entrega.");
-  }
   if (novoStatus === "recusada" && !motivo.trim()) {
     throw new HttpsError("invalid-argument", "Falta o motivo da recusa.");
   }
@@ -1826,17 +1847,124 @@ export const mudarStatusSolicitacao = onCall(async (req) => {
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
   const s = snap.data();
+  const souLider = req.auth.token.papel === "lider_base";
+
+  if (novoStatus === "recusada") {
+    if (s.responsavelId !== uid) throw new HttpsError("permission-denied", "Só quem está a produzir pode recusar.");
+    if (s.status === "entregue" || s.status === "recusada") {
+      throw new HttpsError("failed-precondition", "Esta solicitação já foi fechada.");
+    }
+  } else {
+    const quemPode = TRANSICOES_SOLICITACAO[s.status]?.[novoStatus];
+    if (!quemPode) throw new HttpsError("failed-precondition", `Não dá para passar de "${s.status}" para "${novoStatus}".`);
+    if (quemPode === "responsavel" && s.responsavelId !== uid) {
+      throw new HttpsError("permission-denied", "Só quem está a produzir pode enviar para revisão.");
+    }
+    if (quemPode === "lider" && !souLider) {
+      throw new HttpsError("permission-denied", "Só o líder decide isto na revisão.");
+    }
+  }
+  if (novoStatus === "revisao" && !entregaUrl?.trim()) {
+    throw new HttpsError("invalid-argument", "Falta o link da entrega, para o líder rever.");
+  }
+  if (novoStatus === "entregue" && !entregaUrl?.trim() && !s.entregaUrl) {
+    throw new HttpsError("invalid-argument", "Falta o link da entrega.");
+  }
+
   const nome = await nomeDaPessoa(baseId, uid);
   const historicoEntry = {
     de: s.status, para: novoStatus, porId: uid, porNome: nome,
     em: admin.firestore.Timestamp.now(), ...(motivo.trim() ? { motivo: motivo.trim() } : {}),
   };
   const dados = { status: novoStatus, historico: [...(s.historico || []), historicoEntry] };
-  if (novoStatus === "entregue") {
+  if (entregaUrl?.trim() && (novoStatus === "revisao" || novoStatus === "entregue")) {
     dados.entregaUrl = entregaUrl.trim();
+  }
+  if (novoStatus === "entregue") {
     dados.entregueEm = admin.firestore.FieldValue.serverTimestamp();
   }
   await ref.set(dados, { merge: true });
+  return { ok: true };
+});
+
+// qualquer voluntário da Comunicação transfere para outro — não é
+// decisão do líder, é só "isto fica melhor contigo". Fica pendente
+// até quem recebe aceitar (aparece no Início dele) ou recusar (volta
+// para a Fila, sem responsável — pedido explícito do líder).
+export const transferirSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação transfere solicitações.");
+  const { id, paraId } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  if (!paraId) throw new HttpsError("invalid-argument", "Falta escolher para quem.");
+  if (paraId === uid) throw new HttpsError("invalid-argument", "Não dá para transferir para ti mesmo.");
+
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.status === "entregue" || s.status === "recusada") {
+    throw new HttpsError("failed-precondition", "Esta solicitação já foi fechada.");
+  }
+  if (s.transferePendente) {
+    throw new HttpsError("failed-precondition", "Já há uma transferência por aceitar.");
+  }
+  const paraSnap = await refPessoa(baseId, paraId).get();
+  if (!paraSnap.exists || paraSnap.data().ativo === false) {
+    throw new HttpsError("invalid-argument", "Essa pessoa não está ativa na Comunicação.");
+  }
+
+  const nome = await nomeDaPessoa(baseId, uid);
+  const paraNome = paraSnap.data().nome;
+  const historicoEntry = {
+    tipo: "transferencia", de: nome, para: paraNome, porId: uid, porNome: nome,
+    em: admin.firestore.Timestamp.now(),
+  };
+  await ref.set({
+    transferePendente: { paraId, paraNome, deId: uid, deNome: nome, em: admin.firestore.Timestamp.now() },
+    historico: [...(s.historico || []), historicoEntry],
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const aceitarTransferencia = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação aceita transferências.");
+  const { id } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.transferePendente?.paraId !== uid) throw new HttpsError("permission-denied", "Esta transferência não é para ti.");
+
+  const nome = await nomeDaPessoa(baseId, uid);
+  const novoStatus = s.status === "fila" ? "producao" : s.status;
+  const historicoEntry = { tipo: "transferencia_aceite", porId: uid, porNome: nome, em: admin.firestore.Timestamp.now() };
+  await ref.set({
+    responsavelId: uid, responsavelNome: nome, status: novoStatus, transferePendente: null,
+    historico: [...(s.historico || []), historicoEntry],
+  }, { merge: true });
+  return { ok: true };
+});
+
+export const recusarTransferencia = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação recusa transferências.");
+  const { id } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.transferePendente?.paraId !== uid) throw new HttpsError("permission-denied", "Esta transferência não é para ti.");
+
+  const nome = await nomeDaPessoa(baseId, uid);
+  const historicoEntry = { tipo: "transferencia_recusada", porId: uid, porNome: nome, em: admin.firestore.Timestamp.now() };
+  await ref.set({
+    status: "fila", responsavelId: null, responsavelNome: null, transferePendente: null,
+    historico: [...(s.historico || []), historicoEntry],
+  }, { merge: true });
   return { ok: true };
 });
 

@@ -35,6 +35,14 @@
       ]
     },
     {
+      "collectionGroup": "ministerios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "ordem", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "melhorias",
       "queryScope": "COLLECTION",
       "fields": [
@@ -98,14 +106,6 @@
         { "fieldPath": "ativo", "order": "ASCENDING" },
         { "fieldPath": "ordem", "order": "ASCENDING" },
         { "fieldPath": "titulo", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "artigos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ativo", "order": "ASCENDING" },
-        { "fieldPath": "ordem", "order": "ASCENDING" }
       ]
     },
     {
