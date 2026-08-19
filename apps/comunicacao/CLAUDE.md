@@ -16,13 +16,13 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Fases 1 e 2 feitas: configuração da base, membros, Início (com
+Fases 1, 2 e 3 feitas: configuração da base, membros, Início (com
 Equipamentos), Agenda (Domingo/Produção), Solicitações, Funções,
-Culto. Ponto de partida: cópia de `apps/tecnica` (é a que já tem
-ministérios) + o Funções em separador da Apoio (a Técnica não tem
-essa aba, mete tudo na checklist do Início — a Comunicação tem as
-duas coisas). Fases 3 (Brand/Acervo/Wiki) e 4 (Área do líder) por
-fazer.
+Culto, Brand (Marcas + Acervo) e Wiki. Ponto de partida: cópia de
+`apps/tecnica` (é a que já tem ministérios) + o Funções em separador
+da Apoio (a Técnica não tem essa aba, mete tudo na checklist do
+Início — a Comunicação tem as duas coisas). Fase 4 (Área do líder)
+por fazer.
 
 O briefing completo (`CLAUDE-comunicacao.md`, partilhado à parte) é a
 especificação de produto. Este ficheiro documenta só onde a
@@ -48,11 +48,13 @@ diferente — não são a mesma coleção:
   desde quando) — `bases/comunicacao/equipamentos`, nada a ver com o
   "Equipamentos" da Técnica (esse é o Inventário em modo património,
   `bases/tecnica/inventario`).
-- **Wiki, Enquetes**: ainda não construídos (Fase 3/4). Quando forem,
-  não vão apontar para `bases/tecnica/wiki` nem para
-  `bases/*/enquetes` (essa é a enquete de indisponibilidade para
-  montar escala — semântica completamente diferente da enquete de
-  opções do briefing).
+- **Wiki**: `bases/comunicacao/artigos`, não `bases/tecnica/wiki` — schema
+  mais simples (sem ministérios, sem esqueletos), ver seção própria
+  abaixo.
+- **Enquetes**: ainda não construídas (Fase 4). Quando forem, não vão
+  apontar para `bases/*/enquetes` (essa é a enquete de indisponibilidade
+  para montar escala — semântica completamente diferente da enquete
+  de opções do briefing).
 
 ## Ministérios
 
@@ -118,11 +120,11 @@ só, para todas as bases (ver `CLAUDE.md` raiz, regra 7).
 
 ## Navegação
 
-Barra inferior: `Início · Agenda · Solicitações · Funções · Culto`.
-Sem Inventário (a Comunicação não tem esse conceito — ver
-Equipamentos acima). Sem Wiki/Brand ainda (Fase 3). "Agenda" é a
-antiga "Escala" (chave interna continua `escala`, só o rótulo mudou)
-com duas sub-abas por cima: **Domingo** (a escala de sempre) e
+Barra inferior: `Início · Agenda · Solicitações · Funções · Culto ·
+Wiki · Brand` — o menu final do briefing, completo. Sem Inventário (a
+Comunicação não tem esse conceito — ver Equipamentos acima). "Agenda"
+é a antiga "Escala" (chave interna continua `escala`, só o rótulo
+mudou) com duas sub-abas por cima: **Domingo** (a escala de sempre) e
 **Produção** — consulta a `solicitacoes` filtrada por
 `responsavelId == eu` (ver `CLAUDE-comunicacao.md` §5.6 — nunca uma
 coleção própria, senão desincroniza de Solicitações).
@@ -171,13 +173,67 @@ público a quem tem sessão).
 - `horaChegada` fica `null` no seed — o líder define em Painel do
   líder → Definições da base (mesmo ecrã das outras bases).
 
+## Brand (Marcas + Acervo)
+
+```js
+marcas/{id}                          // raiz — leitura para TODAS as
+  nome, descricao, cores: string[],  // bases (briefing §6.7: "o líder
+  fotoUrl?, ordem, ativo             // de Kids precisa do logo certo
+marcas/{id}/recursos/{id}            // tanto quanto a Comunicação")
+  tipo: logos|fontes|cores|outros
+  titulo, descricao, url, thumbUrl?, origem, ordem
+acervo/{id}                          // raiz, mesma leitura ampla
+  titulo, descricao, url, thumbUrl?, origem, ordem, ativo
+```
+
+Sem Cloud Function — escrita direta do cliente, gate só na regra
+(`souLiderBase('comunicacao')`). Diferente de Solicitações: aqui não
+há autoria mista nem histórico a garantir, então a regra já chega
+(mesmo padrão de `funcoes`/`ministerios`).
+
+**Cores é uma paleta (2 a 4 hex), não um par fixo.** O briefing (§5.2)
+sugeria só `cor`+`gradiente opcional`; o líder pediu para poder editar
+a paleta inteira pelo painel (`SheetMarca`, com `<input type="color">`
+por swatch). O card da grelha usa as duas primeiras como gradiente
+(`linear-gradient(135deg, cores[0], cores[1])`); todas aparecem como
+bolinhas por baixo do nome. `fotoUrl` opcional substitui o gradiente
+quando preenchida — pedido explícito do líder, ver mockup partilhado
+na conversa que criou este ecrã.
+
+**Layout é local, não em `packages/shared`.** A grelha de Marcas
+(`.marca-card`, `.grelha-marcas`) só existe neste ecrã, por isso vive
+em `apps/comunicacao/src/styles/comunicacao.css` — nunca em
+`global.css` (ver `CLAUDE.md` raiz: mudança visual de uma base só,
+escreve no ficheiro local dela). Dentro do kit de cada marca e no
+Acervo, os cards de recurso reaproveitam `.cartaomelh` tal como já
+existe (miniatura, título, selo) — só a `border-radius` da miniatura
+muda de redonda para quadrada (10px), porque um logo não é uma
+pessoa.
+
+Miniatura do recurso: `thumbUrl` se preenchido, senão a inicial do
+título (mesmo padrão de Melhorias) — sem emoji por tipo, decisão
+explícita do líder para não inventar uma convenção nova.
+
+## Wiki
+
+```js
+bases/comunicacao/artigos/{id}
+  categoria: passo | duvida | artigo
+  titulo, resumo, conteudo, ordem, ativo
+```
+
+Só leitura e busca no cliente (título/resumo, sem acentos) — **sem
+editor no app nesta fase** (dívida consciente do briefing §9.3): o
+conteúdo entra direto no Firestore, por fora do painel. `conteudo` é
+mostrado como texto simples (`white-space: pre-wrap`), não se
+interpreta markdown — evita depender de mais uma biblioteca para um
+ecrã sem editor. Agrupado por categoria em `.mincartao` (o mesmo
+componente que a Técnica usa para ministério), sem índice `wikiIndice`
+à parte — a coleção é pequena o suficiente para ler inteira de uma
+vez.
+
 ## Próximas fases (ver briefing completo)
 
-- **Fase 3**: Brand (`marcas` + subcoleção `recursos`, raiz — leitura
-  para todas as bases), Acervo (`acervo`, raiz), Wiki desta base
-  (`bases/comunicacao/artigos`, categoria passo/dúvida/artigo, sem
-  editor no app — schema mais simples que o da Técnica, sem
-  ministérios nem esqueletos).
 - **Fase 4**: Área do líder — escala sugerida (lógica condicional,
   sem IA) e enquetes (pergunta/opções genéricas — não confundir com a
   enquete de indisponibilidade que já existe noutras bases).

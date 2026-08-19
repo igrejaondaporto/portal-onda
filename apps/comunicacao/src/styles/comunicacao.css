@@ -1,0 +1,68 @@
+/* ============================================================
+ * Camada visual da Comunicação
+ * ============================================================
+ *
+ * Este ficheiro é SÓ da Comunicação. Nada aqui chega a outra base.
+ *
+ * Ordem de carregamento (ver `src/main.jsx`):
+ *
+ *     1º  @portal/shared/styles/global.css   ← partilhado, NÃO mexer
+ *     2º  este ficheiro                      ← o teu sítio
+ *
+ * Mudança visual da Comunicação → escreve aqui.
+ * Mudança visual de TODAS as bases → packages/shared, e aí é PR com
+ * o dono do projeto (ver CLAUDE.md raiz).
+ * ============================================================ */
+
+/* ── grelha de Marcas (Brand) — card em gradiente ou foto, com
+ * swatches da paleta por baixo. Não é uma variação do .mincartao/
+ * .cartaomelh (esses continuam a ser usados tal como são, dentro do
+ * kit de cada marca) — é o único ecrã do app com este formato, por
+ * isso vive aqui e não em global.css. ── */
+.grelha-marcas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.marca-card {
+  border-radius: 16px;
+  padding: 14px;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  border: 0;
+  text-align: left;
+  width: 100%;
+}
+.marca-card:active {
+  transform: scale(0.98);
+}
+.marca-card .titulo {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.marca-card .titulo span {
+  font-weight: 500;
+  font-size: 12px;
+  opacity: 0.9;
+  display: block;
+  margin-top: 1px;
+}
+.marca-card .swatches {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+.marca-card .swatches i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+}
