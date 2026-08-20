@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
-import { FASES } from "../lib/modelo";
+import { FASES, ministeriosDaEscala } from "../lib/modelo";
 import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios, ouvirEquipamentos,
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial,
@@ -394,7 +394,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "escala" && (
         <SheetEscalaMinisterios
           evento={eventosMes.find((e) => e.id === sheet.eventoId)}
-          ministerios={ministerios}
+          ministerios={ministeriosDaEscala(ministerios)}
           voluntarios={voluntarios}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}

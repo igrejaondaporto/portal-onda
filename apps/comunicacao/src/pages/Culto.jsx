@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { podeDistribuir } from "../lib/modelo";
+import { podeDistribuir, ministeriosDaEscala } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
@@ -111,6 +111,10 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
   const hoje = hojeISO();
   const lugarDe = (ev, ministerioId) => (ev.escala.lugares || []).find((l) => l.ministerioId === ministerioId);
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
+  // só 3 dos 7 ministérios têm gente escalada na hora do culto — os
+  // outros são produção/edição, sem posto ao vivo no domingo (ver
+  // ministeriosDaEscala em lib/modelo.js)
+  const ministeriosEscala = ministeriosDaEscala(ministerios);
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
 
   return (
@@ -146,7 +150,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                       </tr>
                     </thead>
                     <tbody>
-                      {ministerios.map((m) => (
+                      {ministeriosEscala.map((m) => (
                         <tr key={m.id} className={m.ordem === 0 ? "lid" : undefined}>
                           <td className="papel"><span className="quadmin" style={{ background: m.cor }} />{m.nome}</td>
                           {eventosMes.map((ev) => {
@@ -185,7 +189,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
               const aberto = !!abertos[ev.id];
               // em que ministério sirvo nesse dia — o Responsável acumula com
               // um operacional, por isso pode ser mais do que um
-              const meusMinisterios = ministerios
+              const meusMinisterios = ministeriosEscala
                 .filter((m) => { const l = lugarDe(ev, m.id); return l?.titularId === uid || l?.aprendizId === uid; })
                 .map((m) => m.nome);
               return (
@@ -204,8 +208,8 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                     {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
                   </p>
                 )}
-                {ministerios.some((m) => lugarDe(ev, m.id)?.titularId) ? (
-                  ministerios.map((m) => {
+                {ministeriosEscala.some((m) => lugarDe(ev, m.id)?.titularId) ? (
+                  ministeriosEscala.map((m) => {
                     const lugar = lugarDe(ev, m.id);
                     if (!lugar?.titularId) return null;
                     const titular = pessoaPorId(lugar.titularId);
@@ -238,7 +242,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                 ) : (
                   <div className="vaz">Ainda ninguém escalado.</div>
                 )}
-                {ministerios.some((m) => lugarDe(ev, m.id)?.titularId) && (
+                {ministeriosEscala.some((m) => lugarDe(ev, m.id)?.titularId) && (
                   <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => onVerFuncoes?.(ev.id)}>
                     Ver as funções deste culto
                   </button>

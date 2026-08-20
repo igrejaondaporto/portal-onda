@@ -71,14 +71,37 @@ Do organograma partilhado pelo líder: **Captação e Edição · UNVT ·
 Social Media · Storymaker · Redação e Design · Fotografia**. Titular +
 aprendiz por ministério, como a Técnica (ver `SheetEscalaMinisterios`).
 
-**Sem "Responsável" rotativo.** A Técnica modela o líder de culto como
-um ministério de `ordem:0`; a Comunicação não tem isso — o
-organograma mostra um líder da base fixo (`papel: "lider_base"`), sem
-rotação de liderança por domingo. `liderEscala` existe no documento da
-escala (mesmo formato das outras bases, para o resto do sistema não
-precisar de caso especial) mas fica sempre `null`, e só o líder da
-base pode gravar a escala (`guardarEscalaComunicacao`, valida no
-servidor — não é líder de escala nenhum).
+**Sem "Responsável" rotativo como `liderEscala`.** A Técnica modela o
+líder de culto como um campo próprio na escala (`ordem:0`); a
+Comunicação não tem isso — o organograma mostra um líder da base fixo
+(`papel: "lider_base"`), sem rotação de liderança por domingo.
+`liderEscala` existe no documento da escala (mesmo formato das outras
+bases, para o resto do sistema não precisar de caso especial) mas
+fica sempre `null`, e só o líder da base pode gravar a escala
+(`guardarEscalaComunicacao`, valida no servidor — não é líder de
+escala nenhum).
+
+Isto não impediu o líder de criar, mais tarde, pelo próprio Painel
+(Ministérios → Novo), um ministério chamado literalmente
+**"Responsável"** — esse é um ministério normal como qualquer outro
+(`ordem: 99`, sem tratamento especial no código), com titular por
+culto como Storymaker ou Fotografia. Não é o `liderEscala`/`ordem:0`
+da Técnica, só tem o mesmo nome — ver "Ministérios que servem na
+Escala" abaixo.
+
+**Ministérios que servem na Escala (o quadro do culto) — só 3 dos 7.**
+Captação e Edição, UNVT, Social Media e Redação e Design são
+produção/edição, sem posto ao vivo no domingo; só **Storymaker**,
+**Fotografia** e **Responsável** têm gente escalada na hora do culto.
+Pedido do líder: tirar os outros 4 da tabela de Escala (`Culto.jsx`)
+e do formulário de "montar escala" (`SheetEscalaMinisterios`, aberto
+em Painel do líder → Escala → "definir") — em todo o resto
+(Ministérios do Painel, atribuição de pessoa a ministério, Wiki,
+Funções…) os 7 continuam intactos, isto filtra só nessas duas telas.
+`ministeriosDaEscala` (`lib/modelo.js`) filtra por **nome**, não por
+id fixo — "Responsável" foi criado pelo líder com um id gerado, sem
+slug conhecido de antemão como os outros 6. Se um ministério for
+renomeado, a lista `NOMES_MINISTERIOS_ESCALA` tem de acompanhar.
 
 **Etiqueta "Auxiliar"**: o organograma tem duas pessoas ligadas direto
 ao líder, fora dos ministérios. O sistema só tem dois papéis (líder da
