@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao } from "../../lib/solicitacoes";
+import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao, nomeBase } from "../../lib/solicitacoes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -106,13 +106,17 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
         <div className="pux" />
         <h2>{solicitacao.titulo}</h2>
         <p className="sb2">
-          {solicitacao.baseSolicitanteId} · {solicitacao.solicitanteNome} · prazo {dataPorExtenso(solicitacao.prazo)}
+          {solicitacao.solicitanteNome} · prazo {dataPorExtenso(solicitacao.prazo)}
           {solicitacao.foraDoPrazo && " · fora do prazo mínimo"}
         </p>
+
+        <label className="rot" style={{ marginTop: 14 }}>De que base</label>
+        <p className="ds">{nomeBase(solicitacao.baseSolicitanteId)}</p>
         {ministerio && (
-          <p className="ds" style={{ marginTop: 6 }}>
-            <span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}
-          </p>
+          <>
+            <label className="rot" style={{ marginTop: 10 }}>Ministério</label>
+            <p className="ds"><span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}</p>
+          </>
         )}
 
         <label className="rot" style={{ marginTop: 14 }}>O que precisa</label>

@@ -10,6 +10,18 @@ export { abrirSolicitacao, obterSlaDiasMinimos, diasAte } from "@portal/shared/l
 
 const cSolicitacoes = () => collection(db, "solicitacoes");
 
+/** Nome de exibição de cada base solicitante — `baseSolicitanteId` na
+ *  solicitação é sempre a chave interna (bases/{id}), nunca o que se
+ *  mostra. Lista fixa (não muda com frequência) em vez de ler
+ *  bases/{id} uma a uma só para isto. */
+export const NOMES_BASE = {
+  apoio: "Apoio",
+  tecnica: "Técnica",
+  backstage: "Backstage",
+  comunicacao: "Comunicação",
+};
+export const nomeBase = (id) => NOMES_BASE[id] || id;
+
 /** Todas as solicitações endereçadas à Comunicação — a rule só deixa
  *  ler quem é membro da Comunicação ou da base que pediu; aqui é
  *  sempre a Comunicação a olhar para tudo. */

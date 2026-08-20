@@ -129,8 +129,8 @@ Barra inferior: `Início · Agenda · Funções · Culto · Wiki · Brand` —
 original sugeria. "Agenda" é a antiga "Escala" (chave interna continua `escala`,
 só o rótulo mudou) com duas sub-abas por cima: **Domingo** (a escala
 de sempre) e **Solicitações** — o `Solicitacoes.jsx` inteiro
-(`<Solicitacoes uid papel ativo definirCabecalho>`), quadro Kanban e
-tudo, embrulhado ali dentro.
+(`<Solicitacoes uid papel ativo definirCabecalho>`), secções e tudo,
+embrulhado ali dentro.
 
 Passou por três formas até aqui, todas a pedido do líder depois de
 testar: (1) o briefing pedia uma aba própria na barra, mais uma vista
@@ -207,17 +207,34 @@ no Início (`ouvirTransferenciasPendentes`, query por
 `transferePendente.paraId`) com Aceitar/Recusar diretos — não abre
 a solicitação para decidir.
 
-**Kanban** (`Solicitacoes.jsx`): quatro colunas fixas — Fila,
-Produção, Revisão, Entregue (Recusada fica fora, por trás de "Ver
-recusadas" — não é um estado a monitorizar no dia a dia). Cor da
-barra do card é o ministério, não o estado (o estado já é a coluna).
-Arrastar (`draggable` nativo) só funciona a rato — é um atalho a
-mais para desktop, nunca o único caminho, porque o uso real é
-telemóvel e HTML5 drag-and-drop não funciona bem a toque. Uma
-transição que precise de dado extra (`producao → revisao` precisa do
-link) não se larga direto: abre o card, que já sabe pedir o que
-falta. As outras transições sem input (assumir, aprovar, devolver)
-acontecem direto ao largar.
+**Secções empilhadas, não quadro Kanban lado a lado — testámos os
+dois.** Primeira versão era um quadro de 4 colunas fixas com scroll
+horizontal (`.com-kanban`); o líder testou no telemóvel e via quase
+tudo fora do ecrã, tinha de arrastar para o lado para ver as colunas
+seguintes. `Solicitacoes.jsx` passou a empilhar as quatro secções na
+vertical — Fila, Produção, Revisão, Entregue, cada uma um
+`.mincartao` (mesmo cartão que a Wiki e o Acervo já usam para
+agrupar: `.mincartao-barra` colorida pelo estado + `.ponto` + `.nome`
++ `.conta`), sempre todas visíveis, sem arrastar nada — só o scroll
+normal da página. Recusada fica fora das quatro, por trás de "Ver
+recusadas" (não é um estado a monitorizar no dia a dia).
+
+Dentro de cada secção, `.com-kcard` continua igual: cor da barra do
+card é o ministério, não o estado (o estado já é a secção onde está).
+Arrastar (`draggable` nativo) só funciona a rato — é um atalho a mais
+para desktop, nunca o único caminho, porque o uso real é telemóvel e
+HTML5 drag-and-drop não funciona bem a toque. Uma transição que
+precise de dado extra (`producao → revisao` precisa do link) não se
+larga direto: abre o card, que já sabe pedir o que falta. As outras
+transições sem input (assumir, aprovar, devolver) acontecem direto
+ao largar.
+
+**Base solicitante é campo próprio, não escondido no subtítulo.**
+`baseSolicitanteId` é sempre a chave interna (`apoio`/`tecnica`/...);
+`nomeBase()` (`lib/solicitacoes.js`) traduz para o nome de exibição —
+lista fixa, não lê `bases/{id}` um a um só para isto. Aparece no card
+(`Ministério · Base`) e como campo próprio "De que base" na folha de
+detalhe — antes só vinha escondido no subtítulo, sem rótulo, em minúsculas.
 
 ## Detalhes que valem para esta base como as outras
 
@@ -228,6 +245,19 @@ acontecem direto ao largar.
 - O nome do líder é sempre uma variável. Nunca um nome fixo no código.
 - `horaChegada` fica `null` no seed — o líder define em Painel do
   líder → Definições da base (mesmo ecrã das outras bases).
+
+## Culto
+
+Quem publica o PDF da ordem do culto **é a Backstage, não a
+Comunicação** — `bases/comunicacao.culto.podePublicar` não existe
+(só `bases/backstage` tem `culto.podePublicar: true`, ver `CLAUDE.md`
+raiz e `functions/index.js`, `claimsExtraDaBase`). O líder da
+Comunicação nunca vê o botão "Subir ficheiro" aqui, só lê o PDF depois
+de publicado — a mesma ordem do culto que todas as bases leem. Por
+isso `OrdemCultoCard.jsx` (cópia local desta base, cada app tem a
+sua) diz "A Backstage costuma subir o ficheiro à quinta-feira" e não
+"O líder" — "líder" sozinho, sem dizer de que base, dava a entender
+(mal) que era o líder da própria Comunicação.
 
 ## Brand (Marcas + Acervo)
 

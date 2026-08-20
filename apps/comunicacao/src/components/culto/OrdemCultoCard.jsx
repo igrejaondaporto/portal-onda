@@ -198,7 +198,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
                   <span className="seta">›</span>
                 </a>
               ) : (
-                <div className="vaz">O líder costuma subir o ficheiro à quinta-feira.</div>
+                <div className="vaz">A Backstage costuma subir o ficheiro à quinta-feira.</div>
               )}
               {podePublicar && (
                 <button

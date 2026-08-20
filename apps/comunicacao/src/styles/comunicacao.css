@@ -130,59 +130,16 @@
   background: #fff;
 }
 
-/* Solicitações — quadro Kanban (Fila/Produção/Revisão/Entregue)
+/* Solicitações — secções empilhadas (Fila/Produção/Revisão/Entregue),
+ * mesmo cartão `.mincartao` que a Wiki e o Acervo já usam para
+ * agrupar. Era um quadro Kanban com scroll horizontal — no telemóvel
+ * (uso real desta app) a maior parte ficava fora do ecrã, tinha de
+ * se arrastar para o lado para ver as colunas seguintes; empilhado
+ * na vertical mostra as quatro logo, com o scroll normal da página.
  *
- * Scroll horizontal, nunca vertical na página toda — o corpo (`.corpo`,
- * partilhado) já é a única barra de scroll vertical da app; uma
- * segunda dentro do quadro confundia. Cada coluna tem largura fixa
- * para o "cartão" não esticar num ecrã largo e ficar vazio a meio.
- *
- * Arrastar (`draggable`) só funciona a rato — no telemóvel (o uso
- * real desta app) o toque abre sempre o card e usa os botões da
- * folha, nunca depende de arrastar. */
-.com-kanban {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  -webkit-overflow-scrolling: touch;
-}
-.com-kcoluna {
-  flex: 0 0 220px;
-  background: var(--agua);
-  border-radius: 16px;
-  padding: 10px;
-  min-height: 80px;
-}
-.com-kcoluna-cab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 4px 10px;
-}
-.com-kcoluna-ponto {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.com-kcoluna-nome {
-  font-size: 13px;
-  font-weight: 700;
-  flex: 1;
-}
-.com-kcoluna-conta {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--cinza);
-}
-.com-kcoluna-vaz {
-  font-size: 12.5px;
-  color: var(--cinza);
-  padding: 10px 6px;
-  text-align: center;
-}
+ * Arrastar (`draggable`) só funciona a rato — no telemóvel o toque
+ * abre sempre o card e usa os botões da folha, nunca depende de
+ * arrastar. */
 .com-kcard {
   background: #fff;
   border-radius: 12px;
