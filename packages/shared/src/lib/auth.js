@@ -53,9 +53,10 @@ export const PORTAS_DEV = {
  *  trocar os claims do token sozinho não muda qual app está a
  *  correr no browser. Por isso isto navega mesmo para o domínio da
  *  base nova, levando o token novo na fragment da URL (nunca vai para
- *  o servidor nem fica em logs); a app que abre lê-o em `lerTokenDaUrl`
- *  e entra sem pedir PIN outra vez. Em localhost navega para a porta
- *  da app de destino, se a conhecermos; senão troca os claims no sítio. */
+ *  o servidor nem fica em logs); a app que abre lê-o em
+ *  `entrarComTokenDaUrl` e entra sem pedir PIN outra vez. Em localhost
+ *  navega para a porta da app de destino, se a conhecermos; senão
+ *  troca os claims no sítio. */
 export async function trocarBase(novoBaseId) {
   try {
     const { data } = await chamar("trocarBase")({ novoBaseId });
@@ -64,7 +65,7 @@ export async function trocarBase(novoBaseId) {
     if (local) {
       const porta = PORTAS_DEV[novoBaseId];
       if (porta && window.location.port !== String(porta)) {
-        const url = `http://localhost:${porta}/#tok=${encodeURIComponent(data.token)}`;
+        const url = `http://${window.location.hostname}:${porta}/#tok=${encodeURIComponent(data.token)}`;
         window.location.assign(url);
         return { ok: true, url };
       }

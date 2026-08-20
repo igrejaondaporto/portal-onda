@@ -22,8 +22,10 @@ const db = admin.firestore();
 // O frontend vive no Cloudflare, não no domínio das Functions — sem isto
 // os pedidos são bloqueados como cross-origin. Cobre o domínio de cada
 // base (apoio.igrejaonda.pt…), o domínio antigo ainda em DNS, os
-// previews do Workers Builds, e o dev local em qualquer porta (cada
-// app tem a sua: ver PORTAS_DEV em packages/shared/src/lib/auth.js).
+// previews do Workers Builds, e o dev local em localhost/127.0.0.1
+// em qualquer porta — de propósito, para uma base nova não ter de
+// mexer aqui. As portas concretas de cada app vivem só no cliente
+// (PORTAS_DEV em packages/shared/src/lib/auth.js).
 const ORIGENS_PERMITIDAS = [
   /^https:\/\/([a-z0-9-]+\.)?igrejaonda\.pt$/,
   /^https:\/\/([a-z0-9-]+\.)?painelonda\.pt$/,

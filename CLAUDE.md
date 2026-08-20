@@ -131,7 +131,7 @@ operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
 
 ## Ao criar uma base nova
 
-Três coisas que se esquecem fácil por não serem tela nem regra de
+Quatro coisas que se esquecem fácil por não serem tela nem regra de
 negócio — fazer sempre, antes de dar a base por pronta:
 
 1. **Ícone, favicon e imagem de partilha (`og-image.png`) com o nome
@@ -168,6 +168,16 @@ negócio — fazer sempre, antes de dar a base por pronta:
    de `apps/apoio/src/pages/Entrada.jsx` — duas linhas (import +
    `<GatilhoDev>` à volta do `<span className="logo">`). Sem isto, a
    base nova só entra por PIN, como antes de este mecanismo existir.
+4. **Porta fixa no `vite.config.js` e uma linha em `PORTAS_DEV`.**
+   Cada app de dev corre numa porta sua (`server.port` +
+   `strictPort: true`), para as quatro poderem estar no ar ao mesmo
+   tempo. O mapa em `packages/shared/src/lib/auth.js` tem de bater
+   certo com essa porta — sem a linha, o `trocarBase` em localhost
+   troca os claims na app em que estás e ficas a olhar para a UI
+   errada, sem erro nenhum. A próxima porta livre depois das que já
+   existem (5173–5176). **O CORS das functions não precisa de
+   mudança**: aceita `localhost`/`127.0.0.1` em qualquer porta, de
+   propósito, para uma base nova não disparar deploy de functions.
 
 ## Melhorias entre bases
 
