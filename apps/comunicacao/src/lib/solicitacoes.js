@@ -42,6 +42,7 @@ export function ouvirTransferenciasPendentes(uid, cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+export const atribuirSolicitacao = (dados) => chamar("atribuirSolicitacao")(dados).then((r) => r.data);
 export const assumirSolicitacao = (id) => chamar("assumirSolicitacao")({ id }).then((r) => r.data);
 export const mudarStatusSolicitacao = (dados) => chamar("mudarStatusSolicitacao")(dados).then((r) => r.data);
 export const transferirSolicitacao = (id, paraId) => chamar("transferirSolicitacao")({ id, paraId }).then((r) => r.data);

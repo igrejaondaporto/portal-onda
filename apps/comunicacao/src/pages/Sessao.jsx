@@ -61,6 +61,8 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [focoSeq, setFocoSeq] = useState(0);
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
+  const [focoAbaEscala, setFocoAbaEscala] = useState(null);
+  const [focoAbaEscalaSeq, setFocoAbaEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
@@ -94,6 +96,13 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   function irParaEscala(eventoId) {
     setFocoEscala(eventoId ?? null);
     setFocoEscalaSeq((s) => s + 1);
+    setPagina("escala");
+    setMenuAberto(false);
+  }
+
+  function irParaSolicitacoes() {
+    setFocoAbaEscala("solicitacoes");
+    setFocoAbaEscalaSeq((s) => s + 1);
     setPagina("escala");
     setMenuAberto(false);
   }
@@ -175,12 +184,14 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               onIrEscala={irParaEscala}
               onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
+              onIrSolicitacoes={irParaSolicitacoes}
             />
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
               uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
+              abaFoco={focoAbaEscala} abaFocoSeq={focoAbaEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
             />

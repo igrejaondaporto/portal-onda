@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao, excluirSolicitacao, nomeBase } from "../../lib/solicitacoes";
+import { assumirSolicitacao, atribuirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao, excluirSolicitacao, nomeBase } from "../../lib/solicitacoes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -25,6 +25,8 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
   const [paraId, setParaId] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
   const [aExcluir, setAExcluir] = useState(false);
+  const [ministerioSel, setMinisterioSel] = useState(solicitacao.ministerioId ?? "");
+  const [pessoaSel, setPessoaSel] = useState(solicitacao.designadoParaId ?? "");
 
   if (!solicitacao) return null;
   const fechada = solicitacao.status === "entregue" || solicitacao.status === "recusada";
@@ -104,6 +106,15 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
       .finally(() => setAEnviar(false));
   }
 
+  function atribuir() {
+    if (!ministerioSel && !pessoaSel) return torrada("Escolhe um ministério ou uma pessoa.");
+    setAEnviar(true);
+    atribuirSolicitacao({ id: solicitacao.id, ministerioId: ministerioSel || null, designadoParaId: pessoaSel || null })
+      .then(() => torrada("Atribuído"))
+      .catch((e) => torrada(e.message || "Não foi possível atribuir."))
+      .finally(() => setAEnviar(false));
+  }
+
   function excluir() {
     setAEnviar(true);
     excluirSolicitacao(solicitacao.id)
@@ -125,11 +136,12 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
 
         <label className="rot" style={{ marginTop: 14 }}>De que base</label>
         <p className="ds">{nomeBase(solicitacao.baseSolicitanteId)}</p>
-        {ministerio && (
-          <>
-            <label className="rot" style={{ marginTop: 10 }}>Ministério</label>
-            <p className="ds"><span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}</p>
-          </>
+        <label className="rot" style={{ marginTop: 10 }}>Ministério</label>
+        <p className="ds">
+          {ministerio ? (<><span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}</>) : "Por atribuir"}
+        </p>
+        {solicitacao.designadoParaNome && !solicitacao.responsavelId && (
+          <p className="ds" style={{ marginTop: 2 }}>Designado a {solicitacao.designadoParaNome}</p>
         )}
 
         <label className="rot" style={{ marginTop: 14 }}>O que precisa</label>
@@ -162,6 +174,21 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
         {solicitacao.transferePendente && (
           <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 10 }}>
             <p className="ds">A transferir para {solicitacao.transferePendente.paraNome} — a aguardar resposta.</p>
+          </div>
+        )}
+
+        {souLider && solicitacao.status === "fila" && (
+          <div className="caixa" style={{ marginTop: 10 }}>
+            <label className="rot">Atribuir a</label>
+            <select className="campo" value={ministerioSel} onChange={(e) => setMinisterioSel(e.target.value)}>
+              <option value="">Ministério (opcional)</option>
+              {ministerios.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+            <select className="campo" style={{ marginTop: 8 }} value={pessoaSel} onChange={(e) => setPessoaSel(e.target.value)}>
+              <option value="">Pessoa responsável (opcional)</option>
+              {voluntarios.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+            <button className="btn" style={{ marginTop: 10 }} disabled={aEnviar} onClick={atribuir}>Atribuir</button>
           </div>
         )}
 
@@ -248,6 +275,7 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
                 {h.tipo === "transferencia" ? `${h.porNome ?? "alguém"} transferiu para ${h.para}`
                   : h.tipo === "transferencia_aceite" ? `${h.porNome ?? "alguém"} aceitou a transferência`
                   : h.tipo === "transferencia_recusada" ? `${h.porNome ?? "alguém"} recusou a transferência — voltou para a fila`
+                  : h.tipo === "atribuicao" ? `${h.porNome ?? "alguém"} atribuiu${h.designadoParaNome ? ` a ${h.designadoParaNome}` : ""}${h.ministerioId ? ` · ${ministerios.find((m) => m.id === h.ministerioId)?.nome ?? h.ministerioId}` : ""}`
                   : `${ROTULO_STATUS[h.para] ?? h.para} — ${h.porNome ?? "alguém"}`}
                 {h.motivo ? ` · ${h.motivo}` : ""}
               </p>

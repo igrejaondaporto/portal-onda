@@ -5,7 +5,7 @@ import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.j
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 import Solicitacoes from "./Solicitacoes";
 
-export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes }) {
+export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, abaFoco, abaFocoSeq, ativo, definirCabecalho, onVerFuncoes }) {
   const [aba, setAba] = useState("domingo");
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -34,6 +34,15 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
     return () => clearTimeout(t);
     // focoSeq muda a cada clique no calendário, mesmo que o culto-alvo seja o mesmo de antes
   }, [eventoIdFoco, focoSeq, eventosMes.length]);
+
+  // vir de um banner do Início ("pedidos por atribuir", "para ti") tem
+  // de aterrar já na sub-aba Solicitações, não na de Domingo por
+  // omissão — abaFocoSeq muda a cada clique, mesmo para a mesma aba
+  useEffect(() => {
+    if (!abaFoco) return;
+    setAba(abaFoco);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abaFocoSeq]);
 
   const temEscala = eventosMes.some((e) => (e.escala.lugares || []).some((l) => l.titularId));
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);

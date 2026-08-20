@@ -5,7 +5,7 @@ import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMini
 import { ouvirChecklist, marcarFeito, desmarcarFeito, obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
-import { ouvirTransferenciasPendentes, aceitarTransferencia, recusarTransferencia } from "../lib/solicitacoes";
+import { ouvirTransferenciasPendentes, aceitarTransferencia, recusarTransferencia, ouvirSolicitacoes, assumirSolicitacao } from "../lib/solicitacoes";
 import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Bola from "../components/Bola";
@@ -25,7 +25,7 @@ function ordenarChecklist(lista, checklist) {
   });
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrReembolsos, onIrSolicitacoes }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -47,9 +47,12 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aResponderEnquete, setAResponderEnquete] = useState(false);
   const [transferencias, setTransferencias] = useState([]);
   const [aResponderTransferencia, setAResponderTransferencia] = useState(false);
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [aAssumir, setAAssumir] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirTransferenciasPendentes(uid, setTransferencias), [uid]);
+  useEffect(() => ouvirSolicitacoes(setSolicitacoes), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -104,6 +107,27 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
+
+  // Solicitações em fila — dois avisos diferentes no Início:
+  // 1) o líder vê as que ainda não têm ministério nem pessoa nenhuma
+  //    (por triar); 2) qualquer um vê as que já apontam para ele —
+  //    de propósito (designadoParaId) ou porque o ministério dele foi
+  //    escolhido sem pessoa específica. Some da lista assim que
+  //    alguém assume (responsavelId passa a existir).
+  const emFila = solicitacoes.filter((s) => s.status === "fila" && !s.responsavelId && !s.transferePendente);
+  const porTriar = emFila.filter((s) => !s.ministerioId && !s.designadoParaId);
+  const minhaPessoa = voluntarios.find((p) => p.id === uid);
+  const paraMim = emFila.filter((s) =>
+    s.designadoParaId === uid || (s.ministerioId && !s.designadoParaId && minhaPessoa?.ministerios?.[s.ministerioId])
+  );
+
+  function assumirDoInicio(id) {
+    setAAssumir(true);
+    assumirSolicitacao(id)
+      .then(() => torrada("Assumiste este pedido"))
+      .catch((e) => torrada(e.message || "Não foi possível assumir."))
+      .finally(() => setAAssumir(false));
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -174,6 +198,34 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 Recusar
               </button>
             </div>
+          </div>
+        </div>
+      ))}
+      {souLiderBase && porTriar.length > 0 && (
+        <div className="destaque" onClick={() => onIrSolicitacoes?.()}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {porTriar.length} {porTriar.length === 1 ? "pedido novo" : "pedidos novos"} por atribuir
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{porTriar[0].titulo}</p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {paraMim.map((s) => (
+        <div className="destaque" style={{ background: "var(--azul)" }} key={s.id}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>
+              {s.designadoParaId === uid ? "Um pedido para ti" : `Para ${nomeMinisterio(s.ministerioId)}`}
+            </p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>{s.titulo}</p>
+            <button
+              className="btn" style={{ marginTop: 10, padding: "9px 16px", fontSize: 13, background: "#fff", color: "var(--azul)" }}
+              disabled={aAssumir} onClick={() => assumirDoInicio(s.id)}
+            >
+              Assumir
+            </button>
           </div>
         </div>
       ))}

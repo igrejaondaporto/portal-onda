@@ -152,20 +152,23 @@ solicitacoes/{id}                    // raiz — escrito por líderes de
   solicitanteId, solicitanteNome,    // base + a Comunicação
   oQue, ondeUsa, textoFinal, linkReferencia,
   prazo, foraDoPrazo,                // calculado no servidor
-  ministerioId,                      // para que ministério é (Fotografia,
-                                      // Social Media…) — escolhido por
-                                      // quem pede, não por quem produz
+  ministerioId,                      // null até à triagem — a Comunicação
+                                      // é quem escolhe agora, não quem pede
+                                      // (exceto pedido interno dela mesma)
+  designadoParaId, designadoParaNome, // triagem: aponta a pedido a alguém,
+                                      // sem ainda ser responsavelId
   status: fila|producao|revisao|entregue|recusada,
   responsavelId, responsavelNome, entregaUrl, entregueEm,
   transferePendente: { paraId, paraNome, deId, deNome, em } | null,
   historico: [{ de, para, porId, porNome, em, motivo? }
-              | { tipo: "transferencia"|"transferencia_aceite"|"transferencia_recusada", ... }]
+              | { tipo: "transferencia"|"transferencia_aceite"|"transferencia_recusada"|"atribuicao", ... }]
 ```
 
 Toda a escrita passa por Cloud Function (`abrirSolicitacao`,
-`editarSolicitacao`, `assumirSolicitacao`, `mudarStatusSolicitacao`,
-`transferirSolicitacao`, `aceitarTransferencia`,
-`recusarTransferencia`) — regra `solicitacoes/{id}: write: false`.
+`editarSolicitacao`, `atribuirSolicitacao`, `assumirSolicitacao`,
+`mudarStatusSolicitacao`, `transferirSolicitacao`, `aceitarTransferencia`,
+`recusarTransferencia`, `excluirSolicitacao`, `excluirMinhaSolicitacao`)
+— regra `solicitacoes/{id}: write: false`.
 Não é o que o rascunho de regras do briefing (§7) sugeria (escrita
 direta do cliente com validação por regra); segui o padrão já usado
 em Wiki/Melhorias (autoria mista + histórico obrigatório = sempre
@@ -178,15 +181,49 @@ está implementada e testada (`node --check`), mas **sem UI nesta
 fase** — nenhuma tela chama. Se um dia o solicitante precisar de
 corrigir um pedido já aberto, é aí que entra.
 
-**"Pedir à Comunicação"** vive no Painel do líder de Apoio/Técnica/
-Backstage (não numa aba nova nessas apps — é `SheetAbrirSolicitacao`,
-`packages/shared`, a única coisa desta fase que é genuinamente igual
-em qualquer base). Visível a qualquer líder de base, inclui o aviso
-de prazo curto antes de enviar (lê `bases/comunicacao.slaDiasMinimos`,
-público a quem tem sessão) e o seletor de ministério — lê
-`bases/comunicacao/ministerios` mesmo sem ser da Comunicação, via
-carve-out na regra (`base == 'comunicacao' && autenticado()`, mesma
-lógica de `marcas`/`acervo`: nome/cor de ministério não é sensível).
+**"Solicitar BG"** vive no Início de Apoio/Técnica/Backstage, "A base",
+só para o líder — não numa aba nova nessas apps, é
+`SheetSolicitacoesBase`/`SheetAbrirSolicitacao`/`SheetDetalheSolicitacao`
+(`packages/shared`, a única coisa desta fase que é genuinamente igual
+em qualquer base). Inclui o aviso de prazo curto antes de enviar (lê
+`bases/comunicacao.slaDiasMinimos`, público a quem tem sessão) e —
+antes — o seletor de ministério (lia `bases/comunicacao/ministerios`
+mesmo sem ser da Comunicação, via carve-out na regra); esse carve-out
+continua na regra (só a própria Comunicação, `souComunicacao`, ainda
+usa o seletor ao abrir para si mesma), mas as outras três bases já
+não veem o campo — ver "Triagem" abaixo.
+
+**Triagem: quem pede já não escolhe ministério — a Comunicação
+atribui depois de ler o pedido.** Pedido do líder: as outras bases
+não conhecem o organograma da Comunicação, então pedir para
+adivinharem o ministério certo só gerava escolhas erradas.
+`abrirSolicitacao` deixou de exigir `ministerioId` de quem não é
+`comunicacao` (continua obrigatório quando é a própria Comunicação a
+abrir para si — `souComunicacao`, ela conhece o contexto). Fica
+`ministerioId: null` até `atribuirSolicitacao` (só o líder da
+Comunicação, só enquanto `status == "fila"`) escolher um ministério
+e/ou uma pessoa (`designadoParaId`) — nenhum dos dois obriga o outro.
+Isto é o que faz o pedido aparecer nos dois avisos do Início (ver
+abaixo); `assumirSolicitacao` limpa `designadoParaId` ao assumir, para
+o aviso não continuar a mostrar-se a quem foi apontado depois de
+outra pessoa já ter pegado o pedido.
+
+**Dois avisos no Início, um por papel — pedido explícito do líder:
+"quero que apareça no Início".** `Inicio.jsx` passou a ouvir a coleção
+inteira (`ouvirSolicitacoes`, antes só usada em `Solicitacoes.jsx`).
+(1) Só o líder vê "N pedidos novos por atribuir" — pedidos em fila
+sem `ministerioId` nem `designadoParaId`, toca e vai direto à sub-aba
+Solicitações (`onIrSolicitacoes` → `Escala.jsx` ganhou `abaFoco`/
+`abaFocoSeq`, mesmo padrão do `eventoIdFoco`/`focoSeq` que já existia
+para o calendário). (2) Qualquer membro vê "Um pedido para ti" por
+cada pedido em fila que o aponta — de propósito (`designadoParaId ==
+uid`) ou porque o ministério dele foi escolhido sem pessoa específica
+(`ministerioId` bate com algum `pessoa.ministerios[id]`, sem
+`designadoParaId`) — com um botão "Assumir" direto no banner, sem
+abrir a solicitação. Ambos desaparecem assim que alguém assume
+(`responsavelId` deixa de ser `null`) — nenhum dos dois é exclusivo
+de quem foi apontado, "Assumir" continua aberto a qualquer membro,
+como sempre foi.
 
 **A revisão é feita por um líder — pedido explícito, mudou o fluxo
 original.** Antes, quem produzia marcava "Entregue" sozinho a
@@ -211,6 +248,15 @@ voluntário da Comunicação faz). `ouvirSolicitacoes`
 `ativo` nenhum, e `where("ativo","!=",false)` os teria excluído por
 engano. Botão "Excluir solicitação" fica no fim de `SheetSolicitacao`,
 com confirmação (mesmo padrão de "Recusar pedido").
+
+**O lado de quem pediu tem o seu próprio excluir, mais restrito.**
+`excluirMinhaSolicitacao` deixa o líder da base que abriu cancelar o
+próprio pedido ("abriu errado" ou já não precisa) — mas só enquanto
+`status == "fila"`: depois de a Comunicação assumir, já há trabalho
+investido, e desaparecer sem avisar quem está a produzir seria pior
+que deixar sujo. Passado isso, é conversa direta, não um botão. Botão
+"Excluir pedido" em `SheetDetalheSolicitacao` (`packages/shared`),
+só quando `papel === "lider_base"` e ainda em fila.
 
 **Transferir**: qualquer voluntário da Comunicação transfere uma
 solicitação (própria ou não) para outro — não é decisão do líder.
