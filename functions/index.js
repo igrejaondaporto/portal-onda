@@ -1718,7 +1718,7 @@ async function nomeDaPessoa(baseId, uid) {
 
 async function slaDiasMinimosComunicacao() {
   const s = await db.doc("bases/comunicacao").get();
-  return s.exists ? (s.data().slaDiasMinimos ?? 10) : 10;
+  return s.exists ? (s.data().slaDiasMinimos ?? 3) : 3;
 }
 
 function diasEntre(hojeISO, prazoISO) {

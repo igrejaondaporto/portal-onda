@@ -28,7 +28,7 @@ export function ouvirMinhasSolicitacoes(cb) {
  *  — só para mostrar o aviso de prazo curto antes de enviar. */
 export async function obterSlaDiasMinimos() {
   const s = await getDoc(doc(db, "bases/comunicacao"));
-  return s.exists() ? (s.data().slaDiasMinimos ?? 10) : 10;
+  return s.exists() ? (s.data().slaDiasMinimos ?? 3) : 3;
 }
 
 /** Ministérios da Comunicação (Fotografia, Social Media…), lidos por

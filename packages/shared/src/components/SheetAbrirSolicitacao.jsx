@@ -34,7 +34,7 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
   const [ministerios, setMinisterios] = useState([]);
   const [ministerioId, setMinisterioId] = useState("");
   const [baseSolicitanteId, setBaseSolicitanteId] = useState(souComunicacao ? "" : BASE_ID);
-  const [slaDiasMinimos, setSlaDiasMinimos] = useState(10);
+  const [slaDiasMinimos, setSlaDiasMinimos] = useState(3);
   const [aEnviar, setAEnviar] = useState(false);
 
   useEffect(() => { obterSlaDiasMinimos().then(setSlaDiasMinimos); }, []);
