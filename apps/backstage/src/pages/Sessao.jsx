@@ -12,6 +12,7 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
+import Checklists from "./Checklists";
 import Funcoes from "./Funcoes";
 import Culto from "./Culto";
 import Inventario from "./Inventario";
@@ -23,9 +24,15 @@ import Perfil from "./Perfil";
 // mesmo ícone que a Técnica usa para "Montar" (não existe no ICO
 // padrão do NavBar, que só conhece o menu de hoje da Apoio)
 const ICONE_ENQUETES = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
+// checkbox marcada — Checklists, ganhou menu próprio (era um
+// segmento dentro de Escala, o líder pediu acesso direto)
+const ICONE_CHECKLISTS = '<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8 12.5l2.5 2.5L16 9"/>';
 
 // só a Apoio + a Backstage têm este menu (sem Wiki/Equipamentos da
-// Técnica) — "Enquetes" entra a seguir, só para o líder
+// Técnica) — "Enquetes" entra a seguir, só para o líder. "Checklists"
+// só entra para quem tem ve_todas_escalas (todo mundo na Backstage
+// hoje, mas a claim vem de bases/backstage.veEscalas — se um dia
+// desligar, o item some sozinho, sem checar papel aqui).
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
@@ -85,7 +92,11 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
   }, [uid]);
 
   const lider = papel === "lider_base";
-  const ABAS = lider ? [...ABAS_BASE, ["enquetes", "Enquetes", ICONE_ENQUETES]] : ABAS_BASE;
+  const ABAS = [
+    ...ABAS_BASE,
+    ...(veTodasEscalas ? [["checklists", "Checklists", ICONE_CHECKLISTS]] : []),
+    ...(lider ? [["enquetes", "Enquetes", ICONE_ENQUETES]] : []),
+  ];
 
   function irPara(p) {
     setPagina(p);
@@ -220,6 +231,9 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
               onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
+          {pagina === "checklists" && veTodasEscalas && (
+            <Checklists ativo={pagina === "checklists"} definirCabecalho={setCab} />
+          )}
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
           )}

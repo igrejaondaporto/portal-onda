@@ -131,27 +131,50 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   `bases/{outraBase}/pessoas` pelo Admin SDK, nunca uma cópia gravada
   na escrita (ficaria desatualizada) nem uma leitura direta do
   cliente (as rules não abrem `pessoas` de outra base de propósito).
-- **Checklist de todas as bases** (terceiro segmento em Escala, ao
-  lado de "Todas as bases") — pedido explícito do líder, revisão da
-  decisão de propósito que existia antes (ver "Não construir nesta
-  base" abaixo): agora quer acompanhar em tempo real se cada base
-  está pronta, e um aviso quando estiver tudo. Um cartão fechado por
-  omissão por base (`.mincartao`, mesmo padrão da Comunicação em
-  Wiki/Acervo/Solicitações), agrupado por ministério dentro das bases
-  que têm (Técnica/Comunicação) ou por fase nas que não têm
-  (Apoio/Backstage). Barra no fim: verde "Tudo pronto pro culto!"
-  quando **tudo** estiver feito, senão "Faltam N de M tarefas" —
-  cinza, é só leitura, ninguém marca a checklist de outra base por
-  aqui (as rules continuam a exigir estar na escala da própria base
-  para escrever ali).
+- **Checklists — menu próprio** (`apps/backstage/src/pages/Checklists.jsx`),
+  não uma sub-aba de Escala. Nasceu como terceiro segmento dentro de
+  Escala; o líder testou e pediu acesso direto — "essa parte" merecia
+  o próprio lugar no menu principal. Entra na `NavBar` só para quem
+  tem `ve_todas_escalas` (hoje é toda a Backstage, a claim vem de
+  `bases/backstage.veEscalas` — se um dia mudar, o item some sozinho,
+  sem checar papel no código).
+
+  **Três categorias, não uma lista só** — pedido explícito do líder:
+  `CATEGORIAS` (`Checklists.jsx`) é `[chave, título, mensagem de
+  "tudo pronto"]` para Pré-culto/Durante o culto/Pós-culto, cada uma
+  com a sua frase de fechado ("Pronto pro Culto!" /"Pronto para o
+  encerramento!" / "Pronto para o fechamento das portas!" — três
+  textos diferentes, não um genérico repetido). Trocar de categoria
+  troca a fase que filtra tudo: cartões por base (`.mincartao`, mesmo
+  padrão da Comunicação em Wiki/Acervo/Solicitações), agrupados por
+  ministério dentro da categoria quando a base tem
+  (Técnica/Comunicação) — sem ministérios (Apoio/Backstage), lista
+  direta. Uma base sem nenhuma tarefa nessa categoria continua a
+  aparecer ("sem tarefas": a ausência é informação, mesmo princípio
+  de "Todas as bases"), mas não entra na conta de quem falta.
+
+  **A barra no fim resume quem falta, não só quantas tarefas** —
+  outro pedido explícito: "Falta apenas Base de Apoio finalizar"
+  (uma base), "Faltam Apoio e Comunicação finalizarem" (duas, com
+  "e"), "Faltam Apoio, Técnica e Comunicação finalizarem" (três+,
+  vírgulas + "e" antes da última — `listaComE`). Só quando **todas**
+  as bases com tarefas nessa categoria terminam é que vira verde com
+  a mensagem própria da categoria. Só leitura: ninguém marca a
+  checklist de outra base por aqui (as rules continuam a exigir estar
+  na escala da própria base para escrever ali).
 
   O catálogo (que função existe, de que ministério/fase, nomes de
   quem está ativo em cada base) vem uma vez da Cloud Function
   `checklistCrossBase` — `bases/{b}/funcoes` e `/pessoas` são
   restritos a `minhaBase` nas rules, só o Admin SDK lê cruzado, mesmo
-  padrão de `escalasCrossBase`. O que muda de verdade — feito, quem,
-  a que hora — o cliente lê direto e ao vivo de
-  `eventos/{e}/checklist` (`ouvirChecklistDoEvento`,
+  padrão de `escalasCrossBase`. Devolve uma lista **achatada** por
+  base (cada função já com `fase` e `ministerioId/Nome/Cor`
+  resolvidos), não pré-agrupada: uma função de "Fotografia" pode ser
+  pré-culto e outra da mesma pessoa pode ser durante, então quem lê
+  filtra por fase primeiro e só agrupa por ministério depois — fazer
+  ao contrário misturava as duas fases dentro do mesmo grupo. O que
+  muda de verdade — feito, quem, a que hora — o cliente lê direto e
+  ao vivo de `eventos/{e}/checklist` (`ouvirChecklistDoEvento`,
   `lib/painel.js`): essa coleção já é global e `allow read: if
   autenticado()` nas rules, não pede Cloud Function nenhuma para
   isso. É o que torna isto **em tempo real** sem chamar a função a
