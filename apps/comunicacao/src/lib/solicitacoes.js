@@ -24,10 +24,14 @@ export const nomeBase = (id) => NOMES_BASE[id] || id;
 
 /** Todas as solicitações endereçadas à Comunicação — a rule só deixa
  *  ler quem é membro da Comunicação ou da base que pediu; aqui é
- *  sempre a Comunicação a olhar para tudo. */
+ *  sempre a Comunicação a olhar para tudo. Excluídas (`ativo: false`,
+ *  ver `excluirSolicitacao`) ficam de fora — filtro no cliente, não
+ *  `where`, porque os pedidos de antes desta funcionalidade não têm
+ *  o campo `ativo` nenhum (`undefined !== false`, ficariam de fora
+ *  de um `where("ativo", "!=", false)`). */
 export function ouvirSolicitacoes(cb) {
   const q = query(cSolicitacoes(), orderBy("criadoEm", "desc"));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.ativo !== false)));
 }
 
 /** Transferências à minha espera — para o banner no Início. Uma
@@ -43,3 +47,4 @@ export const mudarStatusSolicitacao = (dados) => chamar("mudarStatusSolicitacao"
 export const transferirSolicitacao = (id, paraId) => chamar("transferirSolicitacao")({ id, paraId }).then((r) => r.data);
 export const aceitarTransferencia = (id) => chamar("aceitarTransferencia")({ id }).then((r) => r.data);
 export const recusarTransferencia = (id) => chamar("recusarTransferencia")({ id }).then((r) => r.data);
+export const excluirSolicitacao = (id) => chamar("excluirSolicitacao")({ id }).then((r) => r.data);

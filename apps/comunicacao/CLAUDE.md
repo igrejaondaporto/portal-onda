@@ -197,6 +197,21 @@ transições distintas, cada uma com quem pode fazê-la
 (`TRANSICOES_SOLICITACAO` em `functions/index.js`). `recusar`
 continua livre para quem produz, em qualquer estado aberto.
 
+**Excluir é sempre `ativo: false`, nunca `delete()` — mesmo depois de
+entregue ou recusada.** Pedido do líder: o campo de estados ativos
+ficava sujo de pedidos já fechados sem forma de os tirar de lá.
+`excluirSolicitacao` (`functions/index.js`) marca `ativo: false` em
+qualquer estágio, sem exceção — segue a mesma regra do resto do app
+("nada é apagado, é desativado", ver `CLAUDE.md` raiz) e o mesmo
+padrão de `excluirEnquete`. Só o líder da base exclui (como
+`excluirEnquete`; diferente de assumir/mudar estado, que qualquer
+voluntário da Comunicação faz). `ouvirSolicitacoes`
+(`lib/solicitacoes.js`) filtra `ativo !== false` no cliente, não por
+`where` — pedidos de antes desta funcionalidade não têm o campo
+`ativo` nenhum, e `where("ativo","!=",false)` os teria excluído por
+engano. Botão "Excluir solicitação" fica no fim de `SheetSolicitacao`,
+com confirmação (mesmo padrão de "Recusar pedido").
+
 **Transferir**: qualquer voluntário da Comunicação transfere uma
 solicitação (própria ou não) para outro — não é decisão do líder.
 Fica `transferePendente` até quem recebe decidir: aceita (fica

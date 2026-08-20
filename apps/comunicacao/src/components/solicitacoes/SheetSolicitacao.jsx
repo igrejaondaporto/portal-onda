@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao, nomeBase } from "../../lib/solicitacoes";
+import { assumirSolicitacao, mudarStatusSolicitacao, transferirSolicitacao, excluirSolicitacao, nomeBase } from "../../lib/solicitacoes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -24,6 +24,7 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
   const [aTransferir, setATransferir] = useState(false);
   const [paraId, setParaId] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
 
   if (!solicitacao) return null;
   const fechada = solicitacao.status === "entregue" || solicitacao.status === "recusada";
@@ -96,6 +97,14 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
     transferirSolicitacao(solicitacao.id, paraId)
       .then(() => { torrada("A aguardar que aceite"); setATransferir(false); })
       .catch((e) => torrada(e.message || "Não foi possível transferir."))
+      .finally(() => setAEnviar(false));
+  }
+
+  function excluir() {
+    setAEnviar(true);
+    excluirSolicitacao(solicitacao.id)
+      .then(() => { torrada("Solicitação excluída"); onFechar(); })
+      .catch((e) => torrada(e.message || "Não foi possível excluir."))
       .finally(() => setAEnviar(false));
   }
 
@@ -240,6 +249,26 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
               </p>
             ))}
           </>
+        )}
+
+        {souLider && (
+          !aExcluir ? (
+            <button className="btn sec full" style={{ marginTop: 16, color: "var(--magenta)" }} onClick={() => setAExcluir(true)}>
+              Excluir solicitação
+            </button>
+          ) : (
+            <div className="caixa" style={{ marginTop: 16 }}>
+              <p className="ds">Tens a certeza? Sai da lista para sempre, em qualquer estado.</p>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn" style={{ flex: 1, fontSize: 12.5, background: "var(--magenta)" }} disabled={aEnviar} onClick={excluir}>
+                  Confirmar exclusão
+                </button>
+                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aEnviar} onClick={() => setAExcluir(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         <button className="btn sec full" style={{ marginTop: 16 }} onClick={onFechar}>Fechar</button>
