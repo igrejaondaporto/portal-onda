@@ -10,10 +10,10 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
-import Escala from "./Escala";
 import Funcoes from "./Funcoes";
 import Culto from "./Culto";
 import Wiki from "./Wiki";
+import Solicitacoes from "./Solicitacoes";
 import Brand from "./Brand";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
@@ -21,21 +21,24 @@ import Perfil from "./Perfil";
 // ícones que não existem no ICO padrão do NavBar (packages/shared)
 const ICONE_WIKI = '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>';
 const ICONE_BRAND = '<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="13.5" cy="17.5" r="2.5"/>';
+const ICONE_SOLICITACOES = '<rect x="5" y="4" width="14" height="18" rx="2.5"/><path d="M9 2h6v4H9z"/><path d="M8 10.5h8M8 14.5h8M8 18.5h5"/>';
 
-// Solicitações não é aba própria — pedido do líder: vive só como
-// sub-aba dentro de Agenda (ver Escala.jsx), a barra fica mais curta.
+// Pedido do líder — Solicitações ganhou acesso direto no menu (era
+// sub-aba dentro de Agenda); "Domingo" mudou-se para dentro de Culto,
+// como a sub-aba "Escala" (ver Culto.jsx), por isso Agenda deixou de
+// existir como aba própria.
 const ABAS = [
   ["inicio", "Início"],
-  ["escala", "Agenda"],
-  ["funcoes", "Funções"],
   ["culto", "Culto"],
+  ["funcoes", "Funções"],
   ["wiki", "Wiki", ICONE_WIKI],
+  ["solicitacoes", "Solicitações", ICONE_SOLICITACOES],
   ["brand", "Brand", ICONE_BRAND],
 ];
 
 /**
  * Casca da app depois de entrar: cabeçalho + corpo + navegação.
- * Cada página (Início, Escala, Painel) define o próprio cabeçalho via
+ * Cada página (Início, Culto, Painel) define o próprio cabeçalho via
  * definirCabecalho — o mesmo padrão do cabeca() do protótipo, só que
  * como estado em vez de mexer direto no DOM.
  */
@@ -61,9 +64,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [focoSeq, setFocoSeq] = useState(0);
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
-  const [focoAbaEscala, setFocoAbaEscala] = useState(null);
-  const [focoAbaEscalaSeq, setFocoAbaEscalaSeq] = useState(0);
-  const [abaCulto, setAbaCulto] = useState("ordem");
+  const [abaCulto, setAbaCulto] = useState("escala");
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
@@ -93,20 +94,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     if (p === "funcoes") { setFocoEvento(null); setFocoSeq((s) => s + 1); }
   }
 
-  function irParaEscala(eventoId) {
-    setFocoEscala(eventoId ?? null);
-    setFocoEscalaSeq((s) => s + 1);
-    setPagina("escala");
-    setMenuAberto(false);
-  }
-
-  function irParaSolicitacoes() {
-    setFocoAbaEscala("solicitacoes");
-    setFocoAbaEscalaSeq((s) => s + 1);
-    setPagina("escala");
-    setMenuAberto(false);
-  }
-
   // dezembro › janeiro (e o inverso) passam para o ano seguinte/anterior —
   // sem isto, os cultos gerados para o ano que vem (Painel do líder →
   // Definições → "Gerar domingos") nunca apareciam em lado nenhum.
@@ -126,10 +113,19 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     setMenuAberto(false);
   }
 
-  function irParaCulto(aba) {
-    setAbaCulto(aba ?? "ordem");
+  // Escala (sub-aba de Culto) e "Ordem do domingo" (Início → A base)
+  // partilham a mesma navegação — só muda a aba de destino e se vem
+  // com um culto para focar (clique no calendário do Início).
+  function irParaCulto(aba, eventoId) {
+    setAbaCulto(aba ?? "escala");
+    setFocoEscala(eventoId ?? null);
+    setFocoEscalaSeq((s) => s + 1);
     setPagina("culto");
     setMenuAberto(false);
+  }
+
+  function irParaSolicitacoes() {
+    irPara("solicitacoes");
   }
 
   return (
@@ -181,19 +177,10 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             <Inicio
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
-              onIrEscala={irParaEscala}
+              onIrEscala={(eventoId) => irParaCulto("escala", eventoId)}
               onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
               onIrSolicitacoes={irParaSolicitacoes}
-            />
-          </div>
-          <div style={{ display: pagina === "escala" ? "" : "none" }}>
-            <Escala
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
-              eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
-              abaFoco={focoAbaEscala} abaFocoSeq={focoAbaEscalaSeq}
-              ativo={pagina === "escala"} definirCabecalho={setCab}
-              onVerFuncoes={irParaFuncoes}
             />
           </div>
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
@@ -205,12 +192,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           <div style={{ display: pagina === "wiki" ? "" : "none" }}>
             <Wiki ativo={pagina === "wiki"} definirCabecalho={setCab} />
           </div>
+          <div style={{ display: pagina === "solicitacoes" ? "" : "none" }}>
+            <Solicitacoes uid={uid} papel={papel} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
+          </div>
           <div style={{ display: pagina === "brand" ? "" : "none" }}>
             <Brand papel={papel} ativo={pagina === "brand"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaAlvo={abaCulto}
+              eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
               podePublicarCulto={podePublicarCulto}

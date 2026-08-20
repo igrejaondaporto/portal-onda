@@ -17,9 +17,9 @@ três toques, está mal desenhada.
 ## Estado
 
 As quatro fases do briefing estão feitas: configuração da base,
-membros, Início (com Equipamentos), Agenda (Domingo/Solicitações),
-Solicitações, Funções, Culto, Brand (Marcas + Acervo), Wiki, e a Área
-do líder (Escala sugerida + Enquetes). Ponto de partida: cópia de
+membros, Início (com Equipamentos), Culto (Escala/Ordem do
+culto/Feedbacks), Solicitações, Funções, Brand (Marcas + Acervo),
+Wiki, e a Área do líder (Escala sugerida + Enquetes). Ponto de partida: cópia de
 `apps/tecnica` (é a que já tem ministérios) + o Funções em separador
 da Apoio (a Técnica não tem essa aba, mete tudo na checklist do
 Início — a Comunicação tem as duas coisas).
@@ -124,25 +124,52 @@ só, para todas as bases (ver `CLAUDE.md` raiz, regra 7).
 
 ## Navegação
 
-Barra inferior: `Início · Agenda · Funções · Culto · Wiki · Brand` —
-**sem "Solicitações" própria**, diferente do menu que o briefing
-original sugeria. "Agenda" é a antiga "Escala" (chave interna continua `escala`,
-só o rótulo mudou) com duas sub-abas por cima: **Domingo** (a escala
-de sempre) e **Solicitações** — o `Solicitacoes.jsx` inteiro
-(`<Solicitacoes uid papel ativo definirCabecalho>`), secções e tudo,
-embrulhado ali dentro.
+Barra inferior: `Início · Culto · Funções · Wiki · Solicitações ·
+Brand`. Já passou por formas diferentes — ver histórico abaixo —, mas
+a ideia de fundo não mudou: nada de coleção paralela nem cópia de
+estado só porque o caminho até lá mudou, é sempre o mesmo componente,
+só muda onde é montado.
 
-Passou por três formas até aqui, todas a pedido do líder depois de
-testar: (1) o briefing pedia uma aba própria na barra, mais uma vista
-filtrada só do que a pessoa produz dentro de Agenda — "A tua
-produção", uma lista sem ação nenhuma; (2) essa lista saiu, e a
-sub-aba passou a embrulhar o `Solicitacoes.jsx` completo, com a aba
-própria na barra a continuar a existir em paralelo, as duas a mostrar
-o mesmo estado ao vivo; (3) a aba própria saiu da barra — "não tem
-uso [...] deixa ele apenas como um menu secundário em Agenda". Hoje
-só há um caminho para lá: Agenda → Solicitações. Sem coleção
-paralela nem cópia de estado — é sempre o mesmo componente, só muda
-onde é montado.
+**Solicitações tem aba própria** (pedido do líder — "quero um menu
+exclusivo para ele, com acesso direto no menu"). Antes vivia como
+sub-aba dentro de "Agenda"; "Agenda" deixou de existir como aba —
+`Solicitacoes.jsx` monta direto em `Sessao.jsx`, sem wrapper nenhum
+por cima.
+
+**"Escala" (a antiga aba "Domingo" de Agenda) mudou-se para dentro de
+Culto — pedido do líder, para reunir tudo do domingo num sítio só.**
+`Culto.jsx` ganhou uma terceira sub-aba, em primeiro lugar (a
+pergunta mais comum é "quem serve?", antes de "o que toca?" ou "como
+correu?"): **Escala · Ordem do culto · Feedbacks**. É o mesmo
+conteúdo/lógica que existia em `Escala.jsx` (apagado — não há mais
+nenhuma tela desse nome), só que agora dentro de `Culto.jsx`.
+
+Navegar para lá de propósito (calendário do Início, "Ordem do
+domingo" em "A base") passa por `abaAlvo`/`focoSeq` em vez de um
+`abaInicial` só lido no mount: `Culto` fica montado o tempo todo (só
+`display:none` ao trocar de aba), então um `useState` inicial não
+reagiria a uma segunda navegação depois de a pessoa já ter tocado
+numa sub-aba à mão. `focoSeq` muda a cada navegação (mesmo destino ou
+não) e força `setAba(abaAlvo)`. **Cuidado ao mexer aqui**: o efeito
+que abre o cartão certo do dia clicado no calendário (`eventoIdFoco`)
+depende também de `aba === "escala"`, não só de `eventoIdFoco` — as
+refs dos cartões (`refsEventos`) só existem enquanto a sub-aba Escala
+está montada, e o efeito de abrir o cartão corre na mesma leva que o
+de trocar de aba; sem essa dependência a mais, ele corre primeiro
+(com a aba antiga, sem os cartões montados ainda) e nunca tenta de
+novo depois da troca acontecer.
+
+Passou por formas diferentes até aqui, todas a pedido do líder depois
+de testar: (1) o briefing pedia uma aba própria na barra para
+Solicitações, mais uma vista filtrada só do que a pessoa produz
+dentro de Agenda — "A tua produção", uma lista sem ação nenhuma; (2)
+essa lista saiu, e Solicitações virou sub-aba de Agenda, com a aba
+própria na barra a continuar a existir em paralelo, as duas a
+mostrar o mesmo estado ao vivo; (3) a aba própria saiu da barra —
+"não tem uso [...] deixa ele apenas como um menu secundário em
+Agenda"; (4) — agora — o líder pediu o oposto do passo 3: acesso
+direto de novo, e a antiga aba "Domingo" de Agenda mudou-se para
+dentro de Culto, como "Escala".
 
 ## Solicitações
 
@@ -221,10 +248,10 @@ ministério, para nunca ficar uma seleção órfã escondida da lista.
 "quero que apareça no Início".** `Inicio.jsx` passou a ouvir a coleção
 inteira (`ouvirSolicitacoes`, antes só usada em `Solicitacoes.jsx`).
 (1) Só o líder vê "N pedidos novos por atribuir" — pedidos em fila
-sem `ministerioId` nem `designadoParaId`, toca e vai direto à sub-aba
-Solicitações (`onIrSolicitacoes` → `Escala.jsx` ganhou `abaFoco`/
-`abaFocoSeq`, mesmo padrão do `eventoIdFoco`/`focoSeq` que já existia
-para o calendário). (2) Qualquer membro vê "Um pedido para ti" por
+sem `ministerioId` nem `designadoParaId`, toca e vai direto à aba
+Solicitações (`onIrSolicitacoes`, hoje é só `irPara("solicitacoes")`
+— desde que Solicitações ganhou aba própria, não precisa de focar
+sub-aba nenhuma, ver "Navegação" acima). (2) Qualquer membro vê "Um pedido para ti" por
 cada pedido em fila que o aponta — de propósito (`designadoParaId ==
 uid`) ou porque o ministério dele foi escolhido sem pessoa específica
 (`ministerioId` bate com algum `pessoa.ministerios[id]`, sem
@@ -377,6 +404,9 @@ mesmo que venha no payload, a base final é sempre a do token
   líder → Definições da base (mesmo ecrã das outras bases).
 
 ## Culto
+
+Três sub-abas — **Escala · Ordem do culto · Feedbacks**, nessa ordem
+(ver "Navegação" acima para a história de como Escala chegou aqui).
 
 Quem publica o PDF da ordem do culto **é a Backstage, não a
 Comunicação** — `bases/comunicacao.culto.podePublicar` não existe
