@@ -7,10 +7,18 @@ domínio. Ver `CLAUDE.md` na raiz para a estrutura completa.
 
 ```
 npm install                              # uma vez, na raiz — liga os workspaces
-npm run dev --workspace=apps/apoio       # local
+npm run dev --workspace=apps/apoio       # http://localhost:5173
+npm run dev --workspace=apps/tecnica     # http://localhost:5174
+npm run dev --workspace=apps/backstage   # http://localhost:5175
+npm run dev --workspace=apps/comunicacao # http://localhost:5176
 npm run build --workspace=apps/apoio     # build de produção
 npx wrangler deploy                      # a partir de dentro de apps/apoio
 ```
+
+Cada app tem porta fixa (`strictPort`), para poderes ter as quatro a
+correr ao mesmo tempo. O login fala com as Cloud Functions em produção:
+o CORS tem de aceitar `localhost` em qualquer porta — se uma app
+além da 5173 recusar o PIN, falta um deploy de `functions/`.
 
 ## Frontend — Cloudflare Workers
 
