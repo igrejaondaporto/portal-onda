@@ -131,7 +131,10 @@ operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
 
 ## Ao criar uma base nova
 
-Três coisas que se esquecem fácil por não serem tela nem regra de
+Usa o skill `nova-base` (`.claude/skills/nova-base/SKILL.md`) — é o
+checklist completo, passo a passo com ficheiros exatos, do
+scaffolding da app ao primeiro deploy. O que fica abaixo são só as
+três coisas que mais se esquecem por não serem tela nem regra de
 negócio — fazer sempre, antes de dar a base por pronta:
 
 1. **Ícone, favicon e imagem de partilha (`og-image.png`) com o nome
