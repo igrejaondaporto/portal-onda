@@ -239,8 +239,16 @@ service cloud.firestore {
         allow read:  if autenticado();
         allow write: if souLiderBase('comunicacao');
       }
+      match /categoriasRecurso/{categoria} {
+        allow read:  if autenticado();
+        allow write: if souLiderBase('comunicacao');
+      }
     }
     match /acervo/{item} {
+      allow read:  if autenticado();
+      allow write: if souLiderBase('comunicacao');
+    }
+    match /acervoCategorias/{categoria} {
       allow read:  if autenticado();
       allow write: if souLiderBase('comunicacao');
     }
