@@ -1898,17 +1898,18 @@ export const mudarStatusSolicitacao = onCall(async (req) => {
   return { ok: true };
 });
 
-// qualquer voluntário da Comunicação transfere para outro — não é
-// decisão do líder, é só "isto fica melhor contigo". Fica pendente
-// até quem recebe aceitar (aparece no Início dele) ou recusar (volta
-// para a Fila, sem responsável — pedido explícito do líder).
+// qualquer voluntário da Comunicação transfere para outro (ou para
+// si mesmo — pegar uma solicitação que está com outra pessoa, ex.:
+// abriste o card da Ana e queres pôr o teu nome) — não é decisão do
+// líder, é só "isto fica melhor contigo". Fica pendente até quem
+// recebe aceitar (aparece no Início dele) ou recusar (volta para a
+// Fila, sem responsável — pedido explícito do líder).
 export const transferirSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação transfere solicitações.");
   const { id, paraId } = req.data || {};
   if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
   if (!paraId) throw new HttpsError("invalid-argument", "Falta escolher para quem.");
-  if (paraId === uid) throw new HttpsError("invalid-argument", "Não dá para transferir para ti mesmo.");
 
   const ref = refSolicitacao(id);
   const snap = await ref.get();

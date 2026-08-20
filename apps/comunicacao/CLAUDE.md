@@ -222,6 +222,18 @@ no Início (`ouvirTransferenciasPendentes`, query por
 `transferePendente.paraId`) com Aceitar/Recusar diretos — não abre
 a solicitação para decidir.
 
+**A lista de "Transferir para" inclui quem já está a olhar para o
+card** (pedido explícito do líder) — exclui só o atual `responsavelId`
+(transferir para quem já a tem não faz sentido), nunca `uid`.
+`candidatosTransferencia` (`SheetSolicitacao.jsx`) mudou de "todos
+menos eu" para "todos menos quem já a tem": abrir o card de outra
+pessoa e "transferir para" o meu nome é como pegar o pedido dela —
+sem isto, quem via um card da Ana não conseguia atribuir-se a si
+mesmo, só a um terceiro. O backend (`transferirSolicitacao`) já não
+bloqueia `paraId === uid` — transferir para si mesmo cria um
+`transferePendente` que a própria pessoa aceita a seguir (mesmo
+fluxo de sempre, só que remetente e destinatário coincidem).
+
 **Secções empilhadas, não quadro Kanban lado a lado — testámos os
 dois.** Primeira versão era um quadro de 4 colunas fixas com scroll
 horizontal (`.com-kanban`); o líder testou no telemóvel e via quase

@@ -30,7 +30,11 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
   const fechada = solicitacao.status === "entregue" || solicitacao.status === "recusada";
   const souResponsavel = solicitacao.responsavelId === uid;
   const ministerio = ministerios.find((m) => m.id === solicitacao.ministerioId);
-  const candidatosTransferencia = voluntarios.filter((p) => p.id !== uid);
+  // exclui só quem já está com o pedido (transferir para quem já o
+  // tem não faz sentido) — inclui-me a mim mesmo: abrir o card de
+  // outra pessoa e "transferir para" o meu nome é como pegar o
+  // pedido dela, pedido explícito do líder.
+  const candidatosTransferencia = voluntarios.filter((p) => p.id !== solicitacao.responsavelId);
 
   async function assumir() {
     setAEnviar(true);
