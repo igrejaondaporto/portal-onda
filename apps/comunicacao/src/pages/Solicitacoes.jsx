@@ -21,12 +21,26 @@ const COLUNAS = [
   ["entregue", "Entregue", "var(--verde)"],
 ];
 
-function diasRestantes(prazoISO) {
+function diasAte(prazoISO) {
   const hoje = new Date().toISOString().slice(0, 10);
-  const dias = Math.round((new Date(`${prazoISO}T00:00:00Z`) - new Date(`${hoje}T00:00:00Z`)) / (24 * 60 * 60 * 1000));
+  return Math.round((new Date(`${prazoISO}T00:00:00Z`) - new Date(`${hoje}T00:00:00Z`)) / (24 * 60 * 60 * 1000));
+}
+
+function rotuloPrazo(dias) {
   if (dias < 0) return `${-dias}d atrasado`;
   if (dias === 0) return "hoje";
   return `${dias}d`;
+}
+
+// Semáforo do prazo — pedido do líder: 3 dias ou menos (inclui
+// atrasado) vermelho, 4 a 7 amarelo, 8+ verde. Só enquanto o pedido
+// ainda precisa de atenção (fila/produção) — em revisão já saiu das
+// mãos de quem produz, entregue/recusada já fecharam, a urgência do
+// prazo deixou de importar.
+function corPrazo(dias) {
+  if (dias <= 3) return "var(--magenta)";
+  if (dias <= 7) return "var(--laranja)";
+  return "var(--verde)";
 }
 
 /** Um mini-card por pedido — cor da barra é o ministério (de quem
@@ -48,9 +62,18 @@ function CardSolicitacao({ s, ministerio, arrastavel, aArrastar, onArrastar, onL
       <p className="com-kcard-titulo">{s.titulo}</p>
       <p className="com-kcard-sub">{ministerio?.nome ? `${ministerio.nome} · ` : ""}{nomeBase(s.baseSolicitanteId)}</p>
       <div className="com-kcard-rodape">
-        <span className={`tag ${s.foraDoPrazo ? "" : "cinz"}`} style={s.foraDoPrazo ? { background: "var(--magenta)", color: "#fff" } : undefined}>
-          {diasRestantes(s.prazo)}
-        </span>
+        {(() => {
+          const dias = diasAte(s.prazo);
+          const emAndamento = s.status === "fila" || s.status === "producao";
+          return (
+            <span
+              className={`tag ${emAndamento ? "" : "cinz"}`}
+              style={emAndamento ? { background: corPrazo(dias), color: "#fff" } : undefined}
+            >
+              {rotuloPrazo(dias)}
+            </span>
+          );
+        })()}
         {s.transferePendente ? (
           <span className="tag" style={{ background: "var(--violeta)", color: "#fff" }}>a transferir</span>
         ) : s.responsavelNome ? (

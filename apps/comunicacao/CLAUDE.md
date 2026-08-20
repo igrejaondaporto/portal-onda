@@ -186,7 +186,8 @@ só para o líder — não numa aba nova nessas apps, é
 `SheetSolicitacoesBase`/`SheetAbrirSolicitacao`/`SheetDetalheSolicitacao`
 (`packages/shared`, a única coisa desta fase que é genuinamente igual
 em qualquer base). Inclui o aviso de prazo curto antes de enviar (lê
-`bases/comunicacao.slaDiasMinimos`, público a quem tem sessão) e —
+`bases/comunicacao.slaDiasMinimos` — 3 dias, público a quem tem
+sessão; era 10, o líder achou longo demais) e —
 antes — o seletor de ministério (lia `bases/comunicacao/ministerios`
 mesmo sem ser da Comunicação, via carve-out na regra); esse carve-out
 continua na regra (só a própria Comunicação, `souComunicacao`, ainda
@@ -302,6 +303,27 @@ recusadas" (não é um estado a monitorizar no dia a dia).
 
 Dentro de cada secção, `.com-kcard` continua igual: cor da barra do
 card é o ministério, não o estado (o estado já é a secção onde está).
+
+**Semáforo do prazo, só em Fila/Produção.** A etiqueta de dias
+restantes (`corPrazo`, `Solicitacoes.jsx`) muda de cor pelo prazo em
+si, não mais pelo `foraDoPrazo` fixado na criação: 3 dias ou menos
+(inclui atrasado) vermelho, 4 a 7 amarelo, 8+ verde — pedido do líder.
+Recalcula a cada render (não é gravado), por isso o card muda de cor
+sozinho com o passar dos dias, sem ninguém tocar nele. Só nas duas
+secções onde o prazo ainda é urgente — em Revisão/Entregue a etiqueta
+volta a cinza (`foraDoPrazo`, gravado na criação, continua a decidir
+o aviso "fora do prazo mínimo" na folha de detalhe; são conceitos
+diferentes, não o mesmo campo redecorado).
+
+**"Avisar no WhatsApp" ao atribuir a alguém.** Depois de
+`atribuirSolicitacao` marcar `designadoParaId`, `SheetSolicitacao`
+mostra um botão ao lado de "Designado a X" — só quando essa pessoa
+tem `telefone` guardado (`bases/comunicacao/pessoas/{id}.telefone`).
+Abre `wa.me/{telefone}?text=...` com o título e o prazo, mesmo padrão
+do `telefoneWa` que a Técnica já usa em `Montar.jsx`. Existe porque o
+aviso no Início só chega a quem abrir o app — isto avisa por fora,
+sem depender disso.
+
 Arrastar (`draggable` nativo) só funciona a rato — é um atalho a mais
 para desktop, nunca o único caminho, porque o uso real é telemóvel e
 HTML5 drag-and-drop não funciona bem a toque. Uma transição que

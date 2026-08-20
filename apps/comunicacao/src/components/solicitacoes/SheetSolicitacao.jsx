@@ -8,6 +8,11 @@ const ROTULO_STATUS = {
   entregue: "Entregue", recusada: "Recusada",
 };
 
+// mesmo padrão do wa.me usado em Montar.jsx (Técnica) — sem depender de
+// abrir o app pra ver o aviso no Início, já que quem foi designado pode
+// não estar com o portal aberto na hora
+const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
+
 /** O fluxo tem um gate: quem produz manda para revisão (com o link),
  *  só o líder aprova (→ entregue) ou devolve (→ produção) — pedido
  *  explícito: "a revisão é feita por um líder". Antes, quem produzia
@@ -40,6 +45,13 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
   // com ministério escolhido, só faz sentido apontar a quem é dele
   // (titular ou aprendiz) — sem ministério, qualquer voluntário serve
   const candidatosAtribuicao = ministerioSel ? voluntarios.filter((p) => p.ministerios?.[ministerioSel]) : voluntarios;
+  const pessoaDesignada = voluntarios.find((p) => p.id === solicitacao.designadoParaId);
+
+  function avisarNoWhatsApp() {
+    if (!pessoaDesignada?.telefone) return;
+    const texto = `Olá ${pessoaDesignada.nome}! Tens um pedido novo da Comunicação: "${solicitacao.titulo}" — prazo ${dataPorExtenso(solicitacao.prazo)}. Abre o portal para veres os detalhes.`;
+    window.open(`https://wa.me/${telefoneWa(pessoaDesignada.telefone)}?text=${encodeURIComponent(texto)}`, "_blank");
+  }
 
   async function assumir() {
     setAEnviar(true);
@@ -144,7 +156,14 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
           {ministerio ? (<><span className="quadmin" style={{ background: ministerio.cor }} />{ministerio.nome}</>) : "Por atribuir"}
         </p>
         {solicitacao.designadoParaNome && !solicitacao.responsavelId && (
-          <p className="ds" style={{ marginTop: 2 }}>Designado a {solicitacao.designadoParaNome}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+            <p className="ds" style={{ margin: 0 }}>Designado a {solicitacao.designadoParaNome}</p>
+            {pessoaDesignada?.telefone && (
+              <button className="btn sec" style={{ padding: "5px 12px", fontSize: 11.5 }} onClick={avisarNoWhatsApp}>
+                Avisar no WhatsApp
+              </button>
+            )}
+          </div>
         )}
 
         <label className="rot" style={{ marginTop: 14 }}>O que precisa</label>
