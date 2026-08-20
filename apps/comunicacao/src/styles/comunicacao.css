@@ -244,3 +244,22 @@
   height: 100%;
   object-fit: contain;
 }
+
+/* foto de fundo na barra de uma categoria do Acervo — só teste
+ * visual (líder pediu para experimentar, ver CLAUDE.md). Fica só
+ * nesta barra, de altura fixa; nunca atrás dos itens por baixo, que
+ * é o que "esticaria" para categorias com mais de 3 — o gradiente
+ * escuro por cima (ver Brand.jsx) é o que garante o nome legível
+ * sem apagar a foto. */
+.mincartao-cab-foto {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.mincartao-cab-foto .nome,
+.mincartao-cab-foto .conta,
+.mincartao-cab-foto .seta {
+  color: #fff;
+}
+.mincartao-cab-foto .conta {
+  color: rgba(255, 255, 255, 0.8);
+}

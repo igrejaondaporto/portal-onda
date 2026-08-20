@@ -60,13 +60,23 @@ function CardRecurso({ item, corMarca, onEditar }) {
  *  Wiki usa para agrupar por ministério (ver Wiki.jsx). Mostra só os
  *  3 primeiros itens; "Ver mais" expande para todos, sem paginação
  *  nem outra tela — o acervo de uma equipa pequena não pede isso. */
-function GrupoAcervo({ nome, itens, souLiderBase, onEditarCategoria, onEditarItem }) {
+function GrupoAcervo({ nome, itens, fotoUrl, souLiderBase, onEditarCategoria, onEditarItem }) {
   const [aberto, setAberto] = useState(false);
   const visiveis = aberto ? itens : itens.slice(0, QUANTOS_FECHADO);
 
   return (
     <div className="mincartao">
-      <div className="mincartao-cab" style={{ cursor: onEditarCategoria ? "pointer" : "default" }} onClick={onEditarCategoria}>
+      <div
+        className={`mincartao-cab${fotoUrl ? " mincartao-cab-foto" : ""}`}
+        style={{
+          cursor: onEditarCategoria ? "pointer" : "default",
+          ...(fotoUrl ? {
+            backgroundImage: `linear-gradient(rgba(10,15,46,.55), rgba(10,15,46,.4)), url(${fotoUrl})`,
+            backgroundSize: "cover", backgroundPosition: "center",
+          } : {}),
+        }}
+        onClick={onEditarCategoria}
+      >
         <span className="nome">{nome}</span>
         <span className="conta">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
         {onEditarCategoria && <span className="seta">›</span>}
@@ -250,7 +260,7 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
   // some quando fica vazia.
   const idsCategoriasAtivas = new Set(categorias.map((c) => c.id));
   const gruposAcervo = [
-    ...categorias.map((c) => ({ id: c.id, nome: c.nome, itens: acervo.filter((i) => i.categoriaId === c.id) })),
+    ...categorias.map((c) => ({ id: c.id, nome: c.nome, fotoUrl: c.fotoUrl, itens: acervo.filter((i) => i.categoriaId === c.id) })),
     { id: SEM_CATEGORIA, nome: "Sem categoria", itens: acervo.filter((i) => !i.categoriaId || !idsCategoriasAtivas.has(i.categoriaId)) },
   ].filter((g) => g.id !== SEM_CATEGORIA || g.itens.length > 0);
 
@@ -309,7 +319,7 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
           ) : (
             gruposAcervo.map((g) => (
               <GrupoAcervo
-                key={g.id} nome={g.nome} itens={g.itens} souLiderBase={souLiderBase}
+                key={g.id} nome={g.nome} itens={g.itens} fotoUrl={g.fotoUrl} souLiderBase={souLiderBase}
                 onEditarCategoria={souLiderBase && g.id !== SEM_CATEGORIA
                   ? () => setSheet({ tipo: "categoriaAcervo", categoria: categorias.find((c) => c.id === g.id) })
                   : null}

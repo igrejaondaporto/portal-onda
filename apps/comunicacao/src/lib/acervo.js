@@ -8,7 +8,9 @@
  * desativada) cai no grupo "Sem categoria", nunca desaparece.
  */
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
-import { db } from "@portal/shared/lib/firebase.js";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@portal/shared/lib/firebase.js";
+import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 import { cAcervo, cAcervoCategorias } from "./modelo";
 
 export function ouvirAcervo(cb) {
@@ -31,14 +33,26 @@ export function ouvirCategoriasAcervo(cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
-export async function criarCategoriaAcervo(nome) {
-  const ref = doc(collection(db, "acervoCategorias"));
-  await setDoc(ref, { nome, ordem: 0, ativo: true, criadoEm: serverTimestamp() });
-  return ref.id;
+export const novaCategoriaAcervoId = () => doc(collection(db, "acervoCategorias")).id;
+
+export async function criarCategoriaAcervo(id, dados) {
+  await setDoc(doc(db, `acervoCategorias/${id}`), { ...dados, ordem: 0, ativo: true, criadoEm: serverTimestamp() });
+  return id;
 }
 
-export const renomearCategoriaAcervo = (id, nome) =>
-  updateDoc(doc(db, `acervoCategorias/${id}`), { nome });
+export const guardarCategoriaAcervo = (id, dados) =>
+  updateDoc(doc(db, `acervoCategorias/${id}`), dados);
 
 export const desativarCategoriaAcervo = (id) =>
   updateDoc(doc(db, `acervoCategorias/${id}`), { ativo: false });
+
+/** Só teste visual por agora, a pedido do líder ("quero testar pra
+ *  ver como fica") — foto só na barra da categoria (altura fixa),
+ *  nunca atrás dos itens, que é o que teria de "esticar" para
+ *  categorias com mais de 3. Mesmo padrão de enviarFotoMarca. */
+export async function enviarFotoCategoriaAcervo(id, ficheiro) {
+  const comprimida = await comprimirImagem(ficheiro, { maxDimensao: 900 });
+  const destino = refStorage(storage, `acervoCategorias/${id}`);
+  await uploadBytes(destino, comprimida, { contentType: comprimida.type });
+  return getDownloadURL(destino);
+}
