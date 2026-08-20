@@ -4,10 +4,25 @@
  * CLAUDE.md raiz). O resto da gestão (assumir, mudar estado,
  * filtros, histórico) é só da Comunicação — ver apps/comunicacao.
  */
-import { collection, doc, getDoc, getDocs, orderBy, query, where } from "firebase/firestore";
-import { db, chamar } from "./firebase.js";
+import { collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { db, chamar, BASE_ID } from "./firebase.js";
 
 export const abrirSolicitacao = (dados) => chamar("abrirSolicitacao")(dados).then((r) => r.data);
+
+/** Os pedidos desta base à Comunicação, para o líder acompanhar o
+ *  estado sem ter de perguntar (ver `CardSolicitarComunicacao`) — a
+ *  rule só deixa ler quem é da própria base ou da Comunicação (ver
+ *  firestore.rules, minhaBase(baseSolicitanteId)). Excluídos
+ *  (`ativo: false`, ver `excluirSolicitacao`) ficam de fora — filtro
+ *  no cliente, não `where`, porque pedidos de antes dessa
+ *  funcionalidade não têm o campo `ativo` nenhum. */
+export function ouvirMinhasSolicitacoes(cb) {
+  const q = query(
+    collection(db, "solicitacoes"),
+    where("baseSolicitanteId", "==", BASE_ID), orderBy("criadoEm", "desc")
+  );
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.ativo !== false)));
+}
 
 /** bases/comunicacao é público a quem tem sessão (ver firestore.rules)
  *  — só para mostrar o aviso de prazo curto antes de enviar. */

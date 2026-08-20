@@ -7,10 +7,14 @@ import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
+import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
+import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 
 function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
@@ -42,6 +46,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
+  const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -65,6 +71,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
   useEffect(() => ouvirInventario(setInventario), []);
+  useEffect(() => {
+    if (!souLiderBase) return;
+    return ouvirMinhasSolicitacoes(setMinhasSolicitacoes);
+  }, [souLiderBase]);
 
   useEffect(() => {
     if (!meuEvento) return;
@@ -355,21 +365,46 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             ["inventario", "Inventário", "Material de limpeza", () => onIrInventario?.()],
             ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
             ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
+            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
           ].map(([k, t, d, ir]) => {
             const falta = k === "inventario" ? inventario.filter((i) => i.quantidade < i.minimo).length : 0;
+            const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
             return (
               <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{t}</p>
                   <p className="ds">{d}</p>
                 </div>
-                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span> : <span className="seta">›</span>}
+                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span>
+                  : emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
+                  : <span className="seta">›</span>}
               </div>
             );
           })}
         </div>
       </div>
     </div>
+
+    {sheetComunicacao?.tipo === "lista" && (
+      <SheetSolicitacoesBase
+        solicitacoes={minhasSolicitacoes}
+        onFechar={() => setSheetComunicacao(null)}
+        onNovoPedido={() => setSheetComunicacao({ tipo: "abrir" })}
+        onVerDetalhe={(s) => setSheetComunicacao({ tipo: "detalhe", solicitacao: s })}
+      />
+    )}
+    {sheetComunicacao?.tipo === "abrir" && (
+      <SheetAbrirSolicitacao
+        onFechar={() => setSheetComunicacao({ tipo: "lista" })}
+        onGuardado={(msg) => { setSheetComunicacao({ tipo: "lista" }); torrada(msg); }}
+      />
+    )}
+    {sheetComunicacao?.tipo === "detalhe" && (
+      <SheetDetalheSolicitacao
+        solicitacao={minhasSolicitacoes.find((s) => s.id === sheetComunicacao.solicitacao.id) ?? sheetComunicacao.solicitacao}
+        onFechar={() => setSheetComunicacao({ tipo: "lista" })}
+      />
+    )}
     </>
   );
 }

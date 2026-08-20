@@ -314,6 +314,19 @@ Importar a escala de agosto/setembro 2026 (já existe em papel) como
 eventos passados/futuros — sem isso o "há quanto tempo não serve"
 arranca a zero e as primeiras sugestões saem sem sentido.
 
+## Solicitar BG (pedidos à Comunicação)
+
+Item "Solicitar BG" em "A base" no Início, só para o líder — abre
+`SheetSolicitacoesBase` (`packages/shared`, genuinamente igual em
+Apoio/Técnica/Backstage): botão "Novo pedido" (abre
+`SheetAbrirSolicitacao`, também partilhado) + lista ao vivo dos
+pedidos desta base, com o estado que a Comunicação vai mudando
+(`ouvirMinhasSolicitacoes`, `packages/shared/lib/solicitacoes.js` —
+query por `baseSolicitanteId == BASE_ID`). Tocar num pedido abre
+`SheetDetalheSolicitacao`, só de leitura. Antes disto, o Painel do
+líder tinha uma secção "Comunicação" com só o botão de abrir e
+nenhuma forma de acompanhar — foi removida, ficou só este caminho.
+
 ## O que já está feito, diferente do que este documento pedia
 
 Duas partes do plano original da Técnica já foram resolvidas de forma

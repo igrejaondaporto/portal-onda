@@ -15,7 +15,6 @@ import Bola from "../components/Bola";
 import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios";
 import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
-import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetPessoa from "../components/painel/SheetPessoa";
@@ -425,18 +424,6 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
 
           <div className="sect">
             <div className="cabecalho">
-              <h3>Comunicação</h3>
-            </div>
-            <p className="ds" style={{ padding: "8px 0 2px" }}>
-              Peças gráficas, vídeo ou fotografia — pede à Comunicação e acompanha pelo WhatsApp deles até saíres com a entrega.
-            </p>
-            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "abrirSolicitacao" })}>
-              Pedir à Comunicação
-            </button>
-          </div>
-
-          <div className="sect">
-            <div className="cabecalho">
               <h3>Definições da base</h3>
               <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "definicoesBase" })}>
                 Editar
@@ -540,12 +527,6 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
       {sheet?.tipo === "esqueletoWiki" && (
         <SheetEsqueletoWiki
           ministerios={ministerios}
-          onFechar={() => setSheet(null)}
-          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
-        />
-      )}
-      {sheet?.tipo === "abrirSolicitacao" && (
-        <SheetAbrirSolicitacao
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

@@ -49,6 +49,19 @@ do nome da função, para o ecrã de funções carregar de uma vez.
 Só o líder da base cria no catálogo. O líder de escala só cria
 especiais, e só para o culto dele.
 
+## Solicitar BG (pedidos à Comunicação)
+
+Item "Solicitar BG" em "A base" no Início, só para o líder — abre
+`SheetSolicitacoesBase` (`packages/shared`, genuinamente igual em
+Apoio/Técnica/Backstage): botão "Novo pedido" (abre
+`SheetAbrirSolicitacao`, também partilhado) + lista ao vivo dos
+pedidos desta base, com o estado que a Comunicação vai mudando
+(`ouvirMinhasSolicitacoes`, `packages/shared/lib/solicitacoes.js` —
+query por `baseSolicitanteId == BASE_ID`). Tocar num pedido abre
+`SheetDetalheSolicitacao`, só de leitura. Antes disto, o Painel do
+líder tinha uma secção "Comunicação" com só o botão de abrir e
+nenhuma forma de acompanhar — foi removida, ficou só este caminho.
+
 ## Detalhes já decididos e não se discutem outra vez
 
 - Chegada 08:00, fixa por base, editável só pelo líder da base.

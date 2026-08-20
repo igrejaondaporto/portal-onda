@@ -140,6 +140,19 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   com filtro de gravidade por cima, resolvidas num grupo fechado no
   fim — `apps/backstage/src/components/culto/MelhoriasTab.jsx`.
 
+## Solicitar BG (pedidos à Comunicação)
+
+Item "Solicitar BG" em "A base" no Início, só para o líder — abre
+`SheetSolicitacoesBase` (`packages/shared`, genuinamente igual em
+Apoio/Técnica/Backstage): botão "Novo pedido" (abre
+`SheetAbrirSolicitacao`, também partilhado) + lista ao vivo dos
+pedidos desta base, com o estado que a Comunicação vai mudando
+(`ouvirMinhasSolicitacoes`, `packages/shared/lib/solicitacoes.js` —
+query por `baseSolicitanteId == BASE_ID`). Tocar num pedido abre
+`SheetDetalheSolicitacao`, só de leitura. Antes disto, o Painel do
+líder tinha uma secção "Comunicação" com só o botão de abrir e
+nenhuma forma de acompanhar — foi removida, ficou só este caminho.
+
 ## Detalhes decididos, iguais à Apoio
 
 - Sem confirmação de presença. Quem não pode avisa pelo WhatsApp.
