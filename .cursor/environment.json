@@ -1,0 +1,10 @@
+{
+  "name": "Portal do Voluntário (igrejaonda)",
+  "install": "npm install && bash .cursor/prepare-dev-env.sh",
+  "terminals": [
+    {
+      "name": "apoio dev",
+      "command": "npm run dev --workspace=apps/apoio -- --host 0.0.0.0 --port 5173"
+    }
+  ]
+}
