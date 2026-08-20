@@ -4,23 +4,33 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Outro"];
 
+/** Categoria é obrigatória — pedido do líder: sem isso um item novo
+ *  cai num "Sem categoria" que confunde quem acabou de criar uma
+ *  categoria vazia ("bugou?"). Sem nenhuma categoria ainda, nem
+ *  mostra o formulário — manda criar uma primeiro. */
 export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado, onDesativado }) {
   const torrada = useTorrada();
   const [titulo, setTitulo] = useState(item?.titulo ?? "");
   const [descricao, setDescricao] = useState(item?.descricao ?? "");
   const [url, setUrl] = useState(item?.url ?? "");
+  const [linkInstagram, setLinkInstagram] = useState(item?.linkInstagram ?? "");
   const [thumbUrl, setThumbUrl] = useState(item?.thumbUrl ?? "");
   const [origem, setOrigem] = useState(item?.origem ?? "Google Drive");
-  const [categoriaId, setCategoriaId] = useState(item?.categoriaId ?? "");
+  const [categoriaId, setCategoriaId] = useState(item?.categoriaId ?? categorias[0]?.id ?? "");
   const [aEnviar, setAEnviar] = useState(false);
 
   async function guardar() {
     const t = titulo.trim();
     if (!t) return torrada("Falta o título.");
     if (!url.trim()) return torrada("Falta o link.");
+    if (!categoriaId) return torrada("Falta escolher a categoria.");
     setAEnviar(true);
     try {
-      const dados = { titulo: t, descricao: descricao.trim(), url: url.trim(), thumbUrl: thumbUrl.trim() || null, origem, categoriaId: categoriaId || null };
+      const dados = {
+        titulo: t, descricao: descricao.trim(), url: url.trim(),
+        linkInstagram: linkInstagram.trim() || null,
+        thumbUrl: thumbUrl.trim() || null, origem, categoriaId,
+      };
       if (item) {
         await guardarItemAcervo(item.id, dados);
         onGuardado("Item atualizado");
@@ -43,6 +53,22 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
     }
   }
 
+  if (categorias.length === 0) {
+    return (
+      <>
+        <div className="veu on" onClick={onFechar} />
+        <div className="pin on" role="dialog" aria-modal="true">
+          <div className="pux" />
+          <h2>Falta uma categoria</h2>
+          <p className="ds" style={{ marginTop: 10 }}>
+            Todo item do acervo precisa de uma categoria. Cria a primeira ("Nova categoria") antes de adicionar itens.
+          </p>
+          <button className="btn sec full" style={{ marginTop: 18 }} onClick={onFechar}>Fechar</button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -59,6 +85,9 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
         <label className="rot">Link</label>
         <input className="campo" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive, Canva, Dropbox…" />
 
+        <label className="rot">Link do Instagram (opcional)</label>
+        <input className="campo" value={linkInstagram} onChange={(e) => setLinkInstagram(e.target.value)} placeholder="Onde foi publicado" />
+
         <label className="rot">Miniatura (opcional)</label>
         <input className="campo" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} placeholder="Link de uma imagem" />
 
@@ -69,9 +98,8 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
           ))}
         </div>
 
-        <label className="rot">Categoria (opcional)</label>
+        <label className="rot">Categoria</label>
         <select className="campo" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
-          <option value="">Sem categoria</option>
           {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
 

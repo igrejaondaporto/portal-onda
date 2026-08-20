@@ -292,15 +292,33 @@ O líder acrescenta categorias além dessas 4 quando uma marca precisa
 dentro, eles só deixam de aparecer em nenhum grupo (mesmo cuidado do
 Acervo, ver abaixo).
 
-**Acervo com categorias, cada uma até 3 itens antes de "Ver mais".**
-Mesma ideia, coleção própria na raiz (`acervoCategorias`, não é por
-marca — o Acervo nunca teve nível de marca). `SheetItemAcervo` ganhou
-o seletor de categoria (opcional — sem categoria cai em "Sem
-categoria", nunca some). `GrupoAcervo` reaproveita `.mincartao`/
+**Acervo com categorias, cada uma até 3 itens antes de "Ver mais" —
+categoria é obrigatória.** Mesma ideia das Marcas, coleção própria na
+raiz (`acervoCategorias`, não é por marca — o Acervo nunca teve nível
+de marca). Decisão do líder depois de testar: todo item novo tem de
+escolher uma categoria (`SheetItemAcervo` valida e bloqueia sem ela,
+pré-seleciona a primeira); sem nenhuma categoria ainda, o sheet nem
+mostra o formulário — pede para criar uma primeiro ("Nova categoria").
+"Sem categoria" não é opção no `<select>` — só continua a existir como
+grupo de leitura (sem editar, sem ser escolhível) se sobrar algum item
+de antes desta regra existir, para nada desaparecer sozinho; vazio,
+não aparece. `GrupoAcervo` reaproveita `.mincartao`/
 `.verMais`, o mesmo cartão que a Wiki usa para agrupar por ministério
 — mostra só os 3 primeiros itens da categoria, "Ver mais (N)" expande
 para todos. Sem paginação nem ecrã à parte: o acervo de uma equipa
 pequena não pede isso.
+
+**Link do Instagram (opcional) e ícone por origem em vez da letra.**
+`linkInstagram` — campo à parte do `url` principal (Drive/Canva/...),
+para linkar onde o material foi publicado, não onde vive o ficheiro
+de trabalho; mostra como tag "📷 Instagram" clicável ao lado da tag
+de origem (`CardRecurso`, em `Brand.jsx` — o mesmo componente do Kit
+de Marca, então também vale lá). Sem `thumbUrl`, a miniatura já não
+mostra a inicial do título — mostra um emoji pela `origem`
+(`ICONE_ORIGEM`: 🗂️ Drive, 🎨 Canva, 📦 Dropbox, 🔗 Outro). Não são os
+logótipos reais de cada serviço (marca registada) — só uma pista
+visual rápida, no mesmo espírito dos emojis que a app já usa noutros
+sítios (📝 em treino, ✅ feito).
 
 **Categorias reais aparecem sempre na lista, mesmo com 0 itens —
 bug já corrigido, não repetir.** A primeira versão só mostrava um
