@@ -235,11 +235,16 @@ acontecem direto ao largar.
 marcas/{id}                          // raiz — leitura para TODAS as
   nome, descricao, cores: string[],  // bases (briefing §6.7: "o líder
   fotoUrl?, ordem, ativo             // de Kids precisa do logo certo
-marcas/{id}/recursos/{id}            // tanto quanto a Comunicação")
-  tipo: logos|fontes|cores|outros
+  fixado?, fixadoEm?                 // tanto quanto a Comunicação")
+marcas/{id}/categoriasRecurso/{id}   // Logos/Fontes/Cores/Outros por
+  nome, ordem, ativo                 // omissão, o líder cria mais
+marcas/{id}/recursos/{id}
+  categoriaId                        // substitui o antigo `tipo` fixo
   titulo, descricao, url, thumbUrl?, origem, ordem
 acervo/{id}                          // raiz, mesma leitura ampla
-  titulo, descricao, url, thumbUrl?, origem, ordem, ativo
+  categoriaId?, titulo, descricao, url, thumbUrl?, origem, ordem, ativo
+acervoCategorias/{id}                // raiz, mesma leitura ampla
+  nome, ordem, ativo
 ```
 
 Sem Cloud Function — escrita direta do cliente, gate só na regra
@@ -255,6 +260,47 @@ por swatch). O card da grelha usa as duas primeiras como gradiente
 bolinhas por baixo do nome. `fotoUrl` opcional substitui o gradiente
 quando preenchida — pedido explícito do líder, ver mockup partilhado
 na conversa que criou este ecrã.
+
+**Fixar no topo.** Botão em `SheetMarca` (`fixarMarca`/`desafixarMarca`).
+`ouvirMarcas` continua a mesma query (`ativo`, `ordem`, `nome`); a
+reordenação — fixadas primeiro, a mais recentemente fixada à frente
+das outras — acontece no cliente, sem índice composto novo (a lista
+de marcas é sempre pequena). Badge 📌 no card da grelha
+(`.marca-fixada`), mesmo padrão de emoji de estado que o resto da
+app já usa (📝 em treino, ✅ feito) — sem introduzir ícone novo.
+
+**Categorias de recurso, dentro de cada marca — substituem o antigo
+`tipo` fixo em código.** Pedido do líder: "dentro de cada Marca,
+precisa ter a opção de criar cada categoria lá [...] Que serão Logos,
+Fontes, Cores e Outros [...] pode tirar a opção de Tipo, em Novo
+recurso, pois isso entrará já dentro de cada categoria." O kit de uma
+marca agora tem dois níveis: primeiro uma grelha de categorias (cards
+no gradiente da própria marca, `.categoria-card` — "igual os cards de
+Marcas", só que sem paleta própria, a cor é sempre a da marca), só
+depois os recursos lá dentro. `SheetRecurso` deixou de perguntar o
+tipo — `categoriaId` vem do contexto (a categoria que estava aberta),
+como abrir "Novo" dentro de uma pasta.
+
+`garantirCategoriasPadrao` semeia Logos/Fontes/Cores/Outros com **IDs
+fixos iguais aos valores do antigo `tipo`** (`logos`, `fontes`,
+`cores`, `outros`) na primeira vez que o líder abre o kit de uma
+marca — os recursos antigos (só têm `tipo`, nunca `categoriaId`) caem
+sozinhos na categoria certa, sem script de migração
+(`categoriaDoRecurso = r => r.categoriaId ?? r.tipo`, em `Brand.jsx`).
+O líder acrescenta categorias além dessas 4 quando uma marca precisa
+(`SheetCategoriaRecurso`); desativar uma não apaga os recursos lá
+dentro, eles só deixam de aparecer em nenhum grupo (mesmo cuidado do
+Acervo, ver abaixo).
+
+**Acervo com categorias, cada uma até 3 itens antes de "Ver mais".**
+Mesma ideia, coleção própria na raiz (`acervoCategorias`, não é por
+marca — o Acervo nunca teve nível de marca). `SheetItemAcervo` ganhou
+o seletor de categoria (opcional — sem categoria cai em "Sem
+categoria", nunca some). `GrupoAcervo` reaproveita `.mincartao`/
+`.verMais`, o mesmo cartão que a Wiki usa para agrupar por ministério
+— mostra só os 3 primeiros itens da categoria, "Ver mais (N)" expande
+para todos. Sem paginação nem ecrã à parte: o acervo de uma equipa
+pequena não pede isso.
 
 **Layout é local, não em `packages/shared`.** A grelha de Marcas
 (`.marca-card`, `.grelha-marcas`) só existe neste ecrã, por isso vive
@@ -285,21 +331,38 @@ Firestore — igual ao `novoFuncaoId`.
 
 ## Wiki
 
+**Portada 1:1 da Técnica** — pedido do líder depois de testar a
+primeira versão (`bases/comunicacao/artigos`, só leitura, "sem editor
+nesta fase"): "não tem uso [...] copia isso exatamente igual da
+técnica". Mesmo path, mesmo schema, zero mudança no backend
+(`criarEsqueletoWiki`/`guardarArtigoWiki`/`criarDuvida`/
+`responderDuvida`/`marcarRespostaCerta`/`transformarDuvidaEmArtigo`,
+já genéricas por `baseId`):
+
 ```js
-bases/comunicacao/artigos/{id}
-  categoria: passo | duvida | artigo
-  titulo, resumo, conteudo, ordem, ativo
+bases/comunicacao/wiki/{id}
+  tipo: "artigo" | "duvida"
+  titulo, introducao, conclusao, passos: [{texto, imagem}]
+  ministerios: [...], etiquetas: [...]
+  autorId, criadoEm, atualizadoEm
+  esqueleto: true          // criado pelo líder, ainda por escrever
+  resolvidaPorRespostaId?  // dúvidas
+bases/comunicacao/wiki/{id}/respostas/{id}
+wikiIndice/comunicacao      // índice leve para a busca no cliente
 ```
 
-Só leitura e busca no cliente (título/resumo, sem acentos) — **sem
-editor no app nesta fase** (dívida consciente do briefing §9.3): o
-conteúdo entra direto no Firestore, por fora do painel. `conteudo` é
-mostrado como texto simples (`white-space: pre-wrap`), não se
-interpreta markdown — evita depender de mais uma biblioteca para um
-ecrã sem editor. Agrupado por categoria em `.mincartao` (o mesmo
-componente que a Técnica usa para ministério), sem índice `wikiIndice`
-à parte — a coleção é pequena o suficiente para ler inteira de uma
-vez.
+`lib/wiki.js`, `lib/wikiGrupos.js` e os componentes
+(`SheetArtigoWiki`, `SheetDuvidaWiki`, `SheetEditorArtigo`,
+`SheetNovaDuvida`, `SeletorMinisterios`) são cópia de `apps/tecnica`
+sem alteração de lógica — só as classes CSS locais mudaram de nome
+(`tec-min`/`tec-perguntar` → `com-min`/`com-perguntar`, ver
+`comunicacao.css`, mesmo motivo de sempre: nunca reaproveitar nomes
+de classe de outra base). Agrupado por ministério (`agruparWikiPorMinisterio`),
+com "Geral" como rede de segurança para o que não tem ministério ou
+aponta para um entretanto desativado. **"Novo artigo"** e **"Coloca
+aqui a tua dúvida"** são os pontos de entrada para escrever — a
+diferença da versão antiga é exatamente esta: agora há como criar,
+não só ler.
 
 ## Enquetes (indisponibilidade — não é a genérica que o briefing pedia)
 

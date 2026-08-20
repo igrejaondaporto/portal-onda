@@ -2,17 +2,14 @@ import { useState } from "react";
 import { criarRecurso, guardarRecurso, novoRecursoId, removerRecurso } from "../../lib/marcas";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
-const TIPOS = [
-  ["logos", "Logos"],
-  ["fontes", "Fontes"],
-  ["cores", "Cores"],
-  ["outros", "Outros"],
-];
 const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Outro"];
 
-export default function SheetRecurso({ marcaId, tipoAtual, recurso, onFechar, onGuardado, onRemovido }) {
+/** `categoriaId` vem sempre do contexto — é a categoria que estava
+ *  aberta quando se tocou em "Novo recurso" (ver Brand.jsx). Já não
+ *  se escolhe aqui: entrar dentro de uma categoria já diz para onde
+ *  o recurso vai, como abrir "Novo item" dentro de uma pasta. */
+export default function SheetRecurso({ marcaId, categoriaId, recurso, onFechar, onGuardado, onRemovido }) {
   const torrada = useTorrada();
-  const [tipo, setTipo] = useState(recurso?.tipo ?? tipoAtual ?? "logos");
   const [titulo, setTitulo] = useState(recurso?.titulo ?? "");
   const [descricao, setDescricao] = useState(recurso?.descricao ?? "");
   const [url, setUrl] = useState(recurso?.url ?? "");
@@ -26,7 +23,7 @@ export default function SheetRecurso({ marcaId, tipoAtual, recurso, onFechar, on
     if (!url.trim()) return torrada("Falta o link.");
     setAEnviar(true);
     try {
-      const dados = { tipo, titulo: t, descricao: descricao.trim(), url: url.trim(), thumbUrl: thumbUrl.trim() || null, origem };
+      const dados = { categoriaId, titulo: t, descricao: descricao.trim(), url: url.trim(), thumbUrl: thumbUrl.trim() || null, origem };
       if (recurso) {
         await guardarRecurso(marcaId, recurso.id, dados);
         onGuardado("Recurso atualizado");
@@ -55,13 +52,6 @@ export default function SheetRecurso({ marcaId, tipoAtual, recurso, onFechar, on
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{recurso ? "Editar recurso" : "Novo recurso"}</h2>
-
-        <label className="rot" style={{ marginTop: 14 }}>Tipo</label>
-        <div className="subtabs" style={{ marginTop: 0 }}>
-          {TIPOS.map(([valor, rotulo]) => (
-            <button key={valor} data-on={tipo === valor ? 1 : 0} onClick={() => setTipo(valor)}>{rotulo}</button>
-          ))}
-        </div>
 
         <label className="rot" style={{ marginTop: 14 }}>Título</label>
         <input className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Logo principal, fundo claro" />

@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { ouvirMarcas, ouvirRecursos } from "../lib/marcas";
-import { ouvirAcervo } from "../lib/acervo";
+import { ouvirMarcas, ouvirRecursos, ouvirCategoriasRecurso, garantirCategoriasPadrao } from "../lib/marcas";
+import { ouvirAcervo, ouvirCategoriasAcervo } from "../lib/acervo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetMarca from "../components/painel/SheetMarca";
 import SheetRecurso from "../components/painel/SheetRecurso";
+import SheetCategoriaRecurso from "../components/painel/SheetCategoriaRecurso";
 import SheetItemAcervo from "../components/painel/SheetItemAcervo";
+import SheetCategoriaAcervo from "../components/painel/SheetCategoriaAcervo";
 
-const TIPOS_RECURSO = [
-  ["logos", "Logos"],
-  ["fontes", "Fontes"],
-  ["cores", "Cores"],
-  ["outros", "Outros"],
-];
+const SEM_CATEGORIA = "sem-categoria";
+const QUANTOS_FECHADO = 3;
+
+// recurso antigo (de antes desta funcionalidade existir) só tem
+// `tipo` — os IDs semeados por garantirCategoriasPadrao são iguais
+// aos valores desse enum, por isso cai na categoria certa sem migração
+const categoriaDoRecurso = (r) => r.categoriaId ?? r.tipo ?? null;
 
 function CardRecurso({ item, corMarca, onEditar }) {
   return (
@@ -38,68 +41,155 @@ function CardRecurso({ item, corMarca, onEditar }) {
   );
 }
 
+/** Um grupo (categoria) do Acervo — mesmo cartão `.mincartao` que a
+ *  Wiki usa para agrupar por ministério (ver Wiki.jsx). Mostra só os
+ *  3 primeiros itens; "Ver mais" expande para todos, sem paginação
+ *  nem outra tela — o acervo de uma equipa pequena não pede isso. */
+function GrupoAcervo({ nome, itens, souLiderBase, onEditarCategoria, onEditarItem }) {
+  const [aberto, setAberto] = useState(false);
+  const visiveis = aberto ? itens : itens.slice(0, QUANTOS_FECHADO);
+
+  return (
+    <div className="mincartao">
+      <div className="mincartao-cab" style={{ cursor: onEditarCategoria ? "pointer" : "default" }} onClick={onEditarCategoria}>
+        <span className="nome">{nome}</span>
+        <span className="conta">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
+        {onEditarCategoria && <span className="seta">›</span>}
+      </div>
+      <div style={{ padding: "0 12px 12px" }}>
+        {visiveis.map((item) => (
+          <CardRecurso key={item.id} item={item} onEditar={souLiderBase ? () => onEditarItem(item) : null} />
+        ))}
+        {itens.length > QUANTOS_FECHADO && (
+          <button className="btn sec full verMais" onClick={() => setAberto((v) => !v)}>
+            {aberto ? "Ver menos" : `Ver mais (${itens.length - QUANTOS_FECHADO})`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Dentro de cada marca, primeiro as categorias (Logos, Fontes,
+ *  Cores, Outros por omissão, o líder cria mais) — só depois os
+ *  links dos ficheiros em si, já dentro da categoria escolhida.
+ *  Substituiu o antigo `tipo` fixo em código: "Novo recurso" dentro
+ *  de uma categoria já sabe para onde vai, não pergunta mais. */
 function KitMarca({ marca, souLiderBase, onVoltar }) {
   const torrada = useTorrada();
   const [recursos, setRecursos] = useState([]);
-  const [tipo, setTipo] = useState("logos");
+  const [categorias, setCategorias] = useState([]);
+  const [categoriaAbertaId, setCategoriaAbertaId] = useState(null);
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => ouvirRecursos(marca.id, setRecursos), [marca.id]);
+  useEffect(() => ouvirCategoriasRecurso(marca.id, setCategorias), [marca.id]);
+  useEffect(() => {
+    if (souLiderBase) garantirCategoriasPadrao(marca.id);
+  }, [marca.id, souLiderBase]);
 
-  const tiposComItens = TIPOS_RECURSO.filter(([v]) => recursos.some((r) => r.tipo === v));
-  const doTipo = recursos.filter((r) => r.tipo === tipo);
+  const categoriaAberta = categoriaAbertaId ? categorias.find((c) => c.id === categoriaAbertaId) : null;
+  const doCategoria = categoriaAbertaId ? recursos.filter((r) => categoriaDoRecurso(r) === categoriaAbertaId) : [];
+
+  if (categoriaAberta) {
+    return (
+      <>
+        <button className="sair" style={{ marginTop: 0 }} onClick={() => setCategoriaAbertaId(null)}>‹ {marca.nome}</button>
+        <div className="sect">
+          <div className="cabecalho">
+            <h3>{categoriaAberta.nome}</h3>
+            {souLiderBase && (
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "recurso" })}>
+                Novo recurso
+              </button>
+            )}
+          </div>
+          {souLiderBase && (
+            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "categoriaRecurso", categoria: categoriaAberta })}>
+              Editar categoria
+            </button>
+          )}
+        </div>
+        {doCategoria.length > 0 ? (
+          <div className="sect">
+            {doCategoria.map((r) => (
+              <CardRecurso key={r.id} item={r} corMarca={marca.cores?.[0]} onEditar={souLiderBase ? () => setSheet({ tipo: "recurso", recurso: r }) : null} />
+            ))}
+          </div>
+        ) : (
+          <div className="sect"><div className="vaz">Ainda sem recursos nesta categoria.</div></div>
+        )}
+
+        {sheet?.tipo === "recurso" && (
+          <SheetRecurso
+            marcaId={marca.id} categoriaId={categoriaAbertaId} recurso={sheet.recurso}
+            onFechar={() => setSheet(null)}
+            onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+            onRemovido={(msg) => { setSheet(null); torrada(msg); }}
+          />
+        )}
+        {sheet?.tipo === "categoriaRecurso" && (
+          <SheetCategoriaRecurso
+            marcaId={marca.id} categoria={sheet.categoria}
+            onFechar={() => setSheet(null)}
+            onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+            onDesativada={(msg) => { setSheet(null); torrada(msg); setCategoriaAbertaId(null); }}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <>
       <button className="sair" style={{ marginTop: 0 }} onClick={onVoltar}>‹ Marcas</button>
       <div className="sect">
-        <div className="cabecalho">
-          <h3 style={{ color: marca.cores?.[0] }}>{marca.nome}</h3>
-          {souLiderBase && (
-            <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "recurso" })}>
-              Novo recurso
-            </button>
-          )}
-        </div>
+        <div className="cabecalho"><h3 style={{ color: marca.cores?.[0] }}>{marca.nome}</h3></div>
         {marca.descricao && <p className="ds">{marca.descricao}</p>}
         {souLiderBase && (
-          <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "marca" })}>
-            Editar marca
-          </button>
-        )}
-        {tiposComItens.length > 0 ? (
-          <div className="subtabs" style={{ marginTop: 0 }}>
-            {tiposComItens.map(([v, nome]) => (
-              <button key={v} data-on={tipo === v ? 1 : 0} onClick={() => setTipo(v)}>{nome}</button>
-            ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn sec full" onClick={() => setSheet({ tipo: "marca" })}>Editar marca</button>
+            <button className="btn sec full" onClick={() => setSheet({ tipo: "categoriaRecurso" })}>Nova categoria</button>
           </div>
-        ) : (
-          <div className="vaz">Ainda sem recursos nesta marca.</div>
         )}
       </div>
 
-      {doTipo.length > 0 && (
-        <div className="sect">
-          {doTipo.map((r) => (
-            <CardRecurso key={r.id} item={r} corMarca={marca.cores?.[0]} onEditar={souLiderBase ? () => setSheet({ tipo: "recurso", recurso: r }) : null} />
-          ))}
-        </div>
-      )}
+      <div className="sect">
+        {categorias.length === 0 ? (
+          <div className="vaz">A preparar as categorias…</div>
+        ) : (
+          <div className="grelha-marcas">
+            {categorias.map((c) => {
+              const n = recursos.filter((r) => categoriaDoRecurso(r) === c.id).length;
+              return (
+                <button
+                  key={c.id} className="categoria-card"
+                  style={{ background: `linear-gradient(135deg, ${marca.cores?.[0] ?? "#0019BE"}, ${marca.cores?.[1] ?? marca.cores?.[0] ?? "#0019BE"})` }}
+                  onClick={() => setCategoriaAbertaId(c.id)}
+                >
+                  <p className="titulo">{c.nome}</p>
+                  <span className="conta">{n} {n === 1 ? "item" : "itens"}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {sheet?.tipo === "recurso" && (
-        <SheetRecurso
-          marcaId={marca.id} tipoAtual={tipo} recurso={sheet.recurso}
-          onFechar={() => setSheet(null)}
-          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
-          onRemovido={(msg) => { setSheet(null); torrada(msg); }}
-        />
-      )}
       {sheet?.tipo === "marca" && (
         <SheetMarca
           marca={marca}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
           onDesativada={(msg) => { setSheet(null); torrada(msg); onVoltar(); }}
+        />
+      )}
+      {sheet?.tipo === "categoriaRecurso" && (
+        <SheetCategoriaRecurso
+          marcaId={marca.id} categoria={sheet.categoria}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+          onDesativada={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
     </>
@@ -112,11 +202,13 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
   const [aba, setAba] = useState("marcas");
   const [marcas, setMarcas] = useState([]);
   const [acervo, setAcervo] = useState([]);
+  const [categorias, setCategorias] = useState([]);
   const [marcaAbertaId, setMarcaAbertaId] = useState(null);
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => ouvirMarcas(setMarcas), []);
   useEffect(() => ouvirAcervo(setAcervo), []);
+  useEffect(() => ouvirCategoriasAcervo(setCategorias), []);
 
   useEffect(() => {
     if (!ativo) return;
@@ -132,6 +224,15 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
   if (marcaAberta) {
     return <KitMarca marca={marcaAberta} souLiderBase={souLiderBase} onVoltar={() => setMarcaAbertaId(null)} />;
   }
+
+  // categoria inativa/apagada não some com o item, cai em "Sem
+  // categoria" — mesma rede de segurança da Wiki para ministério
+  // desativado (ver wikiGrupos.js).
+  const idsCategoriasAtivas = new Set(categorias.map((c) => c.id));
+  const gruposAcervo = [
+    ...categorias.map((c) => ({ id: c.id, nome: c.nome, itens: acervo.filter((i) => i.categoriaId === c.id) })),
+    { id: SEM_CATEGORIA, nome: "Sem categoria", itens: acervo.filter((i) => !i.categoriaId || !idsCategoriasAtivas.has(i.categoriaId)) },
+  ].filter((g) => g.itens.length > 0);
 
   return (
     <>
@@ -163,6 +264,7 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
                     : { background: `linear-gradient(135deg, ${m.cores?.[0] ?? "#0019BE"}, ${m.cores?.[1] ?? m.cores?.[0] ?? "#0019BE"})` }}
                   onClick={() => setMarcaAbertaId(m.id)}
                 >
+                  {m.fixado && <span className="marca-fixada" title="Fixada no topo">📌</span>}
                   <p className="titulo">{m.nome}{m.descricao && <span>{m.descricao}</span>}</p>
                   <div className="swatches">
                     {(m.cores || []).map((c, i) => <i key={i} style={{ background: c }} />)}
@@ -177,15 +279,22 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
       {aba === "acervo" && (
         <div className="sect">
           {souLiderBase && (
-            <button className="btn sec full" style={{ marginBottom: 12 }} onClick={() => setSheet({ tipo: "acervo" })}>
-              Novo item
-            </button>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button className="btn sec full" onClick={() => setSheet({ tipo: "acervo" })}>Novo item</button>
+              <button className="btn sec full" onClick={() => setSheet({ tipo: "categoriaAcervo" })}>Nova categoria</button>
+            </div>
           )}
-          {acervo.length === 0 ? (
+          {gruposAcervo.length === 0 ? (
             <div className="vaz">Ainda sem nada no acervo.</div>
           ) : (
-            acervo.map((item) => (
-              <CardRecurso key={item.id} item={item} onEditar={souLiderBase ? () => setSheet({ tipo: "acervo", item }) : null} />
+            gruposAcervo.map((g) => (
+              <GrupoAcervo
+                key={g.id} nome={g.nome} itens={g.itens} souLiderBase={souLiderBase}
+                onEditarCategoria={souLiderBase && g.id !== SEM_CATEGORIA
+                  ? () => setSheet({ tipo: "categoriaAcervo", categoria: categorias.find((c) => c.id === g.id) })
+                  : null}
+                onEditarItem={(item) => setSheet({ tipo: "acervo", item })}
+              />
             ))
           )}
         </div>
@@ -197,8 +306,17 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
+      {sheet?.tipo === "categoriaAcervo" && (
+        <SheetCategoriaAcervo
+          categoria={sheet.categoria}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+          onDesativada={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
       {sheet?.tipo === "acervo" && (
         <SheetItemAcervo
+          categorias={categorias}
           item={sheet.item}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}

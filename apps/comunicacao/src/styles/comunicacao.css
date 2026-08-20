@@ -25,6 +25,7 @@
   gap: 12px;
 }
 .marca-card {
+  position: relative;
   border-radius: 16px;
   padding: 14px;
   min-height: 92px;
@@ -40,6 +41,47 @@
 }
 .marca-card:active {
   transform: scale(0.98);
+}
+/* fixada no topo — o mesmo emoji do resto da app para estados
+ * (📝 em treino, ✅ feito), não um ícone novo só para isto */
+.marca-fixada {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 15px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* categorias de recurso, dentro de uma marca — mesma grelha 2
+ * colunas das Marcas (.grelha-marcas), sempre no gradiente da marca:
+ * a categoria não tem identidade própria, é só uma divisão, quem tem
+ * cor é a marca. */
+.categoria-card {
+  border-radius: 16px;
+  padding: 16px 14px;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  border: 0;
+  text-align: left;
+  width: 100%;
+}
+.categoria-card:active {
+  transform: scale(0.98);
+}
+.categoria-card .titulo {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.categoria-card .conta {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
 }
 .marca-card .titulo {
   color: #fff;

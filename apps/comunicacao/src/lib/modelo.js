@@ -12,8 +12,10 @@
  *   bases/{base}/wiki/{id}/respostas/{id}            ← mesmo modelo da Técnica (artigos+dúvidas)
  *   bases/{base}/enquetes/{id}/respostas/{pessoa}    ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/reembolsos/{r}
+ *   marcas/{marca}/categoriasRecurso/{categoria}      ← Logos/Fontes/Cores/Outros por omissão, o líder cria mais
  *   marcas/{marca}/recursos/{recurso}                ← raiz, leitura de TODAS as bases (Brand)
  *   acervo/{item}                                    ← raiz, leitura de TODAS as bases
+ *   acervoCategorias/{categoria}                      ← raiz, agrupa o acervo (nome, ordem, ativo)
  *   eventos/{AAAA-MM-DD}                             ← global, a igreja toda
  *   eventos/{e}/escalas/{base}                       ← lugares[] (titular/aprendiz por ministério) + liderEscala
  *   eventos/{e}/atribuicoes/{funcao}                 ← pessoas[]
@@ -36,7 +38,9 @@ export const cRespostasEnquete = (enqueteId) => collection(db, `bases/${BASE_ID}
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
 export const cMarcas      = () => collection(db, "marcas");
 export const cRecursos    = (marcaId) => collection(db, `marcas/${marcaId}/recursos`);
+export const cCategoriasRecurso = (marcaId) => collection(db, `marcas/${marcaId}/categoriasRecurso`);
 export const cAcervo      = () => collection(db, "acervo");
+export const cAcervoCategorias = () => collection(db, "acervoCategorias");
 export const cEventos     = () => collection(db, "eventos");
 export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);

@@ -4,13 +4,14 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Outro"];
 
-export default function SheetItemAcervo({ item, onFechar, onGuardado, onDesativado }) {
+export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado, onDesativado }) {
   const torrada = useTorrada();
   const [titulo, setTitulo] = useState(item?.titulo ?? "");
   const [descricao, setDescricao] = useState(item?.descricao ?? "");
   const [url, setUrl] = useState(item?.url ?? "");
   const [thumbUrl, setThumbUrl] = useState(item?.thumbUrl ?? "");
   const [origem, setOrigem] = useState(item?.origem ?? "Google Drive");
+  const [categoriaId, setCategoriaId] = useState(item?.categoriaId ?? "");
   const [aEnviar, setAEnviar] = useState(false);
 
   async function guardar() {
@@ -19,7 +20,7 @@ export default function SheetItemAcervo({ item, onFechar, onGuardado, onDesativa
     if (!url.trim()) return torrada("Falta o link.");
     setAEnviar(true);
     try {
-      const dados = { titulo: t, descricao: descricao.trim(), url: url.trim(), thumbUrl: thumbUrl.trim() || null, origem };
+      const dados = { titulo: t, descricao: descricao.trim(), url: url.trim(), thumbUrl: thumbUrl.trim() || null, origem, categoriaId: categoriaId || null };
       if (item) {
         await guardarItemAcervo(item.id, dados);
         onGuardado("Item atualizado");
@@ -67,6 +68,12 @@ export default function SheetItemAcervo({ item, onFechar, onGuardado, onDesativa
             <button key={o} data-on={origem === o ? 1 : 0} onClick={() => setOrigem(o)}>{o}</button>
           ))}
         </div>
+
+        <label className="rot">Categoria (opcional)</label>
+        <select className="campo" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
+          <option value="">Sem categoria</option>
+          {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
 
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {item && (

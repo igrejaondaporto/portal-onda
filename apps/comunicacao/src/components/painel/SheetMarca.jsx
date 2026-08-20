@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { criarMarca, guardarMarca, novaMarcaId, contarRecursos, desativarMarca, enviarFotoMarca } from "../../lib/marcas";
+import { criarMarca, guardarMarca, novaMarcaId, contarRecursos, desativarMarca, enviarFotoMarca, fixarMarca, desafixarMarca } from "../../lib/marcas";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const CORES_PADRAO = ["#0019BE", "#D8F24B", "#0A0F2E"];
@@ -22,6 +22,8 @@ export default function SheetMarca({ marca, onFechar, onGuardado, onDesativada }
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
   const [aConfirmarDesativar, setAConfirmarDesativar] = useState(false);
+  const [fixado, setFixado] = useState(marca?.fixado ?? false);
+  const [aFixar, setAFixar] = useState(false);
 
   function definirCor(i, valor) {
     setCores((atual) => atual.map((c, idx) => (idx === i ? valor : c)));
@@ -69,6 +71,25 @@ export default function SheetMarca({ marca, onFechar, onGuardado, onDesativada }
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
       setAEnviar(false);
+    }
+  }
+
+  async function alternarFixar() {
+    setAFixar(true);
+    try {
+      if (fixado) {
+        await desafixarMarca(marca.id);
+        setFixado(false);
+        torrada("Marca desafixada");
+      } else {
+        await fixarMarca(marca.id);
+        setFixado(true);
+        torrada("Marca fixada no topo");
+      }
+    } catch (e) {
+      torrada(e.message || "Não foi possível atualizar.");
+    } finally {
+      setAFixar(false);
     }
   }
 
@@ -140,6 +161,11 @@ export default function SheetMarca({ marca, onFechar, onGuardado, onDesativada }
         </p>
 
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar || aEnviarFoto} onClick={guardar}>Guardar</button>
+        {marca && (
+          <button className="btn sec full" style={{ marginTop: 9 }} disabled={aFixar} onClick={alternarFixar}>
+            {fixado ? "📌 Desafixar do topo" : "Fixar no topo"}
+          </button>
+        )}
         {marca && (
           <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={pedirDesativar}>
             Desativar marca
