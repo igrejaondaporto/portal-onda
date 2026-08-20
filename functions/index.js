@@ -1979,6 +1979,24 @@ export const recusarTransferencia = onCall(async (req) => {
   return { ok: true };
 });
 
+// "Nada é apagado, é desativado" (ver CLAUDE.md raiz) — excluir marca
+// `ativo: false`, nunca `ref.delete()`. Qualquer estágio, inclusive
+// entregue/recusada: pedido do líder para não ficar sujando o campo
+// com pedidos já fechados. Só o líder da Comunicação, como
+// `excluirEnquete` — quem produziu/assumiu não decide isto sozinho.
+export const excluirSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação exclui solicitações.");
+  if (req.auth.token.papel !== "lider_base") throw new HttpsError("permission-denied", "Só o líder exclui solicitações.");
+  const { id } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
 /* ── MELHORIAS (Base Técnica) ─────────────────────────────────
  * Autoria mista, como a Wiki: qualquer voluntário reporta, comenta,
  * define a previsão e resolve; só o líder reabre uma melhoria já
