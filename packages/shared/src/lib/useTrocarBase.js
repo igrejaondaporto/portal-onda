@@ -17,9 +17,8 @@ export function useTrocarBase() {
     setDestino(null);
     const r = await trocarBase(base.id);
     if (!r.ok) { torrada(r.mensagem); setATrocar(false); return; }
-    // em localhost troca no sítio (sem url); noutro domínio, guarda o
-    // link de reserva — os separadores voltam a responder ao fim de
-    // 2.5s se a navegação automática não tirar da página.
+    // guarda o link de reserva — os separadores voltam a responder
+    // ao fim de 2.5s se a navegação automática não tirar da página.
     if (r.url) {
       setDestino({ nome: base.nome, url: r.url });
       setTimeout(() => setATrocar(false), 2500);

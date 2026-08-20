@@ -53,6 +53,17 @@ Em `apps/<slug>/vite.config.js`, dentro do `manifest` do
 `VitePWA(...)`: `name`, `short_name`, `description`,
 `background_color`/`theme_color` (a cor da base, hex).
 
+No mesmo ficheiro, no `defineConfig` (fora do plugin PWA), uma porta
+fixa — a próxima livre depois das que já existem (hoje 5173–5176):
+```js
+server: { port: <N>, strictPort: true },
+```
+A mesma porta entra em `PORTAS_DEV` (`packages/shared/src/lib/auth.js`).
+Sem a linha, o `trocarBase` em localhost troca os claims na app em
+que estás e ficas a olhar para a UI errada, sem erro. **Não mexas
+no CORS das functions** — já aceita `localhost`/`127.0.0.1` em
+qualquer porta, de propósito, para isto não disparar deploy.
+
 Em `apps/<slug>/index.html`: `<title>`, `<meta name="theme-color">`,
 `<meta name="description">`, e as quatro linhas de `og:url` /
 `og:title` / `og:description` / `og:image` / `twitter:*` — todas têm
@@ -242,7 +253,8 @@ liga o domínio (passo 11) e confirma em produção.
 - `firestore.rules` — os padrões `bases/{base}/...` já são genéricos
   por `baseId`, uma base nova não abre buraco nenhum sozinha.
 - `packages/shared` — login por PIN, NavBar, troca de base, tudo já
-  serve qualquer `baseId`.
+  serve qualquer `baseId`. A única linha a acrescentar é `PORTAS_DEV`
+  em `auth.js` (passo 1) — o resto não se toca.
 - Enquetes de indisponibilidade / sugestor de escala (se a base
   quiser este fluxo) — o schema e as Cloud Functions
   (`abrirEnquete`/`fecharEnquete`/`responderEnquete`/...) já são

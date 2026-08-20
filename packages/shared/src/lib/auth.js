@@ -39,18 +39,36 @@ export async function entrarComoDev(senha) {
 
 export const sair = () => signOut(auth);
 
+/** Portas do `npm run dev` de cada app — tem de bater com o
+ *  `server.port` do vite.config.js respectivo. */
+export const PORTAS_DEV = {
+  apoio: 5173,
+  tecnica: 5174,
+  backstage: 5175,
+  comunicacao: 5176,
+};
+
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um
  *  domínio separados (apoio.igrejaonda.pt, tecnica.igrejaonda.pt…) —
  *  trocar os claims do token sozinho não muda qual app está a
  *  correr no browser. Por isso isto navega mesmo para o domínio da
  *  base nova, levando o token novo na fragment da URL (nunca vai para
- *  o servidor nem fica em logs); a app que abre lê-o em `lerTokenDaUrl`
- *  e entra sem pedir PIN outra vez. Em localhost (dev, uma app só)
- *  não há para onde navegar — troca os claims no sítio, como antes. */
+ *  o servidor nem fica em logs); a app que abre lê-o em
+ *  `entrarComTokenDaUrl` e entra sem pedir PIN outra vez. Em localhost
+ *  navega para a porta da app de destino, se a conhecermos; senão
+ *  troca os claims no sítio. */
 export async function trocarBase(novoBaseId) {
   try {
     const { data } = await chamar("trocarBase")({ novoBaseId });
-    if (window.location.hostname === "localhost") {
+    const local = window.location.hostname === "localhost"
+      || window.location.hostname === "127.0.0.1";
+    if (local) {
+      const porta = PORTAS_DEV[novoBaseId];
+      if (porta && window.location.port !== String(porta)) {
+        const url = `http://${window.location.hostname}:${porta}/#tok=${encodeURIComponent(data.token)}`;
+        window.location.assign(url);
+        return { ok: true, url };
+      }
       await signInWithCustomToken(auth, data.token);
       return { ok: true };
     }
