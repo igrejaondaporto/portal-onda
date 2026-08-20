@@ -15,7 +15,18 @@ import Funcoes from "./Funcoes";
 import Culto from "./Culto";
 import Inventario from "./Inventario";
 import Reembolsos from "./Reembolsos";
+import Montar from "./Montar";
 import Perfil from "./Perfil";
+
+// urna — enquete de disponibilidade e montagem da escala do mês
+const ICONE_MONTAR = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
+const ABAS_BASE = [
+  ["inicio", "Início"],
+  ["escala", "Escala"],
+  ["funcoes", "Funções"],
+  ["culto", "Culto"],
+  ["inventario", "Inventário"],
+];
 
 /**
  * Casca da app depois de entrar: cabeçalho + corpo + navegação.
@@ -68,6 +79,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   }, [uid]);
 
   const lider = papel === "lider_base";
+  const ABAS = lider ? [...ABAS_BASE, ["montar", "Montar", ICONE_MONTAR]] : ABAS_BASE;
 
   function irPara(p) {
     setPagina(p);
@@ -192,6 +204,9 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
           )}
+          {pagina === "montar" && lider && (
+            <Montar ativo={pagina === "montar"} definirCabecalho={setCab} />
+          )}
           {pagina === "perfil" && (
             <Perfil
               uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
@@ -207,7 +222,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </p>
         </div>
       </div>
-      <NavBar pagina={pagina} onIr={irPara} />
+      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} />
       {menuAberto && (
         <MenuComTour
           baseId={baseId} papel={papel} irPara={irPara}

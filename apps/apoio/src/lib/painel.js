@@ -8,7 +8,7 @@
  * que o cliente não pode decidir sozinho.
  */
 import {
-  query, where, orderBy, onSnapshot, getDocs, getDoc,
+  query, where, orderBy, onSnapshot, getDocs, getDoc, collection,
   doc, setDoc, updateDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -188,6 +188,24 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
  *  não fica escalado nas duas no mesmo culto. */
 export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
   chamar("guardarEscalaApoio")({ eventoId, pessoas, liderEscala }).then((r) => r.data);
+
+/** uid → Set(domingoId) para quem está escalado/indisponível noutra
+ *  base nesses domingos — mesmo formato de construirIndisponibilidades
+ *  (sugestor.js), para fundir com `mesclarIndisponibilidades`. Leitura
+ *  pública (eventos/{e}/indisponibilidades permite a qualquer base
+ *  autenticada, ver firestore.rules) — não precisa de Cloud Function. */
+export async function obterIndisponibilidadesCrossBase(domingoIds) {
+  const mapa = {};
+  await Promise.all(domingoIds.map(async (domingoId) => {
+    const snap = await getDocs(collection(db, `eventos/${domingoId}/indisponibilidades`));
+    snap.forEach((d) => {
+      const outraBase = Object.keys(d.data().origens || {}).find((b) => b !== BASE_ID);
+      if (!outraBase) return;
+      (mapa[d.id] ??= new Set()).add(domingoId);
+    });
+  }));
+  return mapa;
+}
 
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
 

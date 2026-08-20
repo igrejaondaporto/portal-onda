@@ -71,6 +71,54 @@ deixa o líder cancelar um pedido próprio só enquanto está "Na fila" —
 depois de assumido, cancelar sozinho desapareceria sem avisar quem já
 está a produzir.
 
+## Montar — enquete de indisponibilidade + sugestor de escala
+
+Menu "Montar", só para o líder da base (`ABAS_BASE` + gate em
+`Sessao.jsx`, mesmo padrão da Técnica). Três partes, todas em
+`src/pages/Montar.jsx`: abrir/acompanhar a enquete, a escala
+sugerida, e as últimas enquetes.
+
+```js
+bases/apoio/enquetes/{AAAA-MM}
+  estado: "aberta" | "fechada", prazo: date
+  domingos: [...]
+
+bases/apoio/enquetes/{AAAA-MM}/respostas/{uid}
+  indisponivelEm: [...], semIndisponibilidade: true, nota?, respondidoEm
+```
+
+**Cópia 1:1 do schema, Cloud Functions e regras da Técnica/Backstage**
+(`src/lib/enquetes.js`) — já eram genéricas por `baseId`, zero
+alteração no backend para isto funcionar aqui também. Só mudou o
+domínio no texto pronto para o WhatsApp (`apoio.igrejaonda.pt`).
+
+### O sugestor é mais simples que o da Técnica
+
+A Apoio não tem ministérios — é uma equipa só. Por isso
+`src/lib/sugestor.js` não tem titular/aprendiz/ministério: cada
+domingo pede `tamanhoEquipa` pessoas quaisquer
+(`gerarSugestaoApoio`), a saída é directamente `{pessoas: [...],
+liderEscala}` — a mesma forma que `guardarEscala` já espera (a
+mesma do editor manual, `SheetEscala.jsx`). Sem ministérios não há o
+problema de "beco sem saída" da Técnica (preencher primeiro o slot
+com menos candidatos) — qualquer pessoa serve para qualquer domingo,
+por isso os domingos são preenchidos em ordem cronológica.
+
+Candidatos ordenados por: nunca serviu primeiro → há mais tempo sem
+servir → menos vezes no trimestre (`obterEstatisticasEscala`) →
+menos vezes já escalada nesta própria geração (fairness dentro do
+mês) → sorteio no empate de verdade.
+
+UI (`src/components/painel/SugestorEscala.jsx`): um cartão por
+domingo, mostra quem está escalado com a mesma interação do
+`SheetEscala.jsx` manual (toca no ✓ para trocar, estrela define o
+líder de escala) — "Editar equipa" abre a lista toda para ajustar.
+**Nunca publica sozinho**: "Gerar sugestão" só propõe; o líder ajusta
+e confirma em "Publicar escala", que grava um `guardarEscala` por
+domingo e marca `marcarEscalaPublicada`. Sem a tabela/canvas de
+exportação da Técnica (não fazia sentido sem colunas de ministério) —
+se vier a fazer falta, portar depois.
+
 ## Detalhes já decididos e não se discutem outra vez
 
 - Chegada 08:00, fixa por base, editável só pelo líder da base.

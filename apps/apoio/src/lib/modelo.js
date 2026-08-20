@@ -13,6 +13,8 @@
  *   eventos/{e}/escalas/{base}                       ← pessoas[] + liderEscala
  *   eventos/{e}/atribuicoes/{funcao}                 ← pessoas[]
  *   eventos/{e}/checklist/{funcao}                   ← feito por quem, a que horas
+ *   bases/{base}/enquetes/{AAAA-MM}                  ← indisponibilidade, igual a Técnica/Backstage
+ *   bases/{base}/enquetes/{AAAA-MM}/respostas/{pessoa}
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -26,6 +28,8 @@ export const cEventos     = () => collection(db, "eventos");
 export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);
 export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
+export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
+export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
 
 export const FASES = [
   ["pre",     "Pré-culto",      "Antes de abrir as portas"],
