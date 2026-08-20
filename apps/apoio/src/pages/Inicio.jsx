@@ -402,7 +402,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     {sheetComunicacao?.tipo === "detalhe" && (
       <SheetDetalheSolicitacao
         solicitacao={minhasSolicitacoes.find((s) => s.id === sheetComunicacao.solicitacao.id) ?? sheetComunicacao.solicitacao}
+        papel={papel}
         onFechar={() => setSheetComunicacao({ tipo: "lista" })}
+        onExcluido={() => setSheetComunicacao({ tipo: "lista" })}
       />
     )}
     </>

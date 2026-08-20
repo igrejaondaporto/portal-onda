@@ -1744,7 +1744,14 @@ export const abrirSolicitacao = onCall(async (req) => {
   if (!oQue?.trim()) throw new HttpsError("invalid-argument", "Falta descrever o que precisas.");
   if (!ondeUsa?.trim()) throw new HttpsError("invalid-argument", "Falta dizer onde isto vai ser usado.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
-  await exigeMinisterioComunicacaoAtivo(ministerioId);
+  // as outras bases já não escolhem ministério ao abrir — é a
+  // Comunicação que atribui na triagem (ver atribuirSolicitacao). A
+  // própria Comunicação, a pedir para si (souComunicacao), continua a
+  // escolher já na abertura — tem o contexto para isso; por isso só é
+  // obrigatório quando é ela a pedir, mas validado sempre que vier.
+  if (baseId === "comunicacao" || ministerioId) {
+    await exigeMinisterioComunicacaoAtivo(ministerioId);
+  }
 
   // só a própria Comunicação escolhe de que base é o pedido (pode ser
   // "em nome de" outra base, ou um trabalho interno) — as outras três
@@ -1763,7 +1770,8 @@ export const abrirSolicitacao = onCall(async (req) => {
   const ref = db.collection("solicitacoes").doc();
   await ref.set({
     titulo: titulo.trim(), baseSolicitanteId: baseFinal, solicitanteId: uid, solicitanteNome,
-    oQue: oQue.trim(), ondeUsa: ondeUsa.trim(), ministerioId,
+    oQue: oQue.trim(), ondeUsa: ondeUsa.trim(), ministerioId: ministerioId || null,
+    designadoParaId: null, designadoParaNome: null,
     textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(),
     prazo, foraDoPrazo, status: "fila",
     responsavelId: null, responsavelNome: null, entregaUrl: null, entregueEm: null,
@@ -1807,8 +1815,53 @@ export const editarSolicitacao = onCall(async (req) => {
   return { ok: true };
 });
 
+// Triagem: o líder aponta o pedido a um ministério e/ou a uma pessoa
+// — nenhum dos dois obriga o outro (dá para atribuir só ao ministério,
+// e quem for dele decide quem assume; ou já direto a alguém). Só
+// enquanto "fila": depois de assumido, é o responsável quem já sabe
+// que é dele, não faz sentido re-triagem. Isto é o que faz a
+// solicitação aparecer no Início de quem foi apontado (ver
+// Inicio.jsx) — nunca escreve responsavelId, só quem "Assumir" faz
+// isso.
+export const atribuirSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId, papel = req.auth?.token?.papel;
+  if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação atribui solicitações.");
+  if (papel !== "lider_base") throw new HttpsError("permission-denied", "Só o líder atribui solicitações.");
+  const { id, ministerioId = null, designadoParaId = null } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  if (!ministerioId && !designadoParaId) throw new HttpsError("invalid-argument", "Escolhe um ministério ou uma pessoa.");
+  if (ministerioId) await exigeMinisterioComunicacaoAtivo(ministerioId);
+  let designadoNome = null;
+  if (designadoParaId) {
+    const p = await refPessoa(baseId, designadoParaId).get();
+    if (!p.exists || p.data().ativo === false) throw new HttpsError("invalid-argument", "Essa pessoa não está ativa.");
+    designadoNome = p.data().nome;
+  }
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.status !== "fila") throw new HttpsError("failed-precondition", "Só dá para atribuir enquanto está na fila.");
+  const nome = await nomeDaPessoa(baseId, uid);
+  const ministerioFinal = ministerioId ?? s.ministerioId ?? null;
+  const historicoEntry = {
+    tipo: "atribuicao", porId: uid, porNome: nome,
+    ministerioId: ministerioFinal, designadoParaId, designadoParaNome: designadoNome,
+    em: admin.firestore.Timestamp.now(),
+  };
+  await ref.set({
+    ministerioId: ministerioFinal,
+    designadoParaId, designadoParaNome: designadoNome,
+    historico: [...(s.historico || []), historicoEntry],
+  }, { merge: true });
+  return { ok: true };
+});
+
 // qualquer membro da Comunicação, não só o líder — "assumir sem
-// passar pelo líder" (ver briefing §6.3)
+// passar pelo líder" (ver briefing §6.3). Limpa a atribuição: uma vez
+// assumido, quem tem o pedido é responsavelId, designadoParaId já não
+// serve para nada (e ficaria a mostrar o banner de "para ti" a quem
+// foi apontado, mesmo depois de outra pessoa já ter assumido).
 export const assumirSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação assume solicitações.");
@@ -1829,6 +1882,7 @@ export const assumirSolicitacao = onCall(async (req) => {
   const historicoEntry = { de: s.status, para: novoStatus, porId: uid, porNome: nome, em: admin.firestore.Timestamp.now() };
   await ref.set({
     responsavelId: uid, responsavelNome: nome, status: novoStatus,
+    designadoParaId: null, designadoParaNome: null,
     historico: [...(s.historico || []), historicoEntry],
   }, { merge: true });
   return { ok: true };
@@ -1994,6 +2048,28 @@ export const excluirSolicitacao = onCall(async (req) => {
   const ref = refSolicitacao(id);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  await ref.set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+// O lado do solicitante: o líder da base que abriu cancela o próprio
+// pedido — "abriu errado" ou já não precisa. Só enquanto "fila": uma
+// vez que a Comunicação assumiu, já investiu trabalho nisso, cancelar
+// sozinho desapareceria sem avisar quem está a produzir — a partir
+// daí é conversa com a Comunicação, não um botão. Mesma regra de
+// sempre: `ativo: false`, nunca apaga o documento.
+export const excluirMinhaSolicitacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId, papel = req.auth?.token?.papel;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (papel !== "lider_base") throw new HttpsError("permission-denied", "Só o líder da base exclui um pedido.");
+  const { id } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
+  const ref = refSolicitacao(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+  const s = snap.data();
+  if (s.baseSolicitanteId !== baseId) throw new HttpsError("permission-denied", "Este pedido não é desta base.");
+  if (s.status !== "fila") throw new HttpsError("failed-precondition", "Já foi assumido — fala com a Comunicação para cancelar.");
   await ref.set({ ativo: false }, { merge: true });
   return { ok: true };
 });

@@ -153,6 +153,15 @@ query por `baseSolicitanteId == BASE_ID`). Tocar num pedido abre
 líder tinha uma secção "Comunicação" com só o botão de abrir e
 nenhuma forma de acompanhar — foi removida, ficou só este caminho.
 
+**Não escolhes o ministério ao abrir — a Comunicação atribui na
+triagem.** O campo "Para que ministério" saiu do formulário (só a
+Comunicação, a pedir para si mesma, ainda escolhe): não conhecemos o
+organograma dela para acertar. `SheetDetalheSolicitacao` mostra
+"Por atribuir" até isso acontecer. **"Excluir pedido"** (mesmo sheet)
+deixa o líder cancelar um pedido próprio só enquanto está "Na fila" —
+depois de assumido, cancelar sozinho desapareceria sem avisar quem já
+está a produzir.
+
 ## Detalhes decididos, iguais à Apoio
 
 - Sem confirmação de presença. Quem não pode avisa pelo WhatsApp.

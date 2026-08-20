@@ -16,7 +16,12 @@ const NOMES_BASE = { apoio: "Apoio", tecnica: "Técnica", backstage: "Backstage"
  *  nunca escolhem, a Cloud Function usa o token. Só a Comunicação tem
  *  o seletor (`souComunicacao`), porque o pedido dela pode ser "em
  *  nome de" outra base (alguém pediu por fora do sistema) ou um
- *  trabalho interno — só ela precisa de dizer qual das duas. */
+ *  trabalho interno — só ela precisa de dizer qual das duas.
+ *
+ *  Ministério: pelo mesmo motivo, só a Comunicação escolhe já na
+ *  abertura — as outras bases não sabem o organograma dela, e o líder
+ *  atribui isso na triagem (ver `atribuirSolicitacao`,
+ *  `apps/comunicacao/CLAUDE.md`). */
 export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
   const torrada = useTorrada();
   const souComunicacao = BASE_ID === "comunicacao";
@@ -33,7 +38,7 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
   const [aEnviar, setAEnviar] = useState(false);
 
   useEffect(() => { obterSlaDiasMinimos().then(setSlaDiasMinimos); }, []);
-  useEffect(() => { obterMinisteriosComunicacao().then(setMinisterios); }, []);
+  useEffect(() => { if (souComunicacao) obterMinisteriosComunicacao().then(setMinisterios); }, [souComunicacao]);
 
   const foraDoPrazo = prazo && diasAte(prazo) < slaDiasMinimos;
 
@@ -42,14 +47,14 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
     if (!oQue.trim()) return torrada("Falta dizer o que precisas.");
     if (!ondeUsa.trim()) return torrada("Falta dizer onde isto vai ser usado.");
     if (!prazo) return torrada("Falta o prazo.");
-    if (!ministerioId) return torrada("Falta escolher para que ministério é.");
+    if (souComunicacao && !ministerioId) return torrada("Falta escolher para que ministério é.");
     if (souComunicacao && !baseSolicitanteId) return torrada("Falta escolher de que base é o pedido.");
     setAEnviar(true);
     try {
       await abrirSolicitacao({
         titulo: titulo.trim(), oQue: oQue.trim(), ondeUsa: ondeUsa.trim(),
-        textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(), prazo, ministerioId,
-        ...(souComunicacao ? { baseSolicitanteId } : {}),
+        textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(), prazo,
+        ...(souComunicacao ? { ministerioId, baseSolicitanteId } : {}),
       });
       onGuardado("Pedido enviado à Comunicação");
     } catch (e) {
@@ -85,11 +90,15 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
           </>
         )}
 
-        <label className="rot">Para que ministério</label>
-        <select className="campo" value={ministerioId} onChange={(e) => setMinisterioId(e.target.value)}>
-          <option value="">Escolhe um</option>
-          {ministerios.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-        </select>
+        {souComunicacao && (
+          <>
+            <label className="rot">Para que ministério</label>
+            <select className="campo" value={ministerioId} onChange={(e) => setMinisterioId(e.target.value)}>
+              <option value="">Escolhe um</option>
+              {ministerios.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+          </>
+        )}
 
         <label className="rot">Texto final (opcional)</label>
         <textarea className="campo" rows={2} value={textoFinal} onChange={(e) => setTextoFinal(e.target.value)} placeholder="Se já tiveres o texto pronto" />

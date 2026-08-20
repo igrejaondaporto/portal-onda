@@ -45,6 +45,12 @@ export async function obterMinisteriosComunicacao() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Cancelar o próprio pedido, "abriu errado" ou já não precisa — só
+ *  enquanto ainda está na fila (ver `excluirMinhaSolicitacao`, a
+ *  Cloud Function recusa depois disso: uma vez assumido, é conversa
+ *  com a Comunicação, não um botão). */
+export const excluirMinhaSolicitacao = (id) => chamar("excluirMinhaSolicitacao")({ id }).then((r) => r.data);
+
 export function diasAte(prazoISO) {
   const hoje = new Date().toISOString().slice(0, 10);
   return Math.round((new Date(`${prazoISO}T00:00:00Z`) - new Date(`${hoje}T00:00:00Z`)) / (24 * 60 * 60 * 1000));
