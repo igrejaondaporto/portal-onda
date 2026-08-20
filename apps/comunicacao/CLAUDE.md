@@ -302,6 +302,17 @@ categoria", nunca some). `GrupoAcervo` reaproveita `.mincartao`/
 para todos. Sem paginação nem ecrã à parte: o acervo de uma equipa
 pequena não pede isso.
 
+**Categorias reais aparecem sempre na lista, mesmo com 0 itens —
+bug já corrigido, não repetir.** A primeira versão só mostrava um
+grupo se `itens.length > 0`; uma categoria recém-criada (ainda sem
+nada lá dentro) ficava invisível, e sem aparecer não havia como a
+abrir para editar/excluir nem para lhe atribuir o primeiro item — só
+"resolvia sozinho" depois de criar um item nela por fora (via
+`SheetItemAcervo`, que lista todas as categorias no `<select>`
+independentemente de terem itens). Só "Sem categoria" (não é uma
+categoria de verdade, `SEM_CATEGORIA` no código) esconde-se quando
+vazia — é fixa, sem edição, o líder confirmou que assim está bem.
+
 **Layout é local, não em `packages/shared`.** A grelha de Marcas
 (`.marca-card`, `.grelha-marcas`) só existe neste ecrã, por isso vive
 em `apps/comunicacao/src/styles/comunicacao.css` — nunca em

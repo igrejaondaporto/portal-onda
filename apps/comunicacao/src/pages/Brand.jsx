@@ -227,12 +227,17 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
 
   // categoria inativa/apagada não some com o item, cai em "Sem
   // categoria" — mesma rede de segurança da Wiki para ministério
-  // desativado (ver wikiGrupos.js).
+  // desativado (ver wikiGrupos.js). As categorias reais ficam sempre
+  // na lista, mesmo com 0 itens — senão uma categoria recém-criada
+  // (ainda sem nada lá dentro) desaparecia e o líder não tinha como a
+  // voltar a abrir para editar ou excluir. Só "Sem categoria" (que não
+  // é uma categoria de verdade, é só onde cai o que não tem nenhuma)
+  // some quando fica vazia.
   const idsCategoriasAtivas = new Set(categorias.map((c) => c.id));
   const gruposAcervo = [
     ...categorias.map((c) => ({ id: c.id, nome: c.nome, itens: acervo.filter((i) => i.categoriaId === c.id) })),
     { id: SEM_CATEGORIA, nome: "Sem categoria", itens: acervo.filter((i) => !i.categoriaId || !idsCategoriasAtivas.has(i.categoriaId)) },
-  ].filter((g) => g.itens.length > 0);
+  ].filter((g) => g.id !== SEM_CATEGORIA || g.itens.length > 0);
 
   return (
     <>
