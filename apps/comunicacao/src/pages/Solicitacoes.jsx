@@ -67,6 +67,7 @@ export default function Solicitacoes({ uid, papel, ativo, definirCabecalho }) {
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [verRecusadas, setVerRecusadas] = useState(false);
+  const [secoesAbertas, setSecoesAbertas] = useState({}); // { [status]: bool } — fechadas por omissão, como a Wiki
   const [arrastando, setArrastando] = useState(null); // solicitação
   const [sheet, setSheet] = useState(null); // { tipo: "abrir" | "ver", solicitacao? }
 
@@ -124,27 +125,34 @@ export default function Solicitacoes({ uid, papel, ativo, definirCabecalho }) {
       <div className="sect">
         {COLUNAS.map(([status, rotulo, cor]) => {
           const lista = porColuna(status);
+          const aberta = !!secoesAbertas[status];
           return (
             <div className="mincartao" key={status} onDragOver={(e) => e.preventDefault()} onDrop={() => largarEm(status)}>
               <div className="mincartao-barra" style={{ background: cor }} />
-              <div className="mincartao-cab">
+              <button
+                className="mincartao-cab cabtoque" data-aberto={aberta ? 1 : 0} aria-expanded={aberta}
+                onClick={() => setSecoesAbertas((v) => ({ ...v, [status]: !v[status] }))}
+              >
                 <span className="ponto" style={{ background: cor }} />
                 <span className="nome">{rotulo}</span>
                 <span className="conta">{lista.length}</span>
-              </div>
-              <div style={{ padding: "0 12px 12px" }}>
-                {lista.length === 0 && <div className="vaz" style={{ border: 0 }}>Nada aqui</div>}
-                {lista.map((s) => (
-                  <CardSolicitacao
-                    key={s.id} s={s} ministerio={ministerioDe(s)}
-                    arrastavel={!s.transferePendente}
-                    aArrastar={arrastando?.id === s.id}
-                    onArrastar={setArrastando}
-                    onLargar={() => setArrastando(null)}
-                    onAbrir={(sol) => setSheet({ tipo: "ver", solicitacao: sol })}
-                  />
-                ))}
-              </div>
+                <span className="cabtoque-seta" aria-hidden="true">›</span>
+              </button>
+              {aberta && (
+                <div style={{ padding: "0 12px 12px" }}>
+                  {lista.length === 0 && <div className="vaz" style={{ border: 0 }}>Nada aqui</div>}
+                  {lista.map((s) => (
+                    <CardSolicitacao
+                      key={s.id} s={s} ministerio={ministerioDe(s)}
+                      arrastavel={!s.transferePendente}
+                      aArrastar={arrastando?.id === s.id}
+                      onArrastar={setArrastando}
+                      onLargar={() => setArrastando(null)}
+                      onAbrir={(sol) => setSheet({ tipo: "ver", solicitacao: sol })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

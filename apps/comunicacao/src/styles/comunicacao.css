@@ -201,3 +201,19 @@
   height: 100%;
   object-fit: contain;
 }
+
+/* botão "Editar" dentro do cabeçalho de um grupo (Acervo) — .mincartao-cab
+ * é `cabtoque`, feito para SER o botão que expande/fecha; "Editar" tem de
+ * ser um alvo à parte lá dentro, por isso para a propagação do clique
+ * (ver Brand.jsx) — senão tocar em "Editar" também abria/fechava o grupo. */
+.mincartao-editar {
+  flex: none;
+  background: var(--agua);
+  border: 0;
+  border-radius: 100px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--azul);
+  cursor: pointer;
+}

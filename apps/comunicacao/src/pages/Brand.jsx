@@ -61,28 +61,41 @@ function CardRecurso({ item, corMarca, onEditar }) {
  *  3 primeiros itens; "Ver mais" expande para todos, sem paginação
  *  nem outra tela — o acervo de uma equipa pequena não pede isso. */
 function GrupoAcervo({ nome, itens, cor, souLiderBase, onEditarCategoria, onEditarItem }) {
-  const [aberto, setAberto] = useState(false);
-  const visiveis = aberto ? itens : itens.slice(0, QUANTOS_FECHADO);
+  const [secaoAberta, setSecaoAberta] = useState(false);
+  const [todosVisiveis, setTodosVisiveis] = useState(false);
+  const visiveis = todosVisiveis ? itens : itens.slice(0, QUANTOS_FECHADO);
 
   return (
     <div className="mincartao">
       <div className="mincartao-barra" style={{ background: cor || "var(--fio)" }} />
-      <div className="mincartao-cab" style={{ cursor: onEditarCategoria ? "pointer" : "default" }} onClick={onEditarCategoria}>
+      <div
+        className="mincartao-cab cabtoque" data-aberto={secaoAberta ? 1 : 0}
+        role="button" tabIndex={0} aria-expanded={secaoAberta}
+        onClick={() => setSecaoAberta((v) => !v)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSecaoAberta((v) => !v); } }}
+      >
         <span className="ponto" style={{ background: cor || "var(--cinza)" }} />
         <span className="nome">{nome}</span>
         <span className="conta">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
-        {onEditarCategoria && <span className="seta">›</span>}
-      </div>
-      <div style={{ padding: "0 12px 12px" }}>
-        {visiveis.map((item) => (
-          <CardRecurso key={item.id} item={item} onEditar={souLiderBase ? () => onEditarItem(item) : null} />
-        ))}
-        {itens.length > QUANTOS_FECHADO && (
-          <button className="btn sec full verMais" onClick={() => setAberto((v) => !v)}>
-            {aberto ? "Ver menos" : `Ver mais (${itens.length - QUANTOS_FECHADO})`}
+        {onEditarCategoria && (
+          <button className="mincartao-editar" onClick={(e) => { e.stopPropagation(); onEditarCategoria(); }}>
+            Editar
           </button>
         )}
+        <span className="cabtoque-seta" aria-hidden="true">›</span>
       </div>
+      {secaoAberta && (
+        <div style={{ padding: "0 12px 12px" }}>
+          {visiveis.map((item) => (
+            <CardRecurso key={item.id} item={item} onEditar={souLiderBase ? () => onEditarItem(item) : null} />
+          ))}
+          {itens.length > QUANTOS_FECHADO && (
+            <button className="btn sec full verMais" onClick={() => setTodosVisiveis((v) => !v)}>
+              {todosVisiveis ? "Ver menos" : `Ver mais (${itens.length - QUANTOS_FECHADO})`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

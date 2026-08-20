@@ -236,6 +236,33 @@ lista fixa, não lê `bases/{id}` um a um só para isto. Aparece no card
 (`Ministério · Base`) e como campo próprio "De que base" na folha de
 detalhe — antes só vinha escondido no subtítulo, sem rótulo, em minúsculas.
 
+**As quatro secções vêm fechadas por omissão — mesmo padrão da
+Wiki/Acervo.** `secoesAbertas` (`Solicitacoes.jsx`) é `{}` ao
+carregar, cada `.mincartao-cab` é agora `cabtoque` de verdade
+(`<button>`, `aria-expanded`, seta que roda): toca para abrir só
+aquela secção, as outras ficam como estavam. Largar um card
+arrastado (`onDragOver`/`onDrop`) continua a funcionar numa secção
+fechada — os handlers vivem no `.mincartao` de fora, não dependem de
+`secoesAbertas`.
+
+**Só a Comunicação escolhe a base solicitante ao abrir um pedido —
+as outras três nunca veem o campo.** `SheetAbrirSolicitacao.jsx`
+(`packages/shared`) é o mesmo formulário para qualquer base; para
+Apoio/Técnica/Backstage a base do pedido é sempre a própria (como
+sempre foi, a Cloud Function deriva do token, nunca confiou em
+input). Só quando `BASE_ID === "comunicacao"` (`souComunicacao`)
+aparece o campo "De que base é o pedido" — porque um pedido aberto
+pela própria Comunicação tanto pode ser em nome de outra base
+(alguém pediu por fora do sistema, ex.: WhatsApp) como um trabalho
+interno dela mesma; sem o campo não havia como distinguir os dois.
+No backend, `abrirSolicitacao` (`functions/index.js`) só aceita
+`baseSolicitanteId` do payload **quando o `baseId` do token já é
+`"comunicacao"`** — para qualquer outra base o campo é ignorado
+mesmo que venha no payload, a base final é sempre a do token
+(`BASES_VALIDAS` valida o valor escolhido). Nunca confiar em
+`baseSolicitanteId` do cliente sozinho — é sempre condicionado ao
+`baseId` real, verificado pelo Auth.
+
 ## Detalhes que valem para esta base como as outras
 
 - Sem confirmação de presença. Quem não pode avisa pelo WhatsApp.
@@ -337,6 +364,17 @@ não aparece. `GrupoAcervo` reaproveita `.mincartao`/
 — mostra só os 3 primeiros itens da categoria, "Ver mais (N)" expande
 para todos. Sem paginação nem ecrã à parte: o acervo de uma equipa
 pequena não pede isso.
+
+**Categoria vem fechada por omissão, mesmo padrão da Wiki/Solicitações
+— dois níveis de "aberto" independentes.** `secaoAberta` decide se a
+categoria mostra os itens (fechada ao carregar, toca no cabeçalho
+`.cabtoque` para abrir); `todosVisiveis` (só existe depois de aberta)
+decide se mostra 3 ou todos. O cabeçalho é `<div role="button">`, não
+`<button>` de verdade — tem o botão "Editar" aninhado lá dentro
+(`.mincartao-editar`, só para o líder da base), e HTML não deixa
+`<button>` dentro de `<button>`; "Editar" para a propagação do clique
+(`e.stopPropagation()`) antes de abrir `onEditarCategoria`, senão
+tocar em "Editar" também abria/fechava a categoria.
 
 **Instagram é origem, não campo à parte — e o ícone é o logo real de
 cada serviço, não emoji.** Primeira tentativa foi um `linkInstagram`
