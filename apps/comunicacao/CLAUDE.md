@@ -308,17 +308,21 @@ não aparece. `GrupoAcervo` reaproveita `.mincartao`/
 para todos. Sem paginação nem ecrã à parte: o acervo de uma equipa
 pequena não pede isso.
 
-**Link do Instagram (opcional) e ícone por origem em vez da letra.**
-`linkInstagram` — campo à parte do `url` principal (Drive/Canva/...),
-para linkar onde o material foi publicado, não onde vive o ficheiro
-de trabalho; mostra como tag "📷 Instagram" clicável ao lado da tag
-de origem (`CardRecurso`, em `Brand.jsx` — o mesmo componente do Kit
-de Marca, então também vale lá). Sem `thumbUrl`, a miniatura já não
-mostra a inicial do título — mostra um emoji pela `origem`
-(`ICONE_ORIGEM`: 🗂️ Drive, 🎨 Canva, 📦 Dropbox, 🔗 Outro). Não são os
-logótipos reais de cada serviço (marca registada) — só uma pista
-visual rápida, no mesmo espírito dos emojis que a app já usa noutros
-sítios (📝 em treino, ✅ feito).
+**Instagram é origem, não campo à parte — e o ícone é o logo real de
+cada serviço, não emoji.** Primeira tentativa foi um `linkInstagram`
+separado do `url` principal, com emoji na miniatura (🗂️/🎨/📦) em vez
+da inicial do título; o líder corrigiu os dois: "Isso foi errado [...]
+o usuário já vai por o link em Link mesmo" — Instagram entra como mais
+um valor de `origem` (`ORIGENS` em `SheetItemAcervo.jsx` e
+`SheetRecurso.jsx`: Google Drive/Canva/Dropbox/Instagram/Outro), sem
+campo novo nenhum. `LOGO_ORIGEM` (em `Brand.jsx`) mapeia cada origem
+para o logo de verdade em `apps/comunicacao/public/origem/`
+(`drive.webp`, `canva.jpg`, `dropbox.png`, `instagram.svg` — ficheiros
+que o líder enviou, cada um num formato diferente, por isso as
+extensões não seguem um padrão só). `.miniatura-origem` (CSS local)
+põe um cartão branco por trás dos quatro para ficarem com a mesma
+moldura. `CardRecurso` é partilhado entre Acervo e Kit de Marca — o
+ícone vale nos dois sítios.
 
 **Categorias reais aparecem sempre na lista, mesmo com 0 itens —
 bug já corrigido, não repetir.** A primeira versão só mostrava um

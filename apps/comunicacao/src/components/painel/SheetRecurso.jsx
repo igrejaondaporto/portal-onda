@@ -2,7 +2,7 @@ import { useState } from "react";
 import { criarRecurso, guardarRecurso, novoRecursoId, removerRecurso } from "../../lib/marcas";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
-const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Outro"];
+const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Instagram", "Outro"];
 
 /** `categoriaId` vem sempre do contexto — é a categoria que estava
  *  aberta quando se tocou em "Novo recurso" (ver Brand.jsx). Já não

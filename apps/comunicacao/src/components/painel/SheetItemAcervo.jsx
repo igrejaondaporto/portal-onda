@@ -2,7 +2,7 @@ import { useState } from "react";
 import { criarItemAcervo, guardarItemAcervo, novoItemAcervoId, desativarItemAcervo } from "../../lib/acervo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
-const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Outro"];
+const ORIGENS = ["Google Drive", "Canva", "Dropbox", "Instagram", "Outro"];
 
 /** Categoria é obrigatória — pedido do líder: sem isso um item novo
  *  cai num "Sem categoria" que confunde quem acabou de criar uma
@@ -13,7 +13,6 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
   const [titulo, setTitulo] = useState(item?.titulo ?? "");
   const [descricao, setDescricao] = useState(item?.descricao ?? "");
   const [url, setUrl] = useState(item?.url ?? "");
-  const [linkInstagram, setLinkInstagram] = useState(item?.linkInstagram ?? "");
   const [thumbUrl, setThumbUrl] = useState(item?.thumbUrl ?? "");
   const [origem, setOrigem] = useState(item?.origem ?? "Google Drive");
   const [categoriaId, setCategoriaId] = useState(item?.categoriaId ?? categorias[0]?.id ?? "");
@@ -28,7 +27,6 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
     try {
       const dados = {
         titulo: t, descricao: descricao.trim(), url: url.trim(),
-        linkInstagram: linkInstagram.trim() || null,
         thumbUrl: thumbUrl.trim() || null, origem, categoriaId,
       };
       if (item) {
@@ -84,9 +82,6 @@ export default function SheetItemAcervo({ item, categorias, onFechar, onGuardado
 
         <label className="rot">Link</label>
         <input className="campo" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive, Canva, Dropbox…" />
-
-        <label className="rot">Link do Instagram (opcional)</label>
-        <input className="campo" value={linkInstagram} onChange={(e) => setLinkInstagram(e.target.value)} placeholder="Onde foi publicado" />
 
         <label className="rot">Miniatura (opcional)</label>
         <input className="campo" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} placeholder="Link de uma imagem" />

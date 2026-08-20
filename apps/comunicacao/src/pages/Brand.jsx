@@ -16,19 +16,29 @@ const QUANTOS_FECHADO = 3;
 // aos valores desse enum, por isso cai na categoria certa sem migração
 const categoriaDoRecurso = (r) => r.categoriaId ?? r.tipo ?? null;
 
-// emoji por origem em vez da inicial do título quando não há
-// miniatura própria — não são os logótipos reais (marca registada de
-// cada serviço), só uma pista visual rápida de que tipo de link é
-const ICONE_ORIGEM = { "Google Drive": "🗂️", "Canva": "🎨", "Dropbox": "📦", "Outro": "🔗" };
+// logo do serviço em vez da inicial do título quando não há
+// miniatura própria — ficheiros em public/origem/, ver CLAUDE.md
+// desta base (de onde vieram, porque cada formato é diferente)
+const LOGO_ORIGEM = {
+  "Google Drive": "/origem/drive.webp",
+  "Canva": "/origem/canva.jpg",
+  "Dropbox": "/origem/dropbox.png",
+  "Instagram": "/origem/instagram.svg",
+};
 
 function CardRecurso({ item, corMarca, onEditar }) {
+  const logo = LOGO_ORIGEM[item.origem];
   return (
     <div className="cartaomelh" style={{ cursor: onEditar ? "pointer" : "default" }} onClick={onEditar}>
       {item.thumbUrl ? (
         <span className="miniatura" style={{ borderRadius: 10, backgroundImage: `url(${item.thumbUrl})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+      ) : logo ? (
+        <span className="miniatura miniatura-origem">
+          <img src={logo} alt="" />
+        </span>
       ) : (
-        <span className="miniatura" style={{ borderRadius: 10, background: corMarca || "var(--azul)", fontSize: 17 }}>
-          {ICONE_ORIGEM[item.origem] || item.titulo.charAt(0).toUpperCase()}
+        <span className="miniatura" style={{ borderRadius: 10, background: corMarca || "var(--azul)" }}>
+          {item.titulo.charAt(0).toUpperCase()}
         </span>
       )}
       <div className="cartaomelh-corpo">
@@ -39,11 +49,6 @@ function CardRecurso({ item, corMarca, onEditar }) {
         </div>
         <div className="cartaomelh-linha2">
           {item.origem && <span className="tag cinz">{item.origem}</span>}
-          {item.linkInstagram && (
-            <a className="tag cinz" href={item.linkInstagram} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-              📷 Instagram
-            </a>
-          )}
         </div>
         {item.descricao && <div className="cartaomelh-desc">{item.descricao}</div>}
       </div>
