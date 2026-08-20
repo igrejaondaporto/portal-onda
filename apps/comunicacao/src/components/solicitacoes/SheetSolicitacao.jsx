@@ -247,7 +247,11 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
           )
         )}
 
-        {!fechada && !solicitacao.transferePendente && (
+        {/* Só depois de ter dono — atribuído (designadoParaId) ou já
+            assumido (responsavelId). Um pedido novo, sem nenhum dos
+            dois, já tem "Assumir" logo acima; "Transferir para" aí
+            seria um caminho a mais para a mesma coisa. */}
+        {!fechada && !solicitacao.transferePendente && (solicitacao.designadoParaId || solicitacao.responsavelId) && (
           !aTransferir ? (
             <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setATransferir(true)}>
               Transferir para…
