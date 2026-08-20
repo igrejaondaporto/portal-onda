@@ -44,12 +44,6 @@ service firebase.storage {
       allow read:  if autenticado();
       allow write: if lider('comunicacao') && imagem();
     }
-    // teste visual: foto de fundo na barra de cada categoria do
-    // Acervo (ver CLAUDE.md desta base — nunca atrás dos itens)
-    match /acervoCategorias/{ficheiro} {
-      allow read:  if autenticado();
-      allow write: if lider('comunicacao') && imagem();
-    }
     match /eventos/{evento}/ordem.pdf {
       allow read:  if autenticado();
       // no delete, request.resource é sempre null — só se exige o
