@@ -37,6 +37,9 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
   // outra pessoa e "transferir para" o meu nome é como pegar o
   // pedido dela, pedido explícito do líder.
   const candidatosTransferencia = voluntarios.filter((p) => p.id !== solicitacao.responsavelId);
+  // com ministério escolhido, só faz sentido apontar a quem é dele
+  // (titular ou aprendiz) — sem ministério, qualquer voluntário serve
+  const candidatosAtribuicao = ministerioSel ? voluntarios.filter((p) => p.ministerios?.[ministerioSel]) : voluntarios;
 
   async function assumir() {
     setAEnviar(true);
@@ -180,13 +183,24 @@ export default function SheetSolicitacao({ solicitacao, uid, papel, ministerios,
         {souLider && solicitacao.status === "fila" && (
           <div className="caixa" style={{ marginTop: 10 }}>
             <label className="rot">Atribuir a</label>
-            <select className="campo" value={ministerioSel} onChange={(e) => setMinisterioSel(e.target.value)}>
+            <select
+              className="campo" value={ministerioSel}
+              onChange={(e) => {
+                const novo = e.target.value;
+                setMinisterioSel(novo);
+                // pessoa escolhida antes pode não ser deste ministério —
+                // não deixar uma seleção órfã, sem mostrar na lista filtrada
+                if (novo && pessoaSel && !voluntarios.find((p) => p.id === pessoaSel)?.ministerios?.[novo]) {
+                  setPessoaSel("");
+                }
+              }}
+            >
               <option value="">Ministério (opcional)</option>
               {ministerios.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </select>
             <select className="campo" style={{ marginTop: 8 }} value={pessoaSel} onChange={(e) => setPessoaSel(e.target.value)}>
               <option value="">Pessoa responsável (opcional)</option>
-              {voluntarios.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              {candidatosAtribuicao.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
             <button className="btn" style={{ marginTop: 10 }} disabled={aEnviar} onClick={atribuir}>Atribuir</button>
           </div>

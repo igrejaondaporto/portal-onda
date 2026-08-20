@@ -118,7 +118,7 @@ export default function Solicitacoes({ uid, papel, ativo, definirCabecalho }) {
 
   return (
     <>
-      <button className="btn full" style={{ marginTop: 4 }} onClick={() => setSheet({ tipo: "abrir" })}>
+      <button className="btn full" style={{ marginTop: 18 }} onClick={() => setSheet({ tipo: "abrir" })}>
         Abrir solicitação
       </button>
 

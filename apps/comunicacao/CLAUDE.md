@@ -208,6 +208,14 @@ abaixo); `assumirSolicitacao` limpa `designadoParaId` ao assumir, para
 o aviso não continuar a mostrar-se a quem foi apontado depois de
 outra pessoa já ter pegado o pedido.
 
+**O `<select>` de pessoa filtra pelo ministério escolhido.** Sem
+ministério, mostra qualquer voluntário; ao escolher um, `SheetSolicitacao`
+reduz a `candidatosAtribuicao` para quem tem esse ministério em
+`pessoa.ministerios` (titular ou aprendiz) — sem isto o líder via a
+lista toda mesmo tendo acabado de dizer "isto é do Fotografia".
+Trocar de ministério limpa a pessoa escolhida se ela não for desse
+ministério, para nunca ficar uma seleção órfã escondida da lista.
+
 **Dois avisos no Início, um por papel — pedido explícito do líder:
 "quero que apareça no Início".** `Inicio.jsx` passou a ouvir a coleção
 inteira (`ouvirSolicitacoes`, antes só usada em `Solicitacoes.jsx`).
