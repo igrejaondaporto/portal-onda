@@ -335,19 +335,15 @@ independentemente de terem itens). Só "Sem categoria" (não é uma
 categoria de verdade, `SEM_CATEGORIA` no código) esconde-se quando
 vazia — é fixa, sem edição, o líder confirmou que assim está bem.
 
-**Foto de fundo na barra da categoria — só teste visual, a pedido do
-líder.** `acervoCategorias/{id}.fotoUrl` (opcional, upload em
-`SheetCategoriaAcervo`, mesmo padrão de `enviarFotoMarca` — Storage
-em `acervoCategorias/{id}`, `storage.rules` espelha `marcas/{ficheiro}`).
-A pergunta do líder foi "como resolver com categorias maiores que os
-3 itens que aparecem por omissão" — resposta: a foto fica **só na
-barra do nome** (`.mincartao-cab-foto`, altura fixa), nunca atrás dos
-itens por baixo, que são esses que precisariam de "esticar" com mais
-de 3. `GrupoAcervo` (`Brand.jsx`) aplica um gradiente escuro por cima
-da foto inline (`linear-gradient(rgba(10,15,46,.55), rgba(10,15,46,.4))`)
-para o nome/contagem continuarem legíveis com transparência, texto a
-branco (CSS local). Não existe o mesmo campo nas categorias de recurso
-por marca (`SheetCategoriaRecurso`) — só foi pedido para o Acervo.
+**Cor por categoria, não foto — testámos e voltámos atrás.** Primeira
+versão pôs uma foto de fundo na barra da categoria (upload, Storage em
+`acervoCategorias/{id}`); o líder testou e achou feio ("ficou
+horrível"), pediu para trocar por uma barra de cor. `acervoCategorias/
+{id}.cor` (hex, `<input type="color">` em `SheetCategoriaAcervo`) —
+mesma `.mincartao-barra` + `.ponto` que a Wiki já usa para agrupar por
+ministério, nada de novo em CSS. Sem Storage, sem upload — se um dia
+voltar a foto, ver `git log` deste ficheiro para a versão que já foi
+tentada e descartada, não repetir o mesmo caminho.
 
 **Layout é local, não em `packages/shared`.** A grelha de Marcas
 (`.marca-card`, `.grelha-marcas`) só existe neste ecrã, por isso vive
