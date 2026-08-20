@@ -1734,15 +1734,26 @@ async function exigeMinisterioComunicacaoAtivo(ministerioId) {
   }
 }
 
+const BASES_VALIDAS = ["apoio", "tecnica", "backstage", "comunicacao"];
+
 export const abrirSolicitacao = onCall(async (req) => {
   const baseId = exigeLider(req); // qualquer líder de base — a de quem pede, não a da Comunicação
   const uid = req.auth.uid;
-  const { titulo, oQue, ondeUsa, textoFinal = "", linkReferencia = "", prazo, ministerioId } = req.data || {};
+  const { titulo, oQue, ondeUsa, textoFinal = "", linkReferencia = "", prazo, ministerioId, baseSolicitanteId } = req.data || {};
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!oQue?.trim()) throw new HttpsError("invalid-argument", "Falta descrever o que precisas.");
   if (!ondeUsa?.trim()) throw new HttpsError("invalid-argument", "Falta dizer onde isto vai ser usado.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(prazo || ""))) throw new HttpsError("invalid-argument", "Falta o prazo.");
   await exigeMinisterioComunicacaoAtivo(ministerioId);
+
+  // só a própria Comunicação escolhe de que base é o pedido (pode ser
+  // "em nome de" outra base, ou um trabalho interno) — as outras três
+  // nunca podem fingir ser outra, o baseId vem sempre do token delas
+  let baseFinal = baseId;
+  if (baseId === "comunicacao" && baseSolicitanteId) {
+    if (!BASES_VALIDAS.includes(baseSolicitanteId)) throw new HttpsError("invalid-argument", "Base inválida.");
+    baseFinal = baseSolicitanteId;
+  }
 
   const slaDiasMinimos = await slaDiasMinimosComunicacao();
   const hoje = new Date().toISOString().slice(0, 10);
@@ -1751,7 +1762,7 @@ export const abrirSolicitacao = onCall(async (req) => {
   const solicitanteNome = await nomeDaPessoa(baseId, uid);
   const ref = db.collection("solicitacoes").doc();
   await ref.set({
-    titulo: titulo.trim(), baseSolicitanteId: baseId, solicitanteId: uid, solicitanteNome,
+    titulo: titulo.trim(), baseSolicitanteId: baseFinal, solicitanteId: uid, solicitanteNome,
     oQue: oQue.trim(), ondeUsa: ondeUsa.trim(), ministerioId,
     textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(),
     prazo, foraDoPrazo, status: "fila",

@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import { abrirSolicitacao, obterSlaDiasMinimos, obterMinisteriosComunicacao, diasAte } from "../lib/solicitacoes.js";
 import { useTorrada } from "../lib/TorradaContext.jsx";
+import { BASE_ID } from "../lib/firebase.js";
+
+// só para o seletor de base, quando é a própria Comunicação a abrir
+// (ver mais abaixo) — lista fixa, as bases não mudam com frequência
+const NOMES_BASE = { apoio: "Apoio", tecnica: "Técnica", backstage: "Backstage", comunicacao: "Comunicação (interno)" };
 
 /** "Pedir à Comunicação" — igual em qualquer base, por isso vive em
  *  packages/shared (ver CLAUDE.md raiz). Só líderes de base abrem
  *  (gate no botão que chama isto, não aqui — a Cloud Function
- *  `abrirSolicitacao` também exige líder). */
+ *  `abrirSolicitacao` também exige líder).
+ *
+ *  Base solicitante: para as outras três bases é sempre a própria —
+ *  nunca escolhem, a Cloud Function usa o token. Só a Comunicação tem
+ *  o seletor (`souComunicacao`), porque o pedido dela pode ser "em
+ *  nome de" outra base (alguém pediu por fora do sistema) ou um
+ *  trabalho interno — só ela precisa de dizer qual das duas. */
 export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
   const torrada = useTorrada();
+  const souComunicacao = BASE_ID === "comunicacao";
   const [titulo, setTitulo] = useState("");
   const [oQue, setOQue] = useState("");
   const [ondeUsa, setOndeUsa] = useState("");
@@ -16,6 +28,7 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
   const [prazo, setPrazo] = useState("");
   const [ministerios, setMinisterios] = useState([]);
   const [ministerioId, setMinisterioId] = useState("");
+  const [baseSolicitanteId, setBaseSolicitanteId] = useState(souComunicacao ? "" : BASE_ID);
   const [slaDiasMinimos, setSlaDiasMinimos] = useState(10);
   const [aEnviar, setAEnviar] = useState(false);
 
@@ -30,11 +43,13 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
     if (!ondeUsa.trim()) return torrada("Falta dizer onde isto vai ser usado.");
     if (!prazo) return torrada("Falta o prazo.");
     if (!ministerioId) return torrada("Falta escolher para que ministério é.");
+    if (souComunicacao && !baseSolicitanteId) return torrada("Falta escolher de que base é o pedido.");
     setAEnviar(true);
     try {
       await abrirSolicitacao({
         titulo: titulo.trim(), oQue: oQue.trim(), ondeUsa: ondeUsa.trim(),
         textoFinal: textoFinal.trim(), linkReferencia: linkReferencia.trim(), prazo, ministerioId,
+        ...(souComunicacao ? { baseSolicitanteId } : {}),
       });
       onGuardado("Pedido enviado à Comunicação");
     } catch (e) {
@@ -59,6 +74,16 @@ export default function SheetAbrirSolicitacao({ onFechar, onGuardado }) {
 
         <label className="rot">Onde vai ser usado</label>
         <input className="campo" value={ondeUsa} onChange={(e) => setOndeUsa(e.target.value)} placeholder="Ex.: Stories do Instagram, domingo" />
+
+        {souComunicacao && (
+          <>
+            <label className="rot">De que base é o pedido</label>
+            <select className="campo" value={baseSolicitanteId} onChange={(e) => setBaseSolicitanteId(e.target.value)}>
+              <option value="">Escolhe uma</option>
+              {Object.entries(NOMES_BASE).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+            </select>
+          </>
+        )}
 
         <label className="rot">Para que ministério</label>
         <select className="campo" value={ministerioId} onChange={(e) => setMinisterioId(e.target.value)}>
