@@ -131,6 +131,32 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   `bases/{outraBase}/pessoas` pelo Admin SDK, nunca uma cópia gravada
   na escrita (ficaria desatualizada) nem uma leitura direta do
   cliente (as rules não abrem `pessoas` de outra base de propósito).
+- **Checklist de todas as bases** (terceiro segmento em Escala, ao
+  lado de "Todas as bases") — pedido explícito do líder, revisão da
+  decisão de propósito que existia antes (ver "Não construir nesta
+  base" abaixo): agora quer acompanhar em tempo real se cada base
+  está pronta, e um aviso quando estiver tudo. Um cartão fechado por
+  omissão por base (`.mincartao`, mesmo padrão da Comunicação em
+  Wiki/Acervo/Solicitações), agrupado por ministério dentro das bases
+  que têm (Técnica/Comunicação) ou por fase nas que não têm
+  (Apoio/Backstage). Barra no fim: verde "Tudo pronto pro culto!"
+  quando **tudo** estiver feito, senão "Faltam N de M tarefas" —
+  cinza, é só leitura, ninguém marca a checklist de outra base por
+  aqui (as rules continuam a exigir estar na escala da própria base
+  para escrever ali).
+
+  O catálogo (que função existe, de que ministério/fase, nomes de
+  quem está ativo em cada base) vem uma vez da Cloud Function
+  `checklistCrossBase` — `bases/{b}/funcoes` e `/pessoas` são
+  restritos a `minhaBase` nas rules, só o Admin SDK lê cruzado, mesmo
+  padrão de `escalasCrossBase`. O que muda de verdade — feito, quem,
+  a que hora — o cliente lê direto e ao vivo de
+  `eventos/{e}/checklist` (`ouvirChecklistDoEvento`,
+  `lib/painel.js`): essa coleção já é global e `allow read: if
+  autenticado()` nas rules, não pede Cloud Function nenhuma para
+  isso. É o que torna isto **em tempo real** sem chamar a função a
+  cada toque de checkbox de qualquer base — o catálogo muda muito
+  menos que o estado dele, por isso só ele é buscado uma vez.
 - **Melhorias** (aba dentro de Culto, ao lado de Feedbacks): mesmas
   Cloud Functions da Técnica (`abrirMelhoria`/`comentarMelhoria`/
   `definirEstadoMelhoria`/`definirPrevisao`/`resolverMelhoria`/
@@ -174,7 +200,9 @@ está a produzir.
 ## Não construir nesta base
 
 - Módulo de pedidos do pastor, chat ou mensagens — é rádio.
-- Progresso, checklist ou presença de outras bases em "Todas as bases".
+- Presença de outras bases em "Todas as bases" (quem já chegou) — só
+  checklist entrou (ver acima), presença continua de fora, ninguém
+  pediu isso ainda.
 - Ministérios (o `nivel` titular/aprendiz existe, ver acima, mas sem
   ministério nenhum onde pendurar — é sempre um campo plano por pessoa).
 - Wiki, por agora.

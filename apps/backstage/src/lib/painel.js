@@ -8,7 +8,7 @@
  * que o cliente não pode decidir sozinho.
  */
 import {
-  query, where, orderBy, onSnapshot, getDocs, getDoc,
+  collection, query, where, orderBy, onSnapshot, getDocs, getDoc,
   doc, setDoc, updateDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -229,3 +229,23 @@ export const gerarDomingos = (ano) => chamar("gerarDomingos")({ ano }).then((r) 
  * pessoas, que as regras não abrem para esta capacidade de propósito. */
 export const obterEscalasDeTodasAsBases = (eventoId) =>
   chamar("escalasCrossBase")({ eventoId }).then((r) => r.data.bases);
+
+/* ── Checklist de todas as bases (só quem tem ve_todas_escalas) ────
+ * O catálogo (que função existe, de que ministério/fase, nomes de
+ * quem está ativo) vem uma vez pela Cloud Function checklistCrossBase
+ * (Admin SDK, bases/{b}/funcoes e /pessoas são restritos à própria
+ * base nas rules). O estado ao vivo — feito, quem, a que hora — é
+ * lido direto daqui, com onSnapshot: eventos/{e}/checklist já é
+ * global e `allow read: if autenticado()`, não precisa de Cloud
+ * Function nenhuma para isso, e assim atualiza em tempo real sem
+ * chamar a função a cada toque de checkbox de qualquer base. */
+export const obterCatalogoChecklistDeTodasAsBases = (eventoId) =>
+  chamar("checklistCrossBase")({ eventoId }).then((r) => r.data.bases);
+
+export function ouvirChecklistDoEvento(eventoId, cb) {
+  return onSnapshot(collection(db, `eventos/${eventoId}/checklist`), (snap) => {
+    const mapa = {};
+    snap.forEach((d) => { mapa[d.id] = d.data(); });
+    cb(mapa);
+  });
+}

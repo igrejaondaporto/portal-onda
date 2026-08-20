@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { funcoesDoCulto } from "../lib/modelo";
-import { ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEscalasDeTodasAsBases, obterProximoEvento } from "../lib/painel";
+import {
+  ouvirEventosDoMes, ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEscalasDeTodasAsBases, obterProximoEvento,
+  obterCatalogoChecklistDeTodasAsBases, ouvirChecklistDoEvento,
+} from "../lib/painel";
 import { obterAtribuicoes } from "../lib/culto";
 import { MESES, dataPorExtenso, dataCurta, ordenarEscala, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
@@ -113,8 +116,136 @@ function TodasAsBases() {
   );
 }
 
+/** Segmento "Checklist" — a mesma ideia de "Todas as bases", mas para
+ *  o que falta fazer, não quem serve. Pedido explícito do líder: ver
+ *  em tempo real a checklist da igreja toda, com um aviso quando
+ *  estiver tudo pronto. Diferente do resto de "Todas as bases" (que é
+ *  propositadamente só escala, sem progresso — decisão registada em
+ *  CLAUDE.md desta app, revista agora a pedido dele).
+ *
+ *  Catálogo (que função existe, de que ministério/fase, nomes de
+ *  quem está ativo em cada base) vem uma vez da Cloud Function
+ *  `checklistCrossBase` — bases/{b}/funcoes e /pessoas são
+ *  restritos à própria base nas rules, só o Admin SDK lê cruzado.
+ *  O estado (feito, quem, a que hora) é ao vivo: eventos/{e}/checklist
+ *  já é global (`allow read: if autenticado()`), não pede Cloud
+ *  Function nenhuma para isso — só assim fica "em tempo real" sem
+ *  chamar a função a cada toque de checkbox de qualquer base.
+ *
+ *  Um cartão por base, fechado por omissão (mesmo `.mincartao` que a
+ *  Comunicação já usa para agrupar Wiki/Acervo/Solicitações) — dentro,
+ *  agrupado por ministério (Técnica/Comunicação) ou por fase
+ *  (Apoio/Backstage, que não têm ministérios). Só leitura: marcar a
+ *  checklist continua a ser sempre da própria base (rules já exigem
+ *  estar na escala dela para escrever ali). */
+function ChecklistTodasAsBases() {
+  const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
+  const [catalogo, setCatalogo] = useState(null); // null = a carregar
+  const [checklist, setChecklist] = useState({});
+  const [abertos, setAbertos] = useState({});
+
+  useEffect(() => { obterProximoEvento().then(setEvento); }, []);
+  useEffect(() => {
+    if (!evento) { setCatalogo(null); return; }
+    setCatalogo(null);
+    setAbertos({});
+    obterCatalogoChecklistDeTodasAsBases(evento.id).then(setCatalogo);
+  }, [evento]);
+  useEffect(() => {
+    if (!evento) { setChecklist({}); return; }
+    return ouvirChecklistDoEvento(evento.id, setChecklist);
+  }, [evento]);
+
+  const total = catalogo ? catalogo.reduce((s, b) => s + b.total, 0) : 0;
+  const feitas = catalogo
+    ? catalogo.reduce((s, b) => s + b.grupos.reduce((s2, g) => s2 + g.funcoes.filter((f) => checklist[f.id]).length, 0), 0)
+    : 0;
+  const tudoPronto = total > 0 && feitas === total;
+
+  return (
+    <div className="sect">
+      <div className="cabecalho">
+        <h3>Checklist do próximo culto</h3>
+      </div>
+
+      {evento === undefined && <div className="vaz">A carregar…</div>}
+      {evento === null && <div className="vaz">Sem cultos marcados.</div>}
+
+      {evento && (
+        <>
+          <p className="ds" style={{ marginBottom: 10 }}>{evento.tipo || dataPorExtenso(evento.data)}</p>
+
+          {catalogo === null && <div className="vaz">A carregar…</div>}
+
+          {catalogo && catalogo.map((b) => {
+            const aberto = !!abertos[b.baseId];
+            const feitasBase = b.grupos.reduce((s, g) => s + g.funcoes.filter((f) => checklist[f.id]).length, 0);
+            return (
+              <div className="mincartao" key={b.baseId}>
+                <div className="mincartao-barra" style={{ background: b.cor || "var(--fio)" }} />
+                <button
+                  className="mincartao-cab cabtoque"
+                  data-aberto={aberto ? 1 : 0} aria-expanded={aberto}
+                  onClick={() => setAbertos((v) => ({ ...v, [b.baseId]: !v[b.baseId] }))}
+                >
+                  <span className="ponto" style={{ background: b.cor || "var(--cinza)" }} />
+                  <span className="nome">{b.nome}</span>
+                  <span className="conta">{b.total === 0 ? "sem funções" : `${feitasBase} de ${b.total}`}</span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {aberto && (
+                  <div style={{ padding: "0 12px 12px" }}>
+                    {b.total === 0 && <div className="vaz" style={{ border: 0 }}>Nada para este culto.</div>}
+                    {b.grupos.map((g) => (
+                      <div key={g.chave}>
+                        <div className="fasecab">
+                          <h4>
+                            {g.cor && <span className="quadmin" style={{ background: g.cor }} />}
+                            {g.titulo}
+                          </h4>
+                          <em>{g.funcoes.filter((f) => checklist[f.id]).length}/{g.funcoes.length}</em>
+                        </div>
+                        {g.funcoes.map((f) => {
+                          const c = checklist[f.id];
+                          const ok = !!c;
+                          return (
+                            <div className={`linha${ok ? " feita" : ""}`} key={f.id}>
+                              <span className={`chk${ok ? " on" : ""}`} style={{ cursor: "default" }}>✓</span>
+                              <div style={{ flex: 1 }}>
+                                <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
+                                <p className="ds">{ok ? `${b.pessoas[c.por] ?? "alguém"} · ${c.hora}` : "Por fazer"}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {catalogo && total > 0 && (
+            <div
+              style={{
+                marginTop: 16, padding: "16px 20px", borderRadius: 100, textAlign: "center",
+                fontWeight: 700, fontSize: 15,
+                background: tudoPronto ? "var(--verde)" : "var(--agua)",
+                color: tudoPronto ? "#fff" : "var(--cinza)",
+              }}
+            >
+              {tudoPronto ? "✅ Tudo pronto pro culto!" : `Faltam ${total - feitas} de ${total} tarefas`}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes, veTodasEscalas }) {
-  const [abaEscala, setAbaEscala] = useState("minha");
+  const [abaEscala, setAbaEscala] = useState("minha"); // "minha" | "todas" | "checklist"
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
@@ -188,10 +319,15 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
           <button className={`btn ${abaEscala === "todas" ? "" : "sec"}`} style={{ flex: 1, fontSize: 13 }} onClick={() => setAbaEscala("todas")}>
             Todas as bases
           </button>
+          <button className={`btn ${abaEscala === "checklist" ? "" : "sec"}`} style={{ flex: 1, fontSize: 13 }} onClick={() => setAbaEscala("checklist")}>
+            Checklist
+          </button>
         </div>
       )}
       {abaEscala === "todas" ? (
         <TodasAsBases />
+      ) : abaEscala === "checklist" ? (
+        <ChecklistTodasAsBases />
       ) : (
       <>
       <div className="sect">
