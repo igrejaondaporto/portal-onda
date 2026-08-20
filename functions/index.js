@@ -980,6 +980,84 @@ export const escalasCrossBase = onCall(async (req) => {
   return { bases: resultado };
 });
 
+/* ── CATÁLOGO DA CHECKLIST DE TODAS AS BASES (Backstage) ────────
+ * Mesma claim ve_todas_escalas de escalasCrossBase — quem já vê a
+ * escala de qualquer base também acompanha se a checklist dela está
+ * feita, pedido explícito do líder da Backstage. Só o CATÁLOGO
+ * (funções, ministérios, nomes de quem está ativo) vem daqui, pelo
+ * Admin SDK — bases/{b}/funcoes, bases/{b}/ministerios e
+ * bases/{b}/pessoas são todos restritos a minhaBase nas rules, de
+ * propósito. O estado ao vivo ("feito", quem, a que hora) o cliente
+ * lê direto de eventos/{e}/checklist e eventos/{e}/atribuicoes, que
+ * já são globais e em tempo real (rules: allow read: if
+ * autenticado()) — não passa por aqui, e não devia: chamar esta
+ * função a cada toque de checkbox de qualquer base seria caro e
+ * lento, o catálogo (que função existe, de que ministério) muda
+ * muito menos que o estado dela.
+ *
+ * Agrupa por ministério quando a base tem (Técnica/Comunicação);
+ * sem ministérios (Apoio/Backstage), agrupa por fase — mesma
+ * distinção que cada base já usa na própria Home. */
+const ORDEM_FASE_CHECKLIST = { pre: 0, durante: 1, pos: 2 };
+const ROTULO_FASE_CHECKLIST = { pre: "Pré-culto", durante: "Durante o culto", pos: "Pós-culto" };
+
+export const checklistCrossBase = onCall(async (req) => {
+  if (req.auth?.token?.ve_todas_escalas !== true) {
+    throw new HttpsError("permission-denied", "Sem acesso à checklist de outras bases.");
+  }
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const basesSnap = await db.collection("bases").get();
+  const bases = basesSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((b) => b.ativa !== false)
+    .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
+
+  const resultado = await Promise.all(bases.map(async (b) => {
+    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null };
+    const [funcoesSnap, ministeriosSnap, pessoasSnap] = await Promise.all([
+      db.collection(`bases/${b.id}/funcoes`).where("ativa", "==", true).get(),
+      db.collection(`bases/${b.id}/ministerios`).get(),
+      db.collection(`bases/${b.id}/pessoas`).where("ativo", "==", true).get(),
+    ]);
+    const funcoes = funcoesSnap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((f) => !f.eventoId || f.eventoId === eventoId);
+    const pessoas = Object.fromEntries(pessoasSnap.docs.map((d) => [d.id, d.data().nome]));
+    if (!funcoes.length) return { ...base, grupos: [], pessoas, total: 0 };
+
+    const ministerios = Object.fromEntries(ministeriosSnap.docs.map((d) => [d.id, d.data()]));
+    let grupos;
+    if (ministeriosSnap.size > 0) {
+      const porGrupo = {};
+      for (const f of funcoes) {
+        const chave = f.ministerioId || "_geral";
+        (porGrupo[chave] ??= []).push({ id: f.id, nome: f.nome, fase: f.fase });
+      }
+      grupos = Object.entries(porGrupo).map(([chave, lista]) => ({
+        chave, titulo: ministerios[chave]?.nome ?? "Geral", cor: ministerios[chave]?.cor ?? null,
+        ordem: ministerios[chave]?.ordem ?? 999, funcoes: lista,
+      }));
+    } else {
+      const porGrupo = {};
+      for (const f of funcoes) {
+        const chave = f.fase || "pre";
+        (porGrupo[chave] ??= []).push({ id: f.id, nome: f.nome, fase: f.fase });
+      }
+      grupos = Object.entries(porGrupo).map(([chave, lista]) => ({
+        chave, titulo: ROTULO_FASE_CHECKLIST[chave] ?? chave, cor: null,
+        ordem: ORDEM_FASE_CHECKLIST[chave] ?? 9, funcoes: lista,
+      }));
+    }
+    grupos.sort((a, c) => a.ordem - c.ordem);
+
+    return { ...base, grupos, pessoas, total: funcoes.length };
+  }));
+
+  return { bases: resultado };
+});
+
 /* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────
  * O documento do evento é global (a igreja toda) e write:false para o
  * cliente — só assim é que a data e o tipo do culto não podem ser
