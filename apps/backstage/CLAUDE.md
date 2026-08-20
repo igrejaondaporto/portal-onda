@@ -131,6 +131,21 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   `bases/{outraBase}/pessoas` pelo Admin SDK, nunca uma cópia gravada
   na escrita (ficaria desatualizada) nem uma leitura direta do
   cliente (as rules não abrem `pessoas` de outra base de propósito).
+  Cartões fechados por omissão (`.mincartao`/`cabtoque`, mesmo padrão
+  de Checklists) — pedido do líder: "coloca apenas os nomes, e se a
+  pessoa clicar, expande a base". Só o nome + contagem à vista.
+- **Cor por base, agora distinta** (`bases/{id}.cor`) — as quatro
+  usavam praticamente o mesmo azul (`#0019BE`/`#001ED1`), a cor não
+  ajudava a diferenciar nada nos cartões de "Todas as bases" e
+  Checklists. Pedido do líder: Apoio ficou com o azul de sempre
+  (`#0019BE`), Técnica violeta (`#7B5CFF`), Backstage laranja
+  (`#F5A300`), Comunicação ciano (`#0092D4`) — de propósito nem verde
+  nem magenta, que já significam "tudo pronto"/"urgente" nas telas de
+  Checklists e Solicitações; usar uma delas como cor de base
+  confundiria os dois sentidos. Só o documento `bases/{id}` mudou —
+  `cor` só é lido pela Backstage nestas duas telas cruzadas, não pela
+  própria app de cada base (nunca usa a cor do seu próprio
+  `bases/{id}` para se pintar).
 - **Checklists — menu próprio** (`apps/backstage/src/pages/Checklists.jsx`),
   não uma sub-aba de Escala. Nasceu como terceiro segmento dentro de
   Escala; o líder testou e pediu acesso direto — "essa parte" merecia

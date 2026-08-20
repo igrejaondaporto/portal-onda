@@ -11,17 +11,26 @@ import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.j
  *  calendário para navegar (ver CLAUDE.md desta app). Só leitura, sem
  *  progresso nem checklist — "se precisa saber se outra base
  *  terminou, pergunta presencialmente". Base sem escala publicada
- *  aparece a dizer isso, não desaparece — a ausência é informação. */
+ *  aparece a dizer isso, não desaparece — a ausência é informação.
+ *
+ *  Cartões fechados por omissão (mesmo `.mincartao`/`cabtoque` de
+ *  Checklists — pedido do líder: "coloca apenas os nomes, e se a
+ *  pessoa clicar, expande a base") — só o nome e a contagem à vista,
+ *  toca para ver quem é. Cor por base (`bases/{id}.cor`, agora
+ *  distinta em cada uma — antes as quatro usavam quase o mesmo azul,
+ *  a cor não ajudava a diferenciar nada). */
 function TodasAsBases() {
   const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
   const [bases, setBases] = useState(null); // null = a carregar
   const [contactoAberto, setContactoAberto] = useState(null); // "baseId:pessoaId"
+  const [abertos, setAbertos] = useState({});
 
   useEffect(() => { obterProximoEvento().then(setEvento); }, []);
   useEffect(() => {
     if (!evento) { setBases(null); return; }
     setBases(null);
     setContactoAberto(null);
+    setAbertos({});
     obterEscalasDeTodasAsBases(evento.id).then(setBases);
   }, [evento]);
 
@@ -42,71 +51,72 @@ function TodasAsBases() {
 
           {bases === null && <div className="vaz">A carregar…</div>}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 4 }}>
-            {bases && bases.map((b) => {
-              const contagem = b.tipo === "pessoas" ? b.pessoas.length : b.tipo === "lugares" ? b.itens.length : 0;
-              return (
-                <div
-                  key={b.baseId} className="caixa"
-                  style={{ margin: 0, borderLeft: `4px solid ${b.cor || "var(--azul)"}`, borderTopLeftRadius: 10, borderBottomLeftRadius: 10 }}
+          {bases && bases.map((b) => {
+            const contagem = b.tipo === "pessoas" ? b.pessoas.length : b.tipo === "lugares" ? b.itens.length : 0;
+            const aberto = !!abertos[b.baseId];
+            return (
+              <div className="mincartao" key={b.baseId}>
+                <div className="mincartao-barra" style={{ background: b.cor || "var(--fio)" }} />
+                <button
+                  className="mincartao-cab cabtoque"
+                  data-aberto={aberto ? 1 : 0} aria-expanded={aberto}
+                  onClick={() => setAbertos((v) => ({ ...v, [b.baseId]: !v[b.baseId] }))}
                 >
-                  <div className="cabecalho">
-                    <h3 style={{ color: b.cor || undefined }}>{b.nome}</h3>
-                    {contagem > 0 && <span className="cap">{contagem} {contagem === 1 ? "pessoa" : "pessoas"}</span>}
-                  </div>
+                  <span className="ponto" style={{ background: b.cor || "var(--cinza)" }} />
+                  <span className="nome">{b.nome}</span>
+                  <span className="conta">
+                    {b.tipo === "vazio" ? "sem escala" : `${contagem} ${contagem === 1 ? "pessoa" : "pessoas"}`}
+                  </span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
 
-                  {b.tipo === "vazio" && (
-                    <p className="ds" style={{ marginTop: 6 }}>Escala ainda não publicada.</p>
-                  )}
+                {aberto && (
+                  <div style={{ padding: "0 12px 12px" }}>
+                    {b.tipo === "vazio" && (
+                      <p className="ds" style={{ marginTop: 6 }}>Escala ainda não publicada.</p>
+                    )}
 
-                  {b.tipo === "pessoas" && (
-                    <div style={{ marginTop: 8 }}>
-                      {b.pessoas.map((p) => {
-                        const chave = `${b.baseId}:${p.id}`;
-                        return (
+                    {b.tipo === "pessoas" && b.pessoas.map((p) => {
+                      const chave = `${b.baseId}:${p.id}`;
+                      return (
+                        <LinhaPessoaContacto
+                          key={p.id} pessoa={p}
+                          resumo="Toca para chamar no WhatsApp"
+                          tagExtra={p.id === b.liderEscalaId ? <span className="tag lim">Líder de escala</span> : null}
+                          aberta={contactoAberto === chave}
+                          onToggle={() => alternarContacto(chave)}
+                        />
+                      );
+                    })}
+
+                    {b.tipo === "lugares" && b.itens.map((it, i) => (
+                      <div key={i}>
+                        <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, margin: "10px 0 2px" }}>
+                          {it.ministerio}
+                        </p>
+                        {it.titular ? (
                           <LinhaPessoaContacto
-                            key={p.id} pessoa={p}
-                            resumo="Toca para chamar no WhatsApp"
-                            tagExtra={p.id === b.liderEscalaId ? <span className="tag lim">Líder de escala</span> : null}
-                            aberta={contactoAberto === chave}
-                            onToggle={() => alternarContacto(chave)}
+                            pessoa={it.titular} resumo="Titular · toca para chamar no WhatsApp"
+                            aberta={contactoAberto === `${b.baseId}:${i}:titular`}
+                            onToggle={() => alternarContacto(`${b.baseId}:${i}:titular`)}
                           />
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {b.tipo === "lugares" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-                      {b.itens.map((it, i) => (
-                        <div key={i}>
-                          <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, margin: "10px 0 2px" }}>
-                            {it.ministerio}
-                          </p>
-                          {it.titular ? (
-                            <LinhaPessoaContacto
-                              pessoa={it.titular} resumo="Titular · toca para chamar no WhatsApp"
-                              aberta={contactoAberto === `${b.baseId}:${i}:titular`}
-                              onToggle={() => alternarContacto(`${b.baseId}:${i}:titular`)}
-                            />
-                          ) : (
-                            <p className="ds">Por definir</p>
-                          )}
-                          {it.aprendiz && (
-                            <LinhaPessoaContacto
-                              pessoa={it.aprendiz} resumo="Aprendiz · toca para chamar no WhatsApp"
-                              aberta={contactoAberto === `${b.baseId}:${i}:aprendiz`}
-                              onToggle={() => alternarContacto(`${b.baseId}:${i}:aprendiz`)}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                        ) : (
+                          <p className="ds">Por definir</p>
+                        )}
+                        {it.aprendiz && (
+                          <LinhaPessoaContacto
+                            pessoa={it.aprendiz} resumo="Aprendiz · toca para chamar no WhatsApp"
+                            aberta={contactoAberto === `${b.baseId}:${i}:aprendiz`}
+                            onToggle={() => alternarContacto(`${b.baseId}:${i}:aprendiz`)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </>
       )}
     </div>
