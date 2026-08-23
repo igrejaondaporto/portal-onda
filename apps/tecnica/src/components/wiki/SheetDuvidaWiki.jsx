@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirArtigo, ouvirRespostas, responderDuvida, marcarRespostaCerta, transformarDuvidaEmArtigo } from "../../lib/wiki";
+import { ouvirArtigo, ouvirRespostas, responderDuvida, marcarRespostaCerta, transformarDuvidaEmArtigo, desativarWiki } from "../../lib/wiki";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 export default function SheetDuvidaWiki({ wikiId, uid, papel, voluntarios, onFechar, onGuardado }) {
@@ -8,6 +8,7 @@ export default function SheetDuvidaWiki({ wikiId, uid, papel, voluntarios, onFec
   const [respostas, setRespostas] = useState([]);
   const [texto, setTexto] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
 
   useEffect(() => ouvirArtigo(wikiId, setDuvida), [wikiId]);
   useEffect(() => ouvirRespostas(wikiId, setRespostas), [wikiId]);
@@ -15,6 +16,19 @@ export default function SheetDuvidaWiki({ wikiId, uid, papel, voluntarios, onFec
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "alguém";
   const souEu = duvida?.autorId === uid;
   const souLiderBase = papel === "lider_base";
+
+  /** A `desativarWiki` aceita qualquer item da Wiki, dúvidas incluídas,
+   *  e nunca tinha sido chamada daqui: um artigo excluía-se pelo editor,
+   *  uma dúvida não tinha por onde. `ativo:false` — nada é apagado,
+   *  como manda a regra 5; sai das listas e do índice de busca. */
+  async function excluir() {
+    try {
+      await desativarWiki(wikiId);
+      onGuardado("Dúvida excluída");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    }
+  }
 
   async function responder() {
     const t = texto.trim();
@@ -90,6 +104,24 @@ export default function SheetDuvidaWiki({ wikiId, uid, papel, voluntarios, onFec
 
         {duvida.resolvidaPorRespostaId && (souEu || souLiderBase) && duvida.tipo === "duvida" && (
           <button className="btn full" style={{ marginTop: 14 }} onClick={transformar}>Transformar em artigo</button>
+        )}
+        {(souLiderBase || souEu) && (
+          aConfirmarExcluir ? (
+            <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir esta dúvida?</p>
+              <p className="ds" style={{ marginTop: 4 }}>
+                Sai da Wiki e da pesquisa, com as respostas. O registo fica guardado, mas ninguém lhe chega pela app.
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} onClick={excluir}>Excluir</button>
+                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setAConfirmarExcluir(false)}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }} onClick={() => setAConfirmarExcluir(true)}>
+              Excluir dúvida
+            </button>
+          )
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>

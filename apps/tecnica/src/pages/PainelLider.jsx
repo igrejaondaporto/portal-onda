@@ -6,7 +6,7 @@ import {
   ouvirVoluntarios, ouvirFuncoes, ouvirBase, ouvirMinisterios,
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial, reordenarFuncoes,
 } from "../lib/painel";
-import { ouvirIndiceWiki } from "../lib/wiki";
+import { ouvirIndiceWiki, desativarWiki } from "../lib/wiki";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -56,6 +56,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   // de cima a baixo — por isso nascem fechados.
   const [abertos, setAbertos] = useState({});
   const alternar = (k) => setAbertos((v) => ({ ...v, [k]: !v[k] }));
+  const [aExcluirWiki, setAExcluirWiki] = useState(null); // wikiId à espera de confirmação
 
   const anoQueVem = hoje.getFullYear() + 1;
   async function gerarDomingosDoAnoQueVem() {
@@ -137,6 +138,21 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   }, [voluntarios.length, ministerios.length, catalogo.length]);
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
+
+  /** `ativo:false` — nada é apagado (regra 5). Sai das listas e do
+   *  índice de busca; o documento fica. O líder administra a Wiki
+   *  aqui, por isso é aqui que tem de poder tirar o que não serve —
+   *  até hoje só se conseguia excluir um artigo entrando no editor
+   *  dele, e uma dúvida não tinha por onde. */
+  async function excluirDaWiki(w) {
+    try {
+      await desativarWiki(w.id);
+      torrada("Excluído da Wiki");
+      setAExcluirWiki(null);
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    }
+  }
 
   // Os ministérios mais o papel do líder da base. Não é um ministério
   // de verdade — não entra na escala nem no seletor de quem serve —,
@@ -407,17 +423,34 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
             {/* As dúvidas primeiro: são o que tem alguém à espera do outro
               * lado. Cada uma é matéria-prima para um guia — abre, e se a
               * resposta certa lá estiver, transformas em artigo. */}
-            {duvidasAbertas.map((w) => (
-              <div className="linha" style={{ cursor: "pointer" }} key={w.id} onClick={() => onIrWiki?.(w.id)}>
-                <div style={{ flex: 1 }}><p className="nmt">{w.titulo}</p></div>
-                <span className="tag cinz">por responder</span>
-                <span className="seta">›</span>
-              </div>
-            ))}
-            {wikiItens.filter((w) => w.esqueleto).map((w) => (
-              <div className="linha" key={w.id}>
-                <div style={{ flex: 1 }}><p className="nmt">{w.titulo}</p></div>
-                <span className="tag cinz">por escrever</span>
+            {/* Tudo o que está na Wiki, não só as dúvidas e os esqueletos:
+              * este é o sítio onde o líder administra, e administrar
+              * inclui tirar o que deixou de servir. */}
+            {[...duvidasAbertas, ...wikiItens.filter((w) => !duvidasAbertas.some((d) => d.id === w.id))].map((w) => (
+              <div key={w.id}>
+                <div className="linha" style={{ cursor: "pointer" }} onClick={() => onIrWiki?.(w.id)}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{w.titulo}</p>
+                    <p className="ds">{w.tipo === "duvida" ? "Dúvida" : "Artigo"}</p>
+                  </div>
+                  {w.tipo === "duvida" && !w.resolvida && <span className="tag cinz">por responder</span>}
+                  {w.esqueleto && <span className="tag cinz">por escrever</span>}
+                  <button className="lapis" style={{ background: "var(--magenta)" }} aria-label="Excluir"
+                    onClick={(e) => { e.stopPropagation(); setAExcluirWiki(w.id); }}>✕</button>
+                  <span className="seta">›</span>
+                </div>
+                {aExcluirWiki === w.id && (
+                  <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginBottom: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir “{w.titulo}”?</p>
+                    <p className="ds" style={{ marginTop: 4 }}>
+                      Sai da Wiki e da pesquisa. O registo fica guardado, mas ninguém lhe chega pela app.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} onClick={() => excluirDaWiki(w)}>Excluir</button>
+                      <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setAExcluirWiki(null)}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
