@@ -122,7 +122,15 @@ consola do Firebase.
 5. As tuas próximas datas.
 6. **Quem serve contigo** — os quatro ministérios daquele domingo, não
    só o dele (responde a "quem vai estar na projeção hoje?").
-7. Wiki — atalho, artigos recentes.
+7. **A base** — só o que NÃO tem entrada na barra de baixo: Reembolsos
+   e, para o líder, Solicitar BG.
+
+**O que o Início deixou de ter (17/08/2026, decisão do líder):** o
+bloco da Wiki com artigos recentes, e as linhas de Equipamentos e
+Culto dentro de "A base". Estavam repetidos — a barra de baixo já lá
+leva, e é o caminho que a mão conhece. Ao tirar, confirmar sempre o
+que fica **sem** rota alternativa: Reembolsos e Solicitar BG só se
+alcançam por aqui, e por isso ficaram.
 
 ## Ordem do culto
 

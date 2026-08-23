@@ -32,7 +32,7 @@ function ordenarChecklist(lista, checklist) {
   });
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos, onIrWiki }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrReembolsos, onIrWiki }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -129,18 +129,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
 
-  // artigos (não esqueletos) dos ministérios da pessoa primeiro, depois
-  // os gerais, os 2 mais recentes — só um atalho, a lista toda é na Wiki
-  const meusMinisterios = ministerios.filter((m) => pessoa?.ministerios?.[m.id]).map((m) => m.id);
-  const wikiRecentes = [...wikiItens]
-    .filter((i) => i.tipo === "artigo" && !i.esqueleto)
-    .sort((a, b) => {
-      const meuA = a.ministerios?.some((m) => meusMinisterios.includes(m));
-      const meuB = b.ministerios?.some((m) => meusMinisterios.includes(m));
-      if (meuA !== meuB) return meuA ? -1 : 1;
-      return (b.atualizadoEm?.toMillis?.() ?? 0) - (a.atualizadoEm?.toMillis?.() ?? 0);
-    })
-    .slice(0, 2);
 
   useEffect(() => {
     if (!ativo) return;
@@ -434,31 +422,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           )}
         </div>
         <div className="sect">
-          <div className="cabecalho"><h3>Wiki</h3></div>
-          {wikiRecentes.length === 0 ? (
-            <div className="vaz">Ainda não há artigos escritos.</div>
-          ) : (
-            wikiRecentes.map((item) => (
-              <div className="linha" style={{ cursor: "pointer" }} key={item.id} onClick={() => onIrWiki?.(item.id)}>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{item.titulo}</p>
-                  <p className="ds">{item.ministerios?.map(nomeMinisterio).filter(Boolean).join(", ") || "Geral"}</p>
-                </div>
-                <span className="seta">›</span>
-              </div>
-            ))
-          )}
-          <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => onIrWiki?.()}>Ver toda a Wiki</button>
-        </div>
-        <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>
+          {/* Só o que NÃO tem entrada na barra de baixo. Equipamentos,
+            * Culto e a Wiki saíram daqui: estavam repetidos, e a barra
+            * é o caminho que a mão já conhece. Reembolsos e Solicitar BG
+            * ficam porque este é o único sítio por onde se lá chega. */}
           {[
-            ["inventario", "Equipamentos", "Som, luz e projeção", () => onIrInventario?.()],
-            ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
             ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
             ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
           ].map(([k, t, d, ir]) => {
-            const falta = k === "inventario" ? equipamentos.filter((e) => e.estado !== "ok").length : 0;
             const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
             return (
               <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
@@ -466,8 +438,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                   <p className="nmt">{t}</p>
                   <p className="ds">{d}</p>
                 </div>
-                {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} com problema</span>
-                  : emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
+                {emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
                   : <span className="seta">›</span>}
               </div>
             );
