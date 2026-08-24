@@ -17,22 +17,15 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 
-/** Se alguma função do grupo tem horaPrevista, a checklist vira uma
- *  linha do tempo — ordena por hora (sem hora vai para o fim), em vez
- *  de por nome de quem está atribuído. "Feita desce pro fim" continua
- *  por cima disto (é a regra de sempre, não se mexe). */
-function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
-  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
-  const nomesDe = (ids) => [...ids].map(nomeDe).sort((a, b) => a.localeCompare(b, "pt")).join(" e ");
-  const comHora = lista.some((f) => f.horaPrevista);
-  return [...lista]
-    .sort((a, b) => {
-      if (comHora) return (a.horaPrevista || "99:99").localeCompare(b.horaPrevista || "99:99");
-      const na = nomesDe(atribuicoes[a.id] || []) || "zzzz";
-      const nb = nomesDe(atribuicoes[b.id] || []) || "zzzz";
-      return na.localeCompare(nb, "pt") || a.nome.localeCompare(b.nome, "pt");
-    })
-    .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
+/** A checklist é espelho de Funções — mesma ordem (o líder reordena
+ *  lá, com as setas ↑/↓), nunca outra. `funcoesCulto` já chega
+ *  ordenado por "ordem" (ver ouvirFuncoes em lib/painel.js), então
+ *  aqui só falta mandar quem já está feito para o fim — sort é
+ *  estável, por isso preserva a ordem de Funções dentro de cada
+ *  grupo (feitas / por fazer). `horaPrevista` é só informação escrita
+ *  na linha (ver mais abaixo), nunca decide posição nenhuma. */
+function ordenarPorFeita(lista, checklist) {
+  return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
@@ -246,7 +239,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
               {FASES.map(([k, t]) => {
-                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoesEfetivas, checklist, voluntarios);
+                const doF = ordenarPorFeita(funcoesCulto.filter((f) => f.fase === k), checklist);
                 if (!doF.length) return null;
                 const fe = doF.filter((f) => checklist[f.id]).length;
                 return (

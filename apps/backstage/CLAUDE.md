@@ -62,9 +62,19 @@ Não digas "líder do dia", "tarefa", "turno" nem "evento" na interface.
   mexer nas regras outra vez). Qualquer líder de qualquer base
   continua a poder criar `escopo:"base"`, só para a própria base.
 - **`horaPrevista` nas funções** (`bases/backstage/funcoes/{id}`,
-  opcional): quando presente, a checklist da fase ordena pela hora,
-  como linha do tempo, em vez de por nome. Só nesta base — nas outras
-  o campo fica `undefined`, comportamento igual ao de hoje.
+  opcional): só informação escrita na linha (`"09:15 · Som"` em vez de
+  só `"Som"`), nunca decide a ordem. Só nesta base — nas outras o
+  campo fica `undefined`.
+- **A checklist do Início é espelho de Funções, sempre.** Mesma
+  ordem, ponto — quem reordena em Funções (setas ↑/↓, `mover` →
+  `reordenarFuncoes`, grava `ordem`) já vê a mudança na checklist,
+  porque `ouvirFuncoes` (`lib/painel.js`) já devolve
+  `orderBy("ordem"), orderBy("nome")` e o Início nunca reordena por
+  cima disso. `ordenarPorFeita` (`Inicio.jsx`) só faz uma coisa: manda
+  quem já está feito para o fim — usa `sort` estável de propósito,
+  para preservar a ordem de Funções dentro de cada grupo (feitas / por
+  fazer). Já existiu uma versão que ordenava por hora ou por nome de
+  quem estava atribuído — foi removida por quebrar o espelho.
 - **A escala é normalmente uma pessoa só por culto**, não uma equipa
   (diferente de Apoio/Técnica). `SheetEscala.jsx` troca em vez de
   acumular — tocar noutro nome substitui quem lá estava. `pessoas` e
