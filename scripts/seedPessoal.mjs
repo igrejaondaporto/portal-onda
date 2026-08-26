@@ -28,7 +28,14 @@ const hash = (pin) => {
   return `${sal}:${scryptSync(pin, sal, 64).toString("hex")}`;
 };
 
-const LIDER = { id: "camila", nome: "Camila", papel: "lider_base" };
+// id GLOBAL (pessoas/{id}), não só desta base — nunca usar um nome
+// próprio nu ("camila"). Já aconteceu colidir com uma pessoa real de
+// outra base com o mesmo primeiro nome: a identidade e o PIN são
+// globais (CLAUDE.md raiz, regra 2), por isso o seed sobrescreveu o
+// PIN dela sem ninguém dar por isso (ver scripts/corrigirColisaoCamila.mjs,
+// o script que reparou o estrago). O id tem de ser inequivocamente
+// desta base, mesmo que o primeiro nome se repita noutra.
+const LIDER = { id: "camila-pessoal", nome: "Camila", papel: "lider_base" };
 
 // id fixo por função — "drive" é reservado (ver CLAUDE.md desta base):
 // a regra de segurança do mapa de Acomodação aponta sempre a

@@ -100,7 +100,7 @@ sem namespace de base.
   offline seguro. **Escreve só quem tem a função Drive nesse culto**
   (ou a líder); todos os outros só leem (`onSnapshot`). Regra em
   `firestore.rules`, ao lado do bloco `checklist`.
-- **Arquivo pós-fecho** — `bases/pessoal/acomodacao/resumos/{AAAA-MM-DD}`
+- **Arquivo pós-fecho** — `bases/pessoal/acomodacaoResumos/{AAAA-MM-DD}`
   (subcoleção): ocupados, visitantes, reservados, bloqueados,
   capacidade útil, percentagem. Escrito pela Cloud Function
   `fecharAcomodacao` (não pelo cliente direto — fechar é a única ação

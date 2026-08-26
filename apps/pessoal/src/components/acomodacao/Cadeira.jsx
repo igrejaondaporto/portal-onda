@@ -8,7 +8,9 @@ import { CORES_LUGAR } from "../../lib/modelo";
  * <g>, nunca os outros 143.
  */
 function Cadeira({ id, x, y, sw, sh, estado, selecionado, cores, onPointerDownLugar, onClickLugar, onContextMenuLugar }) {
-  const cor = cores[estado] ?? CORES_LUGAR[estado];
+  // Sugerido pelo "chegou grupo de N": pinta o lugar todo de branco,
+  // não só o contorno — mais fácil de ver de relance qual é o bloco.
+  const cor = selecionado ? "#fff" : cores[estado] ?? CORES_LUGAR[estado];
   return (
     <g
       className="seat"
@@ -27,7 +29,7 @@ function Cadeira({ id, x, y, sw, sh, estado, selecionado, cores, onPointerDownLu
         className="pan"
         x={(-sw * 0.43).toFixed(1)} y={(-sh * 0.5).toFixed(1)}
         width={(sw * 0.86).toFixed(1)} height={(sh * 0.68).toFixed(1)} rx={(sw * 0.18).toFixed(1)}
-        fill={cor} stroke={selecionado ? "#fff" : "rgba(0,0,0,.5)"} strokeWidth={selecionado ? 3 : 1.2}
+        fill={cor} stroke={selecionado ? "#0A0D2E" : "rgba(0,0,0,.5)"} strokeWidth={selecionado ? 3 : 1.2}
       />
       <rect
         x={(-sw * 0.34).toFixed(1)} y={(-sh * 0.44).toFixed(1)}

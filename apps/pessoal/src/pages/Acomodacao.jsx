@@ -141,7 +141,12 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
           <div className="sect">
             <BotoesGrupo n={n} onPedir={pedirGrupo} onConfirmar={confirmarGrupo} onCancelar={limpar} />
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap",
+              WebkitUserSelect: "none", userSelect: "none", touchAction: "manipulation",
+            }}
+          >
             <button
               className="btn sec" onClick={() => setModoReservar((m) => !m)}
               style={modoReservar ? { background: "#3B82F6", color: "#fff", borderColor: "#3B82F6" } : undefined}

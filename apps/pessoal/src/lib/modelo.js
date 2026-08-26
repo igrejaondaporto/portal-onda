@@ -11,7 +11,9 @@
  *   bases/{base}/inventario/{item}/movimentos/{mov}
  *   bases/{base}/reembolsos/{r}
  *   bases/{base}/acomodacao/planta                   ← config do mapa do auditório
- *   bases/{base}/acomodacao/resumos/{AAAA-MM-DD}     ← arquivo pós-fecho de cada culto
+ *   bases/{base}/acomodacaoResumos/{AAAA-MM-DD}      ← arquivo pós-fecho de cada culto
+ *                                                       (coleção irmã, não subcoleção —
+ *                                                       ver nota em fecharAcomodacao)
  *   eventos/{AAAA-MM-DD}                             ← global, a igreja toda
  *   eventos/{e}/escalas/{base}                       ← pessoas[] + liderEscala
  *   eventos/{e}/atribuicoes/{funcao}                 ← pessoas[]
@@ -39,8 +41,8 @@ export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enque
 // ── Acomodação (mapa do auditório) ─────────────────────────────
 export const cPlanta = () => doc(db, `bases/${BASE_ID}/acomodacao/planta`);
 export const cMapaAcomodacao = (ev) => doc(db, `eventos/${ev}/acomodacao/mapa`);
-export const cResumosAcomodacao = () => collection(db, `bases/${BASE_ID}/acomodacao/resumos`);
-export const cResumoAcomodacao = (ev) => doc(db, `bases/${BASE_ID}/acomodacao/resumos/${ev}`);
+export const cResumosAcomodacao = () => collection(db, `bases/${BASE_ID}/acomodacaoResumos`);
+export const cResumoAcomodacao = (ev) => doc(db, `bases/${BASE_ID}/acomodacaoResumos/${ev}`);
 
 export const ESTADOS_LUGAR = ["livre", "ocupado", "visitante", "reservado", "bloqueado"];
 export const CORES_LUGAR = {

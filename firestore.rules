@@ -185,7 +185,10 @@ service cloud.firestore {
       }
       // resumos: escrito só pela Cloud Function fecharAcomodacao (os
       // números derivam do mapa ao vivo, não podem vir do cliente).
-      match /acomodacao/resumos/{evento} {
+      // Coleção irmã de acomodacao (não subcoleção dela) — bases/{base}/
+      // acomodacao/resumos/{evento} tem um nº ímpar de segmentos e não
+      // é sequer um caminho de documento válido no Firestore.
+      match /acomodacaoResumos/{evento} {
         allow read:  if souLiderBase(base);
         allow write: if false;
       }

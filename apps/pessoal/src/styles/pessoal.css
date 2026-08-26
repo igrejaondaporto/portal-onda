@@ -21,6 +21,13 @@
   overflow: hidden;
   border-radius: 14px;
   background: radial-gradient(ellipse at 50% 18%, #1a2050 0%, #0b0f33 55%, #060827 100%);
+  /* Um toque duplo (marcar visitante) é, para o telemóvel, o mesmo
+     gesto do "selecionar palavra"/callout do sistema — sem isto o
+     segundo toque selecionava texto da página toda à volta do mapa
+     em vez de só marcar o lugar. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .zoomer-acomodacao {

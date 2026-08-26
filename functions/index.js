@@ -1148,7 +1148,7 @@ export const fecharAcomodacao = onCall(async (req) => {
   };
 
   const lote = db.batch();
-  lote.set(db.doc(`bases/pessoal/acomodacao/resumos/${eventoId}`), resumo);
+  lote.set(db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`), resumo);
   lote.update(mapaRef, { fechado: true });
   await lote.commit();
 
