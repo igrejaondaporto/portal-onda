@@ -22,7 +22,7 @@ const db = admin.firestore();
 const BASE = "pessoal";
 // fixo de propósito — mais fácil de comunicar, e o `provisorio:true`
 // obriga a trocar logo no primeiro acesso.
-const PIN_PADRAO = { lider_base: "123456", voluntario: "1234" };
+const PIN_PADRAO = { lider_base: "647539", voluntario: "1234" };
 const hash = (pin) => {
   const sal = randomBytes(16).toString("hex");
   return `${sal}:${scryptSync(pin, sal, 64).toString("hex")}`;
@@ -60,7 +60,15 @@ async function main() {
 
   await db.doc(`bases/${BASE}/pessoas/${LIDER.id}`).set(
     { nome: LIDER.nome, papel: LIDER.papel, ativo: true, foto: null, telefone: "" }, { merge: true });
-  await db.doc(`bases/${BASE}/pessoas/${LIDER.id}/privado/auth`).set(
+  // O hash do PIN é GLOBAL (pessoas/{id}/privado/auth), não por base —
+  // é o que a Cloud Function `entrar` lê de facto (refSegredo,
+  // functions/index.js). Uma pessoa só tem um PIN, em qualquer base
+  // onde sirva (CLAUDE.md raiz, regra 2). Também semeia o doc global
+  // pessoas/{id} (nome/foto/bases), o mesmo que `criarPessoa` grava
+  // quando alguém é adicionado pela interface.
+  await db.doc(`pessoas/${LIDER.id}`).set(
+    { nome: LIDER.nome, foto: null, bases: { [BASE]: true } }, { merge: true });
+  await db.doc(`pessoas/${LIDER.id}/privado/auth`).set(
     { pinHash: hash(PIN_PADRAO.lider_base), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null });
   console.log(`líder ${LIDER.nome} criada`);
 
