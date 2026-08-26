@@ -1,0 +1,31 @@
+# Corrige a colisão de identidade entre a líder da Base Pessoal e a
+# Camila real da Apoio (ver scripts/corrigirColisaoCamila.mjs) — corre
+# uma vez, manualmente, e pode ser apagado depois de confirmado.
+name: Corrigir colisão Camila (manual, uma vez)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  corrigir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - name: Escrever credencial de serviço
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::Falta o secret FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          printf '%s' "$SA" > service-account.json
+
+      - run: npm ci
+      - run: node scripts/corrigirColisaoCamila.mjs
+
+      - if: always()
+        run: rm -f service-account.json
