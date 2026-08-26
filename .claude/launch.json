@@ -2,28 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "portal-onda-dev",
+      "name": "pessoal-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173
-    },
-    {
-      "name": "comunicacao-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=@portal/comunicacao"],
-      "port": 5173
-    },
-    {
-      "name": "apoio-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=@portal/apoio"],
-      "port": 5173
-    },
-    {
-      "name": "backstage-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=@portal/backstage"],
-      "port": 5173
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/pessoal"],
+      "port": 5177
     }
   ]
 }

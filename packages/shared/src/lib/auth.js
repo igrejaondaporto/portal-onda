@@ -46,6 +46,7 @@ export const PORTAS_DEV = {
   tecnica: 5174,
   backstage: 5175,
   comunicacao: 5176,
+  pessoal: 5177,
 };
 
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um

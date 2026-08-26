@@ -75,6 +75,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Técnica | `apps/tecnica` | `tecnica.igrejaonda.pt` | `apps/tecnica/CLAUDE.md` |
 | Backstage | `apps/backstage` | `back.igrejaonda.pt` | `apps/backstage/CLAUDE.md` |
 | Comunicação | `apps/comunicacao` | `comunicacao.igrejaonda.pt` | `apps/comunicacao/CLAUDE.md` |
+| Pessoal | `apps/pessoal` | `pessoal.igrejaonda.pt` | `apps/pessoal/CLAUDE.md` |
 
 ## Stack
 
