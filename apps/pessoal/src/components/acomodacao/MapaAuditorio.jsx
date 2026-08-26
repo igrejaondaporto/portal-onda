@@ -139,23 +139,26 @@ export default function MapaAuditorio({ planta, lugaresEstado, corInvertida, sel
   return (
     <div ref={wrapRef} className="mapwrap-acomodacao" style={{ touchAction: "none", position: "relative" }}>
       <svg
-        width="100%" height="100%" viewBox={`0 0 ${VW} ${VH}`}
-        style={{ display: "block" }} role="img" aria-label="Planta do auditório"
+        width={VW} height={VH}
+        style={{
+          position: "absolute", top: 0, left: 0, display: "block",
+          transformOrigin: "0 0",
+          transform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.escala})`,
+        }}
+        role="img" aria-label="Planta do auditório"
       >
-        <g transform={`translate(${transform.tx} ${transform.ty}) scale(${transform.escala})`}>
-          <Cenario planta={planta} />
-          {lugares.map((l) => (
-            <Cadeira
-              key={l.id} id={l.id} x={l.x} y={l.y} sw={l.sw} sh={l.sh}
-              estado={lugaresEstado[l.id] ?? "livre"}
-              selecionado={selecao.includes(l.id)}
-              cores={cores}
-              onPointerDownLugar={aoPointerDownLugar}
-              onClickLugar={aoClicarLugar}
-              onContextMenuLugar={aoContextMenuLugar}
-            />
-          ))}
-        </g>
+        <Cenario planta={planta} />
+        {lugares.map((l) => (
+          <Cadeira
+            key={l.id} id={l.id} x={l.x} y={l.y} sw={l.sw} sh={l.sh}
+            estado={lugaresEstado[l.id] ?? "livre"}
+            selecionado={selecao.includes(l.id)}
+            cores={cores}
+            onPointerDownLugar={aoPointerDownLugar}
+            onClickLugar={aoClicarLugar}
+            onContextMenuLugar={aoContextMenuLugar}
+          />
+        ))}
       </svg>
       <div className="zoomer-acomodacao">
         <button className="zb" aria-label="Afastar" onClick={() => zoomPara(transform.escala / 1.4)}>−</button>
