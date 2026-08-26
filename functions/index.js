@@ -1106,6 +1106,55 @@ export const atribuirFuncao = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── ACOMODAÇÃO (Base Pessoal): fechar o mapa do culto ─────────
+ * A única ação do módulo que passa por Cloud Function — marcar
+ * lugares é escrita direta do cliente (ver firestore.rules,
+ * eventos/{evento}/acomodacao/mapa), porque tem de funcionar
+ * offline. Fechar não: os números do resumo têm de vir de uma
+ * contagem sobre o que está realmente gravado no servidor, não do
+ * que o cliente diz que contou, e a escrita do resumo + a marca
+ * `fechado:true` no mapa têm de acontecer juntas. */
+export const fecharAcomodacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal") throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  if (!souLiderBase) {
+    const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
+    const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Drive neste culto pode fechar.");
+  }
+
+  const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
+  const mapa = await mapaRef.get();
+  if (!mapa.exists) throw new HttpsError("not-found", "Este culto ainda não tem mapa.");
+  if (mapa.data().fechado) throw new HttpsError("failed-precondition", "Este culto já foi fechado.");
+
+  const lugares = mapa.data().lugares || {};
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  Object.values(lugares).forEach((s) => { if (s in contagem) contagem[s]++; });
+  const ocupados = contagem.ocupado + contagem.visitante;
+  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  const resumo = {
+    eventoId,
+    ocupados: contagem.ocupado, visitantes: contagem.visitante,
+    reservados: contagem.reservado, bloqueados: contagem.bloqueado,
+    capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
+    fechadoEm: admin.firestore.FieldValue.serverTimestamp(), fechadoPor: uid,
+  };
+
+  const lote = db.batch();
+  lote.set(db.doc(`bases/pessoal/acomodacao/resumos/${eventoId}`), resumo);
+  lote.update(mapaRef, { fechado: true });
+  await lote.commit();
+
+  return { ok: true, resumo: { ...resumo, fechadoEm: null } };
+});
+
 /* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
  * A base é o analisador testado contra o PDF real do pastor (ver
  * culto-transcrito.html, na raiz do projeto) — só a origem do texto

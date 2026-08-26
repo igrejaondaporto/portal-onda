@@ -173,6 +173,22 @@ service cloud.firestore {
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vistoPeloVoluntario']));
         allow delete: if false;
       }
+
+      // ── Acomodação (Base Pessoal) — planta do auditório + arquivo ──
+      // planta: configuração (fileiras, reservados, bloqueios
+      // permanentes) — só a líder edita, direto do cliente, como
+      // funcoes/{funcao} acima. O estado ao vivo por culto vive em
+      // eventos/{evento}/acomodacao/mapa (ver bloco lá em baixo).
+      match /acomodacao/planta {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+      // resumos: escrito só pela Cloud Function fecharAcomodacao (os
+      // números derivam do mapa ao vivo, não podem vir do cliente).
+      match /acomodacao/resumos/{evento} {
+        allow read:  if souLiderBase(base);
+        allow write: if false;
+      }
     }
 
     // ── eventos: o culto é da IGREJA, não da base ──────────
@@ -209,6 +225,23 @@ service cloud.firestore {
                      && exists(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId))
                      && request.auth.uid in
                         get(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId)).data.pessoas;
+      }
+
+      // mapa do auditório da Base Pessoal — escreve direto do cliente
+      // (sem Cloud Function) de propósito: é o único jeito de marcar
+      // lugares offline, e Cloud Functions não correm sem rede. Só
+      // quem tem a função "drive" (id fixo, ver
+      // bases/pessoal/funcoes/drive) neste culto pode escrever, mais
+      // a líder da base. "drive" é reservado: nenhuma outra base pode
+      // ter uma função com este id (a coleção atribuicoes é plana,
+      // sem namespace de base).
+      match /acomodacao/mapa {
+        allow read: if autenticado();
+        allow write: if souLiderBase('pessoal')
+                     || (minhaBase('pessoal')
+                         && exists(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive)
+                         && request.auth.uid in
+                            get(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive).data.pessoas);
       }
     }
 
