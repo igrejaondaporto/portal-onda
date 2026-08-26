@@ -4,6 +4,9 @@ const ICO = {
   funcoes: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 6.2 4.3 7.5 6.8 4.8M3 12.2 4.3 13.5 6.8 10.8M3 18.2 4.3 19.5 6.8 16.8"/>',
   culto: '<path d="M12 3v6M9 6h6M5 21V11l7-5 7 5v10"/><path d="M9 21v-6h6v6"/>',
   inventario: '<path d="M21 8.5 12 3.5 3 8.5v7L12 20.5l9-5z"/><path d="M3 8.5 12 13.5l9-5M12 13.5v7"/>',
+  // papel com caneta — Formulário (hoje só a Pessoal, disponível para
+  // qualquer base futura com o mesmo separador)
+  formulario: '<path d="m18 5-2.414-2.414A2 2 0 0 0 14.172 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"/><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><path d="M8 18h1"/>',
 };
 
 // [chave, texto] — cada app passa as suas próprias abas por prop;
