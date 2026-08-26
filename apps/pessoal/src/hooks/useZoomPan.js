@@ -142,14 +142,21 @@ export function useZoomPan(wrapRef, largura, altura) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapRef, zoomPara, limites]);
 
-  // useLayoutEffect (não useEffect): corre antes do browser pintar o
-  // primeiro frame — sem isto o utilizador vê um instante o mapa por
-  // ajustar (escala 1, canto superior esquerdo) antes do enquadramento
-  // certo aparecer.
+  // ResizeObserver, não só "resize" da janela: as abas desta app ficam
+  // sempre montadas, só escondidas com display:none ao trocar (ver
+  // Sessao.jsx) — quando a Acomodação monta escondida (o mais comum,
+  // já que Início é a aba inicial), o wrap tem tamanho 0 nesse momento
+  // e ajustar() desiste em silêncio. display:none → "" nunca dispara
+  // "resize" da janela, mas dispara o ResizeObserver assim que o wrap
+  // ganha tamanho a sério — é o que mantém o mapa enquadrado ao trocar
+  // de aba, não só ao mudar o tamanho da janela.
   useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
     ajustar();
-    window.addEventListener("resize", ajustar);
-    return () => window.removeEventListener("resize", ajustar);
+    const ro = new ResizeObserver(() => ajustar());
+    ro.observe(wrap);
+    return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ajustar]);
 
