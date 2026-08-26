@@ -13,13 +13,16 @@
  * próprios — o resto da app usa só as classes do global.css.
  */
 
-/* O controlo de zoom e o aviso viviam por cima do SVG (position:
-   absolute) — em qualquer enquadramento que aproveite a caixa toda
-   (é o normal, a planta é alta), ambos caíam mesmo em cima das
-   últimas fileiras e ninguém conseguia tocar nos lugares ali por
-   baixo. Agora são barras normais, fora da área do mapa: o aviso
-   por cima do wrap (não tapa lugar nenhum, é só texto), o zoom por
-   baixo. Ver MapaAuditorio.jsx. */
+/* O controlo de zoom e o aviso viviam os dois em position:absolute
+   por cima do <svg> — em qualquer enquadramento que aproveite a
+   caixa toda (é o normal, a planta é alta), ambos caíam mesmo em
+   cima das últimas fileiras e ninguém conseguia tocar nos lugares
+   ali por baixo. O zoom saiu de vez do mapa, para uma barra normal
+   por baixo. O aviso volta a ficar dentro da caixa do mapa — pedido
+   explícito — mas preso ao TOPO, onde está o palco/telão (nunca há
+   lugar para tocar ali) em vez de flutuar sobre as fileiras; e com
+   pointer-events:none, para nunca roubar o arrasto/toque de quem
+   estiver por baixo. Ver MapaAuditorio.jsx. */
 .shell-acomodacao {
   display: flex;
   flex-direction: column;
@@ -70,6 +73,12 @@
 .zoomer-acomodacao .zlvl { font-size: 12px; font-weight: 700; color: #9AA4CE; min-width: 42px; text-align: center; }
 
 .dica-acomodacao {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+  pointer-events: none;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -81,6 +90,7 @@
   color: #fff;
   border-radius: 12px;
   padding: 10px 12px;
+  backdrop-filter: blur(4px);
 }
 .dica-acomodacao.alerta {
   background: rgba(255, 107, 90, .2);

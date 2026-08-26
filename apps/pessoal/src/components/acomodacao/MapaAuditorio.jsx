@@ -179,8 +179,8 @@ export default function MapaAuditorio({ planta, lugaresEstado, corInvertida, sel
 
   return (
     <div className="shell-acomodacao">
-      <div className={`dica-acomodacao${dicaAlerta ? " alerta" : ""}`}>{dicaTexto}</div>
       <div ref={wrapRef} className="mapwrap-acomodacao" style={{ touchAction: "none", position: "relative" }}>
+        <div className={`dica-acomodacao${dicaAlerta ? " alerta" : ""}`}>{dicaTexto}</div>
         <svg
           width={VW} height={VH}
           style={{
