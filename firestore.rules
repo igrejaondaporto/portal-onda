@@ -230,6 +230,16 @@ service cloud.firestore {
                         get(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId)).data.pessoas;
       }
 
+      // contagem do culto da Base Pessoal — um documento vivo por culto.
+      // Escreve direto do cliente para continuar utilizável quando a rede
+      // falha; cada categoria regista quem a preencheu e a sua origem.
+      // Não há delete: a contagem integra o histórico do culto.
+      match /contagem/geral {
+        allow read: if autenticado();
+        allow create, update: if minhaBase('pessoal');
+        allow delete: if false;
+      }
+
       // mapa do auditório da Base Pessoal — escreve direto do cliente
       // (sem Cloud Function) de propósito: é o único jeito de marcar
       // lugares offline, e Cloud Functions não correm sem rede. Só
