@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useEffect, useRef, useState } from "react";
 
 /**
  * Zoom/pan do mapa — porte do protótipo (wheel, drag de 1 dedo, pinça
@@ -15,7 +15,7 @@ export function useZoomPan(wrapRef, largura, altura) {
   const transformRef = useRef(transform);
   transformRef.current = transform;
   const limitesRef = useRef({ zMin: 1, zMax: 5 });
-  const arrastRef = useRef({ ativo: false, x: 0, y: 0 });
+  const arrastRef = useRef({ ativo: false, capturado: false, pointerId: null, x: 0, y: 0 });
   const moveuRef = useRef(0);
   const toquesRef = useRef({ dist0: 0, z0: 1 });
 
@@ -43,29 +43,25 @@ export function useZoomPan(wrapRef, largura, altura) {
     });
   }, [wrapRef, limites]);
 
-  // arranca a ~121% do enquadramento completo, ocupando o wrap — como no protótipo
+  // Arranca a ~121% do enquadramento completo, ocupando o wrap — como
+  // no protótipo. Este É o zoom mínimo (zMin): não faz sentido deixar
+  // afastar até ver o palco inteiro com espaço vazio à volta — a sala
+  // ocupa o ecrã, sempre. "Tudo" (verTudo) repõe este mesmo enquadramento.
   const ajustar = useCallback(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     const r = wrap.getBoundingClientRect();
     if (!r.width || !r.height) return;
     const contem = Math.min(r.width / largura, r.height / altura);
-    limitesRef.current = { zMin: contem, zMax: contem * 8 };
     const escala = contem * 1.21;
+    limitesRef.current = { zMin: escala, zMax: escala * 6 };
     const tx = (r.width - largura * escala) / 2;
     const lh = altura * escala;
     const ty = lh > r.height ? -(lh - r.height) * 0.46 : (r.height - lh) / 2;
     setTransform(limites({ escala, tx, ty }));
   }, [wrapRef, largura, altura, limites]);
 
-  const verTudo = useCallback(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const r = wrap.getBoundingClientRect();
-    const { zMin } = limitesRef.current;
-    const tx = (r.width - largura * zMin) / 2, ty = (r.height - altura * zMin) / 2;
-    setTransform(limites({ escala: zMin, tx, ty }));
-  }, [wrapRef, largura, altura, limites]);
+  const verTudo = useCallback(() => ajustar(), [ajustar]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -76,20 +72,35 @@ export function useZoomPan(wrapRef, largura, altura) {
       const r = wrap.getBoundingClientRect();
       zoomPara(transformRef.current.escala * (e.deltaY < 0 ? 1.16 : 1 / 1.16), e.clientX - r.left, e.clientY - r.top);
     }
+    // Não captura o ponteiro logo no pointerdown — um toque simples num
+    // lugar também passa por aqui, e capturar cedo de mais rouba o
+    // click do <Cadeira> (o browser deixa de o sintetizar no alvo
+    // original). Só se torna "arrasto" — e só aí pede a captura — depois
+    // de passar um limiar de movimento; um toque que nunca se mexe
+    // chega inteiro ao onClick do lugar.
     function aoDescer(e) {
       if (e.target.closest(".zoomer")) return;
-      arrastRef.current = { ativo: true, x: e.clientX, y: e.clientY };
+      arrastRef.current = { ativo: true, capturado: false, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
       moveuRef.current = 0;
-      wrap.setPointerCapture(e.pointerId);
     }
     function aoMover(e) {
-      if (!arrastRef.current.ativo) return;
-      const dx = e.clientX - arrastRef.current.x, dy = e.clientY - arrastRef.current.y;
+      const a = arrastRef.current;
+      if (!a.ativo) return;
+      const dx = e.clientX - a.x, dy = e.clientY - a.y;
       moveuRef.current += Math.abs(dx) + Math.abs(dy);
-      arrastRef.current.x = e.clientX; arrastRef.current.y = e.clientY;
+      a.x = e.clientX; a.y = e.clientY;
+      if (!a.capturado) {
+        if (moveuRef.current < 6) return; // ainda pode ser só um toque
+        a.capturado = true;
+        wrap.setPointerCapture(a.pointerId);
+      }
       setTransform((t) => limites({ ...t, tx: t.tx + dx, ty: t.ty + dy }));
     }
-    function aoSoltar() { arrastRef.current.ativo = false; }
+    function aoSoltar() {
+      const a = arrastRef.current;
+      if (a.capturado) { try { wrap.releasePointerCapture(a.pointerId); } catch { /* já foi libertado */ } }
+      a.ativo = false; a.capturado = false;
+    }
     function aoIniciarToque(e) {
       if (e.touches.length === 2) {
         toquesRef.current.dist0 = Math.hypot(
@@ -131,7 +142,11 @@ export function useZoomPan(wrapRef, largura, altura) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapRef, zoomPara, limites]);
 
-  useEffect(() => {
+  // useLayoutEffect (não useEffect): corre antes do browser pintar o
+  // primeiro frame — sem isto o utilizador vê um instante o mapa por
+  // ajustar (escala 1, canto superior esquerdo) antes do enquadramento
+  // certo aparecer.
+  useLayoutEffect(() => {
     ajustar();
     window.addEventListener("resize", ajustar);
     return () => window.removeEventListener("resize", ajustar);
