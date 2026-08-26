@@ -1,0 +1,38 @@
+# Semeia a Base Pessoal uma vez (líder, funções, planta do auditório e
+# o tour de primeiro login) — só corre manualmente, nunca em push, e só
+# escreve na base "pessoal" (ver scripts/seedPessoal.mjs).
+#
+# Uso: gh workflow run seed-pessoal.yml --repo igrejaondaporto/portal-onda
+# (ou pela aba Actions do GitHub, botão "Run workflow")
+#
+# Depois de terminar, esta ficheiro pode ser apagado — só existe para
+# não ninguém precisar de descarregar o service-account.json à mão.
+name: Semear Base Pessoal (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - name: Escrever credencial de serviço
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::Falta o secret FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          printf '%s' "$SA" > service-account.json
+
+      - run: npm ci
+      - run: node scripts/seedPessoal.mjs
+      - run: node scripts/seedTour.mjs
+
+      - if: always()
+        run: rm -f service-account.json
