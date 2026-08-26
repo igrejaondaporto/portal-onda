@@ -1142,7 +1142,7 @@ export const fecharAcomodacao = onCall(async (req) => {
   const resumo = {
     eventoId,
     ocupados: contagem.ocupado, visitantes: contagem.visitante,
-    reservados: contagem.reservado, bloqueados: contagem.bloqueado,
+    livres: contagem.livre, reservados: contagem.reservado, bloqueados: contagem.bloqueado,
     capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
     fechadoEm: admin.firestore.FieldValue.serverTimestamp(), fechadoPor: uid,
   };
