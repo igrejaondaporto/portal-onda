@@ -10,7 +10,7 @@ import { useCallback, useLayoutEffect, useEffect, useRef, useState } from "react
  * se o gesto foi um arrasto (e por isso ignorar o toque) — o mesmo
  * truque do protótipo (`moveu>8` antes de tratar como toque).
  */
-export function useZoomPan(wrapRef, largura, altura) {
+export function useZoomPan(wrapRef, largura, altura, enquadramento) {
   const [transform, setTransform] = useState({ escala: 1, tx: 0, ty: 0 });
   const transformRef = useRef(transform);
   transformRef.current = transform;
@@ -43,23 +43,25 @@ export function useZoomPan(wrapRef, largura, altura) {
     });
   }, [wrapRef, limites]);
 
-  // Arranca a ~121% do enquadramento completo, ocupando o wrap — como
-  // no protótipo. Este É o zoom mínimo (zMin): não faz sentido deixar
-  // afastar até ver o palco inteiro com espaço vazio à volta — a sala
-  // ocupa o ecrã, sempre. "Tudo" (verTudo) repõe este mesmo enquadramento.
+  // Enquadramento inicial fixo, não "cabe tudo": corta o telão a meio
+  // em cima e mostra a fileira L inteira (até à etiqueta ENTRADA) em
+  // baixo — pedido explícito de quem usa. `enquadramento.topo/fundo`
+  // são coordenadas do desenho (unidades de largura/altura), não
+  // pixels do ecrã. Este É o zoom mínimo (zMin): a sala ocupa sempre
+  // o ecrã, nunca se afasta até sobrar espaço vazio à volta. "Tudo"
+  // (verTudo) repõe este mesmo enquadramento.
   const ajustar = useCallback(() => {
     const wrap = wrapRef.current;
-    if (!wrap) return;
+    if (!wrap || !enquadramento) return;
     const r = wrap.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    const contem = Math.min(r.width / largura, r.height / altura);
-    const escala = contem * 1.21;
+    const { topo, fundo } = enquadramento;
+    const escala = r.height / (fundo - topo);
     limitesRef.current = { zMin: escala, zMax: escala * 6 };
     const tx = (r.width - largura * escala) / 2;
-    const lh = altura * escala;
-    const ty = lh > r.height ? -(lh - r.height) * 0.46 : (r.height - lh) / 2;
+    const ty = -topo * escala;
     setTransform(limites({ escala, tx, ty }));
-  }, [wrapRef, largura, altura, limites]);
+  }, [wrapRef, largura, enquadramento, limites]);
 
   const verTudo = useCallback(() => ajustar(), [ajustar]);
 

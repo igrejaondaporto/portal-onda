@@ -1,6 +1,7 @@
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   VW, VH, gerarLugares, gerarRotulosFileira, gerarNumerosFundo, gerarEscadas, gerarEntradas,
+  enquadramentoInicial,
 } from "../../lib/geometriaAuditorio";
 import { CORES_LUGAR } from "../../lib/modelo";
 import { useZoomPan } from "../../hooks/useZoomPan";
@@ -90,51 +91,91 @@ function Cenario({ planta }) {
 
 export default function MapaAuditorio({ planta, lugaresEstado, corInvertida, selecao, onTocar, dicaTexto, dicaAlerta }) {
   const wrapRef = useRef(null);
-  const { transform, moveuRef, zoomPara, verTudo } = useZoomPan(wrapRef, VW, VH);
+  const enquadramento = useMemo(() => enquadramentoInicial(planta), [planta]);
+  const { transform, moveuRef, zoomPara, verTudo } = useZoomPan(wrapRef, VW, VH, enquadramento);
   const lugares = useMemo(() => gerarLugares(planta), [planta]);
   const cores = useMemo(
     () => (corInvertida ? { ...CORES_LUGAR, livre: CORES_LUGAR.ocupado, ocupado: CORES_LUGAR.livre } : CORES_LUGAR),
     [corInvertida],
   );
 
-  const gestoRef = useRef({ ultimoToqueId: null, timeoutClique: null, timeoutLongo: null });
+  const gestoRef = useRef({ ultimoToqueId: null, timeoutClique: null, timeoutLongo: null, suprimirClique: false });
 
-  function tratar(id) {
+  // <Cadeira> é React.memo por (id,estado,selecionado,cores,x,y) de
+  // propósito — para um toque só recalcular o lugar tocado, não os
+  // 144. Só que isso também significa que, sempre que um lugar não
+  // muda de estado, o React REAPROVEITA os handlers de clique da
+  // vez anterior — incluindo `onTocar`/`selecao`/`lugares` antigos,
+  // de closures já ultrapassadas (ex.: o modo "Reservar" acabado de
+  // ligar nunca chegava a um lugar que não tinha mudado de cor desde
+  // o mount). A correção: os handlers passados ao <Cadeira> nunca
+  // mudam de identidade (useCallback com deps fixas) — o memo deixa
+  // de ter qualquer prop "diferente" para reagir — e lêem o que
+  // precisam sempre por uma ref atualizada a cada render, nunca por
+  // fecho direto sobre as props.
+  const aoVivoRef = useRef({ onTocar, selecao });
+  aoVivoRef.current.onTocar = onTocar;
+  aoVivoRef.current.selecao = selecao;
+
+  const tratar = useCallback((id) => {
     const g = gestoRef.current;
     if (g.ultimoToqueId === id) {
       clearTimeout(g.timeoutClique);
       g.ultimoToqueId = null;
-      onTocar(id, "duplo");
+      aoVivoRef.current.onTocar(id, "duplo");
       return;
     }
     g.ultimoToqueId = id;
     g.timeoutClique = setTimeout(() => {
       g.ultimoToqueId = null;
-      onTocar(id, "simples");
+      aoVivoRef.current.onTocar(id, "simples");
     }, 250);
-  }
+  }, []);
 
-  function aoClicarLugar(id) {
-    if (moveuRef.current > 8 || selecao.length) return;
-    tratar(id);
-  }
-  function aoContextMenuLugar(id, e) {
-    e.preventDefault();
-    onTocar(id, "longo");
-  }
-  function aoPointerDownLugar(id) {
+  const aoClicarLugar = useCallback((id) => {
     const g = gestoRef.current;
+    // O toque longo já tratou disto — o click que o dedo/rato geram a
+    // seguir ao soltar não pode voltar a alternar o lugar.
+    if (g.suprimirClique) { g.suprimirClique = false; return; }
+    if (moveuRef.current > 8 || aoVivoRef.current.selecao.length) return;
+    tratar(id);
+  }, [moveuRef, tratar]);
+
+  const aoContextMenuLugar = useCallback((id, e) => {
+    e.preventDefault();
+    aoVivoRef.current.onTocar(id, "longo");
+  }, []);
+
+  // Um dedo pousado nunca fica perfeitamente parado — o sensor treme
+  // uns pixels sozinho. Cancelar o toque longo ao primeiro "pointermove"
+  // (como estava) desarmava-o quase sempre a sério, num ecrã tátil: o
+  // toque longo só funcionava com rato (botão direito), nunca com
+  // dedo. Agora só cancela se o movimento passar de um limiar a sério.
+  const aoPointerDownLugar = useCallback((id, e) => {
+    const g = gestoRef.current;
+    const x0 = e.clientX, y0 = e.clientY;
     g.timeoutLongo = setTimeout(() => {
       g.timeoutLongo = null;
       clearTimeout(g.timeoutClique);
       g.ultimoToqueId = null;
-      onTocar(id, "longo");
+      g.suprimirClique = true;
+      aoVivoRef.current.onTocar(id, "longo");
       if (navigator.vibrate) navigator.vibrate(35);
+      finalizar();
     }, 550);
-    const cancelar = () => clearTimeout(g.timeoutLongo);
-    window.addEventListener("pointerup", cancelar, { once: true });
-    window.addEventListener("pointermove", cancelar, { once: true });
-  }
+    function aoMoverDurante(ev) {
+      if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 12) finalizar();
+    }
+    function finalizar() {
+      clearTimeout(g.timeoutLongo);
+      window.removeEventListener("pointermove", aoMoverDurante);
+      window.removeEventListener("pointerup", finalizar);
+      window.removeEventListener("pointercancel", finalizar);
+    }
+    window.addEventListener("pointermove", aoMoverDurante);
+    window.addEventListener("pointerup", finalizar);
+    window.addEventListener("pointercancel", finalizar);
+  }, []);
 
   return (
     <div ref={wrapRef} className="mapwrap-acomodacao" style={{ touchAction: "none", position: "relative" }}>

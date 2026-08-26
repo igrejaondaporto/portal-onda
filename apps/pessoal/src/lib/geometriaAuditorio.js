@@ -139,6 +139,23 @@ export function gerarEntradas(planta) {
   });
 }
 
+// Meio do telão (rect y=316, altura=164, em Cenario) — o enquadramento
+// inicial corta-o a meio, pedido explícito de quem usa o mapa.
+const TOPO_ENQUADRAMENTO = 316 + 164 / 2;
+// Folga abaixo da etiqueta "ENTRADA" (altura própria 42px, mais a
+// rotação) até ao fim do chão desenhado — dá para a fileira L e a
+// entrada aparecerem inteiras, sem sobrar chão vazio a mais.
+const FOLGA_FUNDO = 90;
+
+/** Enquadramento inicial (e mínimo — não se afasta mais do que isto):
+ *  do meio do telão até logo abaixo da etiqueta ENTRADA. Em coordenadas
+ *  do desenho, não em pixels — useZoomPan converte para o wrap real. */
+export function enquadramentoInicial(planta) {
+  const entradas = gerarEntradas(planta);
+  const fundo = entradas.length ? Math.max(...entradas.map((e) => e.y)) + FOLGA_FUNDO : VH * 0.95;
+  return { topo: TOPO_ENQUADRAMENTO, fundo };
+}
+
 /** Procura o melhor bloco de N lugares seguidos livres — fileiras da
  *  frente primeiro, depois o mais próximo do centro da fileira.
  *  Função pura, testável sem React/Firestore. */

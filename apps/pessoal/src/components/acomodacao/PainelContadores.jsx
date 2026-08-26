@@ -35,6 +35,16 @@ export default function PainelContadores({ lugaresEstado, corInvertida, onInvert
           </button>
         )}
       </div>
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(0,0,0,.08)", display: "flex", flexDirection: "column", gap: 4 }}>
+        {[
+          ["1 toque", "ocupa ou liberta o lugar"],
+          ["2 toques seguidos", "marca visitante"],
+          ["Manter o dedo (½ seg.)", "bloqueia (cadeira partida)"],
+          ["\"Reservar\" + toque", "marca ou desmarca reservado"],
+        ].map(([gesto, acao]) => (
+          <p key={gesto} className="ds" style={{ fontSize: 12 }}><b>{gesto}</b> — {acao}</p>
+        ))}
+      </div>
     </div>
   );
 }

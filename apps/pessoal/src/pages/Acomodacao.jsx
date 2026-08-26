@@ -12,7 +12,8 @@ import MapaAuditorio from "../components/acomodacao/MapaAuditorio";
 import PainelContadores from "../components/acomodacao/PainelContadores";
 import BotoesGrupo from "../components/acomodacao/BotoesGrupo";
 
-function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados) {
+function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar) {
+  if (modoReservar) return { texto: "Modo reservar — toque num lugar para o marcar (ou desmarcar) a azul.", alerta: false };
   if (sel.length) return { texto: `Sugestão: ${sel.join(" · ")}. Confirme quando estiverem sentados.`, alerta: false };
   const pct = capacidadeUtil ? Math.round((ocupados / capacidadeUtil) * 100) : 0;
   if (pct >= 95) return { texto: `Quase lotado — avise a recepção.`, alerta: true };
@@ -27,6 +28,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const [planta, setPlanta] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
+  const [modoReservar, setModoReservar] = useState(false);
 
   useEffect(() => onSnapshot(cPlanta(), (s) => setPlanta(s.exists() ? s.data() : null)), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -57,8 +59,15 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
 
   function onTocar(id, tipo) {
     const atual = lugares[id] ?? "livre";
+    if (modoReservar) {
+      if (tipo !== "simples") return;
+      const novo = atual === "reservado" ? "livre" : "reservado";
+      empilhar({ id, estadoAnterior: atual });
+      marcar(id, novo);
+      return;
+    }
     if (tipo === "simples") {
-      if (atual === "reservado") { torrada("Reservado — A1 a A4"); return; }
+      if (atual === "reservado") { torrada("Reservado — ative \"Reservar\" para libertar"); return; }
       const novo = atual === "livre" ? "ocupado" : "livre";
       empilhar({ id, estadoAnterior: atual });
       marcar(id, novo);
@@ -112,7 +121,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
   const ocupados = contagem.ocupado + contagem.visitante;
   const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
-  const dica = dicaViva(planta, lugares, sel, capacidadeUtil, ocupados);
+  const dica = dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar);
 
   return (
     <>
@@ -133,6 +142,12 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
             <BotoesGrupo n={n} onPedir={pedirGrupo} onConfirmar={confirmarGrupo} onCancelar={limpar} />
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <button
+              className="btn sec" onClick={() => setModoReservar((m) => !m)}
+              style={modoReservar ? { background: "#3B82F6", color: "#fff", borderColor: "#3B82F6" } : undefined}
+            >
+              {modoReservar ? "✓ A reservar" : "Reservar"}
+            </button>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
             {papel === "lider_base" && (
               <button className="btn sec" onClick={() => { limparMapa(planta); torrada("Mapa limpo"); }}>
