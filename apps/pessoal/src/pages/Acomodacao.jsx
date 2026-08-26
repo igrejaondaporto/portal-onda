@@ -133,10 +133,6 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
         />
       </div>
 
-      <div className="sect">
-        <PainelContadores lugaresEstado={lugares} corInvertida={!!planta.corInvertida} />
-      </div>
-
       {souDrive && !mapa?.fechado && (
         <>
           <div className="sect">
@@ -169,6 +165,10 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
           <p className="ds">Este culto já foi fechado — o mapa ficou só de leitura.</p>
         </div>
       )}
+
+      <div className="sect">
+        <PainelContadores lugaresEstado={lugares} corInvertida={!!planta.corInvertida} />
+      </div>
 
       <ResumosAcomodacao />
     </>
