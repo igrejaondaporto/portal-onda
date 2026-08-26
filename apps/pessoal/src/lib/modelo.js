@@ -19,6 +19,7 @@
  *   eventos/{e}/atribuicoes/{funcao}                 ← pessoas[]
  *   eventos/{e}/acomodacao/mapa                       ← estado ao vivo dos 144 lugares
  *   eventos/{e}/checklist/{funcao}                   ← feito por quem, a que horas
+ *   eventos/{e}/contagem/geral                       ← nove categorias, autoria e origem por categoria
  *   bases/{base}/enquetes/{AAAA-MM}                  ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/enquetes/{AAAA-MM}/respostas/{pessoa}
  */
@@ -35,6 +36,7 @@ export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);
 export const cAtribuicaoDrive = (ev) => doc(db, `eventos/${ev}/atribuicoes/drive`);
 export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
+export const cContagem    = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
 
