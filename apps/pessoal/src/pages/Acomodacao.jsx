@@ -32,7 +32,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
 
   const eventoId = meuEvento?.id ?? null;
-  const { mapa, carregado, souDrive, marcar, garantirMapa } = useMapaAcomodacao(eventoId, uid, papel);
+  const { mapa, carregado, souDrive, marcar, garantirMapa, limparMapa } = useMapaAcomodacao(eventoId, uid, papel);
   // antes de qualquer Drive abrir o mapa hoje, o doc do culto ainda não
   // existe — mostra a planta "em repouso" (reservados/bloqueios
   // permanentes) em vez de tudo livre.
@@ -134,6 +134,11 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
+            {papel === "lider_base" && (
+              <button className="btn sec" onClick={() => { limparMapa(planta); torrada("Mapa limpo"); }}>
+                Limpar mapa
+              </button>
+            )}
             <button className="btn sec" onClick={fecharCulto}>Fechar culto</button>
           </div>
         </>

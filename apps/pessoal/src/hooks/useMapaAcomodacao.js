@@ -50,5 +50,14 @@ export function useMapaAcomodacao(eventoId, uid, papel) {
     updateDoc(cMapaAcomodacao(eventoId), { [`lugares.${id}`]: novoEstado, atualizadoEm: serverTimestamp() }).catch(() => {});
   }
 
-  return { mapa, carregado, souDrive, marcar, garantirMapa };
+  /** Repõe todos os lugares ao estado de repouso da planta — para
+   *  limpar dados de teste ou recomeçar a contagem de um culto. */
+  function limparMapa(planta) {
+    if (!souDrive || !eventoId || mapa?.fechado || !planta) return;
+    updateDoc(cMapaAcomodacao(eventoId), {
+      lugares: estadoInicialLugares(planta), atualizadoEm: serverTimestamp(),
+    }).catch(() => {});
+  }
+
+  return { mapa, carregado, souDrive, marcar, garantirMapa, limparMapa };
 }
