@@ -304,6 +304,70 @@ const TOURS = {
       },
     ],
   },
+  pessoal: {
+    // Molde Apoio (equipa única, sem ministérios) + o tab próprio de
+    // Acomodação, que não existe em nenhuma outra base — mapa do
+    // auditório, só para quem tem a função Drive nesse culto (ver
+    // apps/pessoal/CLAUDE.md).
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — todos os cultos e quem serve em cada um.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-funcoes",
+        titulo: "Funções",
+        texto: "Em Funções vês a descrição de cada tarefa — Café, Drive, Acomodação, Recepção.",
+        alvo: "nav-funcoes", pagina: "inicio",
+      },
+      {
+        chave: "nav-formulario",
+        titulo: "Formulário",
+        texto: "Em Formulário registas um novo contacto sempre que alguém à entrada quiser deixar os dados.",
+        alvo: "nav-formulario", pagina: "inicio",
+      },
+      {
+        chave: "nav-inventario",
+        titulo: "Inventário",
+        texto: "Em Inventário aumentas ou diminuis a quantidade de um item do café sempre que algo acabar ou chegar novo.",
+        alvo: "nav-inventario", pagina: "inicio",
+      },
+      {
+        chave: "nav-acomodacao",
+        titulo: "Acomodação",
+        texto: "Em Acomodação vês o mapa do auditório ao vivo — só quem tem a função Drive nesse culto pode marcar os lugares.",
+        alvo: "nav-acomodacao", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês — toca num culto para escolher quem serve.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
 };
 
 async function main() {

@@ -1,0 +1,78 @@
+/* ============================================================
+ * Camada visual da Base Pessoal
+ * ============================================================
+ *
+ * Este ficheiro é SÓ da Base Pessoal. Nada aqui chega a outra base
+ * (cada app tem o seu próprio build Vite e Worker Cloudflare).
+ *
+ * Ordem de carregamento (ver src/main.jsx):
+ *   1º @portal/shared/styles/global.css  ← partilhado, NÃO mexer
+ *   2º este ficheiro                     ← o teu sítio
+ *
+ * Só o módulo Acomodação (mapa do auditório) precisa de estilos
+ * próprios — o resto da app usa só as classes do global.css.
+ */
+
+.mapwrap-acomodacao {
+  position: relative;
+  width: 100%;
+  height: min(78vh, 780px);
+  min-height: 320px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 18%, #1a2050 0%, #0b0f33 55%, #060827 100%);
+}
+
+.zoomer-acomodacao {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(8, 10, 40, .72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 15px;
+  padding: 5px;
+}
+.zoomer-acomodacao .zb {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(255, 255, 255, .08);
+  color: #E8ECFF;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.zoomer-acomodacao .zb.sm { font-size: 12px; font-weight: 700; width: auto; padding: 0 10px; }
+.zoomer-acomodacao .zb:hover { background: rgba(255, 255, 255, .18); }
+.zoomer-acomodacao .zlvl { font-size: 12px; font-weight: 700; color: #9AA4CE; min-width: 42px; text-align: center; }
+
+.dica-acomodacao {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 62px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  background: rgba(200, 240, 46, .18);
+  border: 1px solid rgba(200, 240, 46, .4);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.dica-acomodacao.alerta {
+  background: rgba(255, 107, 90, .2);
+  border-color: rgba(255, 107, 90, .45);
+}
+
+.seat:focus-visible { outline: 2px solid #C8F02E; outline-offset: 2px; }
