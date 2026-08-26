@@ -12,8 +12,8 @@ import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Funcoes from "./Funcoes";
+import Culto from "./Culto";
 import Formulario from "./Formulario";
-import Inventario from "./Inventario";
 import Acomodacao from "./Acomodacao";
 import Reembolsos from "./Reembolsos";
 import Montar from "./Montar";
@@ -23,12 +23,15 @@ import Perfil from "./Perfil";
 const ICONE_MONTAR = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
 // cadeiras vistas de cima — mapa do auditório
 const ICONE_ACOMODACAO = '<path d="M4 18v3M20 18v3M4 12v6h16v-6M6 12V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5"/>';
+// "culto" e "formulario" já têm ícone no NavBar partilhado — Ordem do
+// culto/Inventário/Contagem vivem agora dentro da aba Culto (ver
+// pages/Culto.jsx), Inventário deixou de ter aba própria.
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
   ["funcoes", "Funções"],
+  ["culto", "Culto"],
   ["formulario", "Formulário"],
-  ["inventario", "Inventário"],
   ["acomodacao", "Acomodação", ICONE_ACOMODACAO],
 ];
 
@@ -47,7 +50,7 @@ function MenuComTour({ baseId, papel, irPara, ...props }) {
   return <MenuEu {...props} papel={papel} onAbrirTour={reverTour} />;
 }
 
-export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
+export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [basesDisponiveis, setBasesDisponiveis] = useState([]); // outras bases em que a pessoa serve
   const [menuAberto, setMenuAberto] = useState(false);
@@ -60,6 +63,7 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
   const [focoSeq, setFocoSeq] = useState(0);
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
+  const [abaCulto, setAbaCulto] = useState("ordem");
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
@@ -116,6 +120,12 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
     setMenuAberto(false);
   }
 
+  function irParaCulto(aba) {
+    setAbaCulto(aba ?? "ordem");
+    setPagina("culto");
+    setMenuAberto(false);
+  }
+
   return (
     <TorradaProvider>
     <TourProvider>
@@ -166,7 +176,7 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala}
-              onIrInventario={() => irPara("inventario")} onIrAcomodacao={() => irPara("acomodacao")}
+              onIrCulto={irParaCulto} onIrAcomodacao={() => irPara("acomodacao")}
               onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
@@ -184,14 +194,17 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
               ativo={pagina === "funcoes"} definirCabecalho={setCab}
             />
           </div>
-          <div style={{ display: pagina === "formulario" ? "" : "none" }}>
-            <Formulario ativo={pagina === "formulario"} definirCabecalho={setCab} />
-          </div>
-          <div style={{ display: pagina === "inventario" ? "" : "none" }}>
-            <Inventario
-              uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
+          <div style={{ display: pagina === "culto" ? "" : "none" }}>
+            <Culto
+              uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
+              ativo={pagina === "culto"} definirCabecalho={setCab}
+              onVerFuncoes={irParaFuncoes}
+              podePublicarCulto={podePublicarCulto}
               onIrReembolsos={() => irPara("reembolsos")}
             />
+          </div>
+          <div style={{ display: pagina === "formulario" ? "" : "none" }}>
+            <Formulario ativo={pagina === "formulario"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "acomodacao" ? "" : "none" }}>
             <Acomodacao uid={uid} papel={papel} ativo={pagina === "acomodacao"} definirCabecalho={setCab} />

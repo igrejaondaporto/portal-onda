@@ -24,9 +24,9 @@ três toques, está mal desenhada.
 Em desenvolvimento em `pessoal.igrejaonda.pt`. O protótipo original
 (`painel-base-pessoal ok.html`, fornecido pelo dono do produto) foi a
 especificação visual e funcional inicial do módulo **Acomodação** —
-esse é o único módulo já portado 1:1. A Contagem do culto já está
-funcional no Início; Formulário e Inventário ainda são placeholder —
-ver "Débitos conscientes" no fim deste ficheiro.
+esse é o único módulo já portado 1:1. Acomodação, Inventário, Ordem
+do culto e Contagem já estão funcionais; só o Formulário continua
+placeholder — ver "Débitos conscientes" no fim deste ficheiro.
 
 ## Fronteiras — o que esta base NÃO faz
 
@@ -48,13 +48,22 @@ ver "Débitos conscientes" no fim deste ficheiro.
 
 | Aba | Quem vê | Conteúdo |
 |---|---|---|
-| Início | todos | Contagem do culto + escala pessoal + avisos do líder |
+| Início | todos | Escala pessoal + avisos do líder |
 | Escala | todos | Escala do mês por função |
 | Funções | todos (edita a líder) | Café, Drive, Acomodação, Recepção |
+| Culto | todos | Três subabas: Ordem do culto, Inventário, Contagem — ver abaixo |
 | Formulário | todos | Novo contacto + lista do culto |
-| Inventário | todos | ~30 consumíveis do café, conferência semanal |
 | Acomodação | todos leem, escreve o Drive | Mapa do auditório |
 | Enquetes | **só a líder** | Disponibilidade mensal |
+
+A aba **Culto** (`pages/Culto.jsx`) agrupa tudo o que gira à volta do
+próprio domingo — antes espalhado (Contagem vivia no Início,
+Inventário tinha aba própria, Ordem do culto nem tinha interface).
+Reorganizado a pedido do dono do produto: menu principal mais curto,
+cada subaba continua com a lógica exata que já tinha — Inventário e
+Contagem são os mesmos componentes de sempre
+(`pages/Inventario.jsx`, `components/ContagemCulto.jsx`), só
+embrulhados numa subaba em vez de página própria.
 
 ## Vocabulário — usa exatamente estes termos
 
@@ -115,7 +124,23 @@ sem namespace de base.
   ocupados como referência ao lado, em texto, nunca copiar para um
   campo da Contagem.
 
-### Contagem (Início) — nove categorias que não somam entre si
+### Ordem do culto — subaba de Culto
+
+Mesmo componente (`components/culto/OrdemCultoCard.jsx` +
+`OrdemCultoTimeline.jsx` + `SheetRevisaoOrdem.jsx`) e o mesmo modelo
+de dados de Apoio/Técnica/Backstage/Comunicação (`eventos/{e}.ordem`,
+PDF em `eventos/{e}/ordem.pdf` no Storage, funções `publicarOrdemCulto`/
+`lerOrdemCulto`/`limparOrdemCulto` já existentes em `lib/culto.js`) —
+**cópia direta, zero alteração**, porque já era genérico por evento,
+não por base. Quem publica é definido por `bases/{b}.culto.pode_publicar`
+(vira o claim `pode_publicar_culto` no token) — **hoje só a Backstage
+tem isto ligado**, por isso a Base Pessoal vê sempre em modo leitura
+(a mesma cronologia que o pastor publicou, nunca o botão de subir
+PDF). Se um dia a Camila também passar a publicar, basta ligar o
+mesmo campo em `bases/pessoal` — a interface já suporta os dois modos
+sem alteração nenhuma de código.
+
+### Contagem — subaba de Culto — nove categorias que não somam entre si
 
 `membros`, `visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais);
 `new`, `shift`, `juniorFun`, `baby` (viram automáticas quando os
@@ -142,12 +167,15 @@ Coleção global `contactos/{id}` (fora de `bases/` e de `pessoas/`),
 com um campo que aponta para `pessoas/{id}` só a partir da etapa
 "voluntário" — nunca duplicar identidade. **Ainda por implementar.**
 
-### Inventário do café
+### Inventário do café — subaba de Culto
 
 Mesmo molde de **consumível** da Backstage (`src/lib/inventario.js`,
 `SheetItemInventario.jsx`) — quantidade e mínimo, sem património por
 item. ~30 itens (copos, palitos, água, café, pão…), conferência
-semanal. **Ainda por implementar.**
+semanal. Funcional — `pages/Inventario.jsx` é o mesmo componente de
+sempre, só passa a viver dentro da subaba "Inventário" de Culto em
+vez de aba própria (`ativo` fixo a `false` quando embrulhado ali,
+para não disputar o cabeçalho com Culto).
 
 ## Funções: catálogo vs. especiais
 
@@ -171,12 +199,14 @@ Só a líder da base cria no catálogo.
 
 ## Débitos conscientes
 
-- **Formulário e Inventário**: ainda placeholder ("em construção"). A
-  Contagem foi entregue no Início; a especificação completa dos dois módulos
-  pendentes mantém-se acima, pronta para a próxima sessão.
-  `fecharAcomodacao` (Cloud Function) e a regra de `firestore.rules`
-  para `eventos/{e}/acomodacao/mapa` também entram em PR separado,
-  antes de dar o módulo por pronto em produção.
+- **Formulário**: ainda placeholder ("em construção") — a
+  especificação completa mantém-se acima, pronta para a próxima
+  sessão. `fecharAcomodacao` (Cloud Function) e a regra de
+  `firestore.rules` para `eventos/{e}/acomodacao/mapa` também
+  entraram em PR separado, antes de dar o módulo por pronto em
+  produção.
+- **Ordem do culto**: só leitura na Base Pessoal — ninguém aqui tem
+  `pode_publicar_culto` ligado ainda. Ver secção acima.
 - Inventário sem património por item (herdado da Backstage).
 - Lista de GDs fixa até existir cadastro no painel do pastor.
 - Sugestor de GD por perfil/zona só nasce com esse cadastro; o

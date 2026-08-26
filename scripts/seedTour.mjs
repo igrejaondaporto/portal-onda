@@ -329,16 +329,16 @@ const TOURS = {
         alvo: "nav-funcoes", pagina: "inicio",
       },
       {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "Em Culto encontras a ordem que o pastor envia, o inventário do café e a contagem do domingo — tudo o que gira à volta do próprio culto.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
         chave: "nav-formulario",
         titulo: "Formulário",
         texto: "Em Formulário registas um novo contacto sempre que alguém à entrada quiser deixar os dados.",
         alvo: "nav-formulario", pagina: "inicio",
-      },
-      {
-        chave: "nav-inventario",
-        titulo: "Inventário",
-        texto: "Em Inventário aumentas ou diminuis a quantidade de um item do café sempre que algo acabar ou chegar novo.",
-        alvo: "nav-inventario", pagina: "inicio",
       },
       {
         chave: "nav-acomodacao",

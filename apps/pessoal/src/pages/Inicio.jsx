@@ -12,7 +12,6 @@ import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
-import ContagemCulto from "../components/ContagemCulto";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
@@ -31,7 +30,7 @@ function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
     .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrAcomodacao, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrAcomodacao, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -234,7 +233,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <span style={{ fontSize: 24 }}>›</span>
         </div>
       )}
-      <ContagemCulto eventoId={meuEvento.id} uid={uid} voluntarios={voluntarios} />
     <div className="duas">
       <div>
         {souLiderEscala ? (
@@ -406,7 +404,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>
           {[
-            ["inventario", "Inventário", "Consumíveis do café", () => onIrInventario?.()],
+            ["inventario", "Inventário", "Consumíveis do café", () => onIrCulto?.("inventario")],
             ["acomodacao", "Acomodação", "Mapa do auditório ao vivo", () => onIrAcomodacao?.()],
             ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
             ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
