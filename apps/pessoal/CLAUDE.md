@@ -51,7 +51,7 @@ placeholder — ver "Débitos conscientes" no fim deste ficheiro.
 | Início | todos | Escala pessoal + avisos do líder |
 | Escala | todos | Escala do mês por função |
 | Funções | todos (edita a líder) | Café, Drive, Acomodação, Recepção |
-| Culto | todos | Três subabas: Ordem do culto, Inventário, Contagem — ver abaixo |
+| Culto | todos | Quatro subabas: Ordem do culto, Feedbacks, Inventário, Contagem — ver abaixo |
 | Formulário | todos | Novo contacto + lista do culto |
 | Acomodação | todos leem, escreve o Drive | Mapa do auditório |
 | Enquetes | **só a líder** | Disponibilidade mensal |
@@ -107,14 +107,20 @@ sem namespace de base.
   Escrita por lugar via `updateDoc` com dot-notation
   (`lugares.A1`), nunca reescrevendo o doc inteiro — é o que torna o
   offline seguro. **Escreve só quem tem a função Drive nesse culto**
-  (ou a líder); todos os outros só leem (`onSnapshot`). Regra em
+  (ou a líder). Quem não tem a função Drive hoje **nem vê o mapa** —
+  `pages/Acomodacao.jsx` mostra uma mensagem a pedir para falar com o
+  líder em vez do mapa só de leitura (decisão explícita do dono do
+  produto — antes toda a gente lia ao vivo). Regra de escrita em
   `firestore.rules`, ao lado do bloco `checklist`.
 - **Arquivo pós-fecho** — `bases/pessoal/acomodacaoResumos/{AAAA-MM-DD}`
-  (subcoleção): ocupados, visitantes, reservados, bloqueados,
-  capacidade útil, percentagem. Escrito pela Cloud Function
-  `fecharAcomodacao` (não pelo cliente direto — fechar é a única ação
-  do módulo que exige rede). Alimenta o futuro mapa de calor do painel
-  do pastor.
+  (subcoleção): `ocupados`, `visitantes`, `livres`, `reservados`,
+  `bloqueados`, `capacidadeUtil`, `percentagem`. Escrito pela Cloud
+  Function `fecharAcomodacao` (não pelo cliente direto — fechar é a
+  única ação do módulo que exige rede). A lotação (`percentagem`)
+  conta só sobre `capacidadeUtil` (144 menos reservados e bloqueados)
+  — reservados e bloqueados contam como indisponíveis, tal como
+  ocupados, nunca como livres. Alimenta o futuro mapa de calor do
+  painel do pastor.
 - Estados possíveis de um lugar: `livre | ocupado | visitante |
   reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
   livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto
@@ -140,6 +146,14 @@ PDF). Se um dia a Camila também passar a publicar, basta ligar o
 mesmo campo em `bases/pessoal` — a interface já suporta os dois modos
 sem alteração nenhuma de código.
 
+### Feedbacks — subaba de Culto
+
+Cópia direta do componente e do modelo de Apoio/Técnica/Backstage/
+Comunicação (`eventos/{e}.feedback`, Cloud Function `definirFeedback`
+já existente em `lib/culto.js`) — quem escreve é o líder de escala
+DESSE culto (ou a líder da base), a mesma regra de `podeDistribuir`.
+Nada de específico da Pessoal aqui.
+
 ### Contagem — subaba de Culto — nove categorias que não somam entre si
 
 `membros`, `visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais);
@@ -150,7 +164,10 @@ aceita ficar vazio, guarda quem preencheu cada categoria. Vive no documento
 único `eventos/{AAAA-MM-DD}/contagem/geral`, em `categorias.{id}`, com
 `valor`, `origem`, `preenchidoPor` e `preenchidoEm`. Por agora todas as
 categorias têm origem `manual`; quando existirem painéis das salas, só
-`new`, `shift`, `juniorFun` e `baby` passam a `automatica`.
+`new`, `shift`, `juniorFun` e `baby` passam a `automatica`. Botão
+"Limpar contagem" (com confirmação) volta as nove a `valor: null` —
+as regras não deixam apagar o documento (histórico do culto), por
+isso é sempre um `update`, nunca um `delete`.
 
 ### Formulário de contacto
 

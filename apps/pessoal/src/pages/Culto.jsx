@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto, obterMeuEvento } from "../lib/culto";
-import { hojeISO } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
+import Avatar from "@portal/shared/components/Avatar.jsx";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
+import SheetFeedback from "../components/culto/SheetFeedback";
 import ContagemCulto from "../components/ContagemCulto";
 import Inventario from "./Inventario";
 
@@ -10,18 +13,21 @@ const SEM_CABECALHO = () => {};
 
 const SUBTITULOS = {
   ordem: "A ordem do culto que o pastor envia",
+  feedbacks: "O que ficou registado de cada domingo",
   inventario: "O material da base, sempre atualizado",
   contagem: "Cada número tem o seu próprio significado",
 };
 
 /**
- * Três coisas que giram à volta do próprio domingo, antes vivendo
+ * Quatro coisas que giram à volta do próprio domingo, antes vivendo
  * espalhadas (Contagem no Início, Inventário na sua própria aba,
- * Ordem do culto nem tinha interface): agrupadas aqui, a pedido do
- * dono do produto — o menu principal fica mais curto e cada uma
- * continua exatamente com a lógica que já tinha (Inventário e
+ * Ordem do culto e Feedbacks nem tinham interface): agrupadas aqui, a
+ * pedido do dono do produto — o menu principal fica mais curto e cada
+ * uma continua exatamente com a lógica que já tinha (Inventário e
  * Contagem são os mesmos componentes de sempre, só que embrulhados
- * numa subaba em vez de página própria).
+ * numa subaba em vez de página própria; Ordem do culto e Feedbacks
+ * são cópia direta dos componentes de Apoio/Técnica/Backstage/
+ * Comunicação, já genéricos por evento).
  */
 export default function Culto({
   uid, papel, mes, ano, abaInicial, ativo, definirCabecalho,
@@ -36,6 +42,7 @@ export default function Culto({
   const [ordens, setOrdens] = useState({});
   const [cardAberto, setCardAberto] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
+  const [sheetFeedback, setSheetFeedback] = useState(null);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
@@ -68,10 +75,13 @@ export default function Culto({
     definirCabecalho({ titulo: "Culto", subtitulo: SUBTITULOS[aba], chips: [] });
   }, [ativo, aba, definirCabecalho]);
 
+  const hoje = hojeISO();
+
   return (
     <>
       <div className="subtabs">
         <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
+        <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         <button data-on={aba === "inventario" ? 1 : 0} onClick={() => setAba("inventario")}>Inventário</button>
         <button data-on={aba === "contagem" ? 1 : 0} onClick={() => setAba("contagem")}>Contagem</button>
       </div>
@@ -92,6 +102,55 @@ export default function Culto({
         </div>
       )}
 
+      {aba === "feedbacks" && (
+        <>
+          <p className="nota" style={{ marginTop: 16 }}>
+            Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
+          </p>
+          {eventosMes.map((ev) => {
+            const pode = podeDistribuir(papel, uid, ev.escala);
+            const autorPessoa = ev.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.feedback.autorUid) : null;
+            return (
+              <div className="sect" key={ev.id}>
+                <div className="cabecalho">
+                  <h3>
+                    {dataPorExtenso(ev.data)}
+                    {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
+                  </h3>
+                  {ev.escala.liderEscala && <span className="cap">{voluntarios.find((p) => p.id === ev.escala.liderEscala)?.nome}</span>}
+                </div>
+                {ev.feedback?.texto ? (
+                  <div className="caixa">
+                    <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.feedback.texto}</p>
+                    <div className="linha" style={{ border: 0, padding: "14px 0 0" }}>
+                      {autorPessoa && <Avatar pessoa={autorPessoa} tamanho={34} fonte={14} />}
+                      <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "líder de escala"} · líder de escala</p></div>
+                      {pode && (
+                        <button className="btn sec" style={{ padding: "8px 15px", fontSize: 12.5 }} onClick={() => setSheetFeedback(ev.id)}>
+                          Editar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="vaz">
+                    Ainda sem feedback deste domingo.
+                    {pode && (
+                      <>
+                        <br />
+                        <button className="btn sec" style={{ marginTop: 12, padding: "10px 18px", fontSize: 13.5 }} onClick={() => setSheetFeedback(ev.id)}>
+                          Escrever feedback
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
       {aba === "inventario" && (
         <div style={{ marginTop: 16 }}>
           <Inventario uid={uid} papel={papel} ativo={false} definirCabecalho={SEM_CABECALHO} onIrReembolsos={onIrReembolsos} />
@@ -106,6 +165,19 @@ export default function Culto({
             <div className="vaz">Sem culto para contar ainda.</div>
           )}
         </div>
+      )}
+
+      {sheetFeedback && (
+        <SheetFeedback
+          evento={eventosMes.find((e) => e.id === sheetFeedback)}
+          onFechar={() => setSheetFeedback(null)}
+          onGuardado={(novoTexto) => {
+            setEventosMes((lista) => lista.map((e) => (
+              e.id === sheetFeedback ? { ...e, feedback: novoTexto ? { texto: novoTexto, autorUid: uid } : null } : e
+            )));
+            setSheetFeedback(null);
+          }}
+        />
       )}
     </>
   );

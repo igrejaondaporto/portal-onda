@@ -56,3 +56,17 @@ export async function guardarCategoriaContagem(eventoId, categoriaId, valor, uid
     atualizadoEm: serverTimestamp(),
   }, { merge: true });
 }
+
+/**
+ * Repõe as nove categorias a "por contar" — para recomeçar a
+ * contagem de um culto. As regras não deixam apagar o documento
+ * (histórico do culto), por isso volta cada campo a `valor: null`
+ * em vez de um `delete`.
+ */
+export async function limparContagem(eventoId) {
+  const categorias = Object.fromEntries(CATEGORIAS_CONTAGEM.map((c) => [
+    c.id,
+    { valor: null, origem: "manual", preenchidoPor: null, preenchidoEm: null },
+  ]));
+  await setDoc(cContagem(eventoId), { eventoId, categorias, atualizadoEm: serverTimestamp() }, { merge: true });
+}

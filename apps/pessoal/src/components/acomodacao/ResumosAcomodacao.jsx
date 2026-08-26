@@ -64,28 +64,40 @@ export default function ResumosAcomodacao() {
             })}
           </select>
           {doMes.length ? (
-            <div className="tbl-wrap" style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", fontSize: 13.5 }}>
-                <thead>
-                  <tr style={{ textAlign: "left", color: "var(--tinta-fraca, #6b7280)" }}>
-                    <th style={{ padding: "6px 8px" }}>Culto</th>
-                    <th style={{ padding: "6px 8px" }}>Ocupados</th>
-                    <th style={{ padding: "6px 8px" }}>Visitantes</th>
-                    <th style={{ padding: "6px 8px" }}>Lotação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {doMes.map((r) => (
-                    <tr key={r.eventoId} style={{ borderTop: "1px solid rgba(0,0,0,.06)" }}>
-                      <td style={{ padding: "6px 8px" }}>{dataPorExtenso(r.eventoId)}</td>
-                      <td style={{ padding: "6px 8px" }}>{r.ocupados}</td>
-                      <td style={{ padding: "6px 8px" }}>{r.visitantes}</td>
-                      <td style={{ padding: "6px 8px" }}>{Math.round((r.percentagem ?? 0) * 100)}%</td>
+            <>
+              <div className="tbl-wrap" style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", fontSize: 13.5 }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", color: "var(--tinta-fraca, #6b7280)" }}>
+                      <th style={{ padding: "6px 8px" }}>Culto</th>
+                      <th style={{ padding: "6px 8px" }}>Ocupados</th>
+                      <th style={{ padding: "6px 8px" }}>Visitantes</th>
+                      <th style={{ padding: "6px 8px" }}>Livres</th>
+                      <th style={{ padding: "6px 8px" }}>Reservados</th>
+                      <th style={{ padding: "6px 8px" }}>Bloqueados</th>
+                      <th style={{ padding: "6px 8px" }}>Lotação</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {doMes.map((r) => (
+                      <tr key={r.eventoId} style={{ borderTop: "1px solid rgba(0,0,0,.06)" }}>
+                        <td style={{ padding: "6px 8px" }}>{dataPorExtenso(r.eventoId)}</td>
+                        <td style={{ padding: "6px 8px" }}>{r.ocupados}</td>
+                        <td style={{ padding: "6px 8px" }}>{r.visitantes}</td>
+                        <td style={{ padding: "6px 8px" }}>{r.livres ?? "—"}</td>
+                        <td style={{ padding: "6px 8px" }}>{r.reservados}</td>
+                        <td style={{ padding: "6px 8px" }}>{r.bloqueados}</td>
+                        <td style={{ padding: "6px 8px" }}>{Math.round((r.percentagem ?? 0) * 100)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="ds" style={{ marginTop: 10 }}>
+                A lotação conta só sobre os lugares úteis (sem reservados nem bloqueados) — reservados e
+                bloqueados contam como indisponíveis, tal como ocupados, nunca como livres.
+              </p>
+            </>
           ) : (
             <p className="ds">Nenhum culto fechado neste mês.</p>
           )}

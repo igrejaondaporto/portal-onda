@@ -3,6 +3,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import {
   CATEGORIAS_CONTAGEM,
   guardarCategoriaContagem,
+  limparContagem,
   normalizarValorContagem,
   ouvirContagem,
 } from "../lib/contagem";
@@ -24,6 +25,8 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
   const [contagem, setContagem] = useState(null);
   const [rascunhos, setRascunhos] = useState({});
   const [aGuardar, setAGuardar] = useState({});
+  const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
+  const [aLimpar, setALimpar] = useState(false);
 
   useEffect(() => {
     setRascunhos({});
@@ -66,6 +69,20 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
     }
   }
 
+  async function limpar() {
+    setALimpar(true);
+    try {
+      await limparContagem(eventoId);
+      setRascunhos({});
+      setAConfirmarLimpar(false);
+      torrada("Contagem limpa");
+    } catch (erro) {
+      torrada(erro.message || "Não foi possível limpar a contagem.");
+    } finally {
+      setALimpar(false);
+    }
+  }
+
   const preenchidas = CATEGORIAS_CONTAGEM.filter((categoria) => (
     contagem?.categorias?.[categoria.id]?.valor != null
   )).length;
@@ -80,6 +97,26 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
         {preenchidas > 0 && <span className="cap">{preenchidas}/9</span>}
       </div>
       <p className="ds contagem-aviso">Não somes estas categorias entre si. Campo vazio significa que ainda não foi contado.</p>
+
+      {preenchidas > 0 && !aConfirmarLimpar && (
+        <button className="btn sec" style={{ marginBottom: 14, fontSize: 12.5, padding: "8px 14px" }} onClick={() => setAConfirmarLimpar(true)}>
+          Limpar contagem
+        </button>
+      )}
+      {aConfirmarLimpar && (
+        <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginBottom: 14 }}>
+          <p style={{ fontSize: 13, fontWeight: 600 }}>Limpar as nove categorias?</p>
+          <p className="ds" style={{ marginTop: 4 }}>Volta tudo a "por contar" — não dá para desfazer.</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aLimpar} onClick={limpar}>
+              {aLimpar ? "A limpar…" : "Limpar"}
+            </button>
+            <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aLimpar} onClick={() => setAConfirmarLimpar(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {GRUPOS.map((grupo) => {
         const categorias = CATEGORIAS_CONTAGEM.filter((categoria) => categoria.grupo === grupo);

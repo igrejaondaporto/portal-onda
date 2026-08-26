@@ -53,7 +53,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     definirCabecalho({
       titulo: "Acomodação",
       subtitulo: meuEvento ? `Mapa do auditório · ${meuEvento.data}` : "",
-      chips: souDrive ? [] : ["Só leitura — não tens a função Drive neste culto"],
+      chips: souDrive ? [] : ["Sem acesso hoje — fala com o líder"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, meuEvento, souDrive]);
@@ -117,6 +117,21 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   }
 
   if (!planta || !meuEvento) return null;
+
+  // Quem não tem a função Drive neste culto (nem é líder) já não vê o
+  // mapa ao vivo — pedido explícito do dono do produto. Os resumos de
+  // cultos já fechados continuam visíveis a toda a base (histórico,
+  // não é o mapa em tempo real).
+  if (!souDrive) {
+    return (
+      <>
+        <div className="vaz">
+          Não estás na Acomodação hoje. Fala com o líder da base se precisares de ver ou mexer no mapa.
+        </div>
+        <ResumosAcomodacao />
+      </>
+    );
+  }
 
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
   Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
