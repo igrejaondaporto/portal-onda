@@ -108,7 +108,13 @@ export const limparOrdemCulto = (eventoId) =>
   chamar("limparOrdemCulto")({ eventoId }).then((r) => r.data);
 
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
- *  Sem isso, cai no primeiro culto do mês (mesma rede de segurança do protótipo). */
+ *  Sem escala nenhuma (ainda não há dados de Escala na Base Pessoal —
+ *  ver "Débitos conscientes" no CLAUDE.md dela), o último recurso já
+ *  não pode ser "o primeiro culto do mês" (esteMes[0]): a meio do mês
+ *  isso aponta para um domingo já passado, para sempre — foi o que
+ *  prendeu a Acomodação em "2 de agosto" o mês inteiro. Sem escala,
+ *  cai antes no próximo culto que ainda vai acontecer; só se não
+ *  houver NENHUM culto futuro gerado é que recua para o mais recente. */
 export async function obterMeuEvento(uid) {
   const hoje = new Date();
   const hojeISO = hoje.toISOString().slice(0, 10);
@@ -121,7 +127,10 @@ export async function obterMeuEvento(uid) {
   const candidatos = [...esteMes, ...proxMes].sort((a, b) => a.data.localeCompare(b.data));
 
   const meu = candidatos.find((ev) => ev.data >= hojeISO && ev.escala.pessoas.includes(uid));
-  return meu ?? candidatos.find((ev) => ev.escala.pessoas.includes(uid)) ?? esteMes[0] ?? null;
+  const escalado = candidatos.find((ev) => ev.escala.pessoas.includes(uid));
+  const proximoCulto = candidatos.find((ev) => ev.data >= hojeISO);
+  const ultimoCulto = [...candidatos].reverse()[0];
+  return meu ?? escalado ?? proximoCulto ?? ultimoCulto ?? esteMes[0] ?? null;
 }
 
 /** Todos os cultos em que a pessoa serve, este mês e o próximo — para o Perfil. */
