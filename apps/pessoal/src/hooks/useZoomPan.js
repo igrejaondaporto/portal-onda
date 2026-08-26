@@ -19,15 +19,32 @@ export function useZoomPan(wrapRef, largura, altura, enquadramento) {
   const moveuRef = useRef(0);
   const toquesRef = useRef({ dist0: 0, z0: 1 });
 
+  // Duas regras pedidas por quem usa o mapa:
+  //  1. O topo (meio do telão) é um teto que nunca se ultrapassa, em
+  //     zoom nenhum — arrastar ou afastar nunca revela o palco
+  //     inteiro, só a parte já cortada no enquadramento inicial.
+  //  2. No próprio zoom mínimo (o enquadramento inicial), o arrasto
+  //     vertical fica travado por completo — só desliza para os
+  //     lados. Ampliar de propósito é que abre espaço para ir para
+  //     cima e para baixo (dentro do limite da regra 1), para dar
+  //     para ver as fileiras de perto.
   const limites = useCallback((t) => {
     const wrap = wrapRef.current;
     if (!wrap) return t;
     const r = wrap.getBoundingClientRect();
     const lw = largura * t.escala, lh = altura * t.escala;
     const tx = lw <= r.width ? (r.width - lw) / 2 : Math.min(0, Math.max(r.width - lw, t.tx));
-    const ty = lh <= r.height ? (r.height - lh) / 2 : Math.min(0, Math.max(r.height - lh, t.ty));
+
+    const { zMin } = limitesRef.current;
+    const tetoTopo = enquadramento ? -enquadramento.topo * t.escala : 0;
+    let ty;
+    if (enquadramento && t.escala <= zMin + 0.0005) {
+      ty = tetoTopo; // travado: neste zoom não há vertical para onde ir
+    } else {
+      ty = lh <= r.height ? (r.height - lh) / 2 : Math.min(tetoTopo, Math.max(r.height - lh, t.ty));
+    }
     return { ...t, tx, ty };
-  }, [wrapRef, largura, altura]);
+  }, [wrapRef, largura, altura, enquadramento]);
 
   const zoomPara = useCallback((novaEscala, cx, cy) => {
     const wrap = wrapRef.current;
@@ -94,7 +111,11 @@ export function useZoomPan(wrapRef, largura, altura, enquadramento) {
       if (!a.capturado) {
         if (moveuRef.current < 6) return; // ainda pode ser só um toque
         a.capturado = true;
-        wrap.setPointerCapture(a.pointerId);
+        // Nunca pode abortar o arrasto a meio: um pointerId que o
+        // browser já não reconhece como ativo (ex.: entrada sintética
+        // de automação/testes) faz isto rebentar, e sem o catch o
+        // resto da função (o que realmente move o mapa) nunca corria.
+        try { wrap.setPointerCapture(a.pointerId); } catch { /* segue sem captura */ }
       }
       setTransform((t) => limites({ ...t, tx: t.tx + dx, ty: t.ty + dy }));
     }
