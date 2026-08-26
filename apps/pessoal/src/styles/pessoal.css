@@ -98,3 +98,54 @@
 }
 
 .seat:focus-visible { outline: 2px solid #C8F02E; outline-offset: 2px; }
+
+/* ── Contagem do culto ────────────────────────────────────────
+   Nove categorias independentes: controlo compacto, uma linha por
+   número, pensado para ser usado de pé e depressa à porta. */
+.contagem-aviso { margin: 4px 0 14px; }
+.contagem-grupo + .contagem-grupo { margin-top: 18px; }
+.contagem-grupo-titulo { margin: 0 0 7px; }
+.contagem-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(10, 15, 46, .08);
+}
+.contagem-texto { min-width: 0; flex: 1; }
+.contagem-texto .ds { margin-top: 2px; }
+.contagem-autoria { margin-top: 3px; color: var(--azul); font-size: 11px; font-weight: 600; }
+.contagem-controlos { display: flex; align-items: center; gap: 5px; flex: none; }
+.contagem-ajuste {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+.contagem-campo {
+  width: 54px;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+.contagem-campo::-webkit-inner-spin-button,
+.contagem-campo::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.contagem-campo[type="number"] { appearance: textfield; }
+
+@media (max-width: 380px) {
+  .contagem-linha { gap: 8px; }
+  .contagem-ajuste { width: 34px; height: 34px; }
+  .contagem-campo { width: 48px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .contagem-ajuste { transition: transform 160ms var(--ease-out, ease-out); }
+  .contagem-ajuste:active:not(:disabled) { transform: scale(.97); }
+}

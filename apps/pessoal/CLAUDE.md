@@ -24,9 +24,9 @@ três toques, está mal desenhada.
 Em desenvolvimento em `pessoal.igrejaonda.pt`. O protótipo original
 (`painel-base-pessoal ok.html`, fornecido pelo dono do produto) foi a
 especificação visual e funcional inicial do módulo **Acomodação** —
-esse é o único módulo já portado 1:1. Início (contagem completa),
-Formulário e Inventário ainda são placeholder — ver "Débitos
-conscientes" no fim deste ficheiro.
+esse é o único módulo já portado 1:1. A Contagem do culto já está
+funcional no Início; Formulário e Inventário ainda são placeholder —
+ver "Débitos conscientes" no fim deste ficheiro.
 
 ## Fronteiras — o que esta base NÃO faz
 
@@ -121,8 +121,11 @@ sem namespace de base.
 `new`, `shift`, `juniorFun`, `baby` (viram automáticas quando os
 painéis das salas existirem — por agora manuais, com `origem` gravada
 por categoria desde já, para a transição não pedir migração). Campo
-aceita ficar vazio, guarda quem preencheu cada categoria. **Ainda por
-implementar** — ver "Débitos conscientes".
+aceita ficar vazio, guarda quem preencheu cada categoria. Vive no documento
+único `eventos/{AAAA-MM-DD}/contagem/geral`, em `categorias.{id}`, com
+`valor`, `origem`, `preenchidoPor` e `preenchidoEm`. Por agora todas as
+categorias têm origem `manual`; quando existirem painéis das salas, só
+`new`, `shift`, `juniorFun` e `baby` passam a `automatica`.
 
 ### Formulário de contacto
 
@@ -168,10 +171,9 @@ Só a líder da base cria no catálogo.
 
 ## Débitos conscientes
 
-- **Início/Contagem, Formulário, Inventário**: ainda placeholder
-  ("em construção") — só o módulo Acomodação foi construído nesta
-  fase, por decisão do dono do produto (maior risco técnico primeiro).
-  Especificação completa acima, pronta para a próxima sessão.
+- **Formulário e Inventário**: ainda placeholder ("em construção"). A
+  Contagem foi entregue no Início; a especificação completa dos dois módulos
+  pendentes mantém-se acima, pronta para a próxima sessão.
   `fecharAcomodacao` (Cloud Function) e a regra de `firestore.rules`
   para `eventos/{e}/acomodacao/mapa` também entram em PR separado,
   antes de dar o módulo por pronto em produção.

@@ -12,6 +12,7 @@ import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
+import ContagemCulto from "../components/ContagemCulto";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
@@ -233,11 +234,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <span style={{ fontSize: 24 }}>›</span>
         </div>
       )}
-      <div className="caixa" style={{ marginBottom: 14 }}>
-        <p className="ds">
-          A contagem do culto (membros, visitantes, mensagem…) chega numa próxima atualização. Por agora, usa a Acomodação para veres a ocupação do auditório.
-        </p>
-      </div>
+      <ContagemCulto eventoId={meuEvento.id} uid={uid} voluntarios={voluntarios} />
     <div className="duas">
       <div>
         {souLiderEscala ? (
