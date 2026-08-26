@@ -189,7 +189,7 @@ service cloud.firestore {
       // acomodacao/resumos/{evento} tem um nº ímpar de segmentos e não
       // é sequer um caminho de documento válido no Firestore.
       match /acomodacaoResumos/{evento} {
-        allow read:  if souLiderBase(base);
+        allow read:  if minhaBase(base);
         allow write: if false;
       }
     }

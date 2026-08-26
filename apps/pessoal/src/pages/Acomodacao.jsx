@@ -11,6 +11,7 @@ import { useHistorico } from "../hooks/useHistorico";
 import MapaAuditorio from "../components/acomodacao/MapaAuditorio";
 import PainelContadores from "../components/acomodacao/PainelContadores";
 import BotoesGrupo from "../components/acomodacao/BotoesGrupo";
+import ResumosAcomodacao from "../components/acomodacao/ResumosAcomodacao";
 
 function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar) {
   if (modoReservar) return { texto: "Modo reservar — toque num lugar para o marcar (ou desmarcar) a azul.", alerta: false };
@@ -168,6 +169,8 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
           <p className="ds">Este culto já foi fechado — o mapa ficou só de leitura.</p>
         </div>
       )}
+
+      <ResumosAcomodacao />
     </>
   );
 }
