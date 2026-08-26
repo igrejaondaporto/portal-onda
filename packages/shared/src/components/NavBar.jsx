@@ -39,7 +39,7 @@ export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO }) {
       {itens.map(([k, t, svg]) => (
         <button key={k} data-on={pagina === k ? 1 : 0} data-tour={`nav-${k}`} onClick={() => onIr(k)}>
           <Icone chave={k} svg={svg} />
-          {t}
+          <span className="navb-txt">{t}</span>
         </button>
       ))}
     </nav>

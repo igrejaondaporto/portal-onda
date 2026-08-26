@@ -1376,7 +1376,7 @@ textarea.campo {
   background: var(--grad);
   display: none;
   grid-template-columns: repeat(5, 1fr);
-  padding: 11px 4px calc(11px + env(safe-area-inset-bottom, 0px));
+  padding: 11px 2px calc(11px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -10px 30px rgba(0, 20, 120, 0.18);
 }
 .navb.on {
@@ -1393,15 +1393,30 @@ textarea.campo {
   gap: 6px;
   padding: 6px 0;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.035em;
   transition: 0.18s;
   position: relative;
   min-height: 56px;
+  /* Cada botão é uma coluna 1fr da grid — sem isto, um rótulo
+     comprido (ex.: "Formulário", "Acomodação") não encolhe com a
+     coluna, transborda por cima do botão ao lado e fica tudo
+     desalinhado. */
+  min-width: 0;
 }
 .navb button svg {
   display: block;
+  flex: none;
+}
+/* Encolhe com a coluna em vez de transbordar para o botão vizinho;
+   se mesmo assim não couber (ex.: 7 abas — menu do líder — num ecrã
+   estreito), corta com reticências em vez de sobrepor texto. */
+.navb-txt {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .navb button::before {
   content: "";
