@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { chamar } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -31,7 +31,6 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   const [meuEvento, setMeuEvento] = useState(null);
   const [modoReservar, setModoReservar] = useState(false);
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
-  const timeoutBloqueioRef = useRef(null);
 
   useEffect(() => onSnapshot(cPlanta(), (s) => setPlanta(s.exists() ? s.data() : null)), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -62,14 +61,12 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
 
   // Quem não tem a função Acomodação hoje continua a ver o mapa ao
   // vivo (acompanha em tempo real o que o Drive está a marcar) — só
-  // não consegue mexer. Em vez de o toque não fazer nada em silêncio,
-  // mostra um aviso vermelho ali dentro da própria caixa (a "dica"),
-  // uns segundos, e volta ao normal.
+  // não consegue mexer. Um popup a sério (não um aviso discreto, que
+  // passava despercebido) explica porquê e só fecha quando a pessoa
+  // tocar para confirmar.
   function onTocar(id, tipo) {
     if (!souDrive) {
       setAvisoBloqueio(true);
-      clearTimeout(timeoutBloqueioRef.current);
-      timeoutBloqueioRef.current = setTimeout(() => setAvisoBloqueio(false), 2600);
       return;
     }
     const atual = lugares[id] ?? "livre";
@@ -135,9 +132,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
   const ocupados = contagem.ocupado + contagem.visitante;
   const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
-  const dica = avisoBloqueio
-    ? { texto: "Não tens a função Acomodação neste culto — fala com o líder da base para mexer no mapa.", alerta: true }
-    : dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar);
+  const dica = dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar);
 
   return (
     <>
@@ -186,6 +181,20 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
       </div>
 
       <ResumosAcomodacao />
+
+      {avisoBloqueio && (
+        <>
+          <div className="veu on" onClick={() => setAvisoBloqueio(false)} />
+          <div className="pin on" role="dialog" aria-modal="true" aria-label="Sem acesso à Acomodação">
+            <div className="pux" />
+            <h2>Sem acesso para marcar</h2>
+            <p className="sb2">
+              Só quem tem a função Acomodação neste culto pode mexer no mapa. Fala com o líder da base se precisares.
+            </p>
+            <button className="btn full" style={{ marginTop: 16 }} onClick={() => setAvisoBloqueio(false)}>Entendi</button>
+          </div>
+        </>
+      )}
     </>
   );
 }
