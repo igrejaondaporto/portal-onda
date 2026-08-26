@@ -13,14 +13,21 @@ import { estadoInicialLugares } from "../lib/geometriaAuditorio";
 export function useMapaAcomodacao(eventoId, uid, papel) {
   const [mapa, setMapa] = useState(null);
   const [carregado, setCarregado] = useState(false);
-  const [souDrive, setSouDrive] = useState(false);
+  // A líder é sempre Drive — isto não depende de nenhum documento, dá
+  // para saber já no 1º render. Só quem não é líder precisa de esperar
+  // pela leitura de eventos/{evento}/atribuicoes/drive (aí sim, sem
+  // isso, um toque logo a seguir a abrir a página não fazia nada — a
+  // leitura ainda não tinha voltado e `souDrive` ainda estava a false).
+  const [souDrive, setSouDrive] = useState(papel === "lider_base");
+
   const criouRef = useRef(false);
 
   useEffect(() => {
-    if (!eventoId) return;
+    if (papel === "lider_base") { setSouDrive(true); return; }
+    if (!eventoId) { setSouDrive(false); return; }
     return onSnapshot(cAtribuicaoDrive(eventoId), (s) => {
       const pessoas = s.exists() ? s.data().pessoas || [] : [];
-      setSouDrive(papel === "lider_base" || pessoas.includes(uid));
+      setSouDrive(pessoas.includes(uid));
     });
   }, [eventoId, uid, papel]);
 
