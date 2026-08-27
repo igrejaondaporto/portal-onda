@@ -57,17 +57,26 @@ export function cruzarComReal(momentos, secoesReais = []) {
   return { linhas, extras };
 }
 
+// o Pré-Culto nunca inicia a cascata — há sempre uma folga a seguir a
+// ele, antes da Contagem, para absorver um atraso; só a partir da
+// Contagem é que um atraso real deve empurrar o resto do culto
+const PRE_CULTO = /pre.?culto/;
+
 /** Previsão em cascata: o horário de cada momento futuro (sem hora real
  *  ainda) = hora real da última secção conhecida + soma das durações
  *  previstas das secções entre elas. O atraso propaga-se para a frente
- *  até à próxima secção que já tiver hora real. */
+ *  até à próxima secção que já tiver hora real — mas só a partir da
+ *  Contagem (ver PRE_CULTO acima); antes disso, os momentos futuros
+ *  mantêm o horário estático do PDF. */
 export function calcularPrevisoes(linhas) {
   let baseMin = null;
   let acumulado = 0;
   return linhas.map((l) => {
     if (l.real) {
-      baseMin = paraMinutos(l.real.horaReal);
-      acumulado = Number(l.minutos) || 0;
+      if (!PRE_CULTO.test(normalizarNome(l.momento))) {
+        baseMin = paraMinutos(l.real.horaReal);
+        acumulado = Number(l.minutos) || 0;
+      }
       return { ...l, horaPrevista: null };
     }
     if (baseMin == null) return { ...l, horaPrevista: l.hora };

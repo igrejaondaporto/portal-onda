@@ -343,12 +343,17 @@
 .oc-mom.tec-passada .oc-trilho {
   background: var(--verde);
 }
-/* mesma especificidade de .oc-mom.oc-destaque/.oc-mom.agora — sem
- * isso, uma secção "nossa" (oc-destaque, ex.: Pré-Culto) já passada
- * ficava lima em vez de verde, por vir antes no ficheiro mas pesar
- * igual. Aqui pesa igual E vem depois, por isso ganha. */
+/* O ponto continua a bolinha normal (contorno, fundo branco, 10px) —
+ * só muda de cor. Repõe o tamanho/posição do padrão do partilhado por
+ * cima do que oc-destaque/agora punham (12-13px, mais perto do
+ * trilho): sem isso uma secção "nossa" já passada ficava com o ponto
+ * do tamanho errado. Mesma especificidade das duas para garantir que
+ * ganha (vem depois no ficheiro). */
 .oc-mom.tec-passada .oc-trilho::before {
-  background: var(--verde);
+  width: 10px;
+  height: 10px;
+  left: -4px;
+  background: #fff;
   border-color: var(--verde);
 }
 
@@ -390,4 +395,19 @@
   margin-left: 8px;
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
+}
+
+/* Ponto no separador "Ordem do culto", enquanto um culto está a
+ * gravar — mesmo desenho do .navb-alerta (packages/shared), mas em
+ * fluxo normal (o botão do subtab não é position:relative como o do
+ * NavBar, e não vale a pena mudar isso só por causa disto). */
+.tec-subtab-alerta {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--magenta);
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: respirar 1.2s ease-in-out infinite;
 }

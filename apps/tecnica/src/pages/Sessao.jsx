@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
+import { hojeISO } from "@portal/shared/lib/data.js";
+import { ouvirCultoAoVivo } from "../lib/cultoAoVivo";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
@@ -63,10 +65,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [focoWiki, setFocoWiki] = useState(null);
   const [focoWikiSeq, setFocoWikiSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
+  // ponto rosa no menu: só interessa o culto de hoje, o que está mesmo
+  // a acontecer agora — não qualquer culto em que alguém tenha
+  // carregado em "Começou o culto" a testar
+  const [aoVivoGravando, setAoVivoGravando] = useState(false);
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
+
+  useEffect(() => ouvirCultoAoVivo(hojeISO(), (reg) => setAoVivoGravando(reg?.estado === "gravando")), []);
 
   // se a pessoa servir em mais do que uma base, o menu ganha um seletor —
   // só o nome de cada base é lido (bases/{id} é público a quem tem sessão,
@@ -193,6 +201,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaEscala}
               podePublicarCulto={podePublicarCulto}
+              aoVivoGravando={aoVivoGravando}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
@@ -227,7 +236,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </p>
         </div>
       </div>
-      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} />
+      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivoGravando ? ["culto"] : []} />
       {menuAberto && (
         <MenuComTour
           baseId={baseId} papel={papel} irPara={irPara}
