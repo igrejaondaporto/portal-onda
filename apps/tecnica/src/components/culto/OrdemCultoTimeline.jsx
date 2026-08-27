@@ -12,6 +12,21 @@ const somarMinutos = (hora, minutos) => {
   return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
+/** Verde até 5 min de atraso, laranja até 10, vermelho acima disso —
+ *  começar adiantado conta sempre como verde. */
+function corAtraso(horaReal, horaPrevista) {
+  if (!horaReal || !horaPrevista) return null;
+  const atrasoMin = paraMinutos(horaReal) - paraMinutos(horaPrevista);
+  if (atrasoMin <= 5) return "tec-atraso-verde";
+  if (atrasoMin <= 10) return "tec-atraso-laranja";
+  return "tec-atraso-vermelho";
+}
+
+const formatarCronometro = (ms) => {
+  const totalSeg = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(totalSeg / 60)}:${String(totalSeg % 60).padStart(2, "0")}`;
+};
+
 /** Onde estamos agora, em relação ao previsto — só usado quando ainda
  *  não há registo ao vivo (culto de hoje que ainda não começou a
  *  gravar) ou nos cultos passados/futuros, sem FreeShow nenhum. */
@@ -44,11 +59,12 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const [aIniciar, setAIniciar] = useState(false);
   const [aConfirmarDescartar, setAConfirmarDescartar] = useState(false);
 
-  // enquanto se está a gravar, reavalia com frequência — é o que faz a
-  // bolinha de progresso andar sozinha, sem depender de nada clicar
+  // a cada segundo enquanto se grava — é o que faz o cronómetro contar
+  // e a bolinha de progresso andar sozinhos, sem depender de cliques
   useEffect(() => {
-    if (!hoje && aoVivo?.estado !== "gravando") return;
-    const id = setInterval(() => reavaliar((n) => n + 1), hoje ? 30000 : 10000);
+    const gravando = aoVivo?.estado === "gravando";
+    if (!hoje && !gravando) return;
+    const id = setInterval(() => reavaliar((n) => n + 1), gravando ? 1000 : 30000);
     return () => clearInterval(id);
   }, [hoje, aoVivo?.estado]);
 
@@ -164,6 +180,11 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
         {comPrevisao.map((l, i) => {
           const chave = normalizarNome(l.momento);
           const atual = chave === chaveAtualAoVivo || (!chaveAtualAoVivo && agoraPrevisto?.indice === i);
+          // já passou por aqui (tem hora real e não é a que está no ar)
+          // — pinta a bolinha e o trilho de verde para mostrar que já
+          // foi percorrido, à parte da cor do horário (que é sobre
+          // atraso, não sobre "já aconteceu")
+          const passada = !!l.real && !atual;
           const emEdicao = aEditar === chave;
           // a bolinha anda ao longo da secção conforme o tempo passa:
           // 0 quando acaba de começar, 1 quando chega à duração
@@ -181,12 +202,17 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           // estático que estava previsto para ela começar (esse já não
           // interessa, já sabemos quando começou de verdade)
           const previstoExibido = atual ? (somarMinutos(l.real?.horaReal, Number(l.minutos)) ?? l.hora) : l.hora;
+          // cronómetro: enquanto é a atual, conta ao vivo desde que
+          // recebeu o sinal; assim que passa a outra secção, fica
+          // parado com o tempo que durou de verdade (duracaoRealMs)
+          const cronometroMs = atual && l.real?.timestampReal?.toMillis
+            ? Date.now() - l.real.timestampReal.toMillis() : null;
           return (
-            <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}`} key={i}>
+            <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}${passada ? " tec-passada" : ""}`} key={i}>
               <div className="oc-hora">
                 {l.real ? (
                   <>
-                    <b className="tec-hora-real" style={l.real.cor ? { color: l.real.cor } : undefined}>{l.real.horaReal}</b>
+                    <b className={`tec-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
                     <span>previsto {previstoExibido}</span>
                   </>
                 ) : l.pulada ? (
@@ -215,6 +241,8 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 <p className="nm">
                   {l.momento}
                   {atual && <span className="oc-agora">agora</span>}
+                  {atual && cronometroMs != null && <span className="tec-cronometro">{formatarCronometro(cronometroMs)}</span>}
+                  {passada && l.duracaoRealMs != null && <span className="tec-duracao">{formatarCronometro(l.duracaoRealMs)}</span>}
                   {l.real?.editadoManualmente && <span className="tec-editado-marca" title="Hora escrita à mão">editado</span>}
                 </p>
                 <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>

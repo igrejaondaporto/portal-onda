@@ -22,7 +22,12 @@ const paraHora = (min) => {
  *  mesmo nome correspondente (é a vez que entrou ao ar) — e devolve
  *  também as secções reais que nunca corresponderam a nenhum momento
  *  previsto (mostrar mesmo assim, regra 6.5: "melhor mostrar algo
- *  desconhecido do que esconder o que está a acontecer"). */
+ *  desconhecido do que esconder o que está a acontecer"). Cada linha
+ *  com hora real ganha `duracaoRealMs`: quanto tempo durou de verdade,
+ *  calculado pela ORDEM CRONOLÓGICA real (timestampReal), não a ordem
+ *  em que ficaram na lista — uma edição manual pode ter entrado fora
+ *  de ordem. `null` enquanto ainda não há a secção seguinte a fechar a
+ *  conta (é a que está ao vivo agora, ou a última antes do fim). */
 export function cruzarComReal(momentos, secoesReais = []) {
   const chavesMomentos = new Set(momentos.map((m) => normalizarNome(m.momento)));
   const porNome = new Map();
@@ -30,7 +35,24 @@ export function cruzarComReal(momentos, secoesReais = []) {
     const chave = normalizarNome(s.nomeCorrespondente || s.nomeFreeshow);
     if (!porNome.has(chave)) porNome.set(chave, s); // primeira ocorrência = quando entrou ao ar
   }
-  const linhas = momentos.map((m) => ({ ...m, real: porNome.get(normalizarNome(m.momento)) || null }));
+
+  const cronologico = [...porNome.values()].sort(
+    (a, b) => (a.timestampReal?.toMillis?.() ?? 0) - (b.timestampReal?.toMillis?.() ?? 0)
+  );
+  const duracaoPorChave = new Map();
+  for (let i = 0; i < cronologico.length - 1; i++) {
+    const atual = cronologico[i], seguinte = cronologico[i + 1];
+    const ms = seguinte.timestampReal?.toMillis?.() - atual.timestampReal?.toMillis?.();
+    if (Number.isFinite(ms) && ms >= 0) {
+      duracaoPorChave.set(normalizarNome(atual.nomeCorrespondente || atual.nomeFreeshow), ms);
+    }
+  }
+
+  const linhas = momentos.map((m) => {
+    const chave = normalizarNome(m.momento);
+    const real = porNome.get(chave) || null;
+    return { ...m, real, duracaoRealMs: real ? duracaoPorChave.get(chave) ?? null : null };
+  });
   const extras = [...porNome.entries()].filter(([chave]) => !chavesMomentos.has(chave)).map(([, s]) => s);
   return { linhas, extras };
 }

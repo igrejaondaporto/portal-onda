@@ -265,9 +265,11 @@
   flex: none;
   animation: respirar 1.2s ease-in-out infinite;
 }
-/* Hora real: a protagonista, com a cor da secção do FreeShow quando
- * há uma — para bater com o que o operador vê lá. Sem cor própria,
- * cai na cor de texto normal (não força um tom qualquer). */
+/* Hora real: a protagonista. A cor diz se foi a horas — verde,
+ * laranja ou vermelho vêm da classe tec-atraso-*, calculada contra o
+ * horário previsto (ver corAtraso() em OrdemCultoTimeline.jsx); sem
+ * nenhuma das três (não deveria acontecer, mas por garantia), cai na
+ * cor de texto normal. */
 .tec-hora-real {
   font-size: 13.5px;
   font-weight: 800;
@@ -278,6 +280,9 @@
   font-size: 9.5px;
   color: var(--cinza);
 }
+.tec-atraso-verde { color: var(--verde); }
+.tec-atraso-laranja { color: var(--laranja); }
+.tec-atraso-vermelho { color: var(--magenta); }
 /* Previsão em cascata: tipografia claramente mais discreta — é
  * estimativa, não facto (regra 6.2 do documento da funcionalidade). */
 .tec-hora-prevista {
@@ -346,6 +351,53 @@
   border-radius: 50%;
   background: var(--lima);
   box-shadow: 0 0 9px var(--lima);
-  transition: top 3s linear;
+  transition: top 1s linear;
   z-index: 2;
+}
+
+/* Secção já passada (tem hora real, já não é a que está no ar): o
+ * trilho e o ponto ficam verdes, para se ver de relance até onde o
+ * culto já foi — à parte da cor do horário (essa é sobre atraso). Vem
+ * depois no ficheiro de propósito, para ganhar a quem já marca este
+ * ponto com outra cor (oc-destaque = lima, agora = magenta). */
+.oc-mom.tec-passada .oc-trilho {
+  background: var(--verde);
+}
+/* mesma especificidade de .oc-mom.oc-destaque/.oc-mom.agora — sem
+ * isso, uma secção "nossa" (oc-destaque, ex.: Pré-Culto) já passada
+ * ficava lima em vez de verde, por vir antes no ficheiro mas pesar
+ * igual. Aqui pesa igual E vem depois, por isso ganha. */
+.oc-mom.tec-passada .oc-trilho::before {
+  background: var(--verde);
+  border-color: var(--verde);
+}
+
+/* Cronómetro (balão igual ao "agora", ao lado dele): conta ao vivo
+ * enquanto a secção está no ar. Quando passa à seguinte, o mesmo
+ * lugar passa a mostrar tec-duracao — o tempo final, já parado. */
+.tec-cronometro {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--magenta);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+.tec-duracao {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--agua);
+  color: var(--cinza);
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
 }
