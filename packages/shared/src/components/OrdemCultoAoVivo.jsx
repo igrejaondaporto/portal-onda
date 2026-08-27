@@ -94,7 +94,7 @@ export default function OrdemCultoAoVivo({ ordem, chegada, hoje, aoVivo }) {
 
       {estado === "gravando" && (
         <p className="oc-aovivo-estado">
-          <span className="oc-aovivo-ponto" /> A Técnica está a gravar os horários reais deste culto
+          <span className="oc-aovivo-ponto" /> Horário em tempo real do culto
         </p>
       )}
       {estado === "terminado" && (
