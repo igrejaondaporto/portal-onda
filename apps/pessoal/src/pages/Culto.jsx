@@ -7,6 +7,7 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import ContagemCulto from "../components/ContagemCulto";
+import HistoricoContagem from "../components/HistoricoContagem";
 import Inventario from "./Inventario";
 
 const SEM_CABECALHO = () => {};
@@ -171,6 +172,7 @@ export default function Culto({
           ) : (
             <div className="vaz">Sem culto para contar ainda.</div>
           )}
+          <HistoricoContagem uid={uid} voluntarios={voluntarios} />
         </div>
       )}
 

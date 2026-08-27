@@ -1,4 +1,4 @@
-import { onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { cContagem } from "./modelo";
 
 /**
@@ -23,6 +23,12 @@ export const CATEGORIAS_CONTAGEM = [
 export function ouvirContagem(eventoId, cb) {
   if (!eventoId) return () => {};
   return onSnapshot(cContagem(eventoId), (snap) => cb(snap.exists() ? snap.data() : null));
+}
+
+/** Leitura pontual (não ao vivo) — para o histórico, que lista vários cultos de uma vez. */
+export async function obterContagem(eventoId) {
+  const snap = await getDoc(cContagem(eventoId));
+  return snap.exists() ? snap.data() : null;
 }
 
 /** Campo vazio é válido; os restantes valores têm de ser inteiros positivos ou zero. */
@@ -68,5 +74,19 @@ export async function limparContagem(eventoId) {
     c.id,
     { valor: null, origem: "manual", preenchidoPor: null, preenchidoEm: null },
   ]));
-  await setDoc(cContagem(eventoId), { eventoId, categorias, atualizadoEm: serverTimestamp() }, { merge: true });
+  await setDoc(cContagem(eventoId), {
+    eventoId, categorias, finalizadoEm: null, finalizadoPor: null, atualizadoEm: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Cada categoria já grava sozinha, ao toque — este botão não é o que
+ * torna a contagem persistente, é a confirmação de "terminei", que é
+ * o que a faz aparecer no histórico de cultos contados (mesmo padrão
+ * do Formulário/Acomodação: um marco explícito, não um rascunho).
+ */
+export async function finalizarContagem(eventoId, uid) {
+  await setDoc(cContagem(eventoId), {
+    eventoId, finalizadoEm: serverTimestamp(), finalizadoPor: uid,
+  }, { merge: true });
 }

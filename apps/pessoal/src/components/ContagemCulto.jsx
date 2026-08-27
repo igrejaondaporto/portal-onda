@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import {
   CATEGORIAS_CONTAGEM,
+  finalizarContagem,
   guardarCategoriaContagem,
   limparContagem,
   normalizarValorContagem,
@@ -12,6 +13,13 @@ const GRUPOS = ["Auditório", "Resposta", "Salas"];
 
 function nomeDe(uid, voluntarios) {
   return voluntarios.find((p) => p.id === uid)?.nome ?? null;
+}
+
+/** HH:MM local — getter local, nunca toISOString (desvia com o fuso). */
+function horaDe(ts) {
+  if (!ts?.toDate) return null;
+  const d = ts.toDate();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /**
@@ -27,6 +35,7 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
   const [aGuardar, setAGuardar] = useState({});
   const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
   const [aLimpar, setALimpar] = useState(false);
+  const [aGuardarTudo, setAGuardarTudo] = useState(false);
 
   useEffect(() => {
     setRascunhos({});
@@ -87,6 +96,18 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
     contagem?.categorias?.[categoria.id]?.valor != null
   )).length;
 
+  async function guardarContagem() {
+    setAGuardarTudo(true);
+    try {
+      await finalizarContagem(eventoId, uid);
+      torrada("Contagem guardada");
+    } catch (erro) {
+      torrada(erro.message || "Não foi possível guardar a contagem.");
+    } finally {
+      setAGuardarTudo(false);
+    }
+  }
+
   return (
     <section className="sect contagem-culto" data-tour="contagem-bloco">
       <div className="cabecalho">
@@ -126,9 +147,10 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
             {categorias.map((categoria) => {
               const registo = contagem?.categorias?.[categoria.id];
               const preenchidoPor = registo?.preenchidoPor ? nomeDe(registo.preenchidoPor, voluntarios) : null;
+              const hora = horaDe(registo?.preenchidoEm);
               const origem = registo?.valor == null ? null : (registo?.origem === "automatica"
                 ? "Atualizado automaticamente"
-                : preenchidoPor ? `Preenchido por ${preenchidoPor}` : null);
+                : preenchidoPor ? `Preenchido por ${preenchidoPor}${hora ? ` · ${hora}` : ""}` : null);
               const valor = valorNoCampo(categoria.id);
 
               return (
@@ -178,6 +200,15 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
           </div>
         );
       })}
+
+      <button className="btn full" style={{ marginTop: 6 }} disabled={aGuardarTudo} onClick={guardarContagem}>
+        {aGuardarTudo ? "A guardar…" : "Salvar contagem"}
+      </button>
+      {contagem?.finalizadoEm && (
+        <p className="ds" style={{ marginTop: 8, textAlign: "center" }}>
+          Guardada{horaDe(contagem.finalizadoEm) ? ` às ${horaDe(contagem.finalizadoEm)}` : ""} por {nomeDe(contagem.finalizadoPor, voluntarios) ?? "alguém da equipa"}
+        </p>
+      )}
     </section>
   );
 }
