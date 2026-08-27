@@ -3,10 +3,11 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, haAtras, MESES } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
-  CONCELHOS, FREGUESIAS_POR_CONCELHO, gdMaisProximo,
   ouvirContactosDoMes, ouvirGDs, verificarTelefoneDuplicado,
-  criarContacto, marcarEnviadoPastor, linkParaPastor,
+  criarContacto, marcarEnviadoPastor, arquivarContacto, linkParaPastor,
 } from "../lib/contactos";
+import CamposLocalizacaoGD from "../components/CamposLocalizacaoGD";
+import SheetEditarContacto from "../components/SheetEditarContacto";
 
 /** Os últimos 6 meses (o atual incluído) — não depende de haver dados
  *  para aparecer no filtro, ao contrário de derivar a lista a partir
@@ -48,6 +49,9 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   const [avisoDuplicado, setAvisoDuplicado] = useState(null);
   const [aGuardar, setAGuardar] = useState(false);
 
+  const [contactoAEditar, setContactoAEditar] = useState(null);
+  const [idAConfirmarExcluir, setIdAConfirmarExcluir] = useState(null);
+
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirGDs(setGds), []);
   useEffect(() => {
@@ -58,30 +62,15 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   // filtro preso a uma data que já não faz sentido.
   useEffect(() => { setCultoFiltro(""); }, [mesFiltro]);
 
-  // Sugestão automática pela freguesia — o GD mais perto em linha
-  // reta (ver gdMaisProximo em lib/contactos.js). É a freguesia, não
-  // só o concelho, que decide: duas freguesias do mesmo concelho
-  // podem ter GDs mais próximos diferentes (ex.: São Mamede de
-  // Infesta, em Matosinhos, fica mais perto do GD "São Mamede" do
-  // que do GD "Brito Capelo", que é do mesmo concelho mas do outro
-  // lado). Só entra em ação quando muda a freguesia (não a cada
-  // render); quem preenche continua a poder trocar à mão a seguir,
-  // sem a sugestão voltar a pisar essa escolha até a freguesia mudar
-  // outra vez.
-  useEffect(() => {
-    if (!concelho || concelho === "Outro" || !freguesia || !gds.length) return;
-    const sugestao = gdMaisProximo(concelho, freguesia, gds);
-    if (sugestao) setGdSugerido(sugestao.nome);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [concelho, freguesia, gds.length]);
-
   // Cultos com pelo menos um contacto, dentro do mês escolhido — é o
   // que preenche o segundo filtro ("por culto"). A lista final é só
-  // cortar contactosDoMes por eventoId quando há um culto escolhido.
-  const cultosDoMes = [...new Set(contactosDoMes.map((c) => c.eventoId))].sort().reverse();
+  // cortar contactosDoMes (já sem os arquivados/"excluídos") por
+  // eventoId quando há um culto escolhido.
+  const contactosVisiveis = contactosDoMes.filter((c) => !c.arquivado);
+  const cultosDoMes = [...new Set(contactosVisiveis.map((c) => c.eventoId))].sort().reverse();
   const contactosFiltrados = cultoFiltro
-    ? contactosDoMes.filter((c) => c.eventoId === cultoFiltro)
-    : contactosDoMes;
+    ? contactosVisiveis.filter((c) => c.eventoId === cultoFiltro)
+    : contactosVisiveis;
 
   useEffect(() => {
     if (!ativo) return;
@@ -130,17 +119,15 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     try { await marcarEnviadoPastor(contacto.id); } catch { /* o WhatsApp já abriu — o carimbo é só cosmético */ }
   }
 
-  const freguesias = FREGUESIAS_POR_CONCELHO[concelho] ?? [];
-
-  // Mostra sempre todos os GDs, nunca só os da zona da pessoa — há GDs
-  // fora dos concelhos servidos (Sines, Lisboa, Barcelos…), agrupados
-  // por região só para facilitar encontrar.
-  const gdsPorRegiao = Object.entries(
-    gds.reduce((mapa, g) => {
-      (mapa[g.regiao] ??= []).push(g);
-      return mapa;
-    }, {})
-  ).sort(([a], [b]) => a.localeCompare(b, "pt"));
+  async function excluir(id) {
+    try {
+      await arquivarContacto(id);
+      setIdAConfirmarExcluir(null);
+      torrada("Visitante excluído");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    }
+  }
 
   return (
     <>
@@ -162,35 +149,12 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
           </p>
         )}
 
-        <label className="rot">Concelho</label>
-        <select className="campo" value={concelho} onChange={(e) => { setConcelho(e.target.value); setFreguesia(""); }}>
-          <option value="">Escolhe o concelho</option>
-          {CONCELHOS.map((c) => <option key={c} value={c}>{c}</option>)}
-          <option value="Outro">Outro</option>
-        </select>
-
-        <label className="rot">Freguesia</label>
-        {concelho === "Outro" ? (
-          <input className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} placeholder="Qual?" />
-        ) : (
-          <select className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} disabled={!concelho}>
-            <option value="">{concelho ? "Escolhe a freguesia" : "Escolhe primeiro o concelho"}</option>
-            {freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
-          </select>
-        )}
-
-        <label className="rot">GD sugerido (opcional)</label>
-        {freguesia && concelho !== "Outro" && (
-          <p className="ds" style={{ marginBottom: 6 }}>Sugerido automaticamente pela freguesia — podes trocar.</p>
-        )}
-        <select className="campo" value={gdSugerido} onChange={(e) => setGdSugerido(e.target.value)}>
-          <option value="">Sem GD sugerido</option>
-          {gdsPorRegiao.map(([regiao, doGrupo]) => (
-            <optgroup key={regiao} label={regiao}>
-              {doGrupo.map((g) => <option key={g.id} value={g.nome}>{g.nome}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        <CamposLocalizacaoGD
+          concelho={concelho} setConcelho={setConcelho}
+          freguesia={freguesia} setFreguesia={setFreguesia}
+          gdSugerido={gdSugerido} setGdSugerido={setGdSugerido}
+          gds={gds}
+        />
 
         <div className="linha" style={{ marginTop: 14, cursor: "pointer" }} onClick={() => setAceiteRgpd((a) => !a)}>
           <button
@@ -234,11 +198,41 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
 
         {contactosFiltrados.length ? contactosFiltrados.map((c) => (
           <div className="caixa" key={c.id} style={{ marginTop: 10 }}>
-            <p className="nmt">{c.nome}</p>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <p className="nmt" style={{ flex: 1 }}>{c.nome}</p>
+              <button
+                className="oc-icobt" aria-label="Editar visitante" title="Editar"
+                onClick={() => setContactoAEditar(c)}
+              >
+                ✎
+              </button>
+              <button
+                className="oc-icobt mag" aria-label="Excluir visitante" title="Excluir"
+                onClick={() => setIdAConfirmarExcluir(c.id)}
+              >
+                ✕
+              </button>
+            </div>
             <p className="ds">{dataPorExtenso(c.eventoId)} · {c.telemovel}</p>
             <p className="ds">{c.concelho} ({c.freguesia})</p>
             {c.gdSugerido && <p className="ds">GD sugerido: {c.gdSugerido}</p>}
             <p className="ds" style={{ marginTop: 4 }}>{haAtras(c.criadoEm)}</p>
+
+            {idAConfirmarExcluir === c.id && (
+              <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 10 }}>
+                <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir {c.nome}?</p>
+                <p className="ds" style={{ marginTop: 4 }}>Sai da lista de visitantes — não fica visível a mais ninguém.</p>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} onClick={() => excluir(c.id)}>
+                    Excluir
+                  </button>
+                  <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setIdAConfirmarExcluir(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
             {souLiderBase && (
               c.enviadoPastorEm ? (
                 <p className="ds" style={{ color: "var(--verde)", marginTop: 8 }}>
@@ -255,6 +249,14 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
           <div className="vaz" style={{ marginTop: 10 }}>Nenhum visitante neste período.</div>
         )}
       </div>
+
+      {contactoAEditar && (
+        <SheetEditarContacto
+          contacto={contactoAEditar} gds={gds}
+          onFechar={() => setContactoAEditar(null)}
+          onGuardado={(msg) => { setContactoAEditar(null); torrada(msg); }}
+        />
+      )}
     </>
   );
 }

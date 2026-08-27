@@ -264,6 +264,22 @@ export async function criarContacto({ nome, telemovel, concelho, freguesia, gdSu
 
 export const marcarEnviadoPastor = (id) => updateDoc(cContacto(id), { enviadoPastorEm: serverTimestamp() });
 
+/** Corrige um contacto já guardado — mesmos campos do formulário de
+ *  criação, exceto os automáticos (eventoId, etapa, RGPD…), que as
+ *  regras nem deixam tocar. */
+export async function atualizarContacto(id, { nome, telemovel, concelho, freguesia, gdSugerido }) {
+  await updateDoc(cContacto(id), {
+    nome: nome.trim(), telemovel: telemovel.trim(), telemovelDigitos: telemovel.replace(/\D/g, ""),
+    concelho, freguesia, gdSugerido: gdSugerido || null,
+  });
+}
+
+/** "Excluir" é sempre arquivado:true, nunca um delete a sério —
+ *  "nada é apagado, é desativado" (regra do repositório). As regras
+ *  nem deixam apagar `contactos` pelo cliente. Sem UI para reverter
+ *  por agora — reativar é mudar o campo direto no Firestore. */
+export const arquivarContacto = (id) => updateDoc(cContacto(id), { arquivado: true });
+
 /** A mensagem que a líder envia ao pastor — já com o link direto para
  *  a conversa do lead lá dentro (ver nota no topo do ficheiro). */
 export function textoParaPastor(contacto, eventoId) {
