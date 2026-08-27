@@ -2751,7 +2751,12 @@ export const definirCorrespondenciaFreeshow = onCall(async (req) => {
   return { ok: true };
 });
 
-export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
+/* Um "tick" da sonda — chamado pelo agendador (a cada 1 min, sempre) e
+ * também por sondarFreeshowAgora (onCall, enquanto alguém tem a Ordem
+ * do culto aberta no ecrã, a cada poucos segundos): mesma lógica, dois
+ * gatilhos. O agendador é a rede de segurança que nunca falha; o onCall
+ * é só para a hora real aparecer mais depressa a quem está a olhar. */
+async function executarSondaFreeshow() {
   // segue o culto apontado por config/cultoAoVivo (seja qual for a
   // data — "Começou o culto" não olha para o dia); sem nada apontado,
   // cai no culto de hoje só para o início automático (15 min de
@@ -2841,4 +2846,21 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
   }
 
   await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
+}
+
+export const sondarFreeshow = onSchedule("every 1 minutes", executarSondaFreeshow);
+
+/* Chamado pelo ecrã da Ordem do culto, a cada poucos segundos, só
+ * enquanto o culto que a pessoa está a ver estiver mesmo "gravando" —
+ * é só para a hora real aparecer mais depressa a quem está a olhar
+ * naquele momento; quem abre o ecrã depois continua a ver tudo certo
+ * na hora, porque lê direto do Firestore (ver
+ * packages/shared/components/OrdemCultoAoVivo.jsx). Qualquer
+ * voluntário logado, de qualquer base — tem exatamente o mesmo efeito
+ * que a sonda automática, só que mais cedo, por isso não há razão
+ * para restringir a quem pode chamar. */
+export const sondarFreeshowAgora = onCall(async (req) => {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  await executarSondaFreeshow();
+  return { ok: true };
 });
