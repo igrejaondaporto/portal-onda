@@ -186,17 +186,6 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           // atraso, não sobre "já aconteceu")
           const passada = !!l.real && !atual;
           const emEdicao = aEditar === chave;
-          // a bolinha anda ao longo da secção conforme o tempo passa:
-          // 0 quando acaba de começar, 1 quando chega à duração
-          // prevista. Alinhada em px com o ponto fixo do início da
-          // secção (top:17px, ver .oc-mom.agora .oc-trilho::before) e
-          // não em %, senão as duas bolinhas não encaixam — o resto do
-          // percurso é % do que sobra da secção, para chegar perto do
-          // ponto da secção seguinte ao fim da duração prevista.
-          const duracaoMs = Number(l.minutos) > 0 ? Number(l.minutos) * 60000 : null;
-          const fracaoAtual = atual && l.real?.timestampReal?.toMillis && duracaoMs
-            ? Math.min(1, Math.max(0, (Date.now() - l.real.timestampReal.toMillis()) / duracaoMs))
-            : null;
           // previsão para a secção que está mesmo agora no ar = hora
           // real de início + duração prevista do PDF — não o horário
           // estático que estava previsto para ela começar (esse já não
@@ -232,11 +221,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   </>
                 )}
               </div>
-              <div className="oc-trilho">
-                {atual && fracaoAtual != null && (
-                  <span className="tec-progresso" style={{ top: `calc(17px + ${fracaoAtual} * (100% - 34px))` }} />
-                )}
-              </div>
+              <div className="oc-trilho" />
               <div className="txt">
                 <p className="nm">
                   {l.momento}

@@ -335,26 +335,6 @@
   margin: 0;
 }
 
-/* Bolinha de progresso: anda ao longo do `.oc-trilho` da secção atual,
- * proporcional ao tempo decorrido / duração prevista. Mesmo tamanho e
- * `left` do ponto fixo que marca o início da secção (`.oc-mom.agora
- * .oc-trilho::before` — 13px, left -5.5px), para as duas encaixarem
- * perfeitinho quando a secção acaba de começar (fração 0, ver o
- * `calc()` em OrdemCultoTimeline.jsx, que usa a mesma base de 17px).
- * O `top` muda a cada reavaliação; a transição é o que dá o efeito de
- * "andar" em vez de saltar de posição em posição. */
-.tec-progresso {
-  position: absolute;
-  left: -5.5px;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--lima);
-  box-shadow: 0 0 9px var(--lima);
-  transition: top 1s linear;
-  z-index: 2;
-}
-
 /* Secção já passada (tem hora real, já não é a que está no ar): o
  * trilho e o ponto ficam verdes, para se ver de relance até onde o
  * culto já foi — à parte da cor do horário (essa é sobre atraso). Vem
@@ -370,6 +350,16 @@
 .oc-mom.tec-passada .oc-trilho::before {
   background: var(--verde);
   border-color: var(--verde);
+}
+
+/* O caminho verde das secções passadas parava no fim da última —
+ * deixava um troço cinza até ao ponto rosa da secção atual, como se
+ * faltasse ligação. O troço do início da secção atual até ao ponto
+ * (17px, onde o ponto rosa fica) é o mesmo "já aconteceu", por isso
+ * fica verde também; só dali para baixo (o que ainda não aconteceu
+ * desta secção) continua cinza. */
+.oc-mom.agora .oc-trilho {
+  background: linear-gradient(to bottom, var(--verde) 17px, var(--fio) 17px);
 }
 
 /* Cronómetro (balão igual ao "agora", ao lado dele): conta ao vivo
