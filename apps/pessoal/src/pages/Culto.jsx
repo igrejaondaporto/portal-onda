@@ -112,7 +112,7 @@ export default function Culto({
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
           {anterioresOrdem.length > 0 && proximosOrdem.length > 0 && (
-            <div className="subtabs" style={{ margin: "12px 0 14px" }}>
+            <div className="subtabs" style={{ margin: "12px 0 14px", justifyContent: "space-between" }}>
               <button data-on={verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("anteriores")}>
                 Anteriores ({anterioresOrdem.length})
               </button>
