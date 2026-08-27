@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/tecnica"],
       "port": 5174
+    },
+    {
+      "name": "apoio-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/apoio", "--", "--port", "5179", "--strictPort"],
+      "port": 5179
     }
   ]
 }
