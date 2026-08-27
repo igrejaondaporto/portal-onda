@@ -44,11 +44,13 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const [aIniciar, setAIniciar] = useState(false);
   const [aConfirmarDescartar, setAConfirmarDescartar] = useState(false);
 
+  // enquanto se está a gravar, reavalia com frequência — é o que faz a
+  // bolinha de progresso andar sozinha, sem depender de nada clicar
   useEffect(() => {
-    if (!hoje) return;
-    const id = setInterval(() => reavaliar((n) => n + 1), 30000);
+    if (!hoje && aoVivo?.estado !== "gravando") return;
+    const id = setInterval(() => reavaliar((n) => n + 1), hoje ? 30000 : 10000);
     return () => clearInterval(id);
-  }, [hoje]);
+  }, [hoje, aoVivo?.estado]);
 
   if (!ordem) return null;
 
@@ -66,7 +68,9 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
     ? secoesReais.find((s) => s.idFreeshow === aoVivo.secaoAtualId) : null;
   const chaveAtualAoVivo = secaoAoVivo
     ? normalizarNome(secaoAoVivo.nomeCorrespondente || secaoAoVivo.nomeFreeshow) : null;
-  const agoraPrevisto = hoje && !chaveAtualAoVivo ? calcularAgoraPrevisto(ordem.momentos) : null;
+  // só faz sentido comparar com o relógio quando ainda não há nada
+  // gravado — depois disso, "agora" é sempre o que o FreeShow diz
+  const agoraPrevisto = hoje && !estado ? calcularAgoraPrevisto(ordem.momentos) : null;
 
   async function iniciar() {
     setAIniciar(true);
@@ -120,34 +124,32 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
         <div className="l"><span>Arrumação a partir de</span><b>{somarMinutos(ordem.fim, 10) ?? "—"}</b></div>
       </div>
 
-      {hoje && (
-        <div className="tec-aovivo-barra">
-          {estado === "gravando" ? (
-            <>
-              <span className="tec-aovivo-ponto" /> A gravar os horários reais
-              {aoVivo?.iniciadoPor === "automatico" ? " · começou sozinho" : ""}
-              {!aConfirmarDescartar ? (
-                <button className="btn sec" style={{ marginLeft: "auto", padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
-                  Descartar e recomeçar
+      <div className="tec-aovivo-barra">
+        {estado === "gravando" ? (
+          <>
+            <span className="tec-aovivo-ponto" /> A gravar os horários reais
+            {aoVivo?.iniciadoPor === "automatico" ? " · começou sozinho" : ""}
+            {!aConfirmarDescartar ? (
+              <button className="btn sec" style={{ marginLeft: "auto", padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
+                Descartar e recomeçar
+              </button>
+            ) : (
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                <button className="btn" style={{ background: "var(--magenta)", padding: "7px 12px", fontSize: 12 }} disabled={aIniciar} onClick={descartar}>
+                  Confirmar
                 </button>
-              ) : (
-                <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                  <button className="btn" style={{ background: "var(--magenta)", padding: "7px 12px", fontSize: 12 }} disabled={aIniciar} onClick={descartar}>
-                    Confirmar
-                  </button>
-                  <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(false)}>Cancelar</button>
-                </span>
-              )}
-            </>
-          ) : estado === "terminado" ? (
-            <>Culto terminado — os horários reais ficaram registados.</>
-          ) : (
-            <button className="btn full" disabled={aIniciar} onClick={iniciar}>
-              {aIniciar ? "A começar…" : "Começou o culto"}
-            </button>
-          )}
-        </div>
-      )}
+                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(false)}>Cancelar</button>
+              </span>
+            )}
+          </>
+        ) : estado === "terminado" ? (
+          <>Culto terminado — os horários reais ficaram registados.</>
+        ) : (
+          <button className="btn full" disabled={aIniciar} onClick={iniciar}>
+            {aIniciar ? "A começar…" : "Começou o culto"}
+          </button>
+        )}
+      </div>
 
       {agoraPrevisto?.fase === "antes" && (
         <p className="ds" style={{ margin: "0 0 4px", color: "var(--magenta)", fontWeight: 600 }}>
@@ -163,6 +165,13 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           const chave = normalizarNome(l.momento);
           const atual = chave === chaveAtualAoVivo || (!chaveAtualAoVivo && agoraPrevisto?.indice === i);
           const emEdicao = aEditar === chave;
+          // a bolinha anda ao longo da secção conforme o tempo passa:
+          // 0% quando acaba de começar, 100% quando chega à duração
+          // prevista — presa entre 4% e 96% para não sair da secção
+          const duracaoMs = Number(l.minutos) > 0 ? Number(l.minutos) * 60000 : null;
+          const progressoAtual = atual && l.real?.timestampReal?.toMillis && duracaoMs
+            ? 4 + Math.min(1, Math.max(0, (Date.now() - l.real.timestampReal.toMillis()) / duracaoMs)) * 92
+            : null;
           return (
             <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}`} key={i}>
               <div className="oc-hora">
@@ -176,7 +185,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                     <b className="tec-hora-pulada">—</b>
                     <span>{l.hora}</span>
                   </>
-                ) : hoje && estado ? (
+                ) : estado ? (
                   <>
                     <b className="tec-hora-prevista">{l.horaPrevista}</b>
                     <span>previsão</span>
@@ -188,7 +197,11 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   </>
                 )}
               </div>
-              <div className="oc-trilho" />
+              <div className="oc-trilho">
+                {atual && progressoAtual != null && (
+                  <span className="tec-progresso" style={{ top: `${progressoAtual}%` }} />
+                )}
+              </div>
               <div className="txt">
                 <p className="nm">
                   {l.momento}
@@ -198,7 +211,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
                 {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
 
-                {hoje && estado && (
+                {estado && (
                   emEdicao ? (
                     <span className="tec-editar-hora-form">
                       <input

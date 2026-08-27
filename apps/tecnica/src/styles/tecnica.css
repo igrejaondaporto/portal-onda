@@ -329,3 +329,21 @@
   padding: 8px 10px;
   margin: 0;
 }
+
+/* Bolinha de progresso: anda ao longo do `.oc-trilho` da secção atual,
+ * proporcional ao tempo decorrido / duração prevista — separada do
+ * ponto fixo que já marca o início da secção (`.oc-mom.agora
+ * .oc-trilho::before`), para não se confundirem. O `top` muda a cada
+ * reavaliação (ver OrdemCultoTimeline.jsx); a transição é o que dá o
+ * efeito de "andar" em vez de saltar. */
+.tec-progresso {
+  position: absolute;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lima);
+  box-shadow: 0 0 9px var(--lima);
+  transition: top 3s linear;
+  z-index: 2;
+}
