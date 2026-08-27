@@ -180,7 +180,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
         <PainelContadores lugaresEstado={lugares} corInvertida={!!planta.corInvertida} />
       </div>
 
-      <ResumosAcomodacao />
+      <ResumosAcomodacao souLiderBase={papel === "lider_base"} />
 
       {avisoBloqueio && (
         <>
