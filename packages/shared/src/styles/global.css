@@ -1435,6 +1435,21 @@ textarea.campo {
 .navb button[data-on="1"]::before {
   opacity: 1;
 }
+/* Ponto de alerta genérico num ícone da navegação (prop `alertas` do
+ * NavBar) — quem decide o que o acende é de quem chama, isto é só o
+ * desenho. Ancorado ao ícone, não ao botão inteiro, para não saltar
+ * de sítio com rótulos de tamanhos diferentes. */
+.navb-alerta {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  margin-left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--magenta);
+  animation: respirar 1.2s ease-in-out infinite;
+}
 
 @media (min-width: 900px) {
   .login {

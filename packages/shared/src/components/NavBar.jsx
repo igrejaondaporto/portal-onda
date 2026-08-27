@@ -32,13 +32,17 @@ function Icone({ chave, svg }) {
 /** Fica visível mesmo dentro do Painel do líder — só que sem nada
  *  aceso, porque o Painel não é um dos separadores.
  *  `itens`: [[chave, texto, svg?]] — svg opcional, para bases com
- *  ícones que não existem no ICO padrão (ex.: Equipamentos, Wiki). */
-export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO }) {
+ *  ícones que não existem no ICO padrão (ex.: Equipamentos, Wiki).
+ *  `alertas`: chaves com um ponto aceso no ícone — genérico de
+ *  propósito (o NavBar não sabe o que é "culto ao vivo"; quem chama é
+ *  que decide o que merece o ponto). */
+export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO, alertas = [] }) {
   return (
     <nav className="navb on" style={{ gridTemplateColumns: `repeat(${itens.length}, 1fr)` }}>
       {itens.map(([k, t, svg]) => (
         <button key={k} data-on={pagina === k ? 1 : 0} data-tour={`nav-${k}`} onClick={() => onIr(k)}>
           <Icone chave={k} svg={svg} />
+          {alertas.includes(k) && <span className="navb-alerta" />}
           <span className="navb-txt">{t}</span>
         </button>
       ))}
