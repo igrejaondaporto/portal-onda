@@ -1,19 +1,16 @@
 /**
- * Ordem do culto ao vivo — o registo que a Cloud Function agendada
- * sondarFreeshow escreve em eventos/{eventoId}/cultoAoVivo/registo, e
- * as ações que o cliente pode pedir (iniciar, descartar, editar uma
- * hora, configurar a correspondência de nomes). Ver
+ * Ordem do culto ao vivo — as ações que só a Técnica pode pedir
+ * (iniciar, descartar, editar uma hora, configurar a correspondência
+ * de nomes). A leitura (ouvirCultoAoVivo) é igual em qualquer base,
+ * por isso vive em @portal/shared/lib/cultoAoVivo.js — reexportada
+ * aqui para quem já importava daqui não ter de mudar nada. Ver
  * functions/freeshow.js e o plano da funcionalidade para o desenho
  * completo — este ficheiro só espelha o padrão de culto.js.
  */
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, chamar } from "@portal/shared/lib/firebase.js";
 
-export function ouvirCultoAoVivo(eventoId, cb) {
-  return onSnapshot(doc(db, `eventos/${eventoId}/cultoAoVivo/registo`), (snap) => {
-    cb(snap.exists() ? snap.data() : null);
-  });
-}
+export { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
 
 export function ouvirCorrespondencia(cb) {
   return onSnapshot(doc(db, "bases/tecnica/config/correspondenciaFreeshow"), (snap) => {

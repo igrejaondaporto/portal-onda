@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { iniciarCultoAoVivo, descartarCultoAoVivo, editarSecaoAoVivo } from "../../lib/cultoAoVivo";
-import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "../../lib/ordemAoVivo";
+import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "@portal/shared/lib/ordemAoVivo.js";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
 const paraMinutos = (hora) => { const [h, m] = hora.split(":").map(Number); return h * 60 + m; };
@@ -49,7 +49,7 @@ function calcularAgoraPrevisto(momentos) {
  *  eventos/{e}/cultoAoVivo/registo) — o horário real fica em destaque,
  *  o previsto vira referência ao lado; secções ainda por vir mostram
  *  a previsão em cascata, recalculada a partir do atraso real
- *  acumulado até aqui (ver lib/ordemAoVivo.js). */
+ *  acumulado até aqui (ver @portal/shared/lib/ordemAoVivo.js). */
 export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoVivo }) {
   const torrada = useTorrada();
   const [, reavaliar] = useState(0);

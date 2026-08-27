@@ -4,6 +4,11 @@
  * FreeShow) — sem Firebase, para dar para testar isolado. Ver
  * functions/freeshow.js (o mesmo normalizarNome do lado das Functions)
  * e o plano da funcionalidade para o desenho completo.
+ *
+ * Partilhado porque a leitura ao vivo é igual em qualquer base — só a
+ * Técnica escreve (ver apps/tecnica/src/lib/cultoAoVivo.js e
+ * components/painel/SheetCorrespondenciaFreeshow.jsx, que ficam lá,
+ * não aqui).
  */
 export function normalizarNome(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();

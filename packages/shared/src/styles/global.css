@@ -1683,6 +1683,119 @@ textarea.campo {
   animation: respirar 1.2s ease-in-out infinite;
 }
 
+/* Ordem do culto ao vivo (leitura, todas as bases) — igual ao que a
+ * Técnica já tem para editar (apps/tecnica/src/styles/tecnica.css,
+ * prefixo tec-), duplicado aqui de propósito com prefixo oc- para não
+ * arriscar a versão já testada da Técnica ao promover isto a
+ * partilhado. Ver packages/shared/components/OrdemCultoAoVivo.jsx. */
+.oc-hora-real {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.oc-hora-real + span {
+  font-size: 9.5px;
+  color: var(--cinza);
+}
+.oc-atraso-verde { color: var(--verde); }
+.oc-atraso-laranja { color: var(--laranja); }
+.oc-atraso-vermelho { color: var(--magenta); }
+.oc-hora-prevista {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cinza);
+  font-style: italic;
+  display: block;
+}
+.oc-hora-pulada {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fio);
+  display: block;
+}
+.oc-editado-marca {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--agua);
+  color: var(--azul);
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.oc-mom.oc-passada .oc-trilho {
+  background: var(--verde);
+}
+.oc-mom.oc-passada .oc-trilho::before {
+  width: 10px;
+  height: 10px;
+  left: -4px;
+  background: var(--verde);
+  border-color: var(--verde);
+}
+.oc-mom.agora .oc-trilho {
+  background: linear-gradient(to bottom, var(--verde) 17px, var(--fio) 17px);
+}
+.oc-cronometro {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--magenta);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+.oc-duracao {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--agua);
+  color: var(--cinza);
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+.oc-aovivo-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.oc-aovivo-ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--magenta);
+  flex: none;
+  animation: respirar 1.2s ease-in-out infinite;
+}
+/* Ponto no separador "Ordem do culto" enquanto a Técnica está a
+ * gravar — mesmo desenho do .navb-alerta, mas em fluxo normal (o
+ * botão do subtab não é position:relative). */
+.oc-subtab-alerta {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--magenta);
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: respirar 1.2s ease-in-out infinite;
+}
+
 .oc-nossa {
   background: var(--grad);
   color: #fff;
