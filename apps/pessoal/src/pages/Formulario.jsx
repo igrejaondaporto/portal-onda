@@ -103,7 +103,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     try { await marcarEnviadoPastor(contacto.id); } catch { /* o WhatsApp já abriu — o carimbo é só cosmético */ }
   }
 
-  const freguesias = concelho ? FREGUESIAS_POR_CONCELHO[concelho] : [];
+  const freguesias = FREGUESIAS_POR_CONCELHO[concelho] ?? [];
 
   // Mostra sempre todos os GDs, nunca só os da zona da pessoa — há GDs
   // fora dos concelhos servidos (Sines, Lisboa, Barcelos…), agrupados
@@ -139,13 +139,18 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
         <select className="campo" value={concelho} onChange={(e) => { setConcelho(e.target.value); setFreguesia(""); }}>
           <option value="">Escolhe o concelho</option>
           {CONCELHOS.map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value="Outro">Outro</option>
         </select>
 
         <label className="rot">Freguesia</label>
-        <select className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} disabled={!concelho}>
-          <option value="">{concelho ? "Escolhe a freguesia" : "Escolhe primeiro o concelho"}</option>
-          {freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
+        {concelho === "Outro" ? (
+          <input className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} placeholder="Qual?" />
+        ) : (
+          <select className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} disabled={!concelho}>
+            <option value="">{concelho ? "Escolhe a freguesia" : "Escolhe primeiro o concelho"}</option>
+            {freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        )}
 
         <label className="rot">GD sugerido (opcional)</label>
         <select className="campo" value={gdSugerido} onChange={(e) => setGdSugerido(e.target.value)}>
@@ -174,33 +179,40 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
         </button>
       </form>
 
-      {souLiderBase && (
-        <div className="sect">
-          <div className="cabecalho">
-            <h3>GDs</h3>
+      <div className="sect">
+        <div className="cabecalho">
+          <h3>GDs</h3>
+          {souLiderBase && (
             <button className="btn sec" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setAGerirGDs((a) => !a)}>
               {aGerirGDs ? "Fechar" : "Gerir"}
             </button>
-          </div>
-          {aGerirGDs && (
-            <div style={{ marginTop: 10 }}>
-              <input className="campo" value={novoGdNome} onChange={(e) => setNovoGdNome(e.target.value)} placeholder="Nome do GD" />
-              <input
-                className="campo" style={{ marginTop: 8 }} value={novoGdRegiao}
-                onChange={(e) => setNovoGdRegiao(e.target.value)} placeholder="Região (ex.: Maia)"
-              />
-              <button className="btn sec full" style={{ marginTop: 8 }} disabled={aGuardarGd} onClick={criarNovoGd}>
-                {aGuardarGd ? "A adicionar…" : "Adicionar GD"}
-              </button>
-              {gds.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  {gds.map((g) => <p key={g.id} className="ds">{g.nome} · {g.regiao}</p>)}
-                </div>
-              )}
-            </div>
           )}
         </div>
-      )}
+        {gdsPorRegiao.length ? (
+          <div style={{ marginTop: 10 }}>
+            {gdsPorRegiao.map(([regiao, doGrupo]) => (
+              <div key={regiao} style={{ marginTop: 8 }}>
+                <p className="cap">{regiao}</p>
+                {doGrupo.map((g) => <p key={g.id} className="ds">{g.nome}</p>)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="vaz" style={{ marginTop: 10 }}>Ainda sem GDs cadastrados.</div>
+        )}
+        {souLiderBase && aGerirGDs && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--fio)" }}>
+            <input className="campo" value={novoGdNome} onChange={(e) => setNovoGdNome(e.target.value)} placeholder="Nome do GD" />
+            <input
+              className="campo" style={{ marginTop: 8 }} value={novoGdRegiao}
+              onChange={(e) => setNovoGdRegiao(e.target.value)} placeholder="Região (ex.: Maia)"
+            />
+            <button className="btn sec full" style={{ marginTop: 8 }} disabled={aGuardarGd} onClick={criarNovoGd}>
+              {aGuardarGd ? "A adicionar…" : "Adicionar GD"}
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="sect">
         <div className="cabecalho">
