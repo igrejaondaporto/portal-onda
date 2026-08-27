@@ -8,4 +8,6 @@ functions/node_modules
 service-account.json
 painel-onda-*.json
 firebase-debug.log
+firestore-debug.log
+ui-debug.log
 .claude/scheduled_tasks.lock

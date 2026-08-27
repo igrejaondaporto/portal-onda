@@ -2610,7 +2610,11 @@ const minutosDoDiaLisboa = () => {
   return h * 60 + m;
 };
 
-const TUNEL_FREESHOW = "https://fs.painelonda.pt";
+// TUNEL_FREESHOW é configurável por variável de ambiente só para
+// testar localmente contra um FreeShow no Mac (ver
+// scripts/sonda-freeshow.mjs); em produção não há Secret nenhum
+// definido, por isso cai sempre no túnel real.
+const TUNEL_FREESHOW = process.env.TUNEL_FREESHOW || "https://fs.painelonda.pt";
 const JANELA_AUTO_INICIO = [8 * 60, 12 * 60]; // 08:00–12:00 — só aqui o "15 min de movimento" arranca sozinho
 const MOVIMENTO_PARA_AUTO_INICIO_MS = 15 * 60 * 1000;
 const SEM_OUTPUT_TERMINA_MS = 30 * 60 * 1000;
