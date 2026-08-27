@@ -3,7 +3,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, haAtras } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
-  CONCELHOS, FREGUESIAS_POR_CONCELHO,
+  CONCELHOS, FREGUESIAS_POR_CONCELHO, gdMaisProximo,
   ouvirContactosDoEvento, ouvirGDs, criarGD, verificarTelefoneDuplicado,
   criarContacto, marcarEnviadoPastor, linkParaPastor,
 } from "../lib/contactos";
@@ -42,6 +42,18 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     if (!meuEvento?.id) return;
     return ouvirContactosDoEvento(meuEvento.id, setContactos);
   }, [meuEvento?.id]);
+
+  // Sugestão automática pelo concelho — o GD mais perto em linha reta
+  // (ver gdMaisProximo em lib/contactos.js). Só entra em ação quando
+  // muda o concelho (não a cada render); quem preenche continua a
+  // poder trocar à mão a seguir, sem a sugestão voltar a pisar essa
+  // escolha até o concelho mudar outra vez.
+  useEffect(() => {
+    if (!concelho || concelho === "Outro" || !gds.length) return;
+    const sugestao = gdMaisProximo(concelho, gds);
+    if (sugestao) setGdSugerido(sugestao.nome);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [concelho, gds.length]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -153,6 +165,9 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
         )}
 
         <label className="rot">GD sugerido (opcional)</label>
+        {concelho && concelho !== "Outro" && (
+          <p className="ds" style={{ marginBottom: 6 }}>Sugerido automaticamente pelo concelho — podes trocar.</p>
+        )}
         <select className="campo" value={gdSugerido} onChange={(e) => setGdSugerido(e.target.value)}>
           <option value="">Sem GD sugerido</option>
           {gdsPorRegiao.map(([regiao, doGrupo]) => (

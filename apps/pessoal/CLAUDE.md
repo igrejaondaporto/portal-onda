@@ -253,14 +253,21 @@ Só a líder da base cria no catálogo.
   fazer deploy. Segue o padrão de `bases/pessoal.horaChegada`/
   `horaCulto` (editável pela líder via "Definições da base") se um
   dia valer a pena dar-lhe o mesmo tratamento.
-- Cadastro de GDs (nome + região) é da líder, à mão, dentro do
-  Formulário — sem morada, contacto do responsável nem validação
-  contra uma fonte oficial. O cadastro "a sério" nasce no painel do
-  pastor.
-- Sugestor de GD por perfil/zona só nasce com esse cadastro; o
-  Formulário só **captura** os campos que o vão alimentar — o select
-  de GD hoje não filtra por concelho/freguesia da pessoa (mostra
-  sempre todos os GDs).
+- Cadastro de GDs (nome + região + `lat`/`lng`) é da líder, à mão,
+  dentro do Formulário — sem morada, contacto do responsável nem
+  validação contra uma fonte oficial. O cadastro "a sério" nasce no
+  painel do pastor.
+- **Sugestor por distância já existe** (`gdMaisProximo` em
+  `lib/contactos.js`, Haversine sobre `COORDENADAS_CONCELHO` ×
+  `lat`/`lng` do GD) — ao escolher o concelho, o Formulário já
+  pré-seleciona o GD mais perto em linha reta, editável à mão a
+  seguir. Só funciona para os 6 concelhos servidos (não para
+  "Outro") e só entre os GDs com `lat`/`lng` gravadas — **o
+  formulário "Gerir" da líder ainda não pede essas coordenadas a
+  quem adiciona um GD novo**, por isso um GD acrescentado pela
+  interface fica de fora da sugestão automática (continua escolhível
+  à mão) até alguém gravar `lat`/`lng` diretamente no Firestore. Os
+  14 GDs seedados (`scripts/seedGDsPessoal.mjs`) já têm coordenadas.
 - Sem purga automática de contactos antigos; só o campo `arquivado`
   (ainda sem UI para o marcar).
 - **Sem migração automática para o painel do pastor.** Enquanto ele

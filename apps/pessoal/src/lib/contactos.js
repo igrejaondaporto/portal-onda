@@ -60,6 +60,46 @@ export const FREGUESIAS_POR_CONCELHO = {
 };
 export const CONCELHOS = Object.keys(FREGUESIAS_POR_CONCELHO);
 
+/** Coordenadas aproximadas do centro de cada concelho servido — só
+ *  para ordenar GDs por distância, não para nada que precise de
+ *  precisão a sério. "Outro" fica de fora de propósito: sem concelho
+ *  conhecido não há como estimar distância nenhuma. */
+export const COORDENADAS_CONCELHO = {
+  "Porto": { lat: 41.1579, lng: -8.6291 },
+  "Maia": { lat: 41.2350, lng: -8.6208 },
+  "Matosinhos": { lat: 41.1795, lng: -8.6870 },
+  "Vila Nova de Gaia": { lat: 41.1239, lng: -8.6118 },
+  "Gondomar": { lat: 41.1428, lng: -8.5342 },
+  "Valongo": { lat: 41.1875, lng: -8.4993 },
+};
+
+/** Haversine — distância em km entre dois pontos lat/lng. */
+function distanciaKm(a, b) {
+  const R = 6371;
+  const paraRad = (g) => (g * Math.PI) / 180;
+  const dLat = paraRad(b.lat - a.lat), dLng = paraRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(paraRad(a.lat)) * Math.cos(paraRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** O GD mais perto do concelho, em linha reta — só entre os GDs que
+ *  têm coordenadas gravadas (`lat`/`lng`); um GD criado à mão pela
+ *  líder sem essa informação simplesmente não entra na conta, mas
+ *  continua escolhível manualmente no select. null se não houver
+ *  concelho conhecido (ex.: "Outro") ou nenhum GD com coordenadas. */
+export function gdMaisProximo(concelho, gds) {
+  const origem = COORDENADAS_CONCELHO[concelho];
+  if (!origem) return null;
+  let escolhido = null, menor = Infinity;
+  for (const g of gds) {
+    if (g.lat == null || g.lng == null) continue;
+    const d = distanciaKm(origem, { lat: g.lat, lng: g.lng });
+    if (d < menor) { menor = d; escolhido = g; }
+  }
+  return escolhido;
+}
+
 export function ouvirContactosDoEvento(eventoId, cb) {
   if (!eventoId) return () => {};
   const q = query(cContactos(), where("eventoId", "==", eventoId), orderBy("criadoEm", "desc"));
