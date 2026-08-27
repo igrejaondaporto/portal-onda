@@ -209,9 +209,13 @@ service cloud.firestore {
     // lê — quando o painel do pastor nascer, a leitura abre-se para
     // ele sem mexer no que já está gravado (ver apps/pessoal/CLAUDE.md).
     // Criação valida a forma exata (etapa sempre "visita" — o funil
-    // das etapas seguintes é só do painel do pastor); "enviadoPastorEm"
-    // é o único campo que a líder pode atualizar depois, ao carregar
-    // no botão "Enviar para o pastor". Nunca apagado.
+    // das etapas seguintes é só do painel do pastor). Atualização
+    // (corrigir um contacto, marcar "enviado ao pastor", "excluir" —
+    // sempre arquivado:true, nunca um delete a sério) fica aberta a
+    // quem está na base, mesmo nível de quem cria — só os campos
+    // automáticos/de identidade (eventoId, etapa, criadoPor, rgpd,
+    // baseOrigemId, criadoEm) é que ficam de fora, nunca se tocam
+    // depois de criado. Nunca apagado a sério.
     match /contactos/{contacto} {
       allow read: if minhaBase('pessoal');
       allow create: if minhaBase('pessoal')
@@ -219,8 +223,9 @@ service cloud.firestore {
                     && request.resource.data.etapa == 'visita'
                     && request.resource.data.criadoPor == request.auth.uid
                     && request.resource.data.rgpd.aceite == true;
-      allow update: if souLiderBase('pessoal')
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enviadoPastorEm']);
+      allow update: if minhaBase('pessoal')
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nome', 'telemovel', 'telemovelDigitos', 'concelho', 'freguesia', 'gdSugerido', 'enviadoPastorEm', 'arquivado']);
       allow delete: if false;
     }
 
