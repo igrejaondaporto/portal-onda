@@ -29,6 +29,15 @@ service cloud.firestore {
       match /privado/{doc} { allow read, write: if false; }
     }
 
+    // ── ponteiro do culto ao vivo — qual eventoId está a gravar agora,
+    // seja qual for a data. Todas as bases leem, para saber onde ligar
+    // o ponto rosa; só a Cloud Function escreve (ver
+    // iniciarCultoAoVivo/descartarCultoAoVivo/sondarFreeshow).
+    match /config/cultoAoVivo {
+      allow read:  if autenticado();
+      allow write: if false;
+    }
+
     // ── índice leve de busca da Wiki (Base Técnica) — recalculado
     // pela Cloud Function a cada publicação, nunca escrito pelo cliente
     match /wikiIndice/{base} {

@@ -2630,12 +2630,26 @@ function exigeBaseTecnica(req) {
 
 const refCultoAoVivo = (eventoId) => db.doc(`eventos/${eventoId}/cultoAoVivo/registo`);
 
+const refPonteiroAoVivo = () => db.doc("config/cultoAoVivo");
+
+/* O botão "Começou o culto" não olha para a data — pode ser o culto de
+ * qualquer dia (pedido explícito: "não é pra se basear na data").
+ * refPonteiroAoVivo() é o que diz à sonda QUAL evento seguir, seja
+ * qual for a data dele; só um culto grava de cada vez, por isso
+ * bloqueia começar um segundo sem descartar o primeiro. */
 export const iniciarCultoAoVivo = onCall(async (req) => {
   exigeBaseTecnica(req);
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
   const evento = await db.doc(`eventos/${eventoId}`).get();
   if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+
+  const ponteiroRef = refPonteiroAoVivo();
+  const ponteiro = await ponteiroRef.get();
+  const ativo = ponteiro.exists ? ponteiro.data().eventoIdAtivo : null;
+  if (ativo && ativo !== eventoId) {
+    throw new HttpsError("failed-precondition", "Já há outro culto a gravar — descarta-o primeiro.");
+  }
 
   const ref = refCultoAoVivo(eventoId);
   const snap = await ref.get();
@@ -2652,11 +2666,14 @@ export const iniciarCultoAoVivo = onCall(async (req) => {
     secaoAtualId: null,
     ultimaDeteccaoOutput: admin.firestore.FieldValue.serverTimestamp(),
   });
+  await ponteiroRef.set({ eventoIdAtivo: eventoId });
   return { ok: true };
 });
 
 /* "Descartar e recomeçar" — para quando o operador começou errado
- * (ex.: carregou em "Começou o culto" a meio dos testes). */
+ * (ex.: carregou em "Começou o culto" a meio dos testes). Só limpa o
+ * ponteiro se ele ainda apontava para este evento — evita apagar o
+ * ponteiro de um culto diferente por uma chamada tardia/repetida. */
 export const descartarCultoAoVivo = onCall(async (req) => {
   exigeBaseTecnica(req);
   const { eventoId } = req.data || {};
@@ -2671,6 +2688,11 @@ export const descartarCultoAoVivo = onCall(async (req) => {
     secaoAtualId: null,
     ultimaDeteccaoOutput: null,
   });
+  const ponteiroRef = refPonteiroAoVivo();
+  const ponteiro = await ponteiroRef.get();
+  if (ponteiro.exists && ponteiro.data().eventoIdAtivo === eventoId) {
+    await ponteiroRef.set({ eventoIdAtivo: null });
+  }
   return { ok: true };
 });
 
@@ -2730,9 +2752,16 @@ export const definirCorrespondenciaFreeshow = onCall(async (req) => {
 });
 
 export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
-  const eventoId = hojeISOLisboa();
+  // segue o culto apontado por config/cultoAoVivo (seja qual for a
+  // data — "Começou o culto" não olha para o dia); sem nada apontado,
+  // cai no culto de hoje só para o início automático (15 min de
+  // movimento) ter algum evento candidato a começar sozinho.
+  const ponteiroRef = refPonteiroAoVivo();
+  const ponteiro = await ponteiroRef.get();
+  const eventoIdAtivo = ponteiro.exists ? ponteiro.data().eventoIdAtivo : null;
+  const eventoId = eventoIdAtivo || hojeISOLisboa();
   const evento = await db.doc(`eventos/${eventoId}`).get();
-  if (!evento.exists) return; // sem culto hoje, nada a sondar
+  if (!evento.exists) return; // nem culto de hoje nem ponteiro válido, nada a sondar
 
   const ref = refCultoAoVivo(eventoId);
   const snap = await ref.get();
@@ -2767,6 +2796,7 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
         estado = "gravando";
         patch.iniciadoPor = "automatico";
         patch.iniciadoEm = admin.firestore.FieldValue.serverTimestamp();
+        await ponteiroRef.set({ eventoIdAtivo: eventoId });
       }
     }
 
@@ -2807,6 +2837,7 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
       secoesReais, momentosPrevistos: evento.data().ordem?.momentos ?? [],
       finalizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
+    if (eventoIdAtivo === eventoId) await ponteiroRef.set({ eventoIdAtivo: null });
   }
 
   await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
