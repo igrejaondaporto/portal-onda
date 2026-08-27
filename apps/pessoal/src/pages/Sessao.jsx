@@ -120,6 +120,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     setMenuAberto(false);
   }
 
+  // Funções não tinha setas de mês — usava só o mês do evento em foco.
+  // Agora usa o mesmo mes/ano partilhado da Escala/Culto, com as
+  // mesmas setas; isto sincroniza esse estado partilhado sempre que
+  // o alvo (por toque num dia, ou "o meu próximo culto") muda de mês.
+  function irParaMesDoEvento(eventoId) {
+    const [a, m] = eventoId.split("-");
+    setAno(Number(a));
+    setMes(Number(m) - 1);
+  }
+
   function irParaCulto(aba) {
     setAbaCulto(aba ?? "ordem");
     setPagina("culto");
@@ -191,12 +201,13 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
             <Funcoes
               uid={uid} papel={papel} eventoIdFoco={focoEvento} focoSeq={focoSeq}
+              mes={mes} ano={ano} mudarMes={mudarMes} irParaMesDoEvento={irParaMesDoEvento}
               ativo={pagina === "funcoes"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} abaInicial={abaCulto}
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
               podePublicarCulto={podePublicarCulto}

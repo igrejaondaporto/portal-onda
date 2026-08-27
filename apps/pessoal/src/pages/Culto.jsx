@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto, obterMeuEvento } from "../lib/culto";
-import { dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import SheetFeedback from "../components/culto/SheetFeedback";
@@ -30,7 +30,7 @@ const SUBTITULOS = {
  * Comunicação, já genéricos por evento).
  */
 export default function Culto({
-  uid, papel, mes, ano, abaInicial, ativo, definirCabecalho,
+  uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho,
   onVerFuncoes, podePublicarCulto, onIrReembolsos,
 }) {
   const souLiderBase = papel === "lider_base";
@@ -79,6 +79,13 @@ export default function Culto({
 
   return (
     <>
+      <div className="cabecalho" style={{ paddingTop: 14 }}>
+        <h3>{MESES[mes]} {ano}</h3>
+        <span className="calnav">
+          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+        </span>
+      </div>
       <div className="subtabs">
         <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
