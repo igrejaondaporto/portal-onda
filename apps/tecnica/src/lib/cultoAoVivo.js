@@ -24,6 +24,12 @@ export const iniciarCultoAoVivo = (eventoId) =>
 export const descartarCultoAoVivo = (eventoId) =>
   chamar("descartarCultoAoVivo")({ eventoId }).then((r) => r.data);
 
+/** Fecha o culto na hora — em vez de esperar os 30 min de silêncio do
+ *  fecho automático. Grava o arquivo para o Painel do Pastor e liberta
+ *  o ponteiro já. */
+export const finalizarCultoAoVivo = (eventoId) =>
+  chamar("finalizarCultoAoVivo")({ eventoId }).then((r) => r.data);
+
 export const editarSecaoAoVivo = (eventoId, nomeCorrespondente, horaReal) =>
   chamar("editarSecaoAoVivo")({ eventoId, nomeCorrespondente, horaReal }).then((r) => r.data);
 

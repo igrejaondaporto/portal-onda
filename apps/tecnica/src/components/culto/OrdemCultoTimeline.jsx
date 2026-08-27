@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { iniciarCultoAoVivo, descartarCultoAoVivo, editarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
+import { iniciarCultoAoVivo, descartarCultoAoVivo, finalizarCultoAoVivo, editarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
 import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "@portal/shared/lib/ordemAoVivo.js";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
@@ -58,6 +58,8 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const [aGuardar, setAGuardar] = useState(false);
   const [aIniciar, setAIniciar] = useState(false);
   const [aConfirmarDescartar, setAConfirmarDescartar] = useState(false);
+  const [aConfirmarFinalizar, setAConfirmarFinalizar] = useState(false);
+  const [aFinalizar, setAFinalizar] = useState(false);
 
   // a cada segundo enquanto se grava — é o que faz o cronómetro contar
   // e a bolinha de progresso andar sozinhos, sem depender de cliques
@@ -123,6 +125,19 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
     }
   }
 
+  async function finalizar() {
+    setAFinalizar(true);
+    try {
+      await finalizarCultoAoVivo(eventoId);
+      setAConfirmarFinalizar(false);
+      torrada("Culto finalizado — horários reais guardados");
+    } catch (e) {
+      torrada(e.message || "Não foi possível finalizar.");
+    } finally {
+      setAFinalizar(false);
+    }
+  }
+
   function abrirEdicao(l) {
     setAEditar(normalizarNome(l.momento));
     setHoraRascunho(l.real?.horaReal || l.horaPrevista || l.hora);
@@ -155,10 +170,22 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           <>
             <span className="tec-aovivo-ponto" /> A gravar os horários reais
             {aoVivo?.iniciadoPor === "automatico" ? " · começou sozinho" : ""}
-            {!aConfirmarDescartar ? (
-              <button className="btn sec" style={{ marginLeft: "auto", padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
-                Descartar e recomeçar
-              </button>
+            {!aConfirmarDescartar && !aConfirmarFinalizar ? (
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarFinalizar(true)}>
+                  Finalizar culto
+                </button>
+                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
+                  Descartar e recomeçar
+                </button>
+              </span>
+            ) : aConfirmarFinalizar ? (
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                <button className="btn" style={{ padding: "7px 12px", fontSize: 12 }} disabled={aFinalizar} onClick={finalizar}>
+                  {aFinalizar ? "…" : "Confirmar"}
+                </button>
+                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarFinalizar(false)}>Cancelar</button>
+              </span>
             ) : (
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                 <button className="btn" style={{ background: "var(--magenta)", padding: "7px 12px", fontSize: 12 }} disabled={aIniciar} onClick={descartar}>
