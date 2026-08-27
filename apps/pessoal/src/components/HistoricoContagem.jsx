@@ -101,6 +101,12 @@ export default function HistoricoContagem({ uid, voluntarios }) {
               style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}
               onClick={() => setAbertoId(aberto ? null : ev.id)}
             >
+              <span
+                aria-hidden="true"
+                style={{ flex: "none", marginTop: 3, transition: "transform .18s", transform: aberto ? "rotate(90deg)" : "none", color: "var(--cinza)" }}
+              >
+                ›
+              </span>
               <div style={{ flex: 1 }}>
                 <p className="nmt">{dataPorExtenso(ev.id)}</p>
                 <p className="ds">
@@ -131,8 +137,9 @@ export default function HistoricoContagem({ uid, voluntarios }) {
                   return (
                     <div key={cat.id} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 13.5 }}>
                       <span>{cat.nome}</span>
-                      <span style={{ color: "var(--cinza)" }}>
-                        {registo.valor}{hora ? ` · ${hora}` : ""}
+                      <span>
+                        <b style={{ color: "var(--tinta)" }}>{registo.valor}</b>
+                        {hora && <span style={{ color: "var(--cinza)" }}> · {hora}</span>}
                       </span>
                     </div>
                   );
