@@ -2649,6 +2649,7 @@ export const iniciarCultoAoVivo = onCall(async (req) => {
     secoesReais: [],
     movimentoJanela: [],
     ultimoSlideId: null,
+    secaoAtualId: null,
     ultimaDeteccaoOutput: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { ok: true };
@@ -2667,6 +2668,7 @@ export const descartarCultoAoVivo = onCall(async (req) => {
     secoesReais: [],
     movimentoJanela: [],
     ultimoSlideId: null,
+    secaoAtualId: null,
     ultimaDeteccaoOutput: null,
   });
   return { ok: true };
@@ -2768,9 +2770,13 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
       }
     }
 
+    // secaoAtualId é só da sonda — nunca se confunde com o último item
+    // de secoesReais, que também recebe edições manuais fora de ordem
+    // (senão "agora" saltava para o que alguém acabou de corrigir à
+    // mão, mesmo o FreeShow estando noutra secção qualquer).
     if (estado === "gravando" && resultado.secao) {
-      const ultima = secoesReais.at(-1);
-      if (!ultima || ultima.idFreeshow !== resultado.secao.id) {
+      patch.secaoAtualId = resultado.secao.id;
+      if (dados.secaoAtualId !== resultado.secao.id) {
         const correspSnap = await db.doc("bases/tecnica/config/correspondenciaFreeshow").get();
         const mapa = correspSnap.exists ? correspSnap.data().mapa || {} : {};
         secoesReais = [...secoesReais, {
@@ -2785,6 +2791,8 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
           editadoEm: null,
         }];
       }
+    } else if (estado === "gravando") {
+      patch.secaoAtualId = null; // output sem secção identificável
     }
   }
 

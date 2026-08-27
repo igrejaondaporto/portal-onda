@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
+import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged, connectAuthEmulator } from "firebase/auth";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, memoryLocalCache, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
 
 export const app = initializeApp({
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -33,6 +33,18 @@ export const db = typeof indexedDB === "undefined"
 export const storage = getStorage(app);
 // tem de bater certo com o setGlobalOptions das functions
 export const fns = getFunctions(app, "europe-west1");
+
+// Ligar aos Emuladores é opt-in por VITE_USE_EMULATORS=true num
+// .env.local que ninguém comita — nunca acontece num build de
+// produção (VITE_FB_* de prod não define isto). Serve só para testar
+// uma funcionalidade nova de ponta a ponta no Mac, sem tocar no
+// Firestore/Functions reais. Cada base pode usar isto sem afetar as
+// outras: é local ao browser de quem está a testar.
+if (import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectFirestoreEmulator(db, "localhost", 8080);
+  connectFunctionsEmulator(fns, "localhost", 5001);
+  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+}
 
 export const BASE_ID = import.meta.env.VITE_BASE_ID || "apoio";
 

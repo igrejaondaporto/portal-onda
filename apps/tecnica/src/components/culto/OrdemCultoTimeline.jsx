@@ -57,11 +57,15 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const { linhas, extras } = cruzarComReal(ordem.momentos, secoesReais);
   const comPrevisao = marcarPuladas(calcularPrevisoes(linhas));
 
-  // a secção atual é a última que o FreeShow pôs no ar — só faz
-  // sentido enquanto se está mesmo a gravar; sem isso, cai no relógio
-  const ultimaReal = secoesReais.at(-1);
-  const chaveAtualAoVivo = estado === "gravando" && ultimaReal
-    ? normalizarNome(ultimaReal.nomeCorrespondente || ultimaReal.nomeFreeshow) : null;
+  // a secção atual vem de secaoAtualId (só a sonda escreve isto) —
+  // NUNCA do último item de secoesReais: esse array também recebe
+  // edições manuais fora de ordem, e "agora" não pode saltar para o
+  // que alguém acabou de corrigir à mão enquanto o FreeShow está
+  // mesmo é noutra secção qualquer.
+  const secaoAoVivo = estado === "gravando" && aoVivo?.secaoAtualId
+    ? secoesReais.find((s) => s.idFreeshow === aoVivo.secaoAtualId) : null;
+  const chaveAtualAoVivo = secaoAoVivo
+    ? normalizarNome(secaoAoVivo.nomeCorrespondente || secaoAoVivo.nomeFreeshow) : null;
   const agoraPrevisto = hoje && !chaveAtualAoVivo ? calcularAgoraPrevisto(ordem.momentos) : null;
 
   async function iniciar() {

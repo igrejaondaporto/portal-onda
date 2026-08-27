@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/pessoal"],
       "port": 5177
+    },
+    {
+      "name": "tecnica-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/tecnica"],
+      "port": 5174
     }
   ]
 }
