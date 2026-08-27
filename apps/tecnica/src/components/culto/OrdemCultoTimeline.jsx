@@ -170,21 +170,11 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           <>
             <span className="tec-aovivo-ponto" /> A gravar os horários reais
             {aoVivo?.iniciadoPor === "automatico" ? " · começou sozinho" : ""}
-            {!aConfirmarDescartar && !aConfirmarFinalizar ? (
+            {!aConfirmarDescartar ? (
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarFinalizar(true)}>
-                  Finalizar culto
-                </button>
                 <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
                   Descartar e recomeçar
                 </button>
-              </span>
-            ) : aConfirmarFinalizar ? (
-              <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                <button className="btn" style={{ padding: "7px 12px", fontSize: 12 }} disabled={aFinalizar} onClick={finalizar}>
-                  {aFinalizar ? "…" : "Confirmar"}
-                </button>
-                <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarFinalizar(false)}>Cancelar</button>
               </span>
             ) : (
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -298,6 +288,34 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           );
         })}
       </div>
+
+      {estado === "gravando" && (
+        <div style={{ marginTop: 20 }}>
+          {!aConfirmarFinalizar ? (
+            <button
+              className="btn full"
+              style={{ background: "var(--magenta)", fontSize: 16, padding: "16px", fontWeight: 700 }}
+              onClick={() => setAConfirmarFinalizar(true)}
+            >
+              Finalizar culto
+            </button>
+          ) : (
+            <span style={{ display: "flex", gap: 8 }}>
+              <button
+                className="btn full"
+                style={{ background: "var(--magenta)", fontSize: 16, padding: "16px", fontWeight: 700 }}
+                disabled={aFinalizar}
+                onClick={finalizar}
+              >
+                {aFinalizar ? "…" : "Confirmar finalização"}
+              </button>
+              <button className="btn sec full" style={{ padding: "16px" }} onClick={() => setAConfirmarFinalizar(false)}>
+                Cancelar
+              </button>
+            </span>
+          )}
+        </div>
+      )}
 
       {ordem.avisos?.length > 0 && (
         <div style={{ marginTop: 20 }}>
