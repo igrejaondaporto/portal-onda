@@ -1,26 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { dataPorExtenso, haAtras } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, haAtras, MESES } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
   CONCELHOS, FREGUESIAS_POR_CONCELHO, gdMaisProximo,
-  ouvirContactosDoEvento, ouvirGDs, verificarTelefoneDuplicado,
+  ouvirContactosDoMes, ouvirGDs, verificarTelefoneDuplicado,
   criarContacto, marcarEnviadoPastor, linkParaPastor,
 } from "../lib/contactos";
 
+/** Os últimos 6 meses (o atual incluído) — não depende de haver dados
+ *  para aparecer no filtro, ao contrário de derivar a lista a partir
+ *  dos contactos já carregados (que só cobrem UM mês de cada vez). */
+function ultimosMeses(hoje) {
+  const lista = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    lista.push({ valor: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, ano: d.getFullYear(), mesIndex: d.getMonth() });
+  }
+  return lista;
+}
+
 /**
- * Novo contacto de visitante + lista dos contactos do culto. Cada
- * campo aceita ser preenchido de pé, à porta — nenhum é grande de
- * mais para não valer a pena escrever (ver "Débitos conscientes" no
+ * Novo contacto de visitante + lista "Visitantes", filtrável por mês
+ * e (dentro do mês) por culto específico. Cada campo do formulário
+ * aceita ser preenchido de pé, à porta — nenhum é grande de mais
+ * para não valer a pena escrever (ver "Débitos conscientes" no
  * CLAUDE.md desta base para o que ainda falta: cadastro de GDs a
- * sério, sugestor por zona, painel do pastor).
+ * sério, painel do pastor).
  */
 export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [meuEvento, setMeuEvento] = useState(null);
-  const [contactos, setContactos] = useState([]);
   const [gds, setGds] = useState([]);
+
+  const meses = useMemo(() => ultimosMeses(new Date()), []);
+  const [mesFiltro, setMesFiltro] = useState(meses[0].valor);
+  const [cultoFiltro, setCultoFiltro] = useState("");
+  const [contactosDoMes, setContactosDoMes] = useState([]);
 
   const [nome, setNome] = useState("");
   const [telemovel, setTelemovel] = useState("");
@@ -34,9 +51,12 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirGDs(setGds), []);
   useEffect(() => {
-    if (!meuEvento?.id) return;
-    return ouvirContactosDoEvento(meuEvento.id, setContactos);
-  }, [meuEvento?.id]);
+    const { ano, mesIndex } = meses.find((m) => m.valor === mesFiltro) ?? meses[0];
+    return ouvirContactosDoMes(ano, mesIndex, setContactosDoMes);
+  }, [mesFiltro, meses]);
+  // o culto escolhido pode não existir no mês novo — nunca deixar o
+  // filtro preso a uma data que já não faz sentido.
+  useEffect(() => { setCultoFiltro(""); }, [mesFiltro]);
 
   // Sugestão automática pela freguesia — o GD mais perto em linha
   // reta (ver gdMaisProximo em lib/contactos.js). É a freguesia, não
@@ -55,13 +75,22 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [concelho, freguesia, gds.length]);
 
+  // Cultos com pelo menos um contacto, dentro do mês escolhido — é o
+  // que preenche o segundo filtro ("por culto"). A lista final é só
+  // cortar contactosDoMes por eventoId quando há um culto escolhido.
+  const cultosDoMes = [...new Set(contactosDoMes.map((c) => c.eventoId))].sort().reverse();
+  const contactosFiltrados = cultoFiltro
+    ? contactosDoMes.filter((c) => c.eventoId === cultoFiltro)
+    : contactosDoMes;
+
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
       titulo: "Formulário", subtitulo: "Novo contacto de visitante",
-      chips: contactos.length ? [`${contactos.length} este culto`] : [],
+      chips: contactosFiltrados.length ? [`${contactosFiltrados.length} visitante${contactosFiltrados.length === 1 ? "" : "s"}`] : [],
     });
-  }, [ativo, definirCabecalho, contactos.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ativo, definirCabecalho, contactosFiltrados.length]);
 
   async function verificarDuplicado() {
     if (telemovel.replace(/\D/g, "").length < 9) { setAvisoDuplicado(null); return; }
@@ -97,7 +126,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   }
 
   async function enviarParaPastor(contacto) {
-    window.open(linkParaPastor(contacto, meuEvento.id), "_blank", "noopener");
+    window.open(linkParaPastor(contacto, contacto.eventoId), "_blank", "noopener");
     try { await marcarEnviadoPastor(contacto.id); } catch { /* o WhatsApp já abriu — o carimbo é só cosmético */ }
   }
 
@@ -182,13 +211,32 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
 
       <div className="sect">
         <div className="cabecalho">
-          <h3>Leads deste culto</h3>
-          {meuEvento && <span className="cap">{dataPorExtenso(meuEvento.data)}</span>}
+          <h3>Visitantes</h3>
+          <span className="cap">{contactosFiltrados.length}</span>
         </div>
-        {contactos.length ? contactos.map((c) => (
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <select
+            className="campo" style={{ width: "auto" }}
+            value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)}
+          >
+            {meses.map((m) => <option key={m.valor} value={m.valor}>{MESES[m.mesIndex]} {m.ano}</option>)}
+          </select>
+          <select
+            className="campo" style={{ width: "auto" }}
+            value={cultoFiltro} onChange={(e) => setCultoFiltro(e.target.value)}
+            disabled={!cultosDoMes.length}
+          >
+            <option value="">Todos os cultos do mês</option>
+            {cultosDoMes.map((id) => <option key={id} value={id}>{dataPorExtenso(id)}</option>)}
+          </select>
+        </div>
+
+        {contactosFiltrados.length ? contactosFiltrados.map((c) => (
           <div className="caixa" key={c.id} style={{ marginTop: 10 }}>
             <p className="nmt">{c.nome}</p>
-            <p className="ds">{c.telemovel} · {c.concelho} ({c.freguesia})</p>
+            <p className="ds">{dataPorExtenso(c.eventoId)} · {c.telemovel}</p>
+            <p className="ds">{c.concelho} ({c.freguesia})</p>
             {c.gdSugerido && <p className="ds">GD sugerido: {c.gdSugerido}</p>}
             <p className="ds" style={{ marginTop: 4 }}>{haAtras(c.criadoEm)}</p>
             {souLiderBase && (
@@ -204,7 +252,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
             )}
           </div>
         )) : (
-          <div className="vaz">Ainda sem contactos registados neste culto.</div>
+          <div className="vaz" style={{ marginTop: 10 }}>Nenhum visitante neste período.</div>
         )}
       </div>
     </>

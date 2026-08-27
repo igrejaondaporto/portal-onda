@@ -215,9 +215,20 @@ export function gdMaisProximo(concelho, freguesia, gds) {
   return escolhido;
 }
 
-export function ouvirContactosDoEvento(eventoId, cb) {
-  if (!eventoId) return () => {};
-  const q = query(cContactos(), where("eventoId", "==", eventoId), orderBy("criadoEm", "desc"));
+/** Todos os contactos de um mês (`ano`/`mesIndex` como em
+ *  `obterEventosDoMes`) — o filtro por culto específico é só cortar
+ *  esta lista do lado do cliente pelo `eventoId` (ver Formulario.jsx),
+ *  não vale a pena outra query só para isso. Mesmo truque de
+ *  intervalo de `painel.js` (`>= 1º dia`, `< 1º dia do mês seguinte`),
+ *  porque `eventoId` já é a data em "AAAA-MM-DD". */
+export function ouvirContactosDoMes(ano, mesIndex, cb) {
+  const inicio = `${ano}-${String(mesIndex + 1).padStart(2, "0")}-01`;
+  const fim = new Date(Date.UTC(ano, mesIndex + 1, 1)).toISOString().slice(0, 10);
+  const q = query(
+    cContactos(),
+    where("eventoId", ">=", inicio), where("eventoId", "<", fim),
+    orderBy("eventoId"), orderBy("criadoEm", "desc"),
+  );
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
