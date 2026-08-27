@@ -72,7 +72,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
 
   const estado = aoVivo?.estado ?? null;
   const secoesReais = aoVivo?.secoesReais ?? [];
-  const { linhas, extras } = cruzarComReal(ordem.momentos, secoesReais);
+  const { linhas } = cruzarComReal(ordem.momentos, secoesReais);
   const comPrevisao = marcarPuladas(calcularPrevisoes(linhas));
 
   // a secção atual vem de secaoAtualId (só a sonda escreve isto) —
@@ -207,7 +207,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 {l.real ? (
                   <>
                     <b className={`tec-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
-                    <span>previsto {previstoExibido}</span>
+                    <span>{l.extra ? "não previsto" : `previsto ${previstoExibido}`}</span>
                   </>
                 ) : l.pulada ? (
                   <>
@@ -260,19 +260,6 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
             </div>
           );
         })}
-
-        {extras.length > 0 && (
-          <div style={{ marginTop: 14 }}>
-            <p className="cap">Visto no FreeShow, sem corresponder a nada previsto</p>
-            {extras.map((s, i) => (
-              <div className="oc-mom" key={i}>
-                <div className="oc-hora"><b>{s.horaReal}</b></div>
-                <div className="oc-trilho" />
-                <div className="txt"><p className="nm">{s.nomeFreeshow}</p></div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {ordem.avisos?.length > 0 && (
