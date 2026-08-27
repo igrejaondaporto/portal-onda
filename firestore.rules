@@ -309,6 +309,13 @@ service cloud.firestore {
         allow read:  if autenticado();
         allow write: if false;                     // só por função
       }
+
+      // arquivo para o futuro Painel do Pastor — nenhuma base lê isto
+      // hoje, de propósito (só estatística, gravado quando o culto
+      // termina de vez, ver sondarFreeshow). Só Admin SDK.
+      match /estatisticasCulto/{doc} {
+        allow read, write: if false;
+      }
     }
 
     // ── solicitações à Comunicação ─────────────────────────

@@ -2674,14 +2674,14 @@ export const descartarCultoAoVivo = onCall(async (req) => {
   return { ok: true };
 });
 
-/* Qualquer voluntário logado, de qualquer base — pedido explícito do
- * documento original (ex.: a Ceia nunca foi ao ar no FreeShow, alguém
- * marca a hora à mão). Uma vez editada, a sonda nunca mais mexe nesta
+/* Só a Base Técnica edita — as outras bases só leem em tempo real (ver
+ * firestore.rules: cultoAoVivo continua de leitura aberta a
+ * autenticado()). Uma vez editada, a sonda nunca mais mexe nesta
  * secção (ver sondarFreeshow: só acrescenta entradas novas, nunca
  * substitui uma já existente). */
 export const editarSecaoAoVivo = onCall(async (req) => {
-  const uid = req.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  exigeBaseTecnica(req);
+  const uid = req.auth.uid;
   const { eventoId, nomeCorrespondente, horaReal } = req.data || {};
   if (!eventoId || !String(nomeCorrespondente || "").trim() || !/^\d{1,2}:\d{2}$/.test(String(horaReal || ""))) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -2798,6 +2798,15 @@ export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
 
   if (estado === "gravando" && ultimaDeteccaoOutput && agoraMs - ultimaDeteccaoOutput.toMillis() >= SEM_OUTPUT_TERMINA_MS) {
     estado = "terminado";
+    // arquivo para o futuro Painel do Pastor — write:false a toda a
+    // gente (ver firestore.rules), nada disto aparece a nenhuma base
+    // hoje. Guarda o bruto (secoesReais + o previsto do PDF daquele
+    // dia); as contas de atraso/estatística ficam para quando esse
+    // painel existir, não há razão para as fazer duas vezes.
+    await db.doc(`eventos/${eventoId}/estatisticasCulto/registo`).set({
+      secoesReais, momentosPrevistos: evento.data().ordem?.momentos ?? [],
+      finalizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
   }
 
   await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
