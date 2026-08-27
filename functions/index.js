@@ -1155,6 +1155,40 @@ export const fecharAcomodacao = onCall(async (req) => {
   return { ok: true, resumo: { ...resumo, fechadoEm: null } };
 });
 
+/** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
+ *  "aberto" (fechado:false), para poder corrigir e fechar de novo.
+ *  Mesma permissão de quem fecha (líder ou Drive desse culto). O "X"
+ *  na lista de "Cultos fechados" (ResumosAcomodacao.jsx) chama isto —
+ *  as regras não deixam apagar `acomodacaoResumos` direto do
+ *  cliente, só por aqui. */
+export const reabrirAcomodacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal") throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  if (!souLiderBase) {
+    const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
+    const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Drive neste culto pode reabrir.");
+  }
+
+  const resumoRef = db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`);
+  const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
+  const [resumo, mapa] = await Promise.all([resumoRef.get(), mapaRef.get()]);
+  if (!resumo.exists) throw new HttpsError("not-found", "Este culto não tem resumo fechado.");
+
+  const lote = db.batch();
+  lote.delete(resumoRef);
+  if (mapa.exists) lote.update(mapaRef, { fechado: false });
+  await lote.commit();
+
+  return { ok: true };
+});
+
 /* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
  * A base é o analisador testado contra o PDF real do pastor (ver
  * culto-transcrito.html, na raiz do projeto) — só a origem do texto
