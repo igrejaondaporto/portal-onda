@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
-import { concordar } from "@portal/shared/lib/data.js";
+import { concordar, hojeISO } from "@portal/shared/lib/data.js";
+import { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
@@ -70,10 +71,15 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
+  // ponto rosa no menu: o culto de hoje, gravado pela Técnica — só
+  // leitura aqui, quem inicia é sempre a Técnica
+  const [aoVivoGravando, setAoVivoGravando] = useState(false);
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
+
+  useEffect(() => ouvirCultoAoVivo(hojeISO(), (reg) => setAoVivoGravando(reg?.estado === "gravando")), []);
 
   // se a pessoa servir em mais do que uma base, o menu ganha um seletor —
   // só o nome de cada base é lido (bases/{id} é público a quem tem sessão,
@@ -223,6 +229,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
               onVerFuncoes={irParaFuncoes}
               podePublicarCulto={podePublicarCulto}
               feedbackAberto={feedbackAberto}
+              aoVivoGravando={aoVivoGravando}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
@@ -255,7 +262,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
           </p>
         </div>
       </div>
-      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} />
+      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivoGravando ? ["culto"] : []} />
       {menuAberto && (
         <MenuComTour
           baseId={baseId} papel={papel} irPara={irPara}

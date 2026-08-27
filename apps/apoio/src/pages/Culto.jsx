@@ -7,7 +7,7 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto }) {
+export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
@@ -60,7 +60,10 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
   return (
     <>
       <div className="subtabs">
-        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
+        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>
+          Ordem do culto
+          {aoVivoGravando && <span className="oc-subtab-alerta" />}
+        </button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
 

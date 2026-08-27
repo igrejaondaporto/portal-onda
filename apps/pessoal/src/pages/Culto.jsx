@@ -32,7 +32,7 @@ const SUBTITULOS = {
  */
 export default function Culto({
   uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho,
-  onVerFuncoes, podePublicarCulto, onIrReembolsos,
+  onVerFuncoes, podePublicarCulto, onIrReembolsos, aoVivoGravando,
 }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
@@ -88,7 +88,10 @@ export default function Culto({
         </span>
       </div>
       <div className="subtabs">
-        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
+        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>
+          Ordem do culto
+          {aoVivoGravando && <span className="oc-subtab-alerta" />}
+        </button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         <button data-on={aba === "inventario" ? 1 : 0} onClick={() => setAba("inventario")}>Inventário</button>
         <button data-on={aba === "contagem" ? 1 : 0} onClick={() => setAba("contagem")}>Contagem</button>

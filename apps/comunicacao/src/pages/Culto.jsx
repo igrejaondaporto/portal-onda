@@ -15,7 +15,7 @@ import OrdemCultoCard from "../components/culto/OrdemCultoCard";
  *  cá), "Ordem do culto" e "Feedbacks". Escala vem primeiro — é a
  *  pergunta mais comum ("quem serve?"), antes de "o que toca?" ou
  *  "como correu?". */
-export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto }) {
+export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoIdFoco, focoSeq, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaAlvo ?? "escala");
@@ -121,7 +121,10 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
     <>
       <div className="subtabs">
         <button data-on={aba === "escala" ? 1 : 0} onClick={() => setAba("escala")}>Escala</button>
-        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>Ordem do culto</button>
+        <button data-on={aba === "ordem" ? 1 : 0} onClick={() => setAba("ordem")}>
+          Ordem do culto
+          {aoVivoGravando && <span className="oc-subtab-alerta" />}
+        </button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
 
