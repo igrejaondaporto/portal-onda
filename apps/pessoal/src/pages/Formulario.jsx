@@ -205,7 +205,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
             <input className="campo" value={novoGdNome} onChange={(e) => setNovoGdNome(e.target.value)} placeholder="Nome do GD" />
             <input
               className="campo" style={{ marginTop: 8 }} value={novoGdRegiao}
-              onChange={(e) => setNovoGdRegiao(e.target.value)} placeholder="Região (ex.: Maia)"
+              onChange={(e) => setNovoGdRegiao(e.target.value)} placeholder="Região: Norte, Lisboa ou Sines"
             />
             <button className="btn sec full" style={{ marginTop: 8 }} disabled={aGuardarGd} onClick={criarNovoGd}>
               {aGuardarGd ? "A adicionar…" : "Adicionar GD"}
