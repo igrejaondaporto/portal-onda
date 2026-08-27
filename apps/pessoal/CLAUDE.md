@@ -121,7 +121,11 @@ sem namespace de base.
   conta só sobre `capacidadeUtil` (144 menos reservados e bloqueados)
   — reservados e bloqueados contam como indisponíveis, tal como
   ocupados, nunca como livres. Alimenta o futuro mapa de calor do
-  painel do pastor.
+  painel do pastor. Um "X" na lista de "Cultos fechados"
+  (`ResumosAcomodacao.jsx`, só a líder vê) chama a Cloud Function
+  `reabrirAcomodacao` — apaga este resumo e devolve o mapa a
+  `fechado: false`, para corrigir e fechar de novo. Mesma permissão de
+  `fecharAcomodacao`.
 - Estados possíveis de um lugar: `livre | ocupado | visitante |
   reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
   livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto
@@ -168,7 +172,19 @@ categorias têm origem `manual`; quando existirem painéis das salas, só
 `new`, `shift`, `juniorFun` e `baby` passam a `automatica`. Botão
 "Limpar contagem" (com confirmação) volta as nove a `valor: null` —
 as regras não deixam apagar o documento (histórico do culto), por
-isso é sempre um `update`, nunca um `delete`.
+isso é sempre um `update`, nunca um `delete`. Cada categoria mostra
+também a que horas foi preenchida, ao lado de quem preencheu.
+
+Botão **"Salvar contagem"** no fim grava `finalizadoEm`/`finalizadoPor`
+(`finalizarContagem` em `lib/contagem.js`) — cada categoria já grava
+sozinha ao toque, isto é só a confirmação explícita de "terminei",
+que é o que faz o culto aparecer no bloco **"Cultos contados"**
+(`components/HistoricoContagem.jsx`), logo abaixo, dentro da mesma
+subaba. Mesmo esquema do Formulário/Acomodação: filtro por mês,
+cartão fechado por omissão que expande ao tocar, editar (reabre o
+próprio `ContagemCulto` desse culto, dentro de uma sheet) e excluir
+(chama `limparContagem`, que também limpa `finalizadoEm` — por isso
+some do histórico ao ser excluído, nunca um delete a sério).
 
 ### Formulário de contacto
 
