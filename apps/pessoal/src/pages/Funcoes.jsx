@@ -174,6 +174,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, ativo, defi
           onFechar={() => setSheet(null)}
           onAlternar={(pid) => alternar(sheet.funcaoId, pid)}
           onLimpar={() => { limpar(sheet.funcaoId); setSheet(null); }}
+          onNaoEscalado={(p) => torrada(`${p.nome} ainda não está na escala deste culto — junta primeiro no separador Escala.`)}
         />
       )}
       {sheet?.tipo === "funcao" && (
