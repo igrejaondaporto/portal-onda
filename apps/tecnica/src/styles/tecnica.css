@@ -243,3 +243,89 @@
 .tec-filtro-culto {
   margin: 12px 0 14px;
 }
+
+/* Ordem do culto ao vivo — integração FreeShow.
+ *
+ * O `.oc-hora` do partilhado (46px, uma hora + minutos) é largo
+ * demais para o real e o previsto lado a lado nesta base — por isso
+ * o `span` de baixo aqui é mais pequeno, não a largura da coluna. */
+.tec-aovivo-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tec-aovivo-ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--magenta);
+  flex: none;
+  animation: respirar 1.2s ease-in-out infinite;
+}
+/* Hora real: a protagonista, com a cor da secção do FreeShow quando
+ * há uma — para bater com o que o operador vê lá. Sem cor própria,
+ * cai na cor de texto normal (não força um tom qualquer). */
+.tec-hora-real {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.tec-hora-real + span {
+  font-size: 9.5px;
+  color: var(--cinza);
+}
+/* Previsão em cascata: tipografia claramente mais discreta — é
+ * estimativa, não facto (regra 6.2 do documento da funcionalidade). */
+.tec-hora-prevista {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cinza);
+  font-style: italic;
+  display: block;
+}
+.tec-hora-pulada {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fio);
+  display: block;
+}
+.tec-editado-marca {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--agua);
+  color: var(--azul);
+  padding: 2px 7px;
+  border-radius: 100px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.tec-editar-hora {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 5px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--azul);
+  cursor: pointer;
+}
+.tec-editar-hora-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tec-editar-hora-form .campo {
+  flex: none;
+  width: 110px;
+  padding: 8px 10px;
+  margin: 0;
+}

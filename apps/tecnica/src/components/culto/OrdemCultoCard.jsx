@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto, limparOrdemCulto, definirNotasCulto } from "../../lib/culto";
+import { ouvirCultoAoVivo } from "../../lib/cultoAoVivo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento, hojeISO, haAtras } from "@portal/shared/lib/data.js";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
@@ -21,9 +22,17 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
   const [aEditarNotas, setAEditarNotas] = useState(false);
   const [notasRascunho, setNotasRascunho] = useState("");
   const [aEnviarNotas, setAEnviarNotas] = useState(false);
+  const [aoVivo, setAoVivo] = useState(null);
 
   const publicado = !!evento.ordem;
   const pdfUrl = evento.ordem?.pdfUrl ?? pdfUrlExistente;
+
+  // só ouve enquanto o cartão está aberto — um mês inteiro de cultos
+  // não precisa de um listener por cada um
+  useEffect(() => {
+    if (!aberto || !publicado) return;
+    return ouvirCultoAoVivo(evento.id, setAoVivo);
+  }, [aberto, publicado, evento.id]);
 
   function abrirEdicaoNotas() {
     setNotasRascunho(evento.notas || "");
@@ -149,7 +158,10 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
           )}
           {publicado ? (
             <>
-              <OrdemCultoTimeline ordem={evento.ordem} chegada={chegada} hoje={evento.data === hojeISO()} />
+              <OrdemCultoTimeline
+                ordem={evento.ordem} chegada={chegada} hoje={evento.data === hojeISO()}
+                eventoId={evento.id} aoVivo={aoVivo}
+              />
               {podePublicar && !aConfirmarLimpar && (
                 <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
                   <button

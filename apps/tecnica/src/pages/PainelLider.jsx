@@ -7,6 +7,7 @@ import {
   obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial, reordenarFuncoes,
 } from "../lib/painel";
 import { ouvirIndiceWiki, desativarWiki } from "../lib/wiki";
+import { ouvirCorrespondencia } from "../lib/cultoAoVivo";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -23,6 +24,7 @@ import SheetFuncao from "../components/painel/SheetFuncao";
 import SheetMinisterio from "../components/painel/SheetMinisterio";
 import SheetEsqueletoWiki from "../components/painel/SheetEsqueletoWiki";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
+import SheetCorrespondenciaFreeshow from "../components/painel/SheetCorrespondenciaFreeshow";
 
 export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   const torrada = useTorrada();
@@ -40,6 +42,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
     });
   }
   const [base, setBase] = useState(null);
+  const [correspondenciaFreeshow, setCorrespondenciaFreeshow] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
@@ -85,6 +88,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
   }
 
   useEffect(() => ouvirBase(setBase), []);
+  useEffect(() => ouvirCorrespondencia(setCorrespondenciaFreeshow), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMinisterios(setMinisterios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
@@ -480,6 +484,27 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
               </button>
             </div>
           </div>
+
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>Ordem do culto ao vivo</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "correspondenciaFreeshow" })}>
+                Editar
+              </button>
+            </div>
+            <p className="ds" style={{ marginTop: 4 }}>
+              Correspondência entre os nomes das secções no FreeShow e os nomes dos momentos no painel.
+            </p>
+            {Object.keys(correspondenciaFreeshow).length === 0 ? (
+              <div className="vaz">Ainda sem nenhuma correspondência configurada.</div>
+            ) : (
+              Object.entries(correspondenciaFreeshow).map(([freeshow, painel]) => (
+                <div className="linha" key={freeshow}>
+                  <div style={{ flex: 1 }}><p className="nmt">{painel}</p><p className="ds">FreeShow: {freeshow}</p></div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
@@ -567,6 +592,13 @@ export default function PainelLider({ definirCabecalho, aoVoltar, onIrWiki }) {
       {sheet?.tipo === "definicoesBase" && (
         <SheetDefinicoesBase
           base={base}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "correspondenciaFreeshow" && (
+        <SheetCorrespondenciaFreeshow
+          mapaAtual={correspondenciaFreeshow}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

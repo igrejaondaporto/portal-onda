@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { MESES } from "@portal/shared/lib/data.js";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { iniciarCultoAoVivo, descartarCultoAoVivo, editarSecaoAoVivo } from "../../lib/cultoAoVivo";
+import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "../../lib/ordemAoVivo";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
 const paraMinutos = (hora) => { const [h, m] = hora.split(":").map(Number); return h * 60 + m; };
@@ -9,9 +12,10 @@ const somarMinutos = (hora, minutos) => {
   return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
-/** Onde estamos agora, em relação à ordem do culto — só faz sentido
- *  no dia do culto, por isso "hoje" vem de fora. */
-function calcularAgora(momentos) {
+/** Onde estamos agora, em relação ao previsto — só usado quando ainda
+ *  não há registo ao vivo (culto de hoje que ainda não começou a
+ *  gravar) ou nos cultos passados/futuros, sem FreeShow nenhum. */
+function calcularAgoraPrevisto(momentos) {
   if (!momentos.length) return { fase: "sem-horas" };
   const agora = new Date();
   const minAgora = agora.getHours() * 60 + agora.getMinutes();
@@ -25,11 +29,20 @@ function calcularAgora(momentos) {
 }
 
 /** A cronologia nativa que os voluntários veem — sem clicar em nada.
- *  Espelha a vista de resultado do culto-transcrito.html. No dia do
- *  culto, mostra também um marcador "agora" que avança sozinho de
- *  momento em momento, conforme as horas.*/
-export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
+ *  Espelha a vista de resultado do culto-transcrito.html. No culto de
+ *  hoje, cruza o previsto (do PDF) com o real (do FreeShow, via
+ *  eventos/{e}/cultoAoVivo/registo) — o horário real fica em destaque,
+ *  o previsto vira referência ao lado; secções ainda por vir mostram
+ *  a previsão em cascata, recalculada a partir do atraso real
+ *  acumulado até aqui (ver lib/ordemAoVivo.js). */
+export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoVivo }) {
+  const torrada = useTorrada();
   const [, reavaliar] = useState(0);
+  const [aEditar, setAEditar] = useState(null); // chave normalizada do momento em edição
+  const [horaRascunho, setHoraRascunho] = useState("");
+  const [aGuardar, setAGuardar] = useState(false);
+  const [aIniciar, setAIniciar] = useState(false);
+  const [aConfirmarDescartar, setAConfirmarDescartar] = useState(false);
 
   useEffect(() => {
     if (!hoje) return;
@@ -38,7 +51,61 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
   }, [hoje]);
 
   if (!ordem) return null;
-  const agora = hoje ? calcularAgora(ordem.momentos) : null;
+
+  const estado = aoVivo?.estado ?? null;
+  const secoesReais = aoVivo?.secoesReais ?? [];
+  const { linhas, extras } = cruzarComReal(ordem.momentos, secoesReais);
+  const comPrevisao = marcarPuladas(calcularPrevisoes(linhas));
+
+  // a secção atual é a última que o FreeShow pôs no ar — só faz
+  // sentido enquanto se está mesmo a gravar; sem isso, cai no relógio
+  const ultimaReal = secoesReais.at(-1);
+  const chaveAtualAoVivo = estado === "gravando" && ultimaReal
+    ? normalizarNome(ultimaReal.nomeCorrespondente || ultimaReal.nomeFreeshow) : null;
+  const agoraPrevisto = hoje && !chaveAtualAoVivo ? calcularAgoraPrevisto(ordem.momentos) : null;
+
+  async function iniciar() {
+    setAIniciar(true);
+    try {
+      await iniciarCultoAoVivo(eventoId);
+      torrada("A gravar os horários reais deste culto");
+    } catch (e) {
+      torrada(e.message || "Não foi possível começar a gravar.");
+    } finally {
+      setAIniciar(false);
+    }
+  }
+
+  async function descartar() {
+    setAIniciar(true);
+    try {
+      await descartarCultoAoVivo(eventoId);
+      setAConfirmarDescartar(false);
+      torrada("Registo apagado — pronto para recomeçar");
+    } catch (e) {
+      torrada(e.message || "Não foi possível descartar.");
+    } finally {
+      setAIniciar(false);
+    }
+  }
+
+  function abrirEdicao(l) {
+    setAEditar(normalizarNome(l.momento));
+    setHoraRascunho(l.real?.horaReal || l.horaPrevista || l.hora);
+  }
+
+  async function guardarEdicao(nomeMomento) {
+    if (!/^\d{1,2}:\d{2}$/.test(horaRascunho)) return torrada("Escreve uma hora válida.");
+    setAGuardar(true);
+    try {
+      await editarSecaoAoVivo(eventoId, nomeMomento, horaRascunho);
+      setAEditar(null);
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar a hora.");
+    } finally {
+      setAGuardar(false);
+    }
+  }
 
   return (
     <>
@@ -49,33 +116,119 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje }) {
         <div className="l"><span>Arrumação a partir de</span><b>{somarMinutos(ordem.fim, 10) ?? "—"}</b></div>
       </div>
 
-      {agora?.fase === "antes" && (
+      {hoje && (
+        <div className="tec-aovivo-barra">
+          {estado === "gravando" ? (
+            <>
+              <span className="tec-aovivo-ponto" /> A gravar os horários reais
+              {aoVivo?.iniciadoPor === "automatico" ? " · começou sozinho" : ""}
+              {!aConfirmarDescartar ? (
+                <button className="btn sec" style={{ marginLeft: "auto", padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(true)}>
+                  Descartar e recomeçar
+                </button>
+              ) : (
+                <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button className="btn" style={{ background: "var(--magenta)", padding: "7px 12px", fontSize: 12 }} disabled={aIniciar} onClick={descartar}>
+                    Confirmar
+                  </button>
+                  <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAConfirmarDescartar(false)}>Cancelar</button>
+                </span>
+              )}
+            </>
+          ) : estado === "terminado" ? (
+            <>Culto terminado — os horários reais ficaram registados.</>
+          ) : (
+            <button className="btn full" disabled={aIniciar} onClick={iniciar}>
+              {aIniciar ? "A começar…" : "Começou o culto"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {agoraPrevisto?.fase === "antes" && (
         <p className="ds" style={{ margin: "0 0 4px", color: "var(--magenta)", fontWeight: 600 }}>
           Ainda não começou — abre às {ordem.inicio}
         </p>
       )}
-      {agora?.fase === "depois" && (
+      {agoraPrevisto?.fase === "depois" && (
         <p className="ds" style={{ margin: "0 0 4px" }}>Este culto já terminou.</p>
       )}
 
       <div>
-        {ordem.momentos.map((m, i) => (
-          <div
-            className={`oc-mom${NOSSOS.test(m.momento) ? " oc-destaque" : ""}${agora?.indice === i ? " agora" : ""}`}
-            key={i}
-          >
-            <div className="oc-hora"><b>{m.hora}</b><span>{m.minutos}min</span></div>
-            <div className="oc-trilho" />
-            <div className="txt">
-              <p className="nm">
-                {m.momento}
-                {agora?.indice === i && <span className="oc-agora">agora</span>}
-              </p>
-              <p className="meta">{[m.responsavel, m.projecao].filter(Boolean).join(" · ") || "—"}</p>
-              {m.detalhe && /volunt/i.test(m.detalhe) && <span className="oc-marca">{m.detalhe}</span>}
+        {comPrevisao.map((l, i) => {
+          const chave = normalizarNome(l.momento);
+          const atual = chave === chaveAtualAoVivo || (!chaveAtualAoVivo && agoraPrevisto?.indice === i);
+          const emEdicao = aEditar === chave;
+          return (
+            <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}`} key={i}>
+              <div className="oc-hora">
+                {l.real ? (
+                  <>
+                    <b className="tec-hora-real" style={l.real.cor ? { color: l.real.cor } : undefined}>{l.real.horaReal}</b>
+                    <span>previsto {l.hora}</span>
+                  </>
+                ) : l.pulada ? (
+                  <>
+                    <b className="tec-hora-pulada">—</b>
+                    <span>{l.hora}</span>
+                  </>
+                ) : hoje && estado ? (
+                  <>
+                    <b className="tec-hora-prevista">{l.horaPrevista}</b>
+                    <span>previsão</span>
+                  </>
+                ) : (
+                  <>
+                    <b>{l.hora}</b>
+                    <span>{l.minutos}min</span>
+                  </>
+                )}
+              </div>
+              <div className="oc-trilho" />
+              <div className="txt">
+                <p className="nm">
+                  {l.momento}
+                  {atual && <span className="oc-agora">agora</span>}
+                  {l.real?.editadoManualmente && <span className="tec-editado-marca" title="Hora escrita à mão">editado</span>}
+                </p>
+                <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
+                {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
+
+                {hoje && estado && (
+                  emEdicao ? (
+                    <span className="tec-editar-hora-form">
+                      <input
+                        className="campo" type="time" value={horaRascunho}
+                        onChange={(e) => setHoraRascunho(e.target.value)}
+                      />
+                      <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} disabled={aGuardar} onClick={() => guardarEdicao(l.momento)}>
+                        {aGuardar ? "…" : "Guardar"}
+                      </button>
+                      <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAEditar(null)}>Cancelar</button>
+                    </span>
+                  ) : (
+                    <button className="tec-editar-hora" onClick={() => abrirEdicao(l)}>
+                      {l.real ? "Corrigir hora" : "Marcar hora à mão"}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
+          );
+        })}
+
+        {extras.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <p className="cap">Visto no FreeShow, sem corresponder a nada previsto</p>
+            {extras.map((s, i) => (
+              <div className="oc-mom" key={i}>
+                <div className="oc-hora"><b>{s.horaReal}</b></div>
+                <div className="oc-trilho" />
+                <div className="txt"><p className="nm">{s.nomeFreeshow}</p></div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {ordem.avisos?.length > 0 && (
