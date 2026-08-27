@@ -75,6 +75,14 @@
       ]
     },
     {
+      "collectionGroup": "contactos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventoId", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "equipamentos",
       "queryScope": "COLLECTION",
       "fields": [

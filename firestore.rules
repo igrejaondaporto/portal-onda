@@ -65,6 +65,14 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
+      // ── catálogo de GDs (Base Pessoal) — lista fixa que a líder
+      // mantém, sugerida no Formulário de contacto. Mesmo padrão do
+      // catálogo de funções: só a líder escreve, a base toda lê. ──
+      match /gds/{gd} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+
       // ── ministérios (Base Técnica, Comunicação) ───────────
       // Comunicação também lê para quem NÃO é da Comunicação: quem
       // abre uma solicitação (SheetAbrirSolicitacao, qualquer base)
@@ -192,6 +200,28 @@ service cloud.firestore {
         allow read:  if minhaBase(base);
         allow write: if false;
       }
+    }
+
+    // ── contactos (Formulário da Base Pessoal) — coleção GLOBAL,
+    // fora de bases/ e de pessoas/ de propósito: o painel do pastor
+    // (ainda não existe) vai precisar de ler isto por cima de todas
+    // as bases, um dia. Por agora só a Pessoal escreve e só a Pessoal
+    // lê — quando o painel do pastor nascer, a leitura abre-se para
+    // ele sem mexer no que já está gravado (ver apps/pessoal/CLAUDE.md).
+    // Criação valida a forma exata (etapa sempre "visita" — o funil
+    // das etapas seguintes é só do painel do pastor); "enviadoPastorEm"
+    // é o único campo que a líder pode atualizar depois, ao carregar
+    // no botão "Enviar para o pastor". Nunca apagado.
+    match /contactos/{contacto} {
+      allow read: if minhaBase('pessoal');
+      allow create: if minhaBase('pessoal')
+                    && request.resource.data.baseOrigemId == 'pessoal'
+                    && request.resource.data.etapa == 'visita'
+                    && request.resource.data.criadoPor == request.auth.uid
+                    && request.resource.data.rgpd.aceite == true;
+      allow update: if souLiderBase('pessoal')
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enviadoPastorEm']);
+      allow delete: if false;
     }
 
     // ── eventos: o culto é da IGREJA, não da base ──────────

@@ -30,13 +30,15 @@ export const ordenarEscala = (escala) =>
 export const eur = (v) => v.toFixed(2).replace(".", ",") + " €";
 
 /** "912 345 678" → "https://wa.me/351912345678". null se não houver número.
- *  Limpa espaços, traços e parênteses, e junta o indicativo se faltar. */
-export function linkWhatsApp(telefone) {
+ *  Limpa espaços, traços e parênteses, e junta o indicativo se faltar.
+ *  `texto` opcional pré-preenche a mensagem (ex.: enviar um contacto
+ *  já formatado, sem a pessoa ter de escrever nada). */
+export function linkWhatsApp(telefone, texto) {
   if (!telefone?.trim()) return null;
   let n = telefone.replace(/[^\d+]/g, "");
   if (n.startsWith("+")) n = n.slice(1);
   if (!n.startsWith("351")) n = "351" + n;
-  return `https://wa.me/${n}`;
+  return `https://wa.me/${n}${texto ? `?text=${encodeURIComponent(texto)}` : ""}`;
 }
 
 /** "unidades" → "unidade" quando a quantidade é 1. As unidades do
