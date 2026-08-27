@@ -1160,10 +1160,9 @@ export const fecharAcomodacao = onCall(async (req) => {
 /** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
  *  "aberto" (fechado:false), para poder corrigir e fechar de novo.
  *  Mesma permissão de quem fecha (líder ou quem tem a função Mapa
- *  desse culto). O "X"
- *  na lista de "Cultos fechados" (ResumosAcomodacao.jsx) chama isto —
- *  as regras não deixam apagar `acomodacaoResumos` direto do
- *  cliente, só por aqui. */
+ *  desse culto). O lápis "Editar" na lista de "Cultos fechados"
+ *  (ResumosAcomodacao.jsx) chama isto — as regras não deixam apagar
+ *  `acomodacaoResumos` direto do cliente, só por aqui. */
 export const reabrirAcomodacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1189,6 +1188,35 @@ export const reabrirAcomodacao = onCall(async (req) => {
   if (mapa.exists) lote.update(mapaRef, { fechado: false });
   await lote.commit();
 
+  return { ok: true };
+});
+
+/** Tira um resumo fechado da lista, sem reabrir o mapa (o culto
+ *  continua fechado, só de leitura) — para descartar um teste ou um
+ *  registo indesejado sem devolver o culto a editável. Marca
+ *  `arquivado:true` em vez de apagar o documento a sério (histórico),
+ *  mesmo padrão do `arquivado` do Formulário. O "X" na lista de
+ *  "Cultos fechados" chama isto — mesma permissão de reabrirAcomodacao. */
+export const arquivarResumoAcomodacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal") throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  if (!souLiderBase) {
+    const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
+    const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Mapa neste culto pode excluir.");
+  }
+
+  const resumoRef = db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`);
+  const resumo = await resumoRef.get();
+  if (!resumo.exists) throw new HttpsError("not-found", "Este culto não tem resumo fechado.");
+
+  await resumoRef.set({ arquivado: true }, { merge: true });
   return { ok: true };
 });
 
