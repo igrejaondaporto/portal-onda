@@ -166,19 +166,28 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           const atual = chave === chaveAtualAoVivo || (!chaveAtualAoVivo && agoraPrevisto?.indice === i);
           const emEdicao = aEditar === chave;
           // a bolinha anda ao longo da secção conforme o tempo passa:
-          // 0% quando acaba de começar, 100% quando chega à duração
-          // prevista — presa entre 4% e 96% para não sair da secção
+          // 0 quando acaba de começar, 1 quando chega à duração
+          // prevista. Alinhada em px com o ponto fixo do início da
+          // secção (top:17px, ver .oc-mom.agora .oc-trilho::before) e
+          // não em %, senão as duas bolinhas não encaixam — o resto do
+          // percurso é % do que sobra da secção, para chegar perto do
+          // ponto da secção seguinte ao fim da duração prevista.
           const duracaoMs = Number(l.minutos) > 0 ? Number(l.minutos) * 60000 : null;
-          const progressoAtual = atual && l.real?.timestampReal?.toMillis && duracaoMs
-            ? 4 + Math.min(1, Math.max(0, (Date.now() - l.real.timestampReal.toMillis()) / duracaoMs)) * 92
+          const fracaoAtual = atual && l.real?.timestampReal?.toMillis && duracaoMs
+            ? Math.min(1, Math.max(0, (Date.now() - l.real.timestampReal.toMillis()) / duracaoMs))
             : null;
+          // previsão para a secção que está mesmo agora no ar = hora
+          // real de início + duração prevista do PDF — não o horário
+          // estático que estava previsto para ela começar (esse já não
+          // interessa, já sabemos quando começou de verdade)
+          const previstoExibido = atual ? (somarMinutos(l.real?.horaReal, Number(l.minutos)) ?? l.hora) : l.hora;
           return (
             <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}`} key={i}>
               <div className="oc-hora">
                 {l.real ? (
                   <>
                     <b className="tec-hora-real" style={l.real.cor ? { color: l.real.cor } : undefined}>{l.real.horaReal}</b>
-                    <span>previsto {l.hora}</span>
+                    <span>previsto {previstoExibido}</span>
                   </>
                 ) : l.pulada ? (
                   <>
@@ -198,8 +207,8 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 )}
               </div>
               <div className="oc-trilho">
-                {atual && progressoAtual != null && (
-                  <span className="tec-progresso" style={{ top: `${progressoAtual}%` }} />
+                {atual && fracaoAtual != null && (
+                  <span className="tec-progresso" style={{ top: `calc(17px + ${fracaoAtual} * (100% - 34px))` }} />
                 )}
               </div>
               <div className="txt">

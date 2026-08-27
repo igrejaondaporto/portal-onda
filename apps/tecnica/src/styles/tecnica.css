@@ -331,16 +331,18 @@
 }
 
 /* Bolinha de progresso: anda ao longo do `.oc-trilho` da secção atual,
- * proporcional ao tempo decorrido / duração prevista — separada do
- * ponto fixo que já marca o início da secção (`.oc-mom.agora
- * .oc-trilho::before`), para não se confundirem. O `top` muda a cada
- * reavaliação (ver OrdemCultoTimeline.jsx); a transição é o que dá o
- * efeito de "andar" em vez de saltar. */
+ * proporcional ao tempo decorrido / duração prevista. Mesmo tamanho e
+ * `left` do ponto fixo que marca o início da secção (`.oc-mom.agora
+ * .oc-trilho::before` — 13px, left -5.5px), para as duas encaixarem
+ * perfeitinho quando a secção acaba de começar (fração 0, ver o
+ * `calc()` em OrdemCultoTimeline.jsx, que usa a mesma base de 17px).
+ * O `top` muda a cada reavaliação; a transição é o que dá o efeito de
+ * "andar" em vez de saltar de posição em posição. */
 .tec-progresso {
   position: absolute;
-  left: -3px;
-  width: 8px;
-  height: 8px;
+  left: -5.5px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background: var(--lima);
   box-shadow: 0 0 9px var(--lima);
