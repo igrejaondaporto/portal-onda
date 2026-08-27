@@ -22,6 +22,8 @@
  *   eventos/{e}/contagem/geral                       ← nove categorias, autoria e origem por categoria
  *   bases/{base}/enquetes/{AAAA-MM}                  ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/enquetes/{AAAA-MM}/respostas/{pessoa}
+ *   bases/{base}/gds/{gd}                            ← catálogo de GDs, sugerido no Formulário
+ *   contactos/{contacto}                             ← GLOBAL (fora de bases/) — Formulário de contacto
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -39,6 +41,10 @@ export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
 export const cContagem    = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
+export const cGDs         = () => collection(db, `bases/${BASE_ID}/gds`);
+// global, fora de bases/ — ver comentário em firestore.rules
+export const cContactos   = () => collection(db, "contactos");
+export const cContacto    = (id) => doc(db, `contactos/${id}`);
 
 // ── Acomodação (mapa do auditório) ─────────────────────────────
 export const cPlanta = () => doc(db, `bases/${BASE_ID}/acomodacao/planta`);

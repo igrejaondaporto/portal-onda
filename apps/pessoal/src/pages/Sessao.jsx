@@ -204,7 +204,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           </div>
           <div style={{ display: pagina === "formulario" ? "" : "none" }}>
-            <Formulario ativo={pagina === "formulario"} definirCabecalho={setCab} />
+            <Formulario uid={uid} papel={papel} ativo={pagina === "formulario"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "acomodacao" ? "" : "none" }}>
             <Acomodacao uid={uid} papel={papel} ativo={pagina === "acomodacao"} definirCabecalho={setCab} />

@@ -24,9 +24,10 @@ três toques, está mal desenhada.
 Em desenvolvimento em `pessoal.igrejaonda.pt`. O protótipo original
 (`painel-base-pessoal ok.html`, fornecido pelo dono do produto) foi a
 especificação visual e funcional inicial do módulo **Acomodação** —
-esse é o único módulo já portado 1:1. Acomodação, Inventário, Ordem
-do culto e Contagem já estão funcionais; só o Formulário continua
-placeholder — ver "Débitos conscientes" no fim deste ficheiro.
+esse é o único módulo já portado 1:1. Todos os módulos já estão
+funcionais — Acomodação, Inventário, Ordem do culto, Contagem e
+Formulário. O que falta é o painel do pastor (fora desta base) e os
+débitos documentados no fim deste ficheiro.
 
 ## Fronteiras — o que esta base NÃO faz
 
@@ -171,18 +172,46 @@ isso é sempre um `update`, nunca um `delete`.
 
 ### Formulário de contacto
 
-Substitui o Google Forms atual. Campos automáticos: data, culto, quem
-preencheu, etapa inicial (`"visita"`). Concelho é select (não texto
-livre) — só assim o futuro sugestor de GD funciona; freguesias
-dependentes do concelho (Porto, Maia, Matosinhos, Vila Nova de Gaia,
-Gondomar, Valongo). GD **não filtra** por concelho da pessoa (há GDs
-em Sines, Lisboa, Barcelos) — mostra todos, agrupados por região.
-Duplicados por telemóvel: avisa, não bloqueia. RGPD: checkbox
-obrigatório de que a pessoa foi informada + base legal + data
-guardados; campo `arquivado` previsto, sem purga automática por agora.
-Coleção global `contactos/{id}` (fora de `bases/` e de `pessoas/`),
-com um campo que aponta para `pessoas/{id}` só a partir da etapa
-"voluntário" — nunca duplicar identidade. **Ainda por implementar.**
+Substitui o Google Forms atual. Funcional — `pages/Formulario.jsx` +
+`lib/contactos.js`. Campos automáticos: `eventoId` (o culto da
+pessoa que preenche), `criadoPor`, `criadoEm`, etapa inicial sempre
+`"visita"`. Concelho é select (não texto livre) — só assim o futuro
+sugestor de GD funciona; freguesias dependentes do concelho
+(`FREGUESIAS_POR_CONCELHO` em `lib/contactos.js` — nomes oficiais
+pós-reorganização de 2013, Matosinhos já com a desagregação de 2025).
+Duplicados por telemóvel: avisa (compara pelo campo `telemovelDigitos`,
+só números), nunca bloqueia. RGPD: checkbox obrigatório de que a
+pessoa foi informada — grava `rgpd.aceite`/`baseLegal`/`em`; campo
+`arquivado` previsto, sem purga automática por agora.
+
+Coleção **global** `contactos/{id}` (fora de `bases/` e de
+`pessoas/`, ver `firestore.rules`) — é onde o painel do pastor (ainda
+não existe) vai ler por cima de todas as bases, sem migração, quando
+nascer. Por agora só a Pessoal lê e escreve. Um campo aponta para
+`pessoas/{id}` só a partir da etapa "voluntário" — nunca duplicar
+identidade (essa parte do funil é só do painel do pastor).
+
+**Ponte para o pastor, até o painel dele existir**: a líder vê a
+lista "Leads deste culto" no próprio Formulário, um botão "Enviar
+para o pastor" por lead abre o WhatsApp dela com a mensagem já
+formatada (nome, telefone, concelho/freguesia, GD sugerido) — e
+**dentro dessa mensagem** um link `wa.me` direto para a conversa com
+o próprio lead, para o pastor abrir com um toque
+(`linkParaPastor`/`textoParaPastor` em `lib/contactos.js`). Não é um
+"cartão de contacto" nativo do WhatsApp — isso só existe partilhando
+um contacto a sério da agenda, não é algo que uma app web consiga
+acionar à distância; o link é o equivalente prático (um toque, abre
+a conversa certa). O número do pastor (`WHATSAPP_PASTOR` em
+`lib/contactos.js`) está fixo no código por agora — ver "Débitos
+conscientes".
+
+### Catálogo de GDs
+
+`bases/pessoal/gds/{id}` (`nome`, `regiao`) — mesmo padrão do
+catálogo de funções: só a líder escreve (secção "Gerir" dentro do
+Formulário), toda a base lê. Sem cadastro real ainda (nomes/regiões
+verdadeiros entram à mão pela líder) — ver "Não há cadastro de GDs"
+em "Fronteiras" no topo deste ficheiro.
 
 ### Inventário do café — subaba de Culto
 
@@ -216,19 +245,27 @@ Só a líder da base cria no catálogo.
 
 ## Débitos conscientes
 
-- **Formulário**: ainda placeholder ("em construção") — a
-  especificação completa mantém-se acima, pronta para a próxima
-  sessão. `fecharAcomodacao` (Cloud Function) e a regra de
-  `firestore.rules` para `eventos/{e}/acomodacao/mapa` também
-  entraram em PR separado, antes de dar o módulo por pronto em
-  produção.
 - **Ordem do culto**: só leitura na Base Pessoal — ninguém aqui tem
   `pode_publicar_culto` ligado ainda. Ver secção acima.
 - Inventário sem património por item (herdado da Backstage).
-- Lista de GDs fixa até existir cadastro no painel do pastor.
+- **`WHATSAPP_PASTOR` fixo no código** (`lib/contactos.js`), não
+  editável pela líder — se o número do pastor mudar, é mudar ali e
+  fazer deploy. Segue o padrão de `bases/pessoal.horaChegada`/
+  `horaCulto` (editável pela líder via "Definições da base") se um
+  dia valer a pena dar-lhe o mesmo tratamento.
+- Cadastro de GDs (nome + região) é da líder, à mão, dentro do
+  Formulário — sem morada, contacto do responsável nem validação
+  contra uma fonte oficial. O cadastro "a sério" nasce no painel do
+  pastor.
 - Sugestor de GD por perfil/zona só nasce com esse cadastro; o
-  Formulário só vai **capturar** os campos que o vão alimentar.
-- Sem purga automática de contactos antigos; só o campo `arquivado`.
+  Formulário só **captura** os campos que o vão alimentar — o select
+  de GD hoje não filtra por concelho/freguesia da pessoa (mostra
+  sempre todos os GDs).
+- Sem purga automática de contactos antigos; só o campo `arquivado`
+  (ainda sem UI para o marcar).
+- **Sem migração automática para o painel do pastor.** Enquanto ele
+  não existir, é a líder que reenvia cada lead à mão pelo botão
+  "Enviar para o pastor" — ver secção do Formulário acima.
 - Planta de auditório sem editor visual — configura-se por documento
   Firestore (`bases/pessoal/acomodacao/planta`). Editor fica para
   depois.
