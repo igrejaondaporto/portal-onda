@@ -278,7 +278,8 @@ service cloud.firestore {
       // mapa do auditório da Base Pessoal — escreve direto do cliente
       // (sem Cloud Function) de propósito: é o único jeito de marcar
       // lugares offline, e Cloud Functions não correm sem rede. Só
-      // quem tem a função "drive" (id fixo, ver
+      // quem tem a função "Mapa" (id fixo "drive" — nome antigo, de
+      // quando isto vivia numa folha do Google Drive; ver
       // bases/pessoal/funcoes/drive) neste culto pode escrever, mais
       // a líder da base. "drive" é reservado: nenhuma outra base pode
       // ter uma função com este id (a coleção atribuicoes é plana,

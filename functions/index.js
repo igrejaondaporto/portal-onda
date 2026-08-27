@@ -1126,7 +1126,7 @@ export const fecharAcomodacao = onCall(async (req) => {
   if (!souLiderBase) {
     const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
     const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
-    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Drive neste culto pode fechar.");
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Mapa neste culto pode fechar.");
   }
 
   const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
@@ -1157,7 +1157,8 @@ export const fecharAcomodacao = onCall(async (req) => {
 
 /** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
  *  "aberto" (fechado:false), para poder corrigir e fechar de novo.
- *  Mesma permissão de quem fecha (líder ou Drive desse culto). O "X"
+ *  Mesma permissão de quem fecha (líder ou quem tem a função Mapa
+ *  desse culto). O "X"
  *  na lista de "Cultos fechados" (ResumosAcomodacao.jsx) chama isto —
  *  as regras não deixam apagar `acomodacaoResumos` direto do
  *  cliente, só por aqui. */
@@ -1173,7 +1174,7 @@ export const reabrirAcomodacao = onCall(async (req) => {
   if (!souLiderBase) {
     const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
     const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
-    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Drive neste culto pode reabrir.");
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Mapa neste culto pode reabrir.");
   }
 
   const resumoRef = db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`);
