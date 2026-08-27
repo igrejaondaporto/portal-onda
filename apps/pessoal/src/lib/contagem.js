@@ -11,7 +11,7 @@ export const CATEGORIAS_CONTAGEM = [
   { id: "membros", nome: "Membros", grupo: "Auditório", descricao: "Pessoas da igreja presentes" },
   { id: "visitantes", nome: "Visitantes", grupo: "Auditório", descricao: "Quem visita pela primeira vez" },
   { id: "voluntarios", nome: "Voluntários", grupo: "Auditório", descricao: "Equipa a servir neste culto" },
-  { id: "mensagem", nome: "Mensagem", grupo: "Resposta", descricao: "Pessoas que responderam à mensagem" },
+  { id: "mensagem", nome: "Mensagem", grupo: "Resposta", descricao: "Pessoas que estavam presentes durante a mensagem" },
   { id: "apelo", nome: "Apelo", grupo: "Resposta", descricao: "Pessoas que responderam ao apelo" },
   { id: "new", nome: "New", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
   { id: "shift", nome: "Shift", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
