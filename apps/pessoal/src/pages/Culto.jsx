@@ -104,20 +104,20 @@ export default function Culto({
           Ordem do culto
           {aoVivoGravando && <span className="oc-subtab-alerta" />}
         </button>
-        <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
-        <button data-on={aba === "inventario" ? 1 : 0} onClick={() => setAba("inventario")}>Inventário</button>
         <button data-on={aba === "contagem" ? 1 : 0} onClick={() => setAba("contagem")}>Contagem</button>
+        <button data-on={aba === "inventario" ? 1 : 0} onClick={() => setAba("inventario")}>Inventário</button>
+        <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
 
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
           {anterioresOrdem.length > 0 && proximosOrdem.length > 0 && (
             <div className="subtabs" style={{ margin: "12px 0 14px" }}>
-              <button data-on={!verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
-                Próximos ({proximosOrdem.length})
-              </button>
               <button data-on={verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("anteriores")}>
                 Anteriores ({anterioresOrdem.length})
+              </button>
+              <button data-on={!verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
+                Próximos ({proximosOrdem.length})
               </button>
             </div>
           )}
