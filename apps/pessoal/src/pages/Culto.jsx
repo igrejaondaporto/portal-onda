@@ -42,6 +42,7 @@ export default function Culto({
   const [base, setBase] = useState(null);
   const [ordens, setOrdens] = useState({});
   const [cardAberto, setCardAberto] = useState(null);
+  const [filtroCulto, setFiltroCulto] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [sheetFeedback, setSheetFeedback] = useState(null);
 
@@ -63,7 +64,7 @@ export default function Culto({
   // culto por data (ou o último, se já não houver nenhum por vir este
   // mês) — mas só na primeira vez; depois disso é o clique que manda.
   const escolheuPadrao = useRef(false);
-  useEffect(() => { escolheuPadrao.current = false; setCardAberto(null); }, [mes, ano]);
+  useEffect(() => { escolheuPadrao.current = false; setCardAberto(null); setFiltroCulto(null); }, [mes, ano]);
   useEffect(() => {
     if (escolheuPadrao.current || !eventosMes.length) return;
     escolheuPadrao.current = true;
@@ -77,6 +78,17 @@ export default function Culto({
   }, [ativo, aba, definirCabecalho]);
 
   const hoje = hojeISO();
+
+  // A ordem do culto serve para preparar o próximo, não para reler os
+  // que já passaram. Com o mês todo na lista, chegar ao domingo 23 no
+  // fim de agosto obrigava a rolar por cima de quatro cultos mortos.
+  // Os anteriores continuam a um toque — são histórico, não lixo.
+  const proximosOrdem = eventosMes.filter((e) => e.data >= hoje);
+  const anterioresOrdem = eventosMes.filter((e) => e.data < hoje);
+  // Num mês já passado não há "próximos": aí abre nos anteriores, senão
+  // navegar para trás dava uma página vazia sem explicação.
+  const verAnterioresOrdem = filtroCulto === "anteriores" || (filtroCulto === null && !proximosOrdem.length && anterioresOrdem.length > 0);
+  const listaOrdem = verAnterioresOrdem ? anterioresOrdem : proximosOrdem;
 
   return (
     <>
@@ -99,7 +111,22 @@ export default function Culto({
 
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
-          {eventosMes.map((ev) => (
+          {anterioresOrdem.length > 0 && proximosOrdem.length > 0 && (
+            <div className="subtabs" style={{ margin: "12px 0 14px" }}>
+              <button data-on={!verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
+                Próximos ({proximosOrdem.length})
+              </button>
+              <button data-on={verAnterioresOrdem ? 1 : 0} onClick={() => setFiltroCulto("anteriores")}>
+                Anteriores ({anterioresOrdem.length})
+              </button>
+            </div>
+          )}
+          {listaOrdem.length === 0 && (
+            <div className="vaz">
+              {anterioresOrdem.length ? "Não há mais cultos este mês." : "Ainda não há cultos neste mês."}
+            </div>
+          )}
+          {listaOrdem.map((ev) => (
             <OrdemCultoCard
               key={ev.id} evento={ev} podePublicar={podePublicar}
               aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
