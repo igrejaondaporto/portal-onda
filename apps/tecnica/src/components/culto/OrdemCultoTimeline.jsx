@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { iniciarCultoAoVivo, descartarCultoAoVivo, editarSecaoAoVivo } from "../../lib/cultoAoVivo";
+import { iniciarCultoAoVivo, descartarCultoAoVivo, editarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
 import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "@portal/shared/lib/ordemAoVivo.js";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
@@ -67,6 +67,16 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
     const id = setInterval(() => reavaliar((n) => n + 1), gravando ? 1000 : 30000);
     return () => clearInterval(id);
   }, [hoje, aoVivo?.estado]);
+
+  // enquanto este ecrã estiver aberto e o culto estiver mesmo a
+  // gravar, pede à sonda para correr a cada poucos segundos, em vez de
+  // esperar pelo próximo minuto do agendador — só acelera quem está a
+  // olhar agora; a sonda automática continua a correr por trás na mesma
+  useEffect(() => {
+    if (aoVivo?.estado !== "gravando") return;
+    const id = setInterval(() => { sondarFreeshowAgora().catch(() => {}); }, 5000);
+    return () => clearInterval(id);
+  }, [aoVivo?.estado]);
 
   if (!ordem) return null;
 

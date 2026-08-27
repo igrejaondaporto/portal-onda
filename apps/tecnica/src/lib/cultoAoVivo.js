@@ -10,7 +10,7 @@
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, chamar } from "@portal/shared/lib/firebase.js";
 
-export { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
+export { ouvirCultoAoVivo, sondarFreeshowAgora } from "@portal/shared/lib/cultoAoVivo.js";
 
 export function ouvirCorrespondencia(cb) {
   return onSnapshot(doc(db, "bases/tecnica/config/correspondenciaFreeshow"), (snap) => {
