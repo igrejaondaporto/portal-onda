@@ -17,8 +17,8 @@ const SETA = '<path d="M6 9l6 6 6-6"/>';
  * apaga este resumo e devolve o mapa a "aberto", para corrigir e
  * fechar de novo — nunca um delete a sério (o mapa ao vivo não é
  * tocado, só o `fechado`). Só a líder vê o botão; quem tinha a
- * função Drive nesse culto também tem permissão no servidor, mas a
- * UI não sabe, sem mais uma leitura por linha, quem foi Drive de
+ * função Mapa nesse culto também tem permissão no servidor, mas a
+ * UI não sabe, sem mais uma leitura por linha, quem teve Mapa em
  * cada culto passado.
  */
 export default function ResumosAcomodacao({ souLiderBase }) {

@@ -2,8 +2,8 @@ import { useRef } from "react";
 
 /**
  * Pilha local de desfazer — { id, estadoAnterior } ou { grupo: [...] }
- * para o "chegou grupo de N". Não vive no Firestore: cada Drive só
- * desfaz o que fez na própria sessão do telemóvel dele.
+ * para o "chegou grupo de N". Não vive no Firestore: quem tem a
+ * função Mapa só desfaz o que fez na própria sessão do telemóvel dele.
  */
 export function useHistorico() {
   const pilha = useRef([]);

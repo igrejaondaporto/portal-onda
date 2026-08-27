@@ -38,14 +38,19 @@ const hash = (pin) => {
 const LIDER = { id: "camila-pessoal", nome: "Camila", papel: "lider_base" };
 
 // id fixo por função — "drive" é reservado (ver CLAUDE.md desta base):
-// a regra de segurança do mapa de Acomodação aponta sempre a
-// eventos/{evento}/atribuicoes/drive, sem lookup. Todas de fase
-// "durante" — as quatro servem ao longo do culto, sem etapa pré/pós
-// distinta (ver apps/pessoal/CLAUDE.md, "Pessoas por função" nos
-// débitos conscientes — quantidades por defeito ainda por definir).
+// a regra de segurança do mapa aponta sempre a
+// eventos/{evento}/atribuicoes/drive, sem lookup. O id ficou "drive"
+// (nome antigo, de quando isto vivia numa folha do Google Drive) por
+// ser mais barato do que migrar a rule/Cloud Function/CLAUDE.md — só
+// o nome visível mudou para "Mapa", sem colidir mais com a função
+// "Acomodação" (papel diferente: leva as pessoas até ao lugar, sem
+// nenhum acesso especial). Todas de fase "durante" — as quatro
+// servem ao longo do culto, sem etapa pré/pós distinta (ver
+// apps/pessoal/CLAUDE.md, "Pessoas por função" nos débitos
+// conscientes — quantidades por defeito ainda por definir).
 const FUNCOES = [
   ["cafe", "Café", "Prepara e serve; repõe consumíveis", "durante", "chavena"],
-  ["drive", "Drive", "Marca os lugares no mapa do auditório", "durante", "mapa"],
+  ["drive", "Mapa", "Marca os lugares no mapa do auditório", "durante", "mapa"],
   ["acomodacao", "Acomodação", "Leva as pessoas até o lugar indicado", "durante", "cadeiras"],
   ["recepcao", "Recepção", "Recebe à entrada e preenche o formulário", "durante", "porta"],
 ];

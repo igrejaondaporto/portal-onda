@@ -23,11 +23,11 @@ três toques, está mal desenhada.
 
 Em desenvolvimento em `pessoal.igrejaonda.pt`. O protótipo original
 (`painel-base-pessoal ok.html`, fornecido pelo dono do produto) foi a
-especificação visual e funcional inicial do módulo **Acomodação** —
-esse é o único módulo já portado 1:1. Todos os módulos já estão
-funcionais — Acomodação, Inventário, Ordem do culto, Contagem e
-Formulário. O que falta é o painel do pastor (fora desta base) e os
-débitos documentados no fim deste ficheiro.
+especificação visual e funcional inicial do módulo **Mapa** — esse é
+o único módulo já portado 1:1. Todos os módulos já estão funcionais —
+Mapa, Inventário, Ordem do culto, Contagem e Formulário. O que falta
+é o painel do pastor (fora desta base) e os débitos documentados no
+fim deste ficheiro.
 
 ## Fronteiras — o que esta base NÃO faz
 
@@ -38,8 +38,8 @@ débitos documentados no fim deste ficheiro.
   o pastor, no painel dele (ainda não existe).
 - **Não há cadastro de GDs.** Lista fixa por agora. O cadastro real
   nasce no painel do pastor.
-- **O mapa de Acomodação não preenche a Contagem.** São universos
-  diferentes — ver "Contagem" abaixo.
+- **O Mapa não preenche a Contagem.** São universos diferentes — ver
+  "Contagem" abaixo.
 - **O funil de seis etapas do contacto** (visita → contactado → gd →
   membro → voluntário → servindo) não se implementa aqui. O documento
   de contacto nasce com os campos certos para o painel do pastor ler
@@ -51,10 +51,10 @@ débitos documentados no fim deste ficheiro.
 |---|---|---|
 | Início | todos | Escala pessoal + avisos do líder |
 | Escala | todos | Escala do mês por função |
-| Funções | todos (edita a líder) | Café, Drive, Acomodação, Recepção |
+| Funções | todos (edita a líder) | Café, Mapa, Acomodação, Recepção |
 | Culto | todos | Quatro subabas: Ordem do culto, Feedbacks, Inventário, Contagem — ver abaixo |
 | Formulário | todos | Novo contacto + lista do culto |
-| Acomodação | todos leem, escreve o Drive | Mapa do auditório |
+| Mapa | todos leem, escreve quem tem a função Mapa | Mapa do auditório |
 | Enquetes | **só a líder** | Disponibilidade mensal |
 
 A aba **Culto** (`pages/Culto.jsx`) agrupa tudo o que gira à volta do
@@ -72,10 +72,11 @@ embrulhados numa subaba em vez de página própria.
 |---|---|
 | **Líder da base** | Fixa (Camila). Vê e edita tudo, em qualquer data |
 | **Escala** | Quem serve em cada culto |
-| **Função** | Café, Drive, Acomodação, Recepção — catálogo, sem funções especiais por agora |
+| **Função** | Café, Mapa, Acomodação, Recepção — catálogo, sem funções especiais por agora |
 | **Culto** | O evento. Domingos 10h |
-| **Drive** | Quem tem a função Drive nesse culto — a única pessoa que escreve no mapa de Acomodação |
-| **Contagem** | As nove categorias do prédio todo — nunca confundir com o mapa de Acomodação |
+| **Mapa** | Nome da função (id interno ainda `drive`, ver abaixo) e da aba — quem tem esta função nesse culto é a única pessoa que escreve no mapa do auditório |
+| **Acomodação** | Função diferente de Mapa — leva as pessoas até ao lugar indicado, sem nenhum acesso especial |
+| **Contagem** | As nove categorias do prédio todo — nunca confundir com o mapa do auditório |
 
 ## Modelo de dados
 
@@ -84,18 +85,29 @@ Ver `src/lib/modelo.js` — os caminhos estão todos lá, com comentários.
 (papel, telefone, cor, ativo); a identidade e o PIN são globais (ver
 `CLAUDE.md` da raiz, regra 2/6).
 
-### Função "Drive" — id determinístico
+### Função "Mapa" — id determinístico (ainda `drive`)
 
 `bases/pessoal/funcoes/drive` é a única função de catálogo desta base
 com **id fixo** (`"drive"`, não auto-id) — é o que permite à regra de
-segurança do mapa de Acomodação (ver `firestore.rules` e
+segurança do mapa do auditório (ver `firestore.rules` e
 `functions/index.js`) apontar sempre a
-`eventos/{evento}/atribuicoes/drive` sem lookup. **Nome reservado**:
-nenhuma outra base pode ter uma função com id `"drive"` —
-`atribuicoes` é uma coleção plana (`eventos/{e}/atribuicoes/{funcaoId}`),
-sem namespace de base.
+`eventos/{evento}/atribuicoes/drive` sem lookup. O **nome visível**
+desta função é **"Mapa"** (`drive` era o nome antigo, de quando isto
+vivia numa folha do Google Drive — ficou só como id interno, trocar
+exigiria migrar a rule/Cloud Function/seed, sem ganho nenhum para
+quem usa a app). **Nome reservado**: nenhuma outra base pode ter uma
+função com id `"drive"` — `atribuicoes` é uma coleção plana
+(`eventos/{e}/atribuicoes/{funcaoId}`), sem namespace de base.
 
-### Acomodação — mapa do auditório
+Não confundir com a função **"Acomodação"** (`bases/pessoal/funcoes/
+acomodacao`, catálogo comum) — essa é quem leva as pessoas até ao
+lugar indicado, papel físico e diferente, sem nenhum acesso especial.
+Os dois nomes já colidiram com o da aba (que também se chamava
+"Acomodação") e causaram confusão real — um voluntário com a função
+"Acomodação" achava, com razão, que devia conseguir marcar o mapa, e
+não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
+
+### Mapa — mapa do auditório
 
 - **Planta/configuração** — `bases/pessoal/acomodacao/planta` (doc
   único): fileiras A–L (12 lugares cada, 144 total), reservados fixos
@@ -107,12 +119,13 @@ sem namespace de base.
   preenchidas desde a criação), `fechado`, `criadoEm`, `iniciadoPor`.
   Escrita por lugar via `updateDoc` com dot-notation
   (`lugares.A1`), nunca reescrevendo o doc inteiro — é o que torna o
-  offline seguro. **Escreve só quem tem a função Drive nesse culto**
-  (ou a líder). Quem não tem a função Drive hoje **nem vê o mapa** —
-  `pages/Acomodacao.jsx` mostra uma mensagem a pedir para falar com o
-  líder em vez do mapa só de leitura (decisão explícita do dono do
-  produto — antes toda a gente lia ao vivo). Regra de escrita em
-  `firestore.rules`, ao lado do bloco `checklist`.
+  offline seguro. **Escreve só quem tem a função Mapa nesse culto**
+  (ou a líder). Quem não tem a função Mapa continua a ver o mapa ao
+  vivo (acompanha em tempo real o que está a ser marcado) — só não
+  consegue tocar; `pages/Acomodacao.jsx` mostra um popup a explicar
+  porquê e a pedir para falar com o líder, em vez de deixar tocar sem
+  efeito nenhum. Regra de escrita em `firestore.rules`, ao lado do
+  bloco `checklist`.
 - **Arquivo pós-fecho** — `bases/pessoal/acomodacaoResumos/{AAAA-MM-DD}`
   (subcoleção): `ocupados`, `visitantes`, `livres`, `reservados`,
   `bloqueados`, `capacidadeUtil`, `percentagem`. Escrito pela Cloud
@@ -180,7 +193,7 @@ Botão **"Salvar contagem"** no fim grava `finalizadoEm`/`finalizadoPor`
 sozinha ao toque, isto é só a confirmação explícita de "terminei",
 que é o que faz o culto aparecer no bloco **"Cultos contados"**
 (`components/HistoricoContagem.jsx`), logo abaixo, dentro da mesma
-subaba. Mesmo esquema do Formulário/Acomodação: filtro por mês,
+subaba. Mesmo esquema do Formulário/Mapa: filtro por mês,
 cartão fechado por omissão que expande ao tocar, editar (reabre o
 próprio `ContagemCulto` desse culto, dentro de uma sheet) e excluir
 (chama `limparContagem`, que também limpa `finalizadoEm` — por isso
@@ -248,7 +261,7 @@ para não disputar o cabeçalho com Culto).
 ## Funções: catálogo vs. especiais
 
 `funcoes/{id}.eventoId`:
-- `null` → catálogo, aparece em todo culto (Café, Drive, Acomodação,
+- `null` → catálogo, aparece em todo culto (Café, Mapa, Acomodação,
   Recepção — todas de catálogo por agora, sem funções especiais)
 - `"AAAA-MM-DD"` → só naquele culto
 

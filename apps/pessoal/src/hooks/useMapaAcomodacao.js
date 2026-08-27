@@ -13,11 +13,12 @@ import { estadoInicialLugares } from "../lib/geometriaAuditorio";
 export function useMapaAcomodacao(eventoId, uid, papel) {
   const [mapa, setMapa] = useState(null);
   const [carregado, setCarregado] = useState(false);
-  // A líder é sempre Drive — isto não depende de nenhum documento, dá
-  // para saber já no 1º render. Só quem não é líder precisa de esperar
-  // pela leitura de eventos/{evento}/atribuicoes/drive (aí sim, sem
-  // isso, um toque logo a seguir a abrir a página não fazia nada — a
-  // leitura ainda não tinha voltado e `souDrive` ainda estava a false).
+  // A líder tem sempre acesso ao mapa — isto não depende de nenhum
+  // documento, dá para saber já no 1º render. Só quem não é líder
+  // precisa de esperar pela leitura de eventos/{evento}/atribuicoes/
+  // drive (id fixo da função "Mapa" — aí sim, sem isso, um toque logo
+  // a seguir a abrir a página não fazia nada — a leitura ainda não
+  // tinha voltado e `souDrive` ainda estava a false).
   const [souDrive, setSouDrive] = useState(papel === "lider_base");
 
   const criouRef = useRef(false);
@@ -41,8 +42,8 @@ export function useMapaAcomodacao(eventoId, uid, papel) {
     });
   }, [eventoId]);
 
-  /** Cria o doc do culto na 1ª vez que um Drive abre o mapa, copiando
-   *  reservados/bloqueios permanentes da planta. */
+  /** Cria o doc do culto na 1ª vez que quem tem a função Mapa abre o
+   *  mapa, copiando reservados/bloqueios permanentes da planta. */
   async function garantirMapa(planta) {
     if (mapa || criouRef.current || !souDrive || !eventoId || !planta) return;
     criouRef.current = true;

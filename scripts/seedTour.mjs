@@ -306,8 +306,8 @@ const TOURS = {
   },
   pessoal: {
     // Molde Apoio (equipa única, sem ministérios) + o tab próprio de
-    // Acomodação, que não existe em nenhuma outra base — mapa do
-    // auditório, só para quem tem a função Drive nesse culto (ver
+    // Mapa, que não existe em nenhuma outra base — mapa do auditório,
+    // só para quem tem a função Mapa nesse culto (ver
     // apps/pessoal/CLAUDE.md).
     passos: [
       {
@@ -325,7 +325,7 @@ const TOURS = {
       {
         chave: "nav-funcoes",
         titulo: "Funções",
-        texto: "Em Funções vês a descrição de cada tarefa — Café, Drive, Acomodação, Recepção.",
+        texto: "Em Funções vês a descrição de cada tarefa — Café, Mapa, Acomodação, Recepção.",
         alvo: "nav-funcoes", pagina: "inicio",
       },
       {
@@ -342,8 +342,8 @@ const TOURS = {
       },
       {
         chave: "nav-acomodacao",
-        titulo: "Acomodação",
-        texto: "Em Acomodação vês o mapa do auditório ao vivo — só quem tem a função Drive nesse culto pode marcar os lugares.",
+        titulo: "Mapa",
+        texto: "Em Mapa vês o mapa do auditório ao vivo — só quem tem a função Mapa nesse culto pode marcar os lugares.",
         alvo: "nav-acomodacao", pagina: "inicio",
       },
       {

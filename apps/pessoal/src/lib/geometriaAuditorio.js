@@ -31,7 +31,7 @@ export function lugaresPorFileira(planta) {
 /** Estado de cada lugar antes de qualquer culto começar — reservados e
  *  bloqueios permanentes vêm da planta, o resto é "livre". Usado tanto
  *  para criar o doc do culto (useMapaAcomodacao) como para desenhar o
- *  mapa antes desse doc existir (ninguém do Drive abriu ainda hoje). */
+ *  mapa antes desse doc existir (ninguém com a função Mapa abriu ainda hoje). */
 export function estadoInicialLugares(planta) {
   const fileiras = fileirasDaPlanta(planta);
   const ns = lugaresPorFileira(planta);

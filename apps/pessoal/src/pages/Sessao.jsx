@@ -32,7 +32,7 @@ const ABAS_BASE = [
   ["funcoes", "Funções"],
   ["culto", "Culto"],
   ["formulario", "Formulário"],
-  ["acomodacao", "Acomodação", ICONE_ACOMODACAO],
+  ["acomodacao", "Mapa", ICONE_ACOMODACAO],
 ];
 
 /**
