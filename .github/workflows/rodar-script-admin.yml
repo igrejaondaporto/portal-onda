@@ -1,0 +1,38 @@
+# Corre um script admin (scripts/*.mjs) contra o Firestore de
+# produção com a credencial de serviço — para não precisar de
+# descarregar o service-account.json à mão a cada script de uso
+# único. Genérico: escolhe o script no campo do workflow_dispatch.
+#
+# Uso: gh workflow run rodar-script-admin.yml --repo igrejaondaporto/portal-onda -f script=scripts/nome.mjs
+name: Correr script admin (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "Caminho do script (ex.: scripts/limparGdTeste.mjs)"
+        required: true
+
+jobs:
+  correr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+
+      - name: Escrever credencial de serviço
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::Falta o secret FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          printf '%s' "$SA" > service-account.json
+
+      - run: npm ci
+      - run: node "${{ github.event.inputs.script }}"
+
+      - if: always()
+        run: rm -f service-account.json
