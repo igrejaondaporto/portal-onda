@@ -175,10 +175,16 @@ isso é sempre um `update`, nunca um `delete`.
 Substitui o Google Forms atual. Funcional — `pages/Formulario.jsx` +
 `lib/contactos.js`. Campos automáticos: `eventoId` (o culto da
 pessoa que preenche), `criadoPor`, `criadoEm`, etapa inicial sempre
-`"visita"`. Concelho é select (não texto livre) — só assim o futuro
-sugestor de GD funciona; freguesias dependentes do concelho
+`"visita"`. Concelho é select (não texto livre) — só assim o sugestor
+de GD por distância funciona; freguesias dependentes do concelho
 (`FREGUESIAS_POR_CONCELHO` em `lib/contactos.js` — nomes oficiais
 pós-reorganização de 2013, Matosinhos já com a desagregação de 2025).
+12 concelhos: os 6 da área metropolitana do Porto (Porto, Maia,
+Matosinhos, Vila Nova de Gaia, Gondomar, Valongo) + 6 "remotos" onde
+já há GD próprio (Póvoa de Varzim, Vila do Conde, Barcelos, São João
+da Madeira, Lisboa, Sines) — mais "Outro", que troca a Freguesia para
+texto livre (placeholder "Qual?"), sem sugestão de GD (sem concelho
+conhecido, não há como estimar distância nenhuma).
 Duplicados por telemóvel: avisa (compara pelo campo `telemovelDigitos`,
 só números), nunca bloqueia. RGPD: checkbox obrigatório de que a
 pessoa foi informada — grava `rgpd.aceite`/`baseLegal`/`em`; campo
@@ -253,21 +259,35 @@ Só a líder da base cria no catálogo.
   fazer deploy. Segue o padrão de `bases/pessoal.horaChegada`/
   `horaCulto` (editável pela líder via "Definições da base") se um
   dia valer a pena dar-lhe o mesmo tratamento.
-- Cadastro de GDs (nome + região + `lat`/`lng`) é da líder, à mão,
-  dentro do Formulário — sem morada, contacto do responsável nem
-  validação contra uma fonte oficial. O cadastro "a sério" nasce no
-  painel do pastor.
-- **Sugestor por distância já existe** (`gdMaisProximo` em
-  `lib/contactos.js`, Haversine sobre `COORDENADAS_CONCELHO` ×
-  `lat`/`lng` do GD) — ao escolher o concelho, o Formulário já
+- **Sem UI para gerir GDs** — a lista e o formulário de "Gerir" que
+  existiam por baixo do Formulário foram tirados (pedido explícito,
+  ficava a repetir informação e ninguém geria dali). O catálogo
+  (`bases/pessoal/gds`) só se mexe por `scripts/seedGDsPessoal.mjs` +
+  `.github/workflows/rodar-script-admin.yml` — adicionar/editar um GD
+  é correr esse script (ou um novo, no mesmo padrão) contra a
+  produção. `criarGD` continua em `lib/contactos.js`, sem uso na UI
+  por agora — fica pronto se um dia valer a pena repor a interface.
+  Sem morada, contacto do responsável nem validação contra fonte
+  oficial. O cadastro "a sério" nasce no painel do pastor.
+- **Sugestor por distância** (`gdMaisProximo` em `lib/contactos.js`,
+  Haversine) — ao escolher **a freguesia** (não só o concelho: dentro
+  do mesmo concelho, freguesias diferentes podem ter GDs mais perto
+  diferentes — ver `São Mamede de Infesta`, em Matosinhos, mais perto
+  do GD "São Mamede" que do GD "Brito Capelo"), o Formulário
   pré-seleciona o GD mais perto em linha reta, editável à mão a
-  seguir. Só funciona para os 6 concelhos servidos (não para
-  "Outro") e só entre os GDs com `lat`/`lng` gravadas — **o
-  formulário "Gerir" da líder ainda não pede essas coordenadas a
-  quem adiciona um GD novo**, por isso um GD acrescentado pela
-  interface fica de fora da sugestão automática (continua escolhível
-  à mão) até alguém gravar `lat`/`lng` diretamente no Firestore. Os
-  14 GDs seedados (`scripts/seedGDsPessoal.mjs`) já têm coordenadas.
+  seguir. Duas precisões diferentes de propósito, ver o comentário
+  grande no topo de `COORDENADAS_FREGUESIA` em `lib/contactos.js`:
+  freguesia a freguesia nos 6 concelhos da área metropolitana do
+  Porto (onde ficam quase todos os GDs, e onde a freguesia muda
+  mesmo a resposta); uma coordenada só por concelho remoto (Póvoa de
+  Varzim, Vila do Conde, Barcelos, São João da Madeira, Lisboa,
+  Sines) — lá dentro a freguesia nunca muda qual GD é o mais perto,
+  o alternativo mais próximo está sempre a dezenas/centenas de km.
+  Sem sugestão para "Outro" (sem concelho conhecido) nem para GDs sem
+  `lat`/`lng` gravadas (continuam escolhíveis à mão). As coordenadas
+  são aproximadas (centro da localidade), nunca confirmadas contra
+  GPS a sério — chega para ordenar por "mais perto", não para nada
+  que precise de precisão maior.
 - Sem purga automática de contactos antigos; só o campo `arquivado`
   (ainda sem UI para o marcar).
 - **Sem migração automática para o painel do pastor.** Enquanto ele

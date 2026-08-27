@@ -25,53 +25,167 @@ import { cContactos, cContacto, cGDs } from "./modelo";
 // no CLAUDE.md desta base. Mudar aqui (e fazer deploy) se o número mudar.
 export const WHATSAPP_PASTOR = "911969268";
 
-/** Concelhos servidos + freguesias oficiais de cada um (pós-reorganização
- *  administrativa — 2013, com a atualização de Matosinhos de 2025).
- *  Select, nunca texto livre: é o que torna possível o futuro sugestor
- *  de GD por zona. */
-export const FREGUESIAS_POR_CONCELHO = {
+/**
+ * Geografia dos concelhos servidos — freguesias oficiais (pós-
+ * reorganização de 2013, com a atualização de Matosinhos de 2025) e
+ * coordenadas aproximadas, para o sugestor de GD ordenar por
+ * distância (ver `gdMaisProximo` abaixo). Nunca texto livre no
+ * select: é o que torna a distância calculável.
+ *
+ * Dois grupos, tratados de propósito com precisão diferente:
+ *
+ * - **Área metropolitana do Porto** (Porto/Maia/Matosinhos/VNG/
+ *   Gondomar/Valongo): é onde ficam quase todos os GDs, por isso é
+ *   onde a freguesia importa a sério — dentro do mesmo concelho, GDs
+ *   diferentes podem estar a 2km ou a 8km (ex.: São Mamede de
+ *   Infesta, em Matosinhos, fica mesmo ao lado do GD "São Mamede",
+ *   bem mais perto do que o GD "Brito Capelo", que é noutra ponta do
+ *   mesmo concelho — por isso cada freguesia tem a sua própria
+ *   coordenada, não a do concelho).
+ * - **Concelhos "remotos"** (Póvoa de Varzim, Vila do Conde,
+ *   Barcelos, São João da Madeira, Lisboa, Sines): cada um destes
+ *   concelhos já tem o "seu" GD lá mesmo, e o GD alternativo mais
+ *   próximo fica sempre a dezenas ou centenas de km de distância —
+ *   a diferença entre as freguesias do MESMO concelho (no máximo
+ *   uma dezena de km) nunca muda qual GD é o mais perto. Por isso
+ *   todas as freguesias de um concelho remoto partilham a coordenada
+ *   do centro do concelho, em vez de 61 coordenadas só para Barcelos.
+ */
+const AREA_METROPOLITANA = {
   "Porto": [
-    "Aldoar, Foz do Douro e Nevogilde", "Bonfim", "Campanhã",
-    "Cedofeita, Santo Ildefonso, Sé, Miragaia, São Nicolau e Vitória",
-    "Lordelo do Ouro e Massarelos", "Paranhos", "Ramalde",
+    ["Aldoar, Foz do Douro e Nevogilde", 41.1571, -8.6667],
+    ["Bonfim", 41.1516, -8.5975],
+    ["Campanhã", 41.1490, -8.5780],
+    ["Cedofeita, Santo Ildefonso, Sé, Miragaia, São Nicolau e Vitória", 41.1456, -8.6109],
+    ["Lordelo do Ouro e Massarelos", 41.1502, -8.6425],
+    ["Paranhos", 41.1699, -8.6106],
+    ["Ramalde", 41.1706, -8.6427],
   ],
   "Maia": [
-    "Águas Santas", "Castêlo da Maia", "Cidade da Maia", "Folgosa",
-    "Milheirós", "Moreira", "Nogueira e Silva Escura", "Pedrouços",
-    "São Pedro Fins", "Vila Nova da Telha",
+    ["Águas Santas", 41.2087, -8.5900],
+    ["Castêlo da Maia", 41.2626, -8.6231],
+    ["Cidade da Maia", 41.2370, -8.6150],
+    ["Folgosa", 41.2280, -8.5650],
+    ["Milheirós", 41.2680, -8.5950],
+    ["Moreira", 41.2480, -8.6550],
+    ["Nogueira e Silva Escura", 41.2150, -8.5800],
+    ["Pedrouços", 41.2380, -8.6800],
+    ["São Pedro Fins", 41.2650, -8.5700],
+    ["Vila Nova da Telha", 41.2450, -8.6700],
   ],
   "Matosinhos": [
-    "Custoias", "Guifões", "Lavra", "Leça da Palmeira", "Leça do Balio",
-    "Matosinhos", "Perafita", "Santa Cruz do Bispo", "São Mamede de Infesta",
-    "Senhora da Hora",
+    ["Custoias", 41.2050, -8.6450],
+    ["Guifões", 41.2050, -8.6700],
+    ["Lavra", 41.2350, -8.7100],
+    ["Leça da Palmeira", 41.2010, -8.7010],
+    ["Leça do Balio", 41.2110, -8.6250],
+    ["Matosinhos", 41.1830, -8.6930],
+    ["Perafita", 41.2180, -8.6900],
+    ["Santa Cruz do Bispo", 41.2250, -8.6350],
+    ["São Mamede de Infesta", 41.1892, -8.6103],
+    ["Senhora da Hora", 41.1780, -8.6420],
   ],
   "Vila Nova de Gaia": [
-    "Arcozelo", "Avintes", "Canelas", "Canidelo", "Grijó e Sermonde",
-    "Gulpilhares e Valadares", "Madalena", "Mafamude e Vilar do Paraíso",
-    "Oliveira do Douro", "Pedroso e Seixezelo", "Sandim, Olival, Lever e Crestuma",
-    "Santa Marinha e São Pedro da Afurada", "São Félix da Marinha",
-    "Serzedo e Perosinho", "Vilar de Andorinho",
+    ["Arcozelo", 41.0550, -8.6650],
+    ["Avintes", 41.1100, -8.5650],
+    ["Canelas", 41.0950, -8.6100],
+    ["Canidelo", 41.1350, -8.6650],
+    ["Grijó e Sermonde", 41.0450, -8.5950],
+    ["Gulpilhares e Valadares", 41.0750, -8.6650],
+    ["Madalena", 41.1150, -8.6250],
+    ["Mafamude e Vilar do Paraíso", 41.1280, -8.6100],
+    ["Oliveira do Douro", 41.1200, -8.5950],
+    ["Pedroso e Seixezelo", 41.0700, -8.5550],
+    ["Sandim, Olival, Lever e Crestuma", 41.0850, -8.5100],
+    ["Santa Marinha e São Pedro da Afurada", 41.1290, -8.6280],
+    ["São Félix da Marinha", 41.0350, -8.6450],
+    ["Serzedo e Perosinho", 41.0600, -8.6350],
+    ["Vilar de Andorinho", 41.1100, -8.5950],
   ],
   "Gondomar": [
-    "Baguim do Monte", "Fânzeres e São Pedro da Cova", "Foz do Sousa e Covelo",
-    "Gondomar (São Cosme), Valbom e Jovim", "Lomba", "Melres e Medas", "Rio Tinto",
+    ["Baguim do Monte", 41.1650, -8.5550],
+    ["Fânzeres e São Pedro da Cova", 41.1662, -8.5325],
+    ["Foz do Sousa e Covelo", 41.1150, -8.5450],
+    ["Gondomar (São Cosme), Valbom e Jovim", 41.1428, -8.5342],
+    ["Lomba", 41.1250, -8.5100],
+    ["Melres e Medas", 41.0850, -8.4950],
+    ["Rio Tinto", 41.1800, -8.5700],
   ],
-  "Valongo": ["Alfena", "Campo", "Ermesinde", "Sobrado", "Valongo"],
+  "Valongo": [
+    ["Alfena", 41.2280, -8.5100],
+    ["Campo", 41.1900, -8.4850],
+    ["Ermesinde", 41.1930, -8.5480],
+    ["Sobrado", 41.2350, -8.4800],
+    ["Valongo", 41.1875, -8.4993],
+  ],
 };
+
+const CONCELHOS_REMOTOS = {
+  "Póvoa de Varzim": {
+    centro: [41.3818, -8.7658],
+    freguesias: [
+      "Aguçadoura", "Amorim", "Argivai", "Aver-o-Mar", "Balazar", "Beiriz",
+      "Estela", "Laúndos", "Navais", "Póvoa de Varzim", "São Pedro de Rates", "Terroso",
+    ],
+  },
+  "Vila do Conde": {
+    centro: [41.3515, -8.7436],
+    freguesias: [
+      "Árvore", "Aveleda", "Azurara", "Bagunte, Ferreiró, Outeiro Maior e Parada",
+      "Fajozes", "Fornelo e Vairão", "Gião", "Guilhabreu", "Junqueira", "Labruge",
+      "Macieira da Maia", "Malta e Canidelo", "Mindelo", "Modivas", "Retorta e Tougues",
+      "Rio Mau e Arcos", "Touguinha e Touguinhó", "Vila Chã", "Vila do Conde",
+      "Vilar e Mosteiró", "Vilar do Pinheiro",
+    ],
+  },
+  "Barcelos": {
+    centro: [41.5388, -8.6151],
+    freguesias: [
+      "Abade de Neiva", "Aborim", "Adães", "Airó", "Aldreu", "Alheira e Igreja Nova",
+      "Alvelos", "Alvito (São Pedro e São Martinho) e Couto", "Arcozelo", "Areias",
+      "Areias de Vilar e Encourados", "Balugães", "Barcelinhos",
+      "Barcelos, Vila Boa e Vila Frescainha (São Martinho e São Pedro)", "Barqueiros",
+      "Cambeses", "Campo e Tamel (São Pedro Fins)", "Carapeços", "Carreira e Fonte Coberta",
+      "Carvalhal", "Carvalhas", "Chorente, Góios, Courel, Pedra Furada e Gueral",
+      "Cossourado", "Creixomil e Mariz", "Cristelo", "Durrães e Tregosa", "Fornelos",
+      "Fragoso", "Galegos (Santa Maria)", "Galegos (São Martinho)", "Gamil e Midões",
+      "Gilmonde", "Lama", "Lijó", "Macieira de Rates", "Manhente",
+      "Martim", "Milhazes, Vilar de Figos e Faria", "Moure", "Negreiros e Chavão",
+      "Oliveira", "Palme", "Panque", "Paradela", "Pereira", "Perelhal", "Pousa",
+      "Quintiães e Aguiar", "Remelhe", "Roriz", "Santa Eugénia de Rio Covo",
+      "Sequeade e Bastuço (São João e Santo Estêvão)", "Silva",
+      "Silveiros e Rio Covo (Santa Eulália)", "Tamel (Santa Leocádia) e Vilar do Monte",
+      "Tamel (São Veríssimo)", "Ucha", "Várzea",
+      "Viatodos, Grimancelos e Minhotães e Monte de Fralães", "Vila Cova e Feitos", "Vila Seca",
+    ],
+  },
+  "São João da Madeira": { centro: [40.8907, -8.4864], freguesias: ["São João da Madeira"] },
+  "Lisboa": {
+    centro: [38.7223, -9.1393],
+    freguesias: [
+      "Ajuda", "Alcântara", "Alvalade", "Areeiro", "Arroios", "Avenidas Novas", "Beato",
+      "Belém", "Benfica", "Campo de Ourique", "Campolide", "Carnide", "Estrela", "Lumiar",
+      "Marvila", "Misericórdia", "Olivais", "Parque das Nações", "Penha de França",
+      "Santa Clara", "Santa Maria Maior", "Santo António", "São Domingos de Benfica", "São Vicente",
+    ],
+  },
+  "Sines": { centro: [37.9564, -8.8647], freguesias: ["Sines", "Porto Covo"] },
+};
+
+export const FREGUESIAS_POR_CONCELHO = Object.fromEntries([
+  ...Object.entries(AREA_METROPOLITANA).map(([concelho, lista]) => [concelho, lista.map(([f]) => f)]),
+  ...Object.entries(CONCELHOS_REMOTOS).map(([concelho, { freguesias }]) => [concelho, freguesias]),
+]);
 export const CONCELHOS = Object.keys(FREGUESIAS_POR_CONCELHO);
 
-/** Coordenadas aproximadas do centro de cada concelho servido — só
- *  para ordenar GDs por distância, não para nada que precise de
- *  precisão a sério. "Outro" fica de fora de propósito: sem concelho
- *  conhecido não há como estimar distância nenhuma. */
-export const COORDENADAS_CONCELHO = {
-  "Porto": { lat: 41.1579, lng: -8.6291 },
-  "Maia": { lat: 41.2350, lng: -8.6208 },
-  "Matosinhos": { lat: 41.1795, lng: -8.6870 },
-  "Vila Nova de Gaia": { lat: 41.1239, lng: -8.6118 },
-  "Gondomar": { lat: 41.1428, lng: -8.5342 },
-  "Valongo": { lat: 41.1875, lng: -8.4993 },
-};
+/** `"concelho||freguesia"` → {lat,lng}. Ver o comentário grande acima
+ *  sobre os dois níveis de precisão. */
+export const COORDENADAS_FREGUESIA = Object.fromEntries([
+  ...Object.entries(AREA_METROPOLITANA).flatMap(([concelho, lista]) =>
+    lista.map(([freguesia, lat, lng]) => [`${concelho}||${freguesia}`, { lat, lng }])),
+  ...Object.entries(CONCELHOS_REMOTOS).flatMap(([concelho, { centro: [lat, lng], freguesias }]) =>
+    freguesias.map((freguesia) => [`${concelho}||${freguesia}`, { lat, lng }])),
+]);
 
 /** Haversine — distância em km entre dois pontos lat/lng. */
 function distanciaKm(a, b) {
@@ -83,13 +197,14 @@ function distanciaKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/** O GD mais perto do concelho, em linha reta — só entre os GDs que
+/** O GD mais perto da freguesia, em linha reta — só entre os GDs que
  *  têm coordenadas gravadas (`lat`/`lng`); um GD criado à mão pela
  *  líder sem essa informação simplesmente não entra na conta, mas
- *  continua escolhível manualmente no select. null se não houver
- *  concelho conhecido (ex.: "Outro") ou nenhum GD com coordenadas. */
-export function gdMaisProximo(concelho, gds) {
-  const origem = COORDENADAS_CONCELHO[concelho];
+ *  continua escolhível manualmente no select. null se a freguesia
+ *  não tiver coordenada conhecida (concelho "Outro", ou freguesia
+ *  ainda vazia) ou não houver nenhum GD com coordenadas. */
+export function gdMaisProximo(concelho, freguesia, gds) {
+  const origem = COORDENADAS_FREGUESIA[`${concelho}||${freguesia}`];
   if (!origem) return null;
   let escolhido = null, menor = Infinity;
   for (const g of gds) {

@@ -4,7 +4,7 @@ import { dataPorExtenso, haAtras } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
   CONCELHOS, FREGUESIAS_POR_CONCELHO, gdMaisProximo,
-  ouvirContactosDoEvento, ouvirGDs, criarGD, verificarTelefoneDuplicado,
+  ouvirContactosDoEvento, ouvirGDs, verificarTelefoneDuplicado,
   criarContacto, marcarEnviadoPastor, linkParaPastor,
 } from "../lib/contactos";
 
@@ -31,11 +31,6 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   const [avisoDuplicado, setAvisoDuplicado] = useState(null);
   const [aGuardar, setAGuardar] = useState(false);
 
-  const [aGerirGDs, setAGerirGDs] = useState(false);
-  const [novoGdNome, setNovoGdNome] = useState("");
-  const [novoGdRegiao, setNovoGdRegiao] = useState("");
-  const [aGuardarGd, setAGuardarGd] = useState(false);
-
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirGDs(setGds), []);
   useEffect(() => {
@@ -43,17 +38,22 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     return ouvirContactosDoEvento(meuEvento.id, setContactos);
   }, [meuEvento?.id]);
 
-  // Sugestão automática pelo concelho — o GD mais perto em linha reta
-  // (ver gdMaisProximo em lib/contactos.js). Só entra em ação quando
-  // muda o concelho (não a cada render); quem preenche continua a
-  // poder trocar à mão a seguir, sem a sugestão voltar a pisar essa
-  // escolha até o concelho mudar outra vez.
+  // Sugestão automática pela freguesia — o GD mais perto em linha
+  // reta (ver gdMaisProximo em lib/contactos.js). É a freguesia, não
+  // só o concelho, que decide: duas freguesias do mesmo concelho
+  // podem ter GDs mais próximos diferentes (ex.: São Mamede de
+  // Infesta, em Matosinhos, fica mais perto do GD "São Mamede" do
+  // que do GD "Brito Capelo", que é do mesmo concelho mas do outro
+  // lado). Só entra em ação quando muda a freguesia (não a cada
+  // render); quem preenche continua a poder trocar à mão a seguir,
+  // sem a sugestão voltar a pisar essa escolha até a freguesia mudar
+  // outra vez.
   useEffect(() => {
-    if (!concelho || concelho === "Outro" || !gds.length) return;
-    const sugestao = gdMaisProximo(concelho, gds);
+    if (!concelho || concelho === "Outro" || !freguesia || !gds.length) return;
+    const sugestao = gdMaisProximo(concelho, freguesia, gds);
     if (sugestao) setGdSugerido(sugestao.nome);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [concelho, gds.length]);
+  }, [concelho, freguesia, gds.length]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -93,20 +93,6 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
       torrada(err.message || "Não foi possível guardar.");
     } finally {
       setAGuardar(false);
-    }
-  }
-
-  async function criarNovoGd() {
-    if (!novoGdNome.trim() || !novoGdRegiao.trim()) return torrada("Preenche o nome e a região do GD.");
-    setAGuardarGd(true);
-    try {
-      await criarGD(novoGdNome, novoGdRegiao);
-      setNovoGdNome(""); setNovoGdRegiao("");
-      torrada("GD adicionado");
-    } catch (err) {
-      torrada(err.message || "Não foi possível adicionar.");
-    } finally {
-      setAGuardarGd(false);
     }
   }
 
@@ -165,8 +151,8 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
         )}
 
         <label className="rot">GD sugerido (opcional)</label>
-        {concelho && concelho !== "Outro" && (
-          <p className="ds" style={{ marginBottom: 6 }}>Sugerido automaticamente pelo concelho — podes trocar.</p>
+        {freguesia && concelho !== "Outro" && (
+          <p className="ds" style={{ marginBottom: 6 }}>Sugerido automaticamente pela freguesia — podes trocar.</p>
         )}
         <select className="campo" value={gdSugerido} onChange={(e) => setGdSugerido(e.target.value)}>
           <option value="">Sem GD sugerido</option>
@@ -193,41 +179,6 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
           {aGuardar ? "A guardar…" : "Guardar contacto"}
         </button>
       </form>
-
-      <div className="sect">
-        <div className="cabecalho">
-          <h3>GDs</h3>
-          {souLiderBase && (
-            <button className="btn sec" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setAGerirGDs((a) => !a)}>
-              {aGerirGDs ? "Fechar" : "Gerir"}
-            </button>
-          )}
-        </div>
-        {gdsPorRegiao.length ? (
-          <div style={{ marginTop: 10 }}>
-            {gdsPorRegiao.map(([regiao, doGrupo]) => (
-              <div key={regiao} style={{ marginTop: 8 }}>
-                <p className="cap">{regiao}</p>
-                {doGrupo.map((g) => <p key={g.id} className="ds">{g.nome}</p>)}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="vaz" style={{ marginTop: 10 }}>Ainda sem GDs cadastrados.</div>
-        )}
-        {souLiderBase && aGerirGDs && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--fio)" }}>
-            <input className="campo" value={novoGdNome} onChange={(e) => setNovoGdNome(e.target.value)} placeholder="Nome do GD" />
-            <input
-              className="campo" style={{ marginTop: 8 }} value={novoGdRegiao}
-              onChange={(e) => setNovoGdRegiao(e.target.value)} placeholder="Região: Norte, Lisboa ou Sines"
-            />
-            <button className="btn sec full" style={{ marginTop: 8 }} disabled={aGuardarGd} onClick={criarNovoGd}>
-              {aGuardarGd ? "A adicionar…" : "Adicionar GD"}
-            </button>
-          </div>
-        )}
-      </div>
 
       <div className="sect">
         <div className="cabecalho">
