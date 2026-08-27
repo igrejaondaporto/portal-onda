@@ -31,6 +31,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   const [meuEvento, setMeuEvento] = useState(null);
   const [modoReservar, setModoReservar] = useState(false);
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
+  const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
 
   useEffect(() => onSnapshot(cPlanta(), (s) => setPlanta(s.exists() ? s.data() : null)), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -161,13 +162,30 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
               {modoReservar ? "✓ A reservar" : "Reservar"}
             </button>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
-            {papel === "lider_base" && (
-              <button className="btn sec" onClick={() => { limparMapa(planta); torrada("Mapa limpo"); }}>
-                Limpar mapa
-              </button>
-            )}
+            <button className="btn sec" style={{ color: "var(--magenta)" }} onClick={() => setAConfirmarLimpar(true)}>
+              Limpar tudo
+            </button>
             <button className="btn sec" onClick={fecharCulto}>Fechar culto</button>
           </div>
+          {aConfirmarLimpar && (
+            <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 10 }}>
+              <p style={{ fontSize: 13, fontWeight: 600 }}>Limpar todo o mapa?</p>
+              <p className="ds" style={{ marginTop: 4 }}>
+                Volta todos os lugares a livre (reservados e bloqueios permanentes ficam). Não dá para desfazer.
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button
+                  className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }}
+                  onClick={() => { limparMapa(planta); setAConfirmarLimpar(false); torrada("Mapa limpo"); }}
+                >
+                  Limpar
+                </button>
+                <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setAConfirmarLimpar(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
       {mapa?.fechado && (

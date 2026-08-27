@@ -13,26 +13,31 @@ const SETA = '<path d="M6 9l6 6 6-6"/>';
  * tarde. Fica fechado por omissão para não ocupar espaço no ecrã do
  * dia a dia; a caixa e a seta deixam claro que dá para abrir.
  *
- * O "X" reabre um culto fechado (Cloud Function reabrirAcomodacao):
- * apaga este resumo e devolve o mapa a "aberto", para corrigir e
- * fechar de novo — nunca um delete a sério (o mapa ao vivo não é
- * tocado, só o `fechado`). Só a líder vê o botão; quem tinha a
- * função Mapa nesse culto também tem permissão no servidor, mas a
- * UI não sabe, sem mais uma leitura por linha, quem teve Mapa em
- * cada culto passado.
+ * Mesmo esquema de cartão do Formulário/Contagem: filtro por mês,
+ * cartão fechado que expande ao tocar. "Editar" (lápis) reabre o
+ * culto (Cloud Function reabrirAcomodacao) — apaga este resumo e
+ * devolve o mapa a "aberto", para corrigir e fechar de novo.
+ * "Excluir" (✕) só tira da lista (arquivarResumoAcomodacao, marca
+ * `arquivado:true`) sem mexer no mapa, que continua fechado — para
+ * descartar um teste sem reabrir o culto para edição. Nenhum dos
+ * dois é um delete a sério (nunca se apaga o mapa ao vivo). Só a
+ * líder vê os ícones; quem tinha a função Mapa nesse culto também
+ * tem permissão no servidor, mas a UI não sabe, sem mais uma leitura
+ * por linha, quem teve Mapa em cada culto passado.
  */
 export default function ResumosAcomodacao({ souLiderBase }) {
   const torrada = useTorrada();
   const [resumos, setResumos] = useState(null);
   const [aberto, setAberto] = useState(false);
-  const [aReabrir, setAReabrir] = useState(null);
-  const [confirmarReabrir, setConfirmarReabrir] = useState(null);
+  const [abertoId, setAbertoId] = useState(null);
+  const [aAgir, setAAgir] = useState(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState(null);
   const hoje = new Date();
   const [mes, setMes] = useState(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`);
 
   useEffect(() => {
     const q = query(cResumosAcomodacao(), orderBy("eventoId", "desc"));
-    return onSnapshot(q, (snap) => setResumos(snap.docs.map((d) => d.data())));
+    return onSnapshot(q, (snap) => setResumos(snap.docs.map((d) => d.data()).filter((r) => !r.arquivado)));
   }, []);
 
   const meses = useMemo(() => {
@@ -43,16 +48,28 @@ export default function ResumosAcomodacao({ souLiderBase }) {
 
   const doMes = (resumos ?? []).filter((r) => r.eventoId.startsWith(mes));
 
-  async function reabrir(eventoId) {
-    setAReabrir(eventoId);
+  async function editar(eventoId) {
+    setAAgir(eventoId);
     try {
       await chamar("reabrirAcomodacao")({ eventoId });
-      setConfirmarReabrir(null);
       torrada("Culto reaberto — o mapa volta a aceitar marcações");
     } catch (e) {
       torrada(e.message || "Não foi possível reabrir.");
     } finally {
-      setAReabrir(null);
+      setAAgir(null);
+    }
+  }
+
+  async function excluir(eventoId) {
+    setAAgir(eventoId);
+    try {
+      await chamar("arquivarResumoAcomodacao")({ eventoId });
+      setConfirmarExcluir(null);
+      torrada("Excluído da lista");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+    } finally {
+      setAAgir(null);
     }
   }
 
@@ -89,75 +106,90 @@ export default function ResumosAcomodacao({ souLiderBase }) {
               return <option key={m} value={m}>{MESES[Number(mm) - 1]} {ano}</option>;
             })}
           </select>
-          {doMes.length ? (
-            <>
-              <div className="tbl-wrap" style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", fontSize: 13.5 }}>
-                  <thead>
-                    <tr style={{ textAlign: "left", color: "var(--tinta-fraca, #6b7280)" }}>
-                      <th style={{ padding: "6px 8px" }}>Culto</th>
-                      <th style={{ padding: "6px 8px" }}>Ocupados</th>
-                      <th style={{ padding: "6px 8px" }}>Visitantes</th>
-                      <th style={{ padding: "6px 8px" }}>Livres</th>
-                      <th style={{ padding: "6px 8px" }}>Reservados</th>
-                      <th style={{ padding: "6px 8px" }}>Bloqueados</th>
-                      <th style={{ padding: "6px 8px" }}>Lotação</th>
-                      {souLiderBase && <th style={{ padding: "6px 8px" }} />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {doMes.map((r) => (
-                      <tr key={r.eventoId} style={{ borderTop: "1px solid rgba(0,0,0,.06)" }}>
-                        <td style={{ padding: "6px 8px" }}>{dataPorExtenso(r.eventoId)}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.ocupados}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.visitantes}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.livres ?? "—"}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.reservados}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.bloqueados}</td>
-                        <td style={{ padding: "6px 8px" }}>{Math.round((r.percentagem ?? 0) * 100)}%</td>
-                        {souLiderBase && (
-                          <td style={{ padding: "6px 8px" }}>
-                            <button
-                              className="oc-icobt mag" aria-label="Reabrir culto" title="Reabrir"
-                              disabled={aReabrir === r.eventoId}
-                              onClick={() => setConfirmarReabrir(r.eventoId)}
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="ds" style={{ marginTop: 10 }}>
-                A lotação conta só sobre os lugares úteis (sem reservados nem bloqueados) — reservados e
-                bloqueados contam como indisponíveis, tal como ocupados, nunca como livres.
-              </p>
-              {confirmarReabrir && (
-                <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 10 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600 }}>Reabrir {dataPorExtenso(confirmarReabrir)}?</p>
-                  <p className="ds" style={{ marginTop: 4 }}>
-                    Sai da lista de fechados e o mapa desse culto volta a aceitar marcações — dá para corrigir e fechar de novo.
-                  </p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button
-                      className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }}
-                      disabled={aReabrir === confirmarReabrir}
-                      onClick={() => reabrir(confirmarReabrir)}
-                    >
-                      {aReabrir === confirmarReabrir ? "A reabrir…" : "Reabrir"}
-                    </button>
-                    <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setConfirmarReabrir(null)}>
-                      Cancelar
-                    </button>
+          {doMes.length ? doMes.map((r) => {
+            const expandido = abertoId === r.eventoId;
+            return (
+              <div className="caixa" key={r.eventoId} style={{ marginTop: 10 }}>
+                <div
+                  style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}
+                  onClick={() => setAbertoId(expandido ? null : r.eventoId)}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{ flex: "none", marginTop: 3, transition: "transform .18s", transform: expandido ? "rotate(90deg)" : "none", color: "var(--cinza)" }}
+                  >
+                    ›
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{dataPorExtenso(r.eventoId)}</p>
+                    <p className="ds">
+                      {r.ocupados} ocupados · {r.visitantes} visitantes · {Math.round((r.percentagem ?? 0) * 100)}% de lotação
+                    </p>
                   </div>
+                  {souLiderBase && (
+                    <>
+                      <button
+                        className="oc-icobt" aria-label="Editar culto" title="Editar"
+                        disabled={aAgir === r.eventoId}
+                        onClick={(e) => { e.stopPropagation(); editar(r.eventoId); }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="oc-icobt mag" aria-label="Excluir culto" title="Excluir"
+                        disabled={aAgir === r.eventoId}
+                        onClick={(e) => { e.stopPropagation(); setConfirmarExcluir(r.eventoId); }}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
-            </>
-          ) : (
+
+                {expandido && (
+                  <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,.06)", paddingTop: 10 }}>
+                    {[
+                      ["Ocupados", r.ocupados], ["Visitantes", r.visitantes], ["Livres", r.livres ?? "—"],
+                      ["Reservados", r.reservados], ["Bloqueados", r.bloqueados], ["Lotação", `${Math.round((r.percentagem ?? 0) * 100)}%`],
+                    ].map(([rotulo, valor]) => (
+                      <div key={rotulo} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 13.5 }}>
+                        <span>{rotulo}</span>
+                        <b style={{ color: "var(--tinta)" }}>{valor}</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {confirmarExcluir === r.eventoId && (
+                  <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir {dataPorExtenso(r.eventoId)}?</p>
+                    <p className="ds" style={{ marginTop: 4 }}>
+                      Sai desta lista — o mapa continua fechado, só de leitura. Não dá para desfazer.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button
+                        className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }}
+                        disabled={aAgir === r.eventoId}
+                        onClick={() => excluir(r.eventoId)}
+                      >
+                        {aAgir === r.eventoId ? "A excluir…" : "Excluir"}
+                      </button>
+                      <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setConfirmarExcluir(null)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }) : (
             <p className="ds">Nenhum culto fechado neste mês.</p>
+          )}
+          {doMes.length > 0 && (
+            <p className="ds" style={{ marginTop: 10 }}>
+              A lotação conta só sobre os lugares úteis (sem reservados nem bloqueados) — reservados e
+              bloqueados contam como indisponíveis, tal como ocupados, nunca como livres.
+            </p>
           )}
         </div>
       )}
