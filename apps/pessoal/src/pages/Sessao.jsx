@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
-import { hojeISO } from "@portal/shared/lib/data.js";
-import { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
+import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
@@ -66,15 +65,15 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [focoEscala, setFocoEscala] = useState(null);
   const [focoEscalaSeq, setFocoEscalaSeq] = useState(0);
   const [abaCulto, setAbaCulto] = useState("ordem");
-  // ponto rosa no menu: o culto de hoje, gravado pela Técnica — só
-  // leitura aqui, quem inicia é sempre a Técnica
+  // ponto rosa no menu: o culto que estiver a gravar agora, seja
+  // qual for a data — só leitura aqui, quem inicia é sempre a Técnica
   const [aoVivoGravando, setAoVivoGravando] = useState(false);
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
   }, [uid, baseId]);
 
-  useEffect(() => ouvirCultoAoVivo(hojeISO(), (reg) => setAoVivoGravando(reg?.estado === "gravando")), []);
+  useEffect(() => ouvirCultoAoVivoAtivo(setAoVivoGravando), []);
 
   // se a pessoa servir em mais do que uma base, o menu ganha um seletor —
   // só o nome de cada base é lido (bases/{id} é público a quem tem sessão,
