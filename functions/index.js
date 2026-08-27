@@ -9,12 +9,14 @@
  *      é simples de escrever aqui e horrível de escrever nas regras.
  */
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
 import admin from "firebase-admin";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { logger } from "firebase-functions";
+import { sondarUmaVez, normalizarNome } from "./freeshow.js";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -2588,4 +2590,203 @@ export const responderEnquete = onCall(async (req) => {
     respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { ok: true };
+});
+
+/* ── ORDEM DO CULTO AO VIVO: FreeShow → Firestore (Base Técnica) ──
+ * O túnel fs.painelonda.pt liga ao FreeShow do PC da igreja 24/7 (o
+ * Kinder já depende disto em produção) — por isso a sonda corre como
+ * função AGENDADA, não à espera de ninguém manter uma aba aberta nem
+ * de instalar nada na igreja. 1 minuto é o mínimo do Cloud Scheduler;
+ * substitui o debounce anti-ressalto de 8s do documento original — a
+ * esse ritmo, o que estiver no ar no instante da sonda é que conta.
+ * Datas sempre no fuso de Lisboa via Intl — nunca toISOString(), que
+ * já causou desvio de um dia noutros projetos deste tipo. */
+const FUSO_LISBOA = "Europe/Lisbon";
+const hojeISOLisboa = () => new Intl.DateTimeFormat("en-CA", { timeZone: FUSO_LISBOA }).format(new Date());
+const horaAgoraLisboa = () =>
+  new Intl.DateTimeFormat("pt-PT", { timeZone: FUSO_LISBOA, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+const minutosDoDiaLisboa = () => {
+  const [h, m] = horaAgoraLisboa().split(":").map(Number);
+  return h * 60 + m;
+};
+
+const TUNEL_FREESHOW = "https://fs.painelonda.pt";
+const JANELA_AUTO_INICIO = [8 * 60, 12 * 60]; // 08:00–12:00 — só aqui o "15 min de movimento" arranca sozinho
+const MOVIMENTO_PARA_AUTO_INICIO_MS = 15 * 60 * 1000;
+const SEM_OUTPUT_TERMINA_MS = 30 * 60 * 1000;
+
+/** Só a Base Técnica inicia/descarta/configura — "edição completa" no
+ *  documento original, sem restringir a líder (ao contrário de
+ *  exigeLider, que também exigiria papel === "lider_base"). */
+function exigeBaseTecnica(req) {
+  if (req.auth?.token?.baseId !== "tecnica") {
+    throw new HttpsError("permission-denied", "Só a Base Técnica pode fazer isto.");
+  }
+}
+
+const refCultoAoVivo = (eventoId) => db.doc(`eventos/${eventoId}/cultoAoVivo/registo`);
+
+export const iniciarCultoAoVivo = onCall(async (req) => {
+  exigeBaseTecnica(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  const evento = await db.doc(`eventos/${eventoId}`).get();
+  if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+
+  const ref = refCultoAoVivo(eventoId);
+  const snap = await ref.get();
+  // já a gravar (manual ou automático) — não apagar o que já foi registado
+  if (snap.exists && snap.data().estado === "gravando") return { ok: true };
+
+  await ref.set({
+    estado: "gravando",
+    iniciadoPor: req.auth.uid,
+    iniciadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    secoesReais: [],
+    movimentoJanela: [],
+    ultimoSlideId: null,
+    ultimaDeteccaoOutput: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});
+
+/* "Descartar e recomeçar" — para quando o operador começou errado
+ * (ex.: carregou em "Começou o culto" a meio dos testes). */
+export const descartarCultoAoVivo = onCall(async (req) => {
+  exigeBaseTecnica(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  await refCultoAoVivo(eventoId).set({
+    estado: "aguardando",
+    iniciadoPor: null,
+    iniciadoEm: null,
+    secoesReais: [],
+    movimentoJanela: [],
+    ultimoSlideId: null,
+    ultimaDeteccaoOutput: null,
+  });
+  return { ok: true };
+});
+
+/* Qualquer voluntário logado, de qualquer base — pedido explícito do
+ * documento original (ex.: a Ceia nunca foi ao ar no FreeShow, alguém
+ * marca a hora à mão). Uma vez editada, a sonda nunca mais mexe nesta
+ * secção (ver sondarFreeshow: só acrescenta entradas novas, nunca
+ * substitui uma já existente). */
+export const editarSecaoAoVivo = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId, nomeCorrespondente, horaReal } = req.data || {};
+  if (!eventoId || !String(nomeCorrespondente || "").trim() || !/^\d{1,2}:\d{2}$/.test(String(horaReal || ""))) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const nome = nomeCorrespondente.trim();
+  const chave = normalizarNome(nome);
+  const ref = refCultoAoVivo(eventoId);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const dados = snap.exists ? snap.data() : { estado: "aguardando", secoesReais: [], movimentoJanela: [] };
+    const secoes = dados.secoesReais || [];
+    const i = secoes.findIndex((s) => normalizarNome(s.nomeCorrespondente || s.nomeFreeshow || "") === chave);
+    const entrada = {
+      idFreeshow: (i >= 0 && secoes[i].idFreeshow) ?? null,
+      nomeFreeshow: (i >= 0 && secoes[i].nomeFreeshow) ?? null,
+      nomeCorrespondente: nome,
+      horaReal,
+      // FieldValue.serverTimestamp() não é suportado dentro de arrays —
+      // Timestamp.now() é a alternativa concreta de sempre neste caso.
+      timestampReal: admin.firestore.Timestamp.now(),
+      cor: (i >= 0 && secoes[i].cor) ?? null,
+      editadoManualmente: true,
+      editadoPor: uid,
+      editadoEm: admin.firestore.Timestamp.now(),
+    };
+    const novasSecoes = i >= 0 ? secoes.with(i, entrada) : [...secoes, entrada];
+    tx.set(ref, { ...dados, secoesReais: novasSecoes }, { merge: true });
+  });
+  return { ok: true };
+});
+
+export const definirCorrespondenciaFreeshow = onCall(async (req) => {
+  exigeBaseTecnica(req);
+  const { mapa } = req.data || {};
+  if (!mapa || typeof mapa !== "object" || Array.isArray(mapa)) {
+    throw new HttpsError("invalid-argument", "Mapa inválido.");
+  }
+  const limpo = {};
+  for (const [chave, valor] of Object.entries(mapa)) {
+    const c = normalizarNome(chave), v = String(valor || "").trim();
+    if (c && v) limpo[c] = v;
+  }
+  await db.doc("bases/tecnica/config/correspondenciaFreeshow").set({ mapa: limpo });
+  return { ok: true };
+});
+
+export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
+  const eventoId = hojeISOLisboa();
+  const evento = await db.doc(`eventos/${eventoId}`).get();
+  if (!evento.exists) return; // sem culto hoje, nada a sondar
+
+  const ref = refCultoAoVivo(eventoId);
+  const snap = await ref.get();
+  const dados = snap.exists ? snap.data() : { estado: "aguardando", secoesReais: [], movimentoJanela: [] };
+  if (dados.estado === "terminado") return;
+
+  const resultado = await sondarUmaVez(TUNEL_FREESHOW);
+  if (!resultado.ok) {
+    logger.warn("sondarFreeshow: sonda falhou", { motivo: resultado.motivo, erro: resultado.erro });
+    return;
+  }
+
+  const agoraMs = Date.now();
+  const agoraTs = admin.firestore.Timestamp.now();
+  const patch = {};
+  let estado = dados.estado || "aguardando";
+  let secoesReais = dados.secoesReais || [];
+  let movimentoJanela = (dados.movimentoJanela || []).filter((t) => agoraMs - t.toMillis() < MOVIMENTO_PARA_AUTO_INICIO_MS);
+  let ultimaDeteccaoOutput = dados.ultimaDeteccaoOutput || null;
+
+  if (resultado.output) {
+    ultimaDeteccaoOutput = agoraTs;
+    if (resultado.output.id !== dados.ultimoSlideId) {
+      movimentoJanela = [...movimentoJanela, agoraTs];
+      patch.ultimoSlideId = resultado.output.id;
+    }
+
+    if (estado === "aguardando") {
+      const dentroDaJanela = minutosDoDiaLisboa() >= JANELA_AUTO_INICIO[0] && minutosDoDiaLisboa() <= JANELA_AUTO_INICIO[1];
+      const movimentoContinuo = movimentoJanela.length > 0 && agoraMs - movimentoJanela[0].toMillis() >= MOVIMENTO_PARA_AUTO_INICIO_MS;
+      if (dentroDaJanela && movimentoContinuo) {
+        estado = "gravando";
+        patch.iniciadoPor = "automatico";
+        patch.iniciadoEm = admin.firestore.FieldValue.serverTimestamp();
+      }
+    }
+
+    if (estado === "gravando" && resultado.secao) {
+      const ultima = secoesReais.at(-1);
+      if (!ultima || ultima.idFreeshow !== resultado.secao.id) {
+        const correspSnap = await db.doc("bases/tecnica/config/correspondenciaFreeshow").get();
+        const mapa = correspSnap.exists ? correspSnap.data().mapa || {} : {};
+        secoesReais = [...secoesReais, {
+          idFreeshow: resultado.secao.id,
+          nomeFreeshow: resultado.secao.nome,
+          nomeCorrespondente: mapa[normalizarNome(resultado.secao.nome)] || null,
+          horaReal: horaAgoraLisboa(),
+          timestampReal: agoraTs,
+          cor: resultado.secao.cor,
+          editadoManualmente: false,
+          editadoPor: null,
+          editadoEm: null,
+        }];
+      }
+    }
+  }
+
+  if (estado === "gravando" && ultimaDeteccaoOutput && agoraMs - ultimaDeteccaoOutput.toMillis() >= SEM_OUTPUT_TERMINA_MS) {
+    estado = "terminado";
+  }
+
+  await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
 });

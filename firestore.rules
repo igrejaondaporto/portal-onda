@@ -73,6 +73,14 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
+      // ── config (Base Técnica): tabela de correspondência de nomes
+      // FreeShow → painel para a ordem do culto ao vivo. Só a própria
+      // base lê (é o único ecrã que a usa), só por Cloud Function. ──
+      match /config/{doc} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+      }
+
       // ── ministérios (Base Técnica, Comunicação) ───────────
       // Comunicação também lê para quem NÃO é da Comunicação: quem
       // abre uma solicitação (SheetAbrirSolicitacao, qualquer base)
@@ -291,6 +299,15 @@ service cloud.firestore {
                          && exists(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive)
                          && request.auth.uid in
                             get(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive).data.pessoas);
+      }
+
+      // registo ao vivo da ordem do culto (Base Técnica ↔ FreeShow) —
+      // gravado pela função agendada sondarFreeshow e pelas onCall
+      // iniciarCultoAoVivo/descartarCultoAoVivo/editarSecaoAoVivo.
+      // Leitura para todas as bases (é sobre o culto, não só a Técnica).
+      match /cultoAoVivo/{doc} {
+        allow read:  if autenticado();
+        allow write: if false;                     // só por função
       }
     }
 
