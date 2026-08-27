@@ -337,23 +337,21 @@
 
 /* Secção já passada (tem hora real, já não é a que está no ar): o
  * trilho e o ponto ficam verdes, para se ver de relance até onde o
- * culto já foi — à parte da cor do horário (essa é sobre atraso). Vem
- * depois no ficheiro de propósito, para ganhar a quem já marca este
- * ponto com outra cor (oc-destaque = lima, agora = magenta). */
+ * culto já foi — à parte da cor do horário (essa é sobre atraso). */
 .oc-mom.tec-passada .oc-trilho {
   background: var(--verde);
 }
-/* O ponto continua a bolinha normal (contorno, fundo branco, 10px) —
- * só muda de cor. Repõe o tamanho/posição do padrão do partilhado por
- * cima do que oc-destaque/agora punham (12-13px, mais perto do
- * trilho): sem isso uma secção "nossa" já passada ficava com o ponto
- * do tamanho errado. Mesma especificidade das duas para garantir que
- * ganha (vem depois no ficheiro). */
+/* O ponto fica pintado de verde (preenchido, não só o contorno) —
+ * mesmo tamanho/posição do padrão do partilhado (10px), nunca o
+ * agrandado do oc-destaque/agora. Ver OrdemCultoTimeline.jsx: durante
+ * uma gravação ao vivo, oc-destaque nunca chega a aplicar-se ao ponto
+ * (só antes de haver registo nenhum) — por isso não há conflito de
+ * cor aqui a resolver. */
 .oc-mom.tec-passada .oc-trilho::before {
   width: 10px;
   height: 10px;
   left: -4px;
-  background: #fff;
+  background: var(--verde);
   border-color: var(--verde);
 }
 

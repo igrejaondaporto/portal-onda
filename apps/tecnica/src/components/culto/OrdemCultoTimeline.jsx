@@ -196,8 +196,13 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
           // parado com o tempo que durou de verdade (duracaoRealMs)
           const cronometroMs = atual && l.real?.timestampReal?.toMillis
             ? Date.now() - l.real.timestampReal.toMillis() : null;
+          // oc-destaque (ponto lima, "isto é da tua base") só antes de
+          // haver registo ao vivo — com gravação a decorrer, o ponto é
+          // sempre cinza/rosa/verde conforme o estado real, nunca lima,
+          // senão as duas cores entram em conflito na mesma bolinha
+          const classes = `oc-mom${(NOSSOS.test(l.momento) && !estado) ? " oc-destaque" : ""}${atual ? " agora" : ""}${passada ? " tec-passada" : ""}`;
           return (
-            <div className={`oc-mom${NOSSOS.test(l.momento) ? " oc-destaque" : ""}${atual ? " agora" : ""}${passada ? " tec-passada" : ""}`} key={i}>
+            <div className={classes} key={i}>
               <div className="oc-hora">
                 {l.real ? (
                   <>
