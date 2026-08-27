@@ -2617,7 +2617,6 @@ const minutosDoDiaLisboa = () => {
 const TUNEL_FREESHOW = process.env.TUNEL_FREESHOW || "https://fs.painelonda.pt";
 const JANELA_AUTO_INICIO = [8 * 60, 12 * 60]; // 08:00–12:00 — só aqui o "15 min de movimento" arranca sozinho
 const MOVIMENTO_PARA_AUTO_INICIO_MS = 15 * 60 * 1000;
-const SEM_OUTPUT_TERMINA_MS = 30 * 60 * 1000;
 
 /** Só a Base Técnica inicia/descarta/configura — "edição completa" no
  *  documento original, sem restringir a líder (ao contrário de
@@ -2631,6 +2630,26 @@ function exigeBaseTecnica(req) {
 const refCultoAoVivo = (eventoId) => db.doc(`eventos/${eventoId}/cultoAoVivo/registo`);
 
 const refPonteiroAoVivo = () => db.doc("config/cultoAoVivo");
+
+/* Arquivo para o futuro Painel do Pastor — write/read:false a toda a
+ * gente (ver firestore.rules), nada disto aparece a nenhuma base
+ * hoje. Guarda o bruto (secoesReais + o previsto do PDF daquele dia);
+ * as contas de atraso/estatística ficam para quando esse painel
+ * existir, não há razão para as fazer duas vezes. Chamado só pelo
+ * botão "Finalizar culto" — o fecho é sempre manual, nunca sozinho por
+ * falta de output. Também limpa o ponteiro, se ainda apontava para
+ * este culto. */
+async function arquivarCultoTerminado(eventoId, secoesReais, momentosPrevistos) {
+  await db.doc(`eventos/${eventoId}/estatisticasCulto/registo`).set({
+    secoesReais, momentosPrevistos: momentosPrevistos ?? [],
+    finalizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  const ponteiroRef = refPonteiroAoVivo();
+  const ponteiro = await ponteiroRef.get();
+  if (ponteiro.exists && ponteiro.data().eventoIdAtivo === eventoId) {
+    await ponteiroRef.set({ eventoIdAtivo: null });
+  }
+}
 
 /* O botão "Começou o culto" não olha para a data — pode ser o culto de
  * qualquer dia (pedido explícito: "não é pra se basear na data").
@@ -2693,6 +2712,27 @@ export const descartarCultoAoVivo = onCall(async (req) => {
   if (ponteiro.exists && ponteiro.data().eventoIdAtivo === eventoId) {
     await ponteiroRef.set({ eventoIdAtivo: null });
   }
+  return { ok: true };
+});
+
+/* "Finalizar culto" — o único jeito de terminar um culto: arquiva os
+ * horários reais e liberta o ponteiro, para conseguir começar outro. */
+export const finalizarCultoAoVivo = onCall(async (req) => {
+  exigeBaseTecnica(req);
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  const [evento, snap] = await Promise.all([
+    db.doc(`eventos/${eventoId}`).get(),
+    refCultoAoVivo(eventoId).get(),
+  ]);
+  if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+  if (!snap.exists || snap.data().estado !== "gravando") {
+    throw new HttpsError("failed-precondition", "Este culto não está a gravar.");
+  }
+
+  const secoesReais = snap.data().secoesReais || [];
+  await arquivarCultoTerminado(eventoId, secoesReais, evento.data().ordem?.momentos);
+  await refCultoAoVivo(eventoId).set({ estado: "terminado" }, { merge: true });
   return { ok: true };
 });
 
@@ -2831,19 +2871,8 @@ async function executarSondaFreeshow() {
     }
   }
 
-  if (estado === "gravando" && ultimaDeteccaoOutput && agoraMs - ultimaDeteccaoOutput.toMillis() >= SEM_OUTPUT_TERMINA_MS) {
-    estado = "terminado";
-    // arquivo para o futuro Painel do Pastor — write:false a toda a
-    // gente (ver firestore.rules), nada disto aparece a nenhuma base
-    // hoje. Guarda o bruto (secoesReais + o previsto do PDF daquele
-    // dia); as contas de atraso/estatística ficam para quando esse
-    // painel existir, não há razão para as fazer duas vezes.
-    await db.doc(`eventos/${eventoId}/estatisticasCulto/registo`).set({
-      secoesReais, momentosPrevistos: evento.data().ordem?.momentos ?? [],
-      finalizadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    if (eventoIdAtivo === eventoId) await ponteiroRef.set({ eventoIdAtivo: null });
-  }
+  // fecho é só manual (botão "Finalizar culto", ver finalizarCultoAoVivo)
+  // — nada aqui termina sozinho por falta de output.
 
   await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
 }
