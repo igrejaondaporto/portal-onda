@@ -32,6 +32,11 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
   const [aGerarDomingos, setAGerarDomingos] = useState(false);
+  // As listas de Voluntários e do Catálogo nascem fechadas — o painel
+  // é para administrar de vez em quando, não para ler de cima a baixo
+  // (mesmo padrão da Técnica, PainelLider.jsx).
+  const [abertos, setAbertos] = useState({});
+  const alternar = (k) => setAbertos((v) => ({ ...v, [k]: !v[k] }));
 
   // dezembro › janeiro (e o inverso) passam para o ano seguinte/anterior
   function mudarMes(delta) {
@@ -164,18 +169,28 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
                 Adicionar
               </button>
             </div>
-            {voluntarios.map((p) => (
-              <div className="linha" key={p.id}>
-                <Avatar pessoa={p} tamanho={38} fonte={15} />
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{p.nome}</p>
-                  <p className="ds">{p.papel === "lider_base" ? "Líder da base · 6 dígitos" : "Voluntário · 4 dígitos"}</p>
+            <div className="mincartao" style={{ marginTop: 10 }}>
+              <button
+                className="mincartao-cab cabtoque" data-aberto={abertos.voluntarios ? 1 : 0}
+                aria-expanded={!!abertos.voluntarios} onClick={() => alternar("voluntarios")}
+              >
+                <span className="nome">Lista de voluntários</span>
+                <span className="conta">{voluntarios.length}</span>
+                <span className="cabtoque-seta" aria-hidden="true">›</span>
+              </button>
+              {abertos.voluntarios && voluntarios.map((p) => (
+                <div className="linha" key={p.id}>
+                  <Avatar pessoa={p} tamanho={38} fonte={15} />
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{p.nome}</p>
+                    <p className="ds">{p.papel === "lider_base" ? "Líder da base · 6 dígitos" : "Voluntário · 4 dígitos"}</p>
+                  </div>
+                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
+                    Editar
+                  </button>
                 </div>
-                <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
-                  Editar
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
             {!aConfirmarRepor ? (
               <button
                 className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }}
@@ -210,34 +225,51 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
                 Nova
               </button>
             </div>
-            {FASES.map(([k, t]) => {
-              const doF = catalogo.filter((f) => f.fase === k);
-              if (!doF.length) return null;
-              return (
-                <div key={k}>
-                  <p className="cap" style={{ padding: "14px 0 4px" }}>{t} · {doF.length}</p>
-                  {doF.map((f) => (
-                    <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
-                      <Bola funcao={f} tamanho={34} />
-                      <div style={{ flex: 1 }}>
-                        <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
-                        <p className="ds">{f.descricao ? (f.foto ? "Com foto" : "Sem foto") : "Falta a explicação"}</p>
+            <div className="mincartao" style={{ marginTop: 10 }}>
+              <button
+                className="mincartao-cab cabtoque" data-aberto={abertos.catalogo ? 1 : 0}
+                aria-expanded={!!abertos.catalogo} onClick={() => alternar("catalogo")}
+              >
+                <span className="nome">Funções do catálogo</span>
+                <span className="conta">{catalogo.length}</span>
+                <span className="cabtoque-seta" aria-hidden="true">›</span>
+              </button>
+              {abertos.catalogo && FASES.map(([k, t]) => {
+                const doF = catalogo.filter((f) => f.fase === k);
+                if (!doF.length) return null;
+                return (
+                  <div key={k}>
+                    <p className="cap" style={{ padding: "14px 12px 4px" }}>{t} · {doF.length}</p>
+                    {doF.map((f) => (
+                      <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
+                        <Bola funcao={f} tamanho={34} />
+                        <div style={{ flex: 1 }}>
+                          <p className="nmt" style={{ fontSize: 15 }}>{f.nome}</p>
+                          <p className="ds">{f.descricao ? (f.foto ? "Com foto" : "Sem foto") : "Falta a explicação"}</p>
+                        </div>
+                        <span className="seta">›</span>
                       </div>
-                      <span className="seta">›</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
             {especiais.length > 0 && (
-              <>
-                <div className="cabecalho" style={{ marginTop: 24 }}><h3>Só em cultos específicos</h3></div>
-                {Object.entries(especiaisPorEvento).map(([eventoId, fs]) => {
+              <div className="mincartao" style={{ marginTop: 10 }}>
+                <button
+                  className="mincartao-cab cabtoque" data-aberto={abertos.especiais ? 1 : 0}
+                  aria-expanded={!!abertos.especiais} onClick={() => alternar("especiais")}
+                >
+                  <span className="nome">Só em cultos específicos</span>
+                  <span className="conta">{especiais.length}</span>
+                  <span className="cabtoque-seta" aria-hidden="true">›</span>
+                </button>
+                {abertos.especiais && Object.entries(especiaisPorEvento).map(([eventoId, fs]) => {
                   const ev = eventosRef[eventoId];
                   const rotulo = ev ? nomeEvento(ev) : eventoId;
                   return (
                     <div key={eventoId}>
-                      <p className="cap" style={{ padding: "14px 0 4px" }}>{rotulo} · {fs.length}</p>
+                      <p className="cap" style={{ padding: "14px 12px 4px" }}>{rotulo} · {fs.length}</p>
                       {fs.map((f) => (
                         <div className="linha" style={{ cursor: "pointer" }} key={f.id} onClick={() => setSheet({ tipo: "funcao", funcaoId: f.id })}>
                           <Bola funcao={f} tamanho={34} />
@@ -251,7 +283,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
                     </div>
                   );
                 })}
-              </>
+              </div>
             )}
           </div>
 
