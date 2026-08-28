@@ -8,11 +8,11 @@
  */
 import {
   collection, doc, addDoc, onSnapshot, orderBy, query, where,
-  runTransaction, serverTimestamp,
+  runTransaction, serverTimestamp, Timestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, BASE_ID, chamar } from "@portal/shared/lib/firebase.js";
-import { cInventario, cListasCompras } from "./modelo";
+import { cInventario, cListasCompras, cListaCompras } from "./modelo";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 
 export function ouvirInventario(cb) {
@@ -121,14 +121,49 @@ export function ouvirListasComprasDoMes(ano, mesIndex, cb) {
     (erro) => console.error("ouvirListasComprasDoMes:", erro));
 }
 
-export const adicionarItemListaCompras = (item) =>
-  chamar("adicionarItemListaCompras")({ itemId: item.id, nome: item.nome }).then((r) => r.data);
+/**
+ * Acrescentar/tirar/mexer quantidade são escrita direta do cliente
+ * (rules: só o campo `itens`, só enquanto `estado == "aberta"`) —
+ * rápido, como o resto do inventário (`mexerQuantidade` acima). A
+ * Cloud Function só entra quando NÃO há lista aberta ainda (a lista
+ * tem de "nascer sozinha") — é por isso que só o primeiro item de
+ * uma lista nova demora mais (round-trip a uma função na nuvem);
+ * todo o resto é local-first, com a mesma sensação instantânea do
+ * +/- da quantidade. `listaAbertaId` vem do que já está no ecrã
+ * (`ouvirListaCompraAberta`) — quando `null`, cai para a função. */
+export async function adicionarItemListaCompras(item, listaAbertaId, uid) {
+  if (!listaAbertaId) {
+    return chamar("adicionarItemListaCompras")({ itemId: item.id, nome: item.nome }).then((r) => r.data);
+  }
+  const ref = cListaCompras(listaAbertaId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const itens = snap.data()?.itens || [];
+    if (itens.some((i) => i.itemId === item.id)) return { jaAdicionado: true };
+    tx.update(ref, {
+      itens: [...itens, { itemId: item.id, nome: item.nome, quantidade: 1, adicionadoPor: uid, adicionadoEm: Timestamp.now() }],
+    });
+    return { jaAdicionado: false };
+  });
+}
 
-export const alterarQuantidadeItemListaCompras = (listaId, itemId, delta) =>
-  chamar("alterarQuantidadeItemListaCompras")({ listaId, itemId, delta }).then((r) => r.data);
+export async function alterarQuantidadeItemListaCompras(listaId, itemId, delta) {
+  const ref = cListaCompras(listaId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const itens = (snap.data()?.itens || []).map((i) =>
+      i.itemId === itemId ? { ...i, quantidade: Math.max(1, (i.quantidade || 1) + delta) } : i);
+    tx.update(ref, { itens });
+  });
+}
 
-export const removerItemListaCompras = (listaId, itemId) =>
-  chamar("removerItemListaCompras")({ listaId, itemId }).then((r) => r.data);
+export async function removerItemListaCompras(listaId, itemId) {
+  const ref = cListaCompras(listaId);
+  await runTransaction(db, async (tx) => {
+    const itens = ((await tx.get(ref)).data()?.itens || []).filter((i) => i.itemId !== itemId);
+    tx.update(ref, { itens });
+  });
+}
 
 export const fecharListaCompras = (listaId) =>
   chamar("fecharListaCompras")({ listaId }).then((r) => r.data);

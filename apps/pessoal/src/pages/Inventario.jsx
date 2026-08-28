@@ -78,7 +78,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
 
   async function adicionarACompras(item) {
     try {
-      const { jaAdicionado } = await adicionarItemListaCompras(item);
+      const { jaAdicionado } = await adicionarItemListaCompras(item, listaAberta?.id, uid);
       torrada(jaAdicionado ? "Já estava na lista de compras" : `${item.nome} adicionado à lista de compras`);
     } catch (e) {
       torrada(e.message || "Não foi possível adicionar.");
@@ -200,6 +200,8 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
           })}
         </div>
       ))}
+
+      <div style={{ height: 8, background: "var(--agua)", borderRadius: 6, margin: "26px -4px 0" }} />
 
       <div className="sect">
         <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>

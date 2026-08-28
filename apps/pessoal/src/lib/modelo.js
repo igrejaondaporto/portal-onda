@@ -34,6 +34,7 @@ export const cPessoas     = () => collection(db, `bases/${BASE_ID}/pessoas`);
 export const cFuncoes     = () => collection(db, `bases/${BASE_ID}/funcoes`);
 export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`);
 export const cListasCompras = () => collection(db, `bases/${BASE_ID}/listasCompras`);
+export const cListaCompras  = (id) => doc(db, `bases/${BASE_ID}/listasCompras/${id}`);
 export const cReembolsos  = () => collection(db, `bases/${BASE_ID}/reembolsos`);
 export const cEventos     = () => collection(db, "eventos");
 export const cEscala      = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
