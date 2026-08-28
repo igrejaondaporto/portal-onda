@@ -1539,7 +1539,9 @@ export const adicionarItemListaCompras = onCall(async (req) => {
     const itensAtuais = existente ? existente.data().itens || [] : [];
     if (itensAtuais.some((i) => i.itemId === itemId)) return { jaAdicionado: true, listaId: ref.id };
 
-    const novoItem = { itemId, nome: nome.trim(), adicionadoPor: uid, adicionadoEm: admin.firestore.Timestamp.now() };
+    const novoItem = {
+      itemId, nome: nome.trim(), quantidade: 1, adicionadoPor: uid, adicionadoEm: admin.firestore.Timestamp.now(),
+    };
     tx.set(ref, {
       estado: "aberta",
       itens: [...itensAtuais, novoItem],
@@ -1547,6 +1549,42 @@ export const adicionarItemListaCompras = onCall(async (req) => {
     }, { merge: true });
     return { jaAdicionado: false, listaId: ref.id };
   });
+});
+
+/** Mexer na quantidade a comprar, ou tirar um item da lista — aberto
+ *  a qualquer pessoa da base (mesmo círculo de quem pode acrescentar),
+ *  só enquanto a lista ainda está aberta. */
+export const alterarQuantidadeItemListaCompras = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { listaId, itemId, delta } = req.data || {};
+  if (!listaId || !itemId || !Number.isFinite(delta)) throw new HttpsError("invalid-argument", "Dados inválidos.");
+  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
+    if (snap.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta lista já não está aberta.");
+    const itens = (snap.data().itens || []).map((i) =>
+      i.itemId === itemId ? { ...i, quantidade: Math.max(1, (i.quantidade || 1) + delta) } : i);
+    tx.update(ref, { itens });
+  });
+  return { ok: true };
+});
+
+export const removerItemListaCompras = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { listaId, itemId } = req.data || {};
+  if (!listaId || !itemId) throw new HttpsError("invalid-argument", "Falta o item.");
+  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
+    if (snap.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta lista já não está aberta.");
+    const itens = (snap.data().itens || []).filter((i) => i.itemId !== itemId);
+    tx.update(ref, { itens });
+  });
+  return { ok: true };
 });
 
 export const fecharListaCompras = onCall(async (req) => {
