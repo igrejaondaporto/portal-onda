@@ -716,12 +716,18 @@ export const guardarEscalaTecnica = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── ESCALA (Base de Apoio) ─────────────────────────────────
- * Até agora gravava direto do cliente (setDoc) — nada validava, nem
- * sequer o líder da base. Passa a existir aqui só para poder aplicar
- * a mesma regra da Técnica: quem serve em mais do que uma base não
- * fica escalado nas duas no mesmo culto. Formato desta base é uma
- * lista simples de pessoas, não lugares por ministério. */
+/* ── ESCALA (equipa única, sem ministérios) ─────────────────
+ * Nome ficou "Apoio" por ter nascido lá primeiro, mas é partilhada —
+ * a Pessoal chama-a também (`lib/painel.js`, mesmo molde: equipa
+ * única, sem ministérios). `baseId` vem sempre do token, nunca fixo
+ * ("apoio" fixo aqui já foi bug real: a checagem de conflito
+ * cross-base ficava sempre a apontar para a Apoio, mesmo quando quem
+ * chamava era a Pessoal). Até existir esta função gravava direto do
+ * cliente (setDoc) — nada validava, nem sequer o líder da base. Passa
+ * a existir aqui só para poder aplicar a mesma regra da Técnica: quem
+ * serve em mais do que uma base não fica escalado nas duas no mesmo
+ * culto. Formato desta base é uma lista simples de pessoas, não
+ * lugares por ministério. */
 export const guardarEscalaApoio = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -750,7 +756,7 @@ export const guardarEscalaApoio = onCall(async (req) => {
     if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
   }
   for (const id of adicionadas) {
-    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, "apoio", id);
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, baseId, id);
   }
 
   await ref.set({
@@ -758,10 +764,10 @@ export const guardarEscalaApoio = onCall(async (req) => {
   }, { merge: true });
 
   for (const id of adicionadas) {
-    if (multiBase.has(id)) await marcarIndisponivel(eventoId, "apoio", id, "escalado");
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, baseId, id, "escalado");
   }
   for (const id of removidas) {
-    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, "apoio", id);
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
   return { ok: true };
 });
