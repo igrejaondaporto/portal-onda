@@ -7,7 +7,7 @@
  * apagado, só ativo:false.
  */
 import {
-  collection, doc, addDoc, onSnapshot, query, where,
+  collection, doc, addDoc, onSnapshot, orderBy, query, where,
   runTransaction, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -103,18 +103,32 @@ export function ouvirListaCompraAberta(cb) {
   }, (erro) => console.error("ouvirListaCompraAberta:", erro));
 }
 
-export function ouvirListasComprasSalvas(cb) {
-  const q = query(cListasCompras(), where("estado", "in", ["fechada", "enviada"]));
-  return onSnapshot(q, (snap) => {
-    const listas = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.criadaEm?.toMillis() ?? 0) - (a.criadaEm?.toMillis() ?? 0))
-      .slice(0, 20);
-    cb(listas);
-  }, (erro) => console.error("ouvirListasComprasSalvas:", erro));
+/** Listas fechadas/enviadas de um mês — mesmo filtro de
+ *  `HistoricoContagem`/Formulário, mas por `criadaEm` (Timestamp) em
+ *  vez de `eventoId` (string). Igualdade/intervalo e `orderBy` no
+ *  MESMO campo (`criadaEm`) não pede índice composto — ao contrário
+ *  de `ouvirListaCompraAberta` acima, que junta `estado` (outro
+ *  campo) com `orderBy`. */
+export function ouvirListasComprasDoMes(ano, mesIndex, cb) {
+  const inicio = new Date(ano, mesIndex, 1);
+  const fim = new Date(ano, mesIndex + 1, 1);
+  const q = query(
+    cListasCompras(),
+    where("criadaEm", ">=", inicio), where("criadaEm", "<", fim),
+    orderBy("criadaEm", "desc"),
+  );
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((l) => l.estado !== "aberta")),
+    (erro) => console.error("ouvirListasComprasDoMes:", erro));
 }
 
 export const adicionarItemListaCompras = (item) =>
   chamar("adicionarItemListaCompras")({ itemId: item.id, nome: item.nome }).then((r) => r.data);
+
+export const alterarQuantidadeItemListaCompras = (listaId, itemId, delta) =>
+  chamar("alterarQuantidadeItemListaCompras")({ listaId, itemId, delta }).then((r) => r.data);
+
+export const removerItemListaCompras = (listaId, itemId) =>
+  chamar("removerItemListaCompras")({ listaId, itemId }).then((r) => r.data);
 
 export const fecharListaCompras = (listaId) =>
   chamar("fecharListaCompras")({ listaId }).then((r) => r.data);
@@ -122,13 +136,14 @@ export const fecharListaCompras = (listaId) =>
 export const enviarListaCompras = (listaId) =>
   chamar("enviarListaCompras")({ listaId }).then((r) => r.data);
 
-/** Texto simples, um item por linha — sem número de destino: abre o
- *  seletor de contacto do WhatsApp, porque quem faz a compra varia
- *  de semana para semana (não há um número fixo certo para isto). */
+/** Texto simples, um item por linha (com a quantidade quando > 1) —
+ *  sem número de destino: abre o seletor de contacto do WhatsApp,
+ *  porque quem faz a compra varia de semana para semana (não há um
+ *  número fixo certo para isto). */
 export function textoListaCompras(lista) {
   return [
     "Lista de compras — Base Pessoal",
-    ...(lista.itens || []).map((i) => `• ${i.nome}`),
+    ...(lista.itens || []).map((i) => `• ${i.nome}${i.quantidade > 1 ? ` (${i.quantidade}x)` : ""}`),
   ].join("\n");
 }
 

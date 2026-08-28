@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import {
-  ouvirInventario, mexerQuantidade, definirQuantidade, ouvirListaCompraAberta, ouvirListasComprasSalvas,
-  adicionarItemListaCompras, fecharListaCompras, enviarListaCompras,
-  linkListaComprasWhatsApp,
+  ouvirInventario, mexerQuantidade, definirQuantidade, ouvirListaCompraAberta,
+  adicionarItemListaCompras, alterarQuantidadeItemListaCompras, removerItemListaCompras,
+  fecharListaCompras,
 } from "../lib/inventario";
 import { obterMeuEvento } from "../lib/culto";
-import { singularizar, dataTimestamp } from "@portal/shared/lib/data.js";
+import { singularizar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import SheetItemInventario from "../components/painel/SheetItemInventario";
+import ListasComprasSalvas from "../components/ListasComprasSalvas";
 
 /** Estado de stock de um item — dá o texto, a cor e se mostra o
  *  atalho para a lista de compras, num sítio só. */
@@ -19,11 +20,6 @@ function estadoStock(item) {
   return { nivel: "ok", cor: null, texto: `Mínimo ${item.minimo} ${singularizar(item.minimo, item.unidade)}` };
 }
 
-const ROTULO_ESTADO_LISTA = {
-  aberta: "Lista aberta", fechada: "Lista fechada", enviada: "Lista enviada para compras",
-};
-const COR_ESTADO_LISTA = { aberta: "var(--azul)", fechada: "var(--laranja)", enviada: "var(--verde)" };
-
 export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
@@ -32,13 +28,11 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
   const [sheet, setSheet] = useState(null);
   const [souLiderEscalaHoje, setSouLiderEscalaHoje] = useState(false);
   const [listaAberta, setListaAberta] = useState(null);
-  const [listasSalvas, setListasSalvas] = useState([]);
   const [aProcessarLista, setAProcessarLista] = useState(false);
   const [aEditarQtd, setAEditarQtd] = useState(null);
 
   useEffect(() => ouvirInventario(setItens), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
-  useEffect(() => ouvirListasComprasSalvas(setListasSalvas), []);
   useEffect(() => {
     if (souLiderBase) return;
     obterMeuEvento(uid).then((ev) => {
@@ -91,6 +85,24 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
     }
   }
 
+  async function mexerQtdCompras(itemId, delta) {
+    if (!listaAberta) return;
+    try {
+      await alterarQuantidadeItemListaCompras(listaAberta.id, itemId, delta);
+    } catch (e) {
+      torrada(e.message || "Não foi possível atualizar.");
+    }
+  }
+
+  async function removerDeCompras(itemId) {
+    if (!listaAberta) return;
+    try {
+      await removerItemListaCompras(listaAberta.id, itemId);
+    } catch (e) {
+      torrada(e.message || "Não foi possível remover.");
+    }
+  }
+
   async function fechar(listaId) {
     setAProcessarLista(true);
     try {
@@ -98,19 +110,6 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
       torrada("Lista fechada");
     } catch (e) {
       torrada(e.message || "Não foi possível fechar.");
-    } finally {
-      setAProcessarLista(false);
-    }
-  }
-
-  async function enviar(lista) {
-    window.open(linkListaComprasWhatsApp(lista), "_blank", "noopener");
-    setAProcessarLista(true);
-    try {
-      await enviarListaCompras(lista.id);
-      torrada("Lista marcada como enviada");
-    } catch (e) {
-      torrada(e.message || "Não foi possível marcar como enviada.");
     } finally {
       setAProcessarLista(false);
     }
@@ -140,44 +139,47 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                     onClick={() => setExpandida(i)}
                   />
                 )}
-                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{i.nome}</p>
-                    <p className="ds">
-                      {estado.cor ? <span style={{ color: estado.cor, fontWeight: 600 }}>{estado.texto}</span> : estado.texto}
-                    </p>
-                    {i.observacoes && <p className="ds">{i.observacoes}</p>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <p className="nmt" style={{ minWidth: 0 }}>{i.nome}</p>
+                    {estado.nivel !== "ok" && (
+                      jaNaLista ? (
+                        <span
+                          style={{
+                            flexShrink: 0, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
+                            padding: "4px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
+                            background: "rgba(0,25,190,0.1)", color: "var(--azul)",
+                          }}
+                        >
+                          ✓ Adicionado
+                        </span>
+                      ) : (
+                        <button
+                          style={{
+                            flexShrink: 0, whiteSpace: "nowrap", border: 0, cursor: "pointer",
+                            padding: "5px 9px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
+                            background: "var(--azul)", color: "#fff",
+                          }}
+                          onClick={() => adicionarACompras(i)}
+                        >
+                          + LISTA COMPRAS
+                        </button>
+                      )
+                    )}
                   </div>
-                  {estado.nivel !== "ok" && (
-                    jaNaLista ? (
-                      <span
-                        style={{
-                          flexShrink: 0, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
-                          padding: "4px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
-                          background: "rgba(255,46,136,0.12)", color: "var(--magenta)",
-                        }}
-                      >
-                        ✓ Adicionado
-                      </span>
-                    ) : (
-                      <button
-                        style={{
-                          flexShrink: 0, whiteSpace: "nowrap", border: 0, cursor: "pointer",
-                          padding: "5px 9px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
-                          background: "var(--magenta)", color: "#fff",
-                        }}
-                        onClick={() => adicionarACompras(i)}
-                      >
-                        + LISTA COMPRAS
-                      </button>
-                    )
+                  <p className="ds">
+                    {estado.cor ? <span style={{ color: estado.cor, fontWeight: 600 }}>{estado.texto}</span> : estado.texto}
+                  </p>
+                  {i.observacoes && <p className="ds">{i.observacoes}</p>}
+                  {podeGerir && (
+                    <button
+                      className="btn sec" style={{ marginTop: 8, padding: "6px 12px", fontSize: 12 }}
+                      onClick={() => setSheet({ tipo: "item", item: i })}
+                    >
+                      Editar
+                    </button>
                   )}
                 </div>
-                {podeGerir && (
-                  <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12, marginRight: 4 }} onClick={() => setSheet({ tipo: "item", item: i })}>
-                    Editar
-                  </button>
-                )}
                 <div className="qtd">
                   <button className="qb" onClick={() => mexer(i, -1)}>−</button>
                   {aEditarQtd === i.id ? (
@@ -202,9 +204,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
         <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>
           <h3>Lista de compras</h3>
           {listaAberta && (
-            <span className="tag" style={{ background: COR_ESTADO_LISTA.aberta, color: "#fff" }}>
-              {ROTULO_ESTADO_LISTA.aberta}
-            </span>
+            <span className="tag" style={{ background: "var(--azul)", color: "#fff" }}>Lista aberta</span>
           )}
         </div>
         {listaAberta?.itens?.length ? (
@@ -214,6 +214,17 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{it.nome}</p>
                 </div>
+                <div className="qtd">
+                  <button className="qb" onClick={() => mexerQtdCompras(it.itemId, -1)}>−</button>
+                  <span className="qn">{it.quantidade ?? 1}</span>
+                  <button className="qb" onClick={() => mexerQtdCompras(it.itemId, 1)}>+</button>
+                </div>
+                <button
+                  className="oc-icobt mag" aria-label={`Remover ${it.nome}`} title="Remover"
+                  onClick={() => removerDeCompras(it.itemId)}
+                >
+                  ✕
+                </button>
               </div>
             ))}
             {podeGerir && (
@@ -230,32 +241,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
         )}
       </div>
 
-      {listasSalvas.length > 0 && (
-        <div className="sect">
-          <div className="cabecalho"><h3>Listas salvas</h3></div>
-          {listasSalvas.map((l) => (
-            <div key={l.id} style={{ marginBottom: 12 }}>
-              <div className="linha">
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{dataTimestamp(l.criadaEm)} · {(l.itens || []).length} {(l.itens || []).length === 1 ? "item" : "itens"}</p>
-                  <p className="ds">{(l.itens || []).map((it) => it.nome).join(", ") || "Sem itens"}</p>
-                </div>
-                <span className="tag" style={{ background: COR_ESTADO_LISTA[l.estado], color: "#fff" }}>
-                  {ROTULO_ESTADO_LISTA[l.estado]}
-                </span>
-              </div>
-              {l.estado === "fechada" && podeGerir && (
-                <button
-                  className="btn sec full" style={{ marginTop: 4 }} disabled={aProcessarLista}
-                  onClick={() => enviar(l)}
-                >
-                  Enviar para compras
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <ListasComprasSalvas podeGerir={podeGerir} />
 
       <div className="destaque" onClick={onIrReembolsos} style={{ marginTop: 22, cursor: "pointer" }}>
         <div>

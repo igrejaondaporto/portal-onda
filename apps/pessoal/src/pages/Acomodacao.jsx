@@ -160,7 +160,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
               className="btn sec" onClick={() => setModoReservar((m) => !m)}
               style={modoReservar ? { background: "#3B82F6", color: "#fff", borderColor: "#3B82F6" } : undefined}
             >
-              {modoReservar ? "✓ A reservar" : "Reservar"}
+              {modoReservar ? "✓ A reservar" : "Reservas"}
             </button>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
             <button className="btn sec" style={{ color: "var(--magenta)" }} onClick={() => setAConfirmarLimpar(true)}>
