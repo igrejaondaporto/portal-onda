@@ -106,6 +106,9 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
             <label className="rot">Valor</label>
             <input className="campo" type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
             <label className="rot">Nota ou fatura</label>
+            <p className="ds" style={{ marginTop: -4, marginBottom: 8 }}>
+              Se pedires fatura, pede com o NIF da igreja: 517643340 (Igreja Onda).
+            </p>
             <input ref={inputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={escolherFicheiro} />
             <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => inputRef.current.click()}>
               {ficheiro ? "Nota anexada ✓" : "Escolher ficheiro"}

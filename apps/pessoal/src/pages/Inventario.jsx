@@ -72,6 +72,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                     ? <span style={{ color: "var(--magenta)", fontWeight: 600 }}>Abaixo do mínimo de {i.minimo}</span>
                     : `Mínimo ${i.minimo} ${singularizar(i.minimo, i.unidade)}`}
                 </p>
+                {i.observacoes && <p className="ds">{i.observacoes}</p>}
               </div>
               {podeGerir && (
                 <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12, marginRight: 4 }} onClick={() => setSheet({ tipo: "item", item: i })}>

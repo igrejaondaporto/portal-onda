@@ -6,7 +6,7 @@ import {
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
-const CATEGORIAS = ["Utensílios", "Produtos", "Insumos", "Decoração", "Extras"];
+const CATEGORIAS = ["Consumíveis", "Ceia", "Alimentação", "Branding"];
 
 export default function SheetItemInventario({ item, podeFoto = true, onFechar, onGuardado }) {
   const torrada = useTorrada();
@@ -20,6 +20,7 @@ export default function SheetItemInventario({ item, podeFoto = true, onFechar, o
   const [minimo, setMinimo] = useState(item?.minimo ?? 1);
   const [quantidade, setQuantidade] = useState(item?.quantidade ?? 0);
   const [foto, setFoto] = useState(item?.foto ?? null);
+  const [observacoes, setObservacoes] = useState(item?.observacoes ?? "");
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
 
@@ -50,6 +51,7 @@ export default function SheetItemInventario({ item, podeFoto = true, onFechar, o
       const dados = {
         nome: n, categoria: c, unidade: unidade.trim() || "unidades",
         minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto,
+        observacoes: observacoes.trim() || null,
       };
       if (item) {
         await guardarItemInventario(item.id, dados);
@@ -99,6 +101,11 @@ export default function SheetItemInventario({ item, podeFoto = true, onFechar, o
         </div>
         <label className="rot">Quantidade atual</label>
         <input className="campo" type="number" min="0" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
+        <label className="rot">Observações (opcional)</label>
+        <textarea
+          className="campo" rows={2} value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
+          placeholder="Ex.: 2 pacotes fechados, um aberto"
+        />
         {(podeFoto || foto) && (
           <>
             <label className="rot">Foto</label>

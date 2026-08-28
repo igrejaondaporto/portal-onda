@@ -248,11 +248,12 @@ export async function verificarTelefoneDuplicado(telemovel) {
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
 
-export async function criarContacto({ nome, telemovel, concelho, freguesia, gdSugerido, eventoId, uid }) {
+export async function criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, eventoId, uid }) {
   const digitos = telemovel.replace(/\D/g, "");
   const ref = doc(cContactos());
   await setDoc(ref, {
     nome: nome.trim(), telemovel: telemovel.trim(), telemovelDigitos: digitos,
+    email: email?.trim() || null,
     concelho, freguesia, gdSugerido: gdSugerido || null,
     eventoId, baseOrigemId: "pessoal", etapa: "visita",
     criadoPor: uid, criadoEm: serverTimestamp(),
@@ -267,9 +268,10 @@ export const marcarEnviadoPastor = (id) => updateDoc(cContacto(id), { enviadoPas
 /** Corrige um contacto já guardado — mesmos campos do formulário de
  *  criação, exceto os automáticos (eventoId, etapa, RGPD…), que as
  *  regras nem deixam tocar. */
-export async function atualizarContacto(id, { nome, telemovel, concelho, freguesia, gdSugerido }) {
+export async function atualizarContacto(id, { nome, telemovel, email, concelho, freguesia, gdSugerido }) {
   await updateDoc(cContacto(id), {
     nome: nome.trim(), telemovel: telemovel.trim(), telemovelDigitos: telemovel.replace(/\D/g, ""),
+    email: email?.trim() || null,
     concelho, freguesia, gdSugerido: gdSugerido || null,
   });
 }
@@ -288,6 +290,7 @@ export function textoParaPastor(contacto, eventoId) {
     `Novo contacto — ${dataPorExtenso(eventoId)}`,
     `Nome: ${contacto.nome}`,
     `Telefone: ${contacto.telemovel}`,
+    contacto.email ? `Email: ${contacto.email}` : null,
     linkLead ? `Falar com ${contacto.nome.split(" ")[0]}: ${linkLead}` : null,
     `Concelho: ${contacto.concelho} (${contacto.freguesia})`,
     `GD sugerido: ${contacto.gdSugerido || "—"}`,

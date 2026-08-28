@@ -7,6 +7,7 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
   const torrada = useTorrada();
   const [nome, setNome] = useState(contacto.nome);
   const [telemovel, setTelemovel] = useState(contacto.telemovel);
+  const [email, setEmail] = useState(contacto.email ?? "");
   const [concelho, setConcelho] = useState(contacto.concelho);
   const [freguesia, setFreguesia] = useState(contacto.freguesia);
   const [gdSugerido, setGdSugerido] = useState(contacto.gdSugerido ?? "");
@@ -19,7 +20,7 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
     if (!freguesia) return torrada("Escolhe a freguesia.");
     setAGuardar(true);
     try {
-      await atualizarContacto(contacto.id, { nome, telemovel, concelho, freguesia, gdSugerido });
+      await atualizarContacto(contacto.id, { nome, telemovel, email, concelho, freguesia, gdSugerido });
       onGuardado("Contacto atualizado");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -41,6 +42,12 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
         <input
           className="campo" value={telemovel} inputMode="tel"
           onChange={(e) => setTelemovel(e.target.value)} placeholder="912 345 678"
+        />
+
+        <label className="rot">Email (opcional)</label>
+        <input
+          className="campo" type="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com"
         />
 
         <CamposLocalizacaoGD

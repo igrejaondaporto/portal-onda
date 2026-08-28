@@ -42,6 +42,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
 
   const [nome, setNome] = useState("");
   const [telemovel, setTelemovel] = useState("");
+  const [email, setEmail] = useState("");
   const [concelho, setConcelho] = useState("");
   const [freguesia, setFreguesia] = useState("");
   const [gdSugerido, setGdSugerido] = useState("");
@@ -90,7 +91,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   }
 
   function limpar() {
-    setNome(""); setTelemovel(""); setConcelho(""); setFreguesia("");
+    setNome(""); setTelemovel(""); setEmail(""); setConcelho(""); setFreguesia("");
     setGdSugerido(""); setAceiteRgpd(false); setAvisoDuplicado(null);
   }
 
@@ -104,7 +105,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     if (!meuEvento) return torrada("Sem culto associado ainda.");
     setAGuardar(true);
     try {
-      await criarContacto({ nome, telemovel, concelho, freguesia, gdSugerido, eventoId: meuEvento.id, uid });
+      await criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, eventoId: meuEvento.id, uid });
       torrada("Contacto guardado");
       limpar();
     } catch (err) {
@@ -148,6 +149,12 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
             Já há um contacto com este número: {avisoDuplicado}. Podes continuar — é só um aviso.
           </p>
         )}
+
+        <label className="rot">Email (opcional)</label>
+        <input
+          className="campo" type="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com"
+        />
 
         <CamposLocalizacaoGD
           concelho={concelho} setConcelho={setConcelho}
@@ -214,6 +221,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
               </button>
             </div>
             <p className="ds">{dataPorExtenso(c.eventoId)} · {c.telemovel}</p>
+            {c.email && <p className="ds">{c.email}</p>}
             <p className="ds">{c.concelho} ({c.freguesia})</p>
             {c.gdSugerido && <p className="ds">GD sugerido: {c.gdSugerido}</p>}
             <p className="ds" style={{ marginTop: 4 }}>{haAtras(c.criadoEm)}</p>
