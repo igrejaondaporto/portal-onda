@@ -862,10 +862,14 @@ async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atuali
 }
 
 /* ── ESCALA (Base Comunicação) ──────────────────────────────
- * Lugares por ministério, como a Técnica — mas sem "Responsável"
- * rotativo: a Comunicação só tem o líder da base fixo (ver
- * apps/comunicacao/CLAUDE.md), por isso só ele pode gravar a escala
- * e `liderEscala` não é usado (fica sempre null). */
+ * Lugares por ministério — lista aberta de pessoas (`pessoas: [id]`),
+ * sem distinção de titular/aprendiz (essa continua a existir como
+ * etiqueta da pessoa em `pessoa.ministerios[id]`, só deixou de
+ * limitar a escala a 2 lugares fixos — pedido do líder: às vezes são
+ * dois fotógrafos, ou dois do Storymaker, sem ninguém "em treino").
+ * Sem "Responsável" rotativo: a Comunicação só tem o líder da base
+ * fixo (ver apps/comunicacao/CLAUDE.md), por isso só ele pode gravar
+ * a escala e `liderEscala` não é usado (fica sempre null). */
 export const guardarEscalaComunicacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -884,13 +888,13 @@ export const guardarEscalaComunicacao = onCall(async (req) => {
   const usados = new Set();
   const lugaresLimpos = lugares.map((l) => {
     if (!l?.ministerioId) throw new HttpsError("invalid-argument", "Lugar sem ministério.");
-    for (const id of [l.titularId, l.aprendizId]) {
-      if (!id) continue;
+    const idsDoLugar = Array.isArray(l.pessoas) ? l.pessoas.filter(Boolean) : [];
+    for (const id of idsDoLugar) {
       if (usados.has(id)) throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois lugares no mesmo culto.");
       usados.add(id);
       pessoas.add(id);
     }
-    return { ministerioId: l.ministerioId, titularId: l.titularId || null, aprendizId: l.aprendizId || null };
+    return { ministerioId: l.ministerioId, pessoas: idsDoLugar };
   });
 
   // quem serve em mais do que uma base não pode ficar escalado nas
