@@ -140,26 +140,38 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                     onClick={() => setExpandida(i)}
                   />
                 )}
-                <div style={{ flex: 1 }}>
-                  <p className="nmt" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    {i.nome}
-                    {estado.nivel !== "ok" && (
-                      jaNaLista ? (
-                        <span style={{ fontSize: 10.5, color: "var(--cinza)" }}>Já na lista de compras</span>
-                      ) : (
-                        <button
-                          className="btn sec" style={{ padding: "2px 8px", fontSize: 10.5, fontWeight: 600 }}
-                          onClick={() => adicionarACompras(i)}
-                        >
-                          + à lista de compras
-                        </button>
-                      )
-                    )}
-                  </p>
-                  <p className="ds">
-                    {estado.cor ? <span style={{ color: estado.cor, fontWeight: 600 }}>{estado.texto}</span> : estado.texto}
-                  </p>
-                  {i.observacoes && <p className="ds">{i.observacoes}</p>}
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{i.nome}</p>
+                    <p className="ds">
+                      {estado.cor ? <span style={{ color: estado.cor, fontWeight: 600 }}>{estado.texto}</span> : estado.texto}
+                    </p>
+                    {i.observacoes && <p className="ds">{i.observacoes}</p>}
+                  </div>
+                  {estado.nivel !== "ok" && (
+                    jaNaLista ? (
+                      <span
+                        style={{
+                          flexShrink: 0, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
+                          padding: "4px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
+                          background: "rgba(255,46,136,0.12)", color: "var(--magenta)",
+                        }}
+                      >
+                        ✓ Adicionado
+                      </span>
+                    ) : (
+                      <button
+                        style={{
+                          flexShrink: 0, whiteSpace: "nowrap", border: 0, cursor: "pointer",
+                          padding: "5px 9px", fontSize: 10.5, fontWeight: 700, borderRadius: 8,
+                          background: "var(--magenta)", color: "#fff",
+                        }}
+                        onClick={() => adicionarACompras(i)}
+                      >
+                        + LISTA COMPRAS
+                      </button>
+                    )
+                  )}
                 </div>
                 {podeGerir && (
                   <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12, marginRight: 4 }} onClick={() => setSheet({ tipo: "item", item: i })}>

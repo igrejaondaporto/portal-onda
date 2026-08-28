@@ -7,7 +7,7 @@
  * apagado, só ativo:false.
  */
 import {
-  collection, doc, addDoc, onSnapshot, orderBy, query, where, limit,
+  collection, doc, addDoc, onSnapshot, query, where,
   runTransaction, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -85,15 +85,32 @@ export async function definirQuantidade(item, novaQuantidade, uid) {
  * enviar são as únicas ações restritas (líder da base, ou o
  * responsável do culto de hoje — mesma regra de
  * `exigeGestorInventario`).
- */
+ *
+ * Sem `orderBy` de propósito: juntar uma igualdade (`estado==`/`in`)
+ * com `orderBy` noutro campo pede um índice composto que não existe
+ * — e sem um `onError` no `onSnapshot`, essa falha é muda: o pedido
+ * para escrever (a Cloud Function) funciona à mesma, só a LEITURA no
+ * cliente nunca chega a chamar `cb`, e a lista parece vazia para
+ * sempre mesmo depois de "adicionado com sucesso". Ordenar do lado
+ * do cliente evita precisar do índice; o `onError` fica como rede de
+ * segurança para a próxima vez que uma leitura destas falhar. */
 export function ouvirListaCompraAberta(cb) {
-  const q = query(cListasCompras(), where("estado", "==", "aberta"), orderBy("criadaEm", "desc"), limit(1));
-  return onSnapshot(q, (snap) => cb(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }));
+  const q = query(cListasCompras(), where("estado", "==", "aberta"));
+  return onSnapshot(q, (snap) => {
+    const listas = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.criadaEm?.toMillis() ?? 0) - (a.criadaEm?.toMillis() ?? 0));
+    cb(listas[0] ?? null);
+  }, (erro) => console.error("ouvirListaCompraAberta:", erro));
 }
 
 export function ouvirListasComprasSalvas(cb) {
-  const q = query(cListasCompras(), where("estado", "in", ["fechada", "enviada"]), orderBy("criadaEm", "desc"), limit(20));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  const q = query(cListasCompras(), where("estado", "in", ["fechada", "enviada"]));
+  return onSnapshot(q, (snap) => {
+    const listas = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.criadaEm?.toMillis() ?? 0) - (a.criadaEm?.toMillis() ?? 0))
+      .slice(0, 20);
+    cb(listas);
+  }, (erro) => console.error("ouvirListasComprasSalvas:", erro));
 }
 
 export const adicionarItemListaCompras = (item) =>
