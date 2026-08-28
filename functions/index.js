@@ -1459,13 +1459,14 @@ async function exigeGestorInventario(req) {
 
 export const criarItemInventario = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
-  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
   await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
     nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
     minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+    observacoes: observacoes?.trim() || null,
     ativo: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { itemId };
@@ -1473,13 +1474,14 @@ export const criarItemInventario = onCall(async (req) => {
 
 export const guardarItemInventario = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
-  const { itemId, nome, categoria, unidade, minimo, quantidade, foto } = req.data || {};
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
   await db.doc(`bases/${baseId}/inventario/${itemId}`).set({
     nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
     minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
+    observacoes: observacoes?.trim() || null,
   }, { merge: true });
   return { ok: true };
 });
