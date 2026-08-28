@@ -157,9 +157,9 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                         <button
                           aria-label="Adicionar à lista de compras" title="Adicionar à lista de compras"
                           style={{
-                            flexShrink: 0, whiteSpace: "nowrap", border: 0, cursor: "pointer",
+                            flexShrink: 0, whiteSpace: "nowrap", border: "1.5px solid var(--azul)", cursor: "pointer",
                             padding: "5px 10px", fontSize: 14, borderRadius: 8, lineHeight: 1,
-                            background: "var(--azul)", color: "#fff",
+                            background: "#fff", color: "var(--azul)",
                           }}
                           onClick={() => adicionarACompras(i)}
                         >
