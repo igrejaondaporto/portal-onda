@@ -1494,6 +1494,50 @@ export const desativarItemInventario = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── LISTA DE COMPRAS: fechar/enviar são as únicas ações restritas ──
+ * Acrescentar itens é escrita direta do cliente (ver firestore.rules,
+ * qualquer pessoa da base, só enquanto a lista está aberta) — só
+ * fechar e enviar exigem ser líder da base ou o responsável do culto
+ * de hoje, por isso passam por aqui (mesmo exigeGestorInventario do
+ * módulo Inventário — é o mesmo círculo de gestão). Fechar já cria a
+ * lista seguinte, vazia — nunca fica um momento sem lista aberta. */
+export const fecharListaCompras = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { listaId } = req.data || {};
+  if (!listaId) throw new HttpsError("invalid-argument", "Falta a lista.");
+  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
+  if (snap.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta lista já não está aberta.");
+  const lote = db.batch();
+  lote.update(ref, {
+    estado: "fechada",
+    fechadaEm: admin.firestore.FieldValue.serverTimestamp(),
+    fechadaPor: req.auth.uid,
+  });
+  lote.set(db.collection(`bases/${baseId}/listasCompras`).doc(), {
+    estado: "aberta", itens: [], criadaEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await lote.commit();
+  return { ok: true };
+});
+
+export const enviarListaCompras = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { listaId } = req.data || {};
+  if (!listaId) throw new HttpsError("invalid-argument", "Falta a lista.");
+  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
+  if (snap.data().estado !== "fechada") throw new HttpsError("failed-precondition", "Esta lista ainda não foi fechada.");
+  await ref.update({
+    estado: "enviada",
+    enviadaEm: admin.firestore.FieldValue.serverTimestamp(),
+    enviadaPor: req.auth.uid,
+  });
+  return { ok: true };
+});
+
 /* ── GERAR OS DOMINGOS DO ANO ─────────────────────────────── */
 export const gerarDomingos = onCall(async (req) => {
   exigeLider(req);
