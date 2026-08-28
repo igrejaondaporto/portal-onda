@@ -201,7 +201,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
         </div>
       ))}
 
-      <div style={{ height: 8, background: "var(--agua)", borderRadius: 6, margin: "26px -4px 0" }} />
+      <div style={{ height: 8, background: "var(--magenta)", borderRadius: 6, margin: "26px -4px 0" }} />
 
       <div className="sect">
         <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>
