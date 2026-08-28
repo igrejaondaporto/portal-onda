@@ -87,7 +87,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
         <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">{pessoas.length} pessoas · chegada {evento.horaChegada || "08:00"}</p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
-          Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.
+          Toca no nome para juntar ou tirar da escala. A estrela define quem é o responsável.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>
           <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
@@ -115,7 +115,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                   <span style={{ flex: 1 }}>
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                      {dentro ? (lid ? "líder de escala" : "na escala") : "fora deste culto"}
+                      {dentro ? (lid ? "responsável" : "na escala") : "fora deste culto"}
                     </span>
                     <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
                       {statTexto}
@@ -124,7 +124,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                   </span>
                 </span>
                 {dentro && (
-                  <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">
+                  <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Responsável">
                     ★
                   </button>
                 )}

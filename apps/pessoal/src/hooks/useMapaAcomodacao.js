@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
-import { cAtribuicaoDrive, cMapaAcomodacao } from "../lib/modelo";
+import { cAtribuicaoDrive, cEscala, cMapaAcomodacao } from "../lib/modelo";
 import { estadoInicialLugares } from "../lib/geometriaAuditorio";
 
 /**
  * Liga o estado ao vivo do mapa (eventos/{evento}/acomodacao/mapa) e
  * expõe `marcar(id, novoEstado)` — só tem efeito se `souDrive`; as
  * Firestore rules são a defesa real, isto é só para não desenhar
- * controlos que não fariam nada.
+ * controlos que não fariam nada. Três perfis têm acesso: a líder da
+ * base, quem tem a função "Mapa" nesse culto, e o Responsável do
+ * culto (`escala.liderEscala`) — pedido explícito, o Responsável
+ * manda no domingo dele mesmo sem ter a função Mapa atribuída.
  */
 export function useMapaAcomodacao(eventoId, uid, papel) {
   const [mapa, setMapa] = useState(null);
@@ -16,21 +19,34 @@ export function useMapaAcomodacao(eventoId, uid, papel) {
   // A líder tem sempre acesso ao mapa — isto não depende de nenhum
   // documento, dá para saber já no 1º render. Só quem não é líder
   // precisa de esperar pela leitura de eventos/{evento}/atribuicoes/
-  // drive (id fixo da função "Mapa" — aí sim, sem isso, um toque logo
-  // a seguir a abrir a página não fazia nada — a leitura ainda não
-  // tinha voltado e `souDrive` ainda estava a false).
+  // drive (id fixo da função "Mapa") e de eventos/{evento}/escalas/
+  // pessoal (para saber se é o Responsável) — aí sim, sem isso, um
+  // toque logo a seguir a abrir a página não fazia nada — a leitura
+  // ainda não tinha voltado e `souDrive` ainda estava a false).
   const [souDrive, setSouDrive] = useState(papel === "lider_base");
+  const [temFuncaoMapa, setTemFuncaoMapa] = useState(false);
+  const [souResponsavel, setSouResponsavel] = useState(false);
 
   const criouRef = useRef(false);
 
   useEffect(() => {
-    if (papel === "lider_base") { setSouDrive(true); return; }
-    if (!eventoId) { setSouDrive(false); return; }
+    if (!eventoId) { setTemFuncaoMapa(false); return; }
     return onSnapshot(cAtribuicaoDrive(eventoId), (s) => {
       const pessoas = s.exists() ? s.data().pessoas || [] : [];
-      setSouDrive(pessoas.includes(uid));
+      setTemFuncaoMapa(pessoas.includes(uid));
     });
-  }, [eventoId, uid, papel]);
+  }, [eventoId, uid]);
+
+  useEffect(() => {
+    if (!eventoId) { setSouResponsavel(false); return; }
+    return onSnapshot(cEscala(eventoId), (s) => {
+      setSouResponsavel(s.exists() && s.data().liderEscala === uid);
+    });
+  }, [eventoId, uid]);
+
+  useEffect(() => {
+    setSouDrive(papel === "lider_base" || temFuncaoMapa || souResponsavel);
+  }, [papel, temFuncaoMapa, souResponsavel]);
 
   useEffect(() => {
     if (!eventoId) return;

@@ -74,7 +74,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
       subtitulo: evento.tipo ? `${evento.tipo} · ${dataPorExtenso(evento.data)}` : "Toca numa função para ver como se faz",
       chips: [
         dataCurta(evento.data),
-        nomeLiderEscala ? `Líder de escala · ${nomeLiderEscala}` : "Líder por definir",
+        nomeLiderEscala ? `Responsável · ${nomeLiderEscala}` : "Líder por definir",
         `${funcoesCulto.length} funções${especiais.length ? ` · ${especiais.length} só deste culto` : ""}`,
       ],
     });
@@ -136,14 +136,14 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
         <div className="caixa" style={{ background: "var(--agua)", border: 0 }}>
           <p style={{ fontSize: 13.5, fontWeight: 600 }}>Podes distribuir as funções deste domingo</p>
           <p className="ds" style={{ marginTop: 4 }}>
-            {souLiderBase ? "És líder da base, podes editar qualquer data." : `És o líder de escala de ${dataPorExtenso(evento.data)}. Só podes editar este domingo.`}
+            {souLiderBase ? "És líder da base, podes editar qualquer data." : `És o responsável de ${dataPorExtenso(evento.data)}. Só podes editar este domingo.`}
             {" "}Cada função aceita mais do que uma pessoa.
           </p>
         </div>
       ) : (
         <div className="caixa">
           <p className="ds">
-            {nomeLiderEscala ? `${nomeLiderEscala} é o líder de escala deste domingo e é quem distribui as funções.` : "O líder de escala ainda não foi definido."}
+            {nomeLiderEscala ? `${nomeLiderEscala} é o responsável deste domingo e é quem distribui as funções.` : "O responsável ainda não foi definido."}
           </p>
         </div>
       )}

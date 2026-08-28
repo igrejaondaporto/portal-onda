@@ -99,7 +99,7 @@ export default function SheetFuncao({ funcao, eventosDisponiveis, eventoAtual, s
         ) : (
           <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 8 }}>
             <p className="ds">
-              Como líder de escala, esta função entra só no culto de{" "}
+              Como responsável, esta função entra só no culto de{" "}
               {(() => {
                 const ev = eventosDisponiveis.find((e) => e.id === eventoAtual);
                 return ev ? nomeEvento(ev) : "hoje";

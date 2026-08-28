@@ -100,7 +100,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                 </thead>
                 <tbody>
                   <tr className="lid">
-                    <td className="papel">Líder de escala</td>
+                    <td className="papel">Responsável</td>
                     {eventosMes.map((ev) => {
                       const p = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
                       return <td key={ev.id} className={p?.id === uid ? "mim" : ""}>{p ? p.nome : "por definir"}</td>;
@@ -153,7 +153,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
                     key={id} pessoa={p}
                     resumo={id === uid ? "tu" : fs.length ? `${fs.length} ${fs.length === 1 ? "função" : "funções"}` : "Sem funções atribuídas"}
                     funcoesDaPessoa={fs}
-                    tagExtra={ev.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                    tagExtra={ev.escala.liderEscala === id ? <span className="tag lim">Responsável</span> : null}
                     aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === id}
                     onToggle={() => alternarContacto(ev.id, id)}
                   />

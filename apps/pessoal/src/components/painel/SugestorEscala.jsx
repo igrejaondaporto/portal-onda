@@ -18,7 +18,7 @@ const mesAtual = () => {
 const ALERTA_ICONE = { sobrecarga: "⚠️", sem_candidato: "🔴", inativo: "⏳" };
 
 /** Um domingo da sugestão — mostra quem está escalado, com estrela
- *  para o líder de escala, e "Editar equipa" abre a lista toda de
+ *  para o responsável, e "Editar equipa" abre a lista toda de
  *  voluntários para trocar (mesma interação do SheetEscala manual:
  *  toca para juntar/tirar, estrela define o líder). */
 function CartaoDomingo({ domingo, item, avisos, voluntarios, onAlternar, onDefinirLider }) {
@@ -49,7 +49,7 @@ function CartaoDomingo({ domingo, item, avisos, voluntarios, onAlternar, onDefin
                 </p>
               )}
             </div>
-            <button className={`estrela${liderEscala === id ? " on" : ""}`} onClick={() => onDefinirLider(domingo.id, id)} title="Líder de escala">
+            <button className={`estrela${liderEscala === id ? " on" : ""}`} onClick={() => onDefinirLider(domingo.id, id)} title="Responsável">
               ★
             </button>
           </div>
@@ -296,7 +296,7 @@ export default function SugestorEscala({ voluntarios }) {
           ))}
 
           <p className="ds" style={{ marginTop: 12 }}>
-            A estrela define o líder de escala. "Regenerar" volta a propor tudo do zero — publica assim que estiveres satisfeito.
+            A estrela define o responsável. "Regenerar" volta a propor tudo do zero — publica assim que estiveres satisfeito.
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aCarregar} onClick={regenerar}>

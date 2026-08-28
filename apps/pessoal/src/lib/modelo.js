@@ -68,7 +68,7 @@ export const FASES = [
 export const funcoesDoCulto = (funcoes, eventoId) =>
   funcoes.filter((f) => !f.eventoId || f.eventoId === eventoId);
 
-/** A regra do líder de escala, replicada no cliente só para esconder botões.
+/** A regra do responsável, replicada no cliente só para esconder botões.
  *  A que conta é a da Cloud Function atribuirFuncao. */
 export const podeDistribuir = (papel, uid, escala) =>
   papel === "lider_base" || escala?.liderEscala === uid;

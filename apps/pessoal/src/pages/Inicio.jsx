@@ -63,7 +63,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
-  // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
+  // o líder mudar quem serve ou o responsável, não é preciso refresh.
   useEffect(() => {
     if (!meuEvento?.id) return;
     return onSnapshot(cEscala(meuEvento.id), (esc) => {
@@ -135,7 +135,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         ? (meuEvento.tipo ? `Serves no ${meuEvento.tipo}, ${dataPorExtenso(meuEvento.data)}` : `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`)
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: sirvo
-        ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} ${minhas.length === 1 ? "função" : "funções"}` : "Funções por distribuir"]
+        ? [`Chegada ${chegada}`, `Responsável · ${liderNome ?? "por definir"}`, minhas.length ? `${minhas.length} ${minhas.length === 1 ? "função" : "funções"}` : "Funções por distribuir"]
         : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,7 +260,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </div>
           ) : (
             <div className="convite" onClick={() => setAEditarFrase(true)}>
-              <p className="cap">És o líder de escala de {dataPorExtenso(meuEvento.data)}</p>
+              <p className="cap">És o responsável de {dataPorExtenso(meuEvento.data)}</p>
               <p style={{ fontSize: 17, fontWeight: 700, marginTop: 7, letterSpacing: "-.03em" }}>Deixa uma palavra à tua equipa</p>
               <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
             </div>
@@ -268,7 +268,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         ) : meuEvento.frase ? (
           <div className="frase">
             <p className="txt">“{meuEvento.frase}”</p>
-            <p className="aut">{liderNome ?? "líder de escala"} · líder de escala de {dataPorExtenso(meuEvento.data)}</p>
+            <p className="aut">{liderNome ?? "responsável"} · responsável de {dataPorExtenso(meuEvento.data)}</p>
           </div>
         ) : null}
 
@@ -312,7 +312,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             })
           ) : (
             <div className="vaz" style={{ border: 0 }}>
-              {liderNome ? `${liderNome} ainda não distribuiu as funções deste domingo.` : "O líder de escala ainda não foi definido."}
+              {liderNome ? `${liderNome} ainda não distribuiu as funções deste domingo.` : "O responsável ainda não foi definido."}
             </div>
           )}
         </div>
@@ -391,7 +391,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                   key={id} pessoa={p}
                   resumo={fs.length ? `${fe} de ${fs.length} feitas` : "Sem funções atribuídas"}
                   funcoesDaPessoa={fs}
-                  tagExtra={meuEvento.escala.liderEscala === id ? <span className="tag lim">Líder de escala</span> : null}
+                  tagExtra={meuEvento.escala.liderEscala === id ? <span className="tag lim">Responsável</span> : null}
                   aberta={contactoAberto === id}
                   onToggle={() => setContactoAberto((a) => (a === id ? null : id))}
                 />

@@ -114,7 +114,7 @@ export const desativarFuncao = (funcaoId) =>
   updateDoc(doc(db, `bases/${BASE_ID}/funcoes/${funcaoId}`), { ativa: false });
 
 /** Só o líder da base pode escrever aqui (ver storage.rules) — a foto de
- *  uma função só um culto ainda não tem forma de o líder de escala subir. */
+ *  uma função só um culto ainda não tem forma de o responsável subir. */
 export async function enviarFotoFuncao(funcaoId, ficheiro) {
   const comprimida = await comprimirImagem(ficheiro);
   const destino = refStorage(storage, `bases/${BASE_ID}/funcoes/${funcaoId}`);

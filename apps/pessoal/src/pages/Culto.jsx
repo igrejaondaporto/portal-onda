@@ -143,7 +143,7 @@ export default function Culto({
       {aba === "feedbacks" && (
         <>
           <p className="nota" style={{ marginTop: 16 }}>
-            Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
+            Depois do culto, o responsável escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
           </p>
           {eventosMes.map((ev) => {
             const pode = podeDistribuir(papel, uid, ev.escala);
@@ -162,7 +162,7 @@ export default function Culto({
                     <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.feedback.texto}</p>
                     <div className="linha" style={{ border: 0, padding: "14px 0 0" }}>
                       {autorPessoa && <Avatar pessoa={autorPessoa} tamanho={34} fonte={14} />}
-                      <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "líder de escala"} · líder de escala</p></div>
+                      <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "responsável"} · responsável</p></div>
                       {pode && (
                         <button className="btn sec" style={{ padding: "8px 15px", fontSize: 12.5 }} onClick={() => setSheetFeedback(ev.id)}>
                           Editar

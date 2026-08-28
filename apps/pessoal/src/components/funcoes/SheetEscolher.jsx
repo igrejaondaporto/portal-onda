@@ -44,7 +44,7 @@ export default function SheetEscolher({ funcao, evento, voluntarios, atribuicoes
                   <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
                   <span style={{ display: "block", fontSize: 12, color: naEscala ? "var(--cinza)" : "var(--magenta)" }}>
                     {naEscala
-                      ? `${nFuncoes} ${nFuncoes === 1 ? "função" : "funções"}${evento.escala.liderEscala === p.id ? " · líder de escala" : ""}`
+                      ? `${nFuncoes} ${nFuncoes === 1 ? "função" : "funções"}${evento.escala.liderEscala === p.id ? " · responsável" : ""}`
                       : "Ainda não está na escala deste culto"}
                   </span>
                 </span>

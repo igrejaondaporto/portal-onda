@@ -1,7 +1,7 @@
 /**
  * Inventário: qualquer voluntário mexe na quantidade diretamente. Criar,
  * editar ou desativar itens passa sempre pelas Cloud Functions — só assim
- * o líder de escala também pode geri-lo no dia do culto dele, sem abrir
+ * o responsável também pode geri-lo no dia do culto dele, sem abrir
  * essa porta a toda a gente (a Cloud Function é que decide quem pode).
  * Cada alteração de quantidade fica registada em movimentos. Nada é
  * apagado, só ativo:false.

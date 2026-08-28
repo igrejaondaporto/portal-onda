@@ -38,9 +38,10 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
 
   const eventoId = meuEvento?.id ?? null;
   const { mapa, carregado, souDrive, marcar, garantirMapa, limparMapa } = useMapaAcomodacao(eventoId, uid, papel);
-  // antes de quem tem a função Mapa abrir o mapa hoje, o doc do culto
-  // ainda não existe — mostra a planta "em repouso" (reservados/
-  // bloqueios permanentes) em vez de tudo livre.
+  // antes de quem tem a função Mapa, a líder da base ou o Responsável
+  // do culto abrirem o mapa hoje, o doc do culto ainda não existe —
+  // mostra a planta "em repouso" (reservados/bloqueios permanentes)
+  // em vez de tudo livre.
   const lugares = mapa?.lugares ?? (planta ? estadoInicialLugares(planta) : {});
   const { sel, n, pedir, limpar } = useSelecaoGrupo(planta, lugares);
   const { empilhar, desempilhar } = useHistorico();
@@ -55,16 +56,16 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     definirCabecalho({
       titulo: "Mapa",
       subtitulo: meuEvento ? `Auditório · ${meuEvento.data}` : "",
-      chips: souDrive ? [] : ["Só leitura — não tens a função Mapa neste culto"],
+      chips: souDrive ? [] : ["Só leitura — não tens a função Mapa nem és o responsável deste culto"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, meuEvento, souDrive]);
 
-  // Quem não tem a função Mapa hoje continua a ver o mapa ao vivo
-  // (acompanha em tempo real o que quem tem a função está a marcar)
-  // — só não consegue mexer. Um popup a sério (não um aviso discreto,
-  // que passava despercebido) explica porquê e só fecha quando a
-  // pessoa tocar para confirmar.
+  // Quem não tem a função Mapa, não é a líder nem é o Responsável do
+  // culto continua a ver o mapa ao vivo (acompanha em tempo real o
+  // que está a ser marcado) — só não consegue mexer. Um popup a sério
+  // (não um aviso discreto, que passava despercebido) explica porquê
+  // e só fecha quando a pessoa tocar para confirmar.
   function onTocar(id, tipo) {
     if (!souDrive) {
       setAvisoBloqueio(true);
@@ -207,7 +208,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
             <div className="pux" />
             <h2>Sem acesso para marcar</h2>
             <p className="sb2">
-              Só quem tem a função Mapa neste culto pode mexer no mapa. Fala com o líder da base se precisares.
+              Só quem tem a função Mapa, a líder da base ou o responsável deste culto podem mexer no mapa. Fala com um deles se precisares.
             </p>
             <button className="btn full" style={{ marginTop: 16 }} onClick={() => setAvisoBloqueio(false)}>Entendi</button>
           </div>

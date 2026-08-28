@@ -172,7 +172,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
                     <p className="nmt">{nomeEvento(ev)}</p>
                     <p className="ds">{minhas.length} {minhas.length === 1 ? "função" : "funções"} · chegada {ev.horaChegada || "08:00"}</p>
                   </div>
-                  {ev.escala.liderEscala === uid ? <span className="tag lim">Líder de escala</span> : <span className="seta">›</span>}
+                  {ev.escala.liderEscala === uid ? <span className="tag lim">Responsável</span> : <span className="seta">›</span>}
                 </div>
               );
             })

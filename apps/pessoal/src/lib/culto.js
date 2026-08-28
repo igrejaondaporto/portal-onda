@@ -1,10 +1,10 @@
 /**
- * Checklist e atribuições de um culto, e a frase do líder de escala.
+ * Checklist e atribuições de um culto, e a frase do responsável.
  *
  * Checklist escreve-se direto no Firestore — as regras já só deixam
  * quem está na escala desse culto fazê-lo. Atribuições passam pela
  * Cloud Function atribuirFuncao: é lá que se confirma que quem manda
- * é o líder de escala DESTE culto (ou o líder da base). A frase mexe
+ * é o responsável DESTE culto (ou o líder da base). A frase mexe
  * no documento do evento, que é global e write:false — por isso passa
  * pela Cloud Function definirFrase.
  */
@@ -59,7 +59,7 @@ export const definirFeedback = (eventoId, texto) =>
   chamar("definirFeedback")({ eventoId, texto }).then((r) => r.data);
 
 /** Notas da base que publica, por cima da ordem do culto — separado
- *  da frase do líder de escala. Só quem tem pode_publicar_culto no
+ *  da frase do responsável. Só quem tem pode_publicar_culto no
  *  token consegue chamar isto (ver functions/index.js). */
 export const definirNotasCulto = (eventoId, notas) =>
   chamar("definirNotasCulto")({ eventoId, notas }).then((r) => r.data);
@@ -108,13 +108,15 @@ export const limparOrdemCulto = (eventoId) =>
   chamar("limparOrdemCulto")({ eventoId }).then((r) => r.data);
 
 /** O culto em que a pessoa serve a seguir — este mês ou o próximo.
- *  Sem escala nenhuma (ainda não há dados de Escala na Base Pessoal —
- *  ver "Débitos conscientes" no CLAUDE.md dela), o último recurso já
- *  não pode ser "o primeiro culto do mês" (esteMes[0]): a meio do mês
- *  isso aponta para um domingo já passado, para sempre — foi o que
- *  prendeu a Acomodação em "2 de agosto" o mês inteiro. Sem escala,
- *  cai antes no próximo culto que ainda vai acontecer; só se não
- *  houver NENHUM culto futuro gerado é que recua para o mais recente. */
+ *  Nunca cai para um culto já passado: se a pessoa serviu no último
+ *  domingo mas ainda não está escalada no próximo (a escala do mês
+ *  seguinte ainda não saiu), isto tem de devolver o próximo culto
+ *  (por escalar) ou `null`, nunca voltar atrás no calendário — foi o
+ *  que prendia o Início/Mapa da Camila em "2 de agosto" depois desse
+ *  domingo já ter passado, mesmo sem ela estar escalada em nada
+ *  futuro. `null` é um estado válido (nenhum culto gerado ainda a
+ *  partir de hoje) — quem chama já trata isso como "sem informações
+ *  do próximo culto ainda", não como erro. */
 export async function obterMeuEvento(uid) {
   const hoje = new Date();
   const hojeISO = hoje.toISOString().slice(0, 10);
@@ -124,13 +126,12 @@ export async function obterMeuEvento(uid) {
     obterEventosDoMes(hoje.getFullYear(), hoje.getMonth()),
     obterEventosDoMes(proximo.getFullYear(), proximo.getMonth()),
   ]);
-  const candidatos = [...esteMes, ...proxMes].sort((a, b) => a.data.localeCompare(b.data));
+  const futuros = [...esteMes, ...proxMes]
+    .filter((ev) => ev.data >= hojeISO)
+    .sort((a, b) => a.data.localeCompare(b.data));
 
-  const meu = candidatos.find((ev) => ev.data >= hojeISO && ev.escala.pessoas.includes(uid));
-  const escalado = candidatos.find((ev) => ev.escala.pessoas.includes(uid));
-  const proximoCulto = candidatos.find((ev) => ev.data >= hojeISO);
-  const ultimoCulto = [...candidatos].reverse()[0];
-  return meu ?? escalado ?? proximoCulto ?? ultimoCulto ?? esteMes[0] ?? null;
+  const meu = futuros.find((ev) => ev.escala.pessoas.includes(uid));
+  return meu ?? futuros[0] ?? null;
 }
 
 /** Todos os cultos em que a pessoa serve, este mês e o próximo — para o Perfil. */
