@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  ouvirInventario, mexerQuantidade, ouvirListaCompraAberta, ouvirListasComprasSalvas,
+  ouvirInventario, mexerQuantidade, definirQuantidade, ouvirListaCompraAberta, ouvirListasComprasSalvas,
   adicionarItemListaCompras, fecharListaCompras, enviarListaCompras,
   linkListaComprasWhatsApp,
 } from "../lib/inventario";
@@ -34,6 +34,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
   const [listaAberta, setListaAberta] = useState(null);
   const [listasSalvas, setListasSalvas] = useState([]);
   const [aProcessarLista, setAProcessarLista] = useState(false);
+  const [aEditarQtd, setAEditarQtd] = useState(null);
 
   useEffect(() => ouvirInventario(setItens), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
@@ -70,10 +71,20 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
     }
   }
 
-  async function adicionarACompras(item) {
-    if (!listaAberta) return torrada("Sem lista de compras aberta.");
+  async function guardarQtd(item, valor) {
+    setAEditarQtd(null);
+    const nova = Number(valor);
+    if (!Number.isFinite(nova) || nova === item.quantidade) return;
     try {
-      const { jaAdicionado } = await adicionarItemListaCompras(listaAberta.id, { itemId: item.id, nome: item.nome }, uid);
+      await definirQuantidade(item, nova, uid);
+    } catch (e) {
+      torrada(e.message || "Não foi possível atualizar.");
+    }
+  }
+
+  async function adicionarACompras(item) {
+    try {
+      const { jaAdicionado } = await adicionarItemListaCompras(item);
       torrada(jaAdicionado ? "Já estava na lista de compras" : `${item.nome} adicionado à lista de compras`);
     } catch (e) {
       torrada(e.message || "Não foi possível adicionar.");
@@ -130,25 +141,25 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                   />
                 )}
                 <div style={{ flex: 1 }}>
-                  <p className="nmt">{i.nome}</p>
+                  <p className="nmt" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    {i.nome}
+                    {estado.nivel !== "ok" && (
+                      jaNaLista ? (
+                        <span style={{ fontSize: 10.5, color: "var(--cinza)" }}>Já na lista de compras</span>
+                      ) : (
+                        <button
+                          className="btn sec" style={{ padding: "2px 8px", fontSize: 10.5, fontWeight: 600 }}
+                          onClick={() => adicionarACompras(i)}
+                        >
+                          + à lista de compras
+                        </button>
+                      )
+                    )}
+                  </p>
                   <p className="ds">
                     {estado.cor ? <span style={{ color: estado.cor, fontWeight: 600 }}>{estado.texto}</span> : estado.texto}
                   </p>
                   {i.observacoes && <p className="ds">{i.observacoes}</p>}
-                  {estado.nivel !== "ok" && (
-                    jaNaLista ? (
-                      <button className="btn sec" disabled style={{ marginTop: 6, padding: "6px 10px", fontSize: 11.5, opacity: 0.7 }}>
-                        Item já adicionado à lista de compras
-                      </button>
-                    ) : (
-                      <button
-                        className="btn sec" style={{ marginTop: 6, padding: "6px 10px", fontSize: 11.5 }}
-                        onClick={() => adicionarACompras(i)}
-                      >
-                        Adicionar à lista de compras
-                      </button>
-                    )
-                  )}
                 </div>
                 {podeGerir && (
                   <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12, marginRight: 4 }} onClick={() => setSheet({ tipo: "item", item: i })}>
@@ -157,7 +168,16 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                 )}
                 <div className="qtd">
                   <button className="qb" onClick={() => mexer(i, -1)}>−</button>
-                  <span className="qn">{i.quantidade}</span>
+                  {aEditarQtd === i.id ? (
+                    <input
+                      className="qn" type="number" min="0" autoFocus defaultValue={i.quantidade}
+                      style={{ width: 40, textAlign: "center", border: 0, background: "transparent" }}
+                      onBlur={(e) => guardarQtd(i, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setAEditarQtd(null); }}
+                    />
+                  ) : (
+                    <span className="qn" style={{ cursor: "pointer" }} onClick={() => setAEditarQtd(i.id)}>{i.quantidade}</span>
+                  )}
                   <button className="qb" onClick={() => mexer(i, 1)}>+</button>
                 </div>
               </div>

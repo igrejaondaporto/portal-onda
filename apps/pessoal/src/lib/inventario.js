@@ -8,11 +8,11 @@
  */
 import {
   collection, doc, addDoc, onSnapshot, orderBy, query, where, limit,
-  runTransaction, serverTimestamp, Timestamp,
+  runTransaction, serverTimestamp,
 } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, BASE_ID, chamar } from "@portal/shared/lib/firebase.js";
-import { cInventario, cListasCompras, cListaCompras } from "./modelo";
+import { cInventario, cListasCompras } from "./modelo";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 
 export function ouvirInventario(cb) {
@@ -57,13 +57,34 @@ export async function mexerQuantidade(item, delta, uid) {
   return quantidade;
 }
 
+/** Escrever o número direto (em vez de +/- um de cada vez) — toque no
+ *  próprio número, para quem acabou de contar tudo não precisar de
+ *  clicar dezenas de vezes. Mesmo registo em movimentos, com o delta
+ *  calculado (pode ser negativo). */
+export async function definirQuantidade(item, novaQuantidade, uid) {
+  const nova = Math.max(0, Math.round(novaQuantidade));
+  const ref = doc(db, `bases/${BASE_ID}/inventario/${item.id}`);
+  const delta = await runTransaction(db, async (tx) => {
+    const atual = (await tx.get(ref)).data()?.quantidade ?? 0;
+    tx.update(ref, { quantidade: nova, atualizadoEm: serverTimestamp(), atualizadoPor: uid });
+    return nova - atual;
+  });
+  if (delta !== 0) {
+    await addDoc(collection(db, `bases/${BASE_ID}/inventario/${item.id}/movimentos`), {
+      pessoaId: uid, delta, quantidade: nova, criadoEm: serverTimestamp(),
+    });
+  }
+  return nova;
+}
+
 /**
- * Lista de compras: qualquer pessoa da base vê e acrescenta itens à
- * lista aberta (regras: só o campo `itens` muda, só enquanto
- * `estado === "aberta"`) — fechar e enviar são as únicas ações
- * restritas (líder da base, ou o responsável do culto de hoje),
- * por isso passam pela Cloud Function (mesma regra de
- * `exigeGestorInventario`, ver functions/index.js).
+ * Lista de compras: qualquer pessoa da base vê a lista aberta e
+ * acrescenta itens (via Cloud Function — não é escrita direta do
+ * cliente, porque precisa de "abrir-se sozinha" quando não há
+ * nenhuma lista aberta ainda, ver functions/index.js). Fechar e
+ * enviar são as únicas ações restritas (líder da base, ou o
+ * responsável do culto de hoje — mesma regra de
+ * `exigeGestorInventario`).
  */
 export function ouvirListaCompraAberta(cb) {
   const q = query(cListasCompras(), where("estado", "==", "aberta"), orderBy("criadaEm", "desc"), limit(1));
@@ -75,24 +96,8 @@ export function ouvirListasComprasSalvas(cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
-/** Transação (não arrayUnion) porque precisamos de saber já se o item
- *  estava lá — é o que decide se o botão mostra "adicionado" ou
- *  "já estava". `serverTimestamp()` não é permitido dentro de um
- *  array, por isso cada entrada leva `Timestamp.now()` (hora do
- *  cliente) em vez disso — só para mostrar "há 2 min", não é usado
- *  para nenhuma decisão sensível. */
-export async function adicionarItemListaCompras(listaId, item, uid) {
-  const ref = cListaCompras(listaId);
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    const itens = snap.data()?.itens || [];
-    if (itens.some((i) => i.itemId === item.itemId)) return { jaAdicionado: true };
-    tx.update(ref, {
-      itens: [...itens, { itemId: item.itemId, nome: item.nome, adicionadoPor: uid, adicionadoEm: Timestamp.now() }],
-    });
-    return { jaAdicionado: false };
-  });
-}
+export const adicionarItemListaCompras = (item) =>
+  chamar("adicionarItemListaCompras")({ itemId: item.id, nome: item.nome }).then((r) => r.data);
 
 export const fecharListaCompras = (listaId) =>
   chamar("fecharListaCompras")({ listaId }).then((r) => r.data);
