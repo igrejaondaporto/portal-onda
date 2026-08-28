@@ -38,16 +38,19 @@ jobs:
       # O id do projeto vem do .firebaserc, que está versionado — não
       # precisa de secret nenhum. Menos uma coisa para configurar, e
       # menos uma para ficar dessincronizada.
-      # --force: só desta vez, para apagar 2 funções órfãs
-      # (alterarQuantidadeItemListaCompras/removerItemListaCompras,
-      # Pessoal) que voltaram a ser escrita direta do cliente — sem
-      # isto o deploy aborta em modo não-interativo, porque apagar
-      # função pede confirmação. Reverter para sem --force no commit
-      # seguinte, para o próximo apagão real também parar e avisar.
+      #
+      # Sem --force de propósito: apagar uma função pede confirmação,
+      # e em modo não-interativo isso aborta o deploy em vez de
+      # apagar sozinho — é a rede de segurança contra remover uma
+      # função de produção por engano. Quando for mesmo para apagar
+      # (função removida do código a sério), corre
+      # `firebase functions:delete <nome> --region europe-west1` à
+      # mão uma vez, ou usa --force só nesse deploy pontual — nunca
+      # deixar --force fixo aqui.
       - name: Deploy
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: firebase deploy --only functions,firestore:rules,firestore:indexes,storage --non-interactive --force
+        run: firebase deploy --only functions,firestore:rules,firestore:indexes,storage --non-interactive
 
       # Regra do projeto: um deploy de functions não está terminado
       # enquanto o smoke não passar. `node --check` apanha erro de
