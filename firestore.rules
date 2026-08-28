@@ -294,20 +294,26 @@ service cloud.firestore {
 
       // mapa do auditório da Base Pessoal — escreve direto do cliente
       // (sem Cloud Function) de propósito: é o único jeito de marcar
-      // lugares offline, e Cloud Functions não correm sem rede. Só
-      // quem tem a função "Mapa" (id fixo "drive" — nome antigo, de
-      // quando isto vivia numa folha do Google Drive; ver
-      // bases/pessoal/funcoes/drive) neste culto pode escrever, mais
-      // a líder da base. "drive" é reservado: nenhuma outra base pode
-      // ter uma função com este id (a coleção atribuicoes é plana,
-      // sem namespace de base).
+      // lugares offline, e Cloud Functions não correm sem rede. Três
+      // perfis podem escrever: a líder da base, quem tem a função
+      // "Mapa" (id fixo "drive" — nome antigo, de quando isto vivia
+      // numa folha do Google Drive; ver bases/pessoal/funcoes/drive)
+      // neste culto, e o Responsável do culto (escalas/pessoal.
+      // liderEscala) — pedido explícito, o Responsável manda no
+      // domingo dele mesmo sem ter a função Mapa atribuída. "drive" é
+      // reservado: nenhuma outra base pode ter uma função com este id
+      // (a coleção atribuicoes é plana, sem namespace de base).
       match /acomodacao/mapa {
         allow read: if autenticado();
         allow write: if souLiderBase('pessoal')
                      || (minhaBase('pessoal')
                          && exists(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive)
                          && request.auth.uid in
-                            get(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive).data.pessoas);
+                            get(/databases/$(database)/documents/eventos/$(evento)/atribuicoes/drive).data.pessoas)
+                     || (minhaBase('pessoal')
+                         && exists(/databases/$(database)/documents/eventos/$(evento)/escalas/pessoal)
+                         && get(/databases/$(database)/documents/eventos/$(evento)/escalas/pessoal).data.liderEscala
+                            == request.auth.uid);
       }
 
       // registo ao vivo da ordem do culto (Base Técnica ↔ FreeShow) —
