@@ -381,7 +381,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         <div className="sect">
           <div className="cabecalho"><h3>Servem contigo</h3></div>
           {meuEvento.escala.pessoas.filter((id) => id !== uid).length ? (
-            meuEvento.escala.pessoas.filter((id) => id !== uid).map((id) => {
+            [...meuEvento.escala.pessoas.filter((id) => id !== uid)]
+              .sort((a, b) => (b === meuEvento.escala.liderEscala) - (a === meuEvento.escala.liderEscala))
+              .map((id) => {
               const p = voluntarios.find((x) => x.id === id);
               if (!p) return null;
               const fs = funcoesCulto.filter((f) => (atribuicoes[f.id] || []).includes(id));
@@ -404,17 +406,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>
           {[
-            ["inventario", "Inventário", "Consumíveis do café", () => onIrCulto?.("inventario")],
-            ["acomodacao", "Acomodação", "Mapa do auditório ao vivo", () => onIrAcomodacao?.()],
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
-            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
-          ].map(([k, t, d, ir]) => {
-            const falta = k === "inventario" ? inventario.filter((i) => i.quantidade < i.minimo).length : 0;
+            ["inventario", "Inventário", "Consumíveis do café", () => onIrCulto?.("inventario"), null],
+            ["acomodacao", "Acomodação", "Mapa do auditório ao vivo", () => onIrAcomodacao?.(), null],
+            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.(), "var(--azul)"],
+            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), "var(--laranja)"]] : []),
+          ].map(([k, t, d, ir, cor]) => {
+            const falta = k === "inventario" ? inventario.filter((i) => i.quantidade <= i.minimo).length : 0;
             const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
             return (
-              <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
+              <div
+                className="linha" style={{ cursor: "pointer", ...(cor ? { borderLeft: `3px solid ${cor}`, paddingLeft: 11 } : {}) }}
+                key={k} onClick={ir}
+              >
                 <div style={{ flex: 1 }}>
-                  <p className="nmt">{t}</p>
+                  <p className="nmt" style={cor ? { color: cor } : undefined}>{t}</p>
                   <p className="ds">{d}</p>
                 </div>
                 {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span>
