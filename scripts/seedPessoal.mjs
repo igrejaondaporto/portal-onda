@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { randomBytes, scryptSync } from "node:crypto";
 import admin from "firebase-admin";
+import { garantirIdSemColisao } from "./lib/semearPessoaSegura.mjs";
 
 const chave = JSON.parse(readFileSync("./service-account.json", "utf8"));
 admin.initializeApp({ credential: admin.credential.cert(chave) });
@@ -69,6 +70,10 @@ async function main() {
     horaChegada: "09:30", horaCulto: "10:00",
     local: "Casa do Povo de Vermoim, Maia", ativa: true,
   }, { merge: true });
+
+  // Trava real, não só o comentário acima — aborta em vez de reescrever
+  // silenciosamente uma identidade de outra base (ver lib/semearPessoaSegura.mjs).
+  await garantirIdSemColisao(db, LIDER.id, BASE);
 
   await db.doc(`bases/${BASE}/pessoas/${LIDER.id}`).set(
     { nome: LIDER.nome, papel: LIDER.papel, ativo: true, foto: null, telefone: "" }, { merge: true });

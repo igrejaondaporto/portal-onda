@@ -123,6 +123,21 @@ passar.
    global; `eventos/{e}/escalas/{baseId}` é da base. O PDF da ordem do
    culto sobe uma vez para todas.
 8. Português de Portugal, tratamento por tu, em todas as bases.
+9. **`pessoas/{id}` nunca leva um id "nome cru"** (`"camila"`, `"alan"`,
+   `"joao"`...) num seed. Já aconteceu colidir com uma pessoa real de
+   outra base — a identidade e o PIN são globais (regra 2), por isso o
+   `set({...}, {merge:true})` do segundo seed reescreveu sozinho o
+   `bases` e o PIN da pessoa da primeira base, sem erro nenhum a
+   avisar (ver `scripts/corrigirColisaoCamila.mjs`, o script que
+   reparou o estrago). `scripts/seed.mjs` (Apoio, o seed original) já
+   usa ids crus para 17 pessoas — todos reservados, minas para
+   qualquer base nova com alguém do mesmo primeiro nome. Todo seed que
+   escreve `pessoas/{id}` com um id escolhido à mão chama
+   `garantirIdSemColisao` (`scripts/lib/semearPessoaSegura.mjs`)
+   primeiro, e usa um id namespaced (`"<nome>-<baseId>"`) quando o
+   nome já existir. Uma pessoa a servir em duas bases a sério nunca
+   nasce por seed — é sempre pelo Painel do líder → Adicionar → "já é
+   voluntário(a) noutra base?" (liga o perfil existente, não duplica).
 
 ## RGPD
 

@@ -214,7 +214,17 @@ Copia `scripts/seed.mjs` (ou `seedBackstage.mjs`/`seedComunicacao.mjs`,
 o que for mais parecido) para `scripts/seed<Nome>.mjs`, troca `BASE`,
 a lista de `PESSOAS` (PIN provisório: `123456` líder / `1234`
 voluntário — força troca no primeiro acesso), funções/ministérios,
-inventário. Roda uma vez:
+inventário.
+
+**Nunca uses um primeiro nome cru como id em `PESSOAS`** (`"camila"`,
+`"alan"`...) — `pessoas/{id}` é global, e um id que já exista noutra
+base reescreve a identidade/PIN dela em silêncio (ver `CLAUDE.md` da
+raiz, regra 9, e o incidente que isto já causou:
+`scripts/corrigirColisaoCamila.mjs`). Usa um id namespaced
+(`"<nome>-<baseId>"`) e chama `garantirIdSemColisao` de
+`scripts/lib/semearPessoaSegura.mjs` antes de cada `pessoas/{id}.set(...)`
+— aborta em vez de sobrescrever se o id já pertencer a outra base.
+Roda uma vez:
 
 ```bash
 node scripts/seed<Nome>.mjs
