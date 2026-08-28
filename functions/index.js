@@ -401,19 +401,31 @@ export const criarVoluntario = onCall(async (req) => {
     // noutra base (aconteceu: o Breno tinha o número guardado na
     // Apoio, ficou em branco ao ligar à Técnica). Se quem liga não
     // mandou um telefone, herda de qualquer outra base onde a pessoa
-    // já tenha um guardado.
+    // já tenha um guardado. A foto tem o mesmo problema por um motivo
+    // diferente: cada pessoa muda a própria foto por escrita direta
+    // em `bases/{base}/pessoas/{id}` (ver editarVoluntario), e isso
+    // nunca sobe para o documento global — por isso `globalSnap`
+    // quase sempre tem `foto:null`, mesmo que a pessoa tenha foto
+    // posta noutra base (caso real: o Hans, ao ser religado à
+    // Pessoal, ficou sem foto porque `pessoas/hans.foto` nunca foi
+    // atualizado desde que a conta nasceu na Técnica). Mesmo
+    // tratamento: herda de qualquer outra base que já tenha uma.
     let telefoneFinal = telefone;
-    if (!telefoneFinal) {
+    let fotoFinal = globalSnap.data().foto ?? null;
+    if (!telefoneFinal || !fotoFinal) {
       const outrasBases = Object.keys(globalSnap.data().bases || {}).filter((b) => b !== baseId);
       for (const outraBase of outrasBases) {
         const outroSnap = await refPessoa(outraBase, pessoaExistenteId).get();
-        if (outroSnap.exists && outroSnap.data().telefone) { telefoneFinal = outroSnap.data().telefone; break; }
+        if (!outroSnap.exists) continue;
+        if (!telefoneFinal && outroSnap.data().telefone) telefoneFinal = outroSnap.data().telefone;
+        if (!fotoFinal && outroSnap.data().foto) fotoFinal = outroSnap.data().foto;
+        if (telefoneFinal && fotoFinal) break;
       }
     }
 
     await refPessoa(baseId, pessoaExistenteId).set({
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
-      foto: globalSnap.data().foto ?? null,
+      foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
       ...comMinisterios, ...comNivel, ...comCargo,
     });
