@@ -242,7 +242,7 @@ service cloud.firestore {
                     && request.resource.data.rgpd.aceite == true;
       allow update: if minhaBase('pessoal')
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['nome', 'telemovel', 'telemovelDigitos', 'concelho', 'freguesia', 'gdSugerido', 'enviadoPastorEm', 'arquivado']);
+                         .hasOnly(['nome', 'telemovel', 'telemovelDigitos', 'email', 'concelho', 'freguesia', 'gdSugerido', 'enviadoPastorEm', 'arquivado']);
       allow delete: if false;
     }
 
