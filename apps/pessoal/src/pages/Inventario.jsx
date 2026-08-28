@@ -159,7 +159,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                           style={{
                             flexShrink: 0, whiteSpace: "nowrap", border: 0, cursor: "pointer",
                             padding: "5px 10px", fontSize: 14, borderRadius: 8, lineHeight: 1,
-                            background: "#fff", color: "var(--azul)",
+                            background: "rgba(106,113,146,0.12)", color: "var(--azul)",
                           }}
                           onClick={() => adicionarACompras(i)}
                         >
