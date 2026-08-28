@@ -383,8 +383,16 @@ export const criarVoluntario = onCall(async (req) => {
   if (pessoaExistenteId) {
     const globalSnap = await refGlobal(pessoaExistenteId).get();
     if (!globalSnap.exists) throw new HttpsError("not-found", "Pessoa não encontrada.");
+    // "nada é apagado, é desativado" — remover alguém da base marca
+    // ativo:false, não apaga o documento. Sem o `&& ativo`, esta
+    // checagem via um bloqueio permanente: quem foi removido nunca
+    // mais podia ser adicionado de novo, mesmo pelo fluxo certo
+    // ("já é voluntário(a) noutra base?"), porque o doc antigo
+    // continuava a existir. Reativar é só voltar a escrever por cima.
     const jaAqui = await refPessoa(baseId, pessoaExistenteId).get();
-    if (jaAqui.exists) throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
+    if (jaAqui.exists && jaAqui.data().ativo !== false) {
+      throw new HttpsError("already-exists", "Essa pessoa já está nesta base.");
+    }
 
     // procurarPessoaGlobal (buscar por telefone) não devolve o
     // telefone nos resultados — e quem liga por essa via nem sempre o
@@ -1495,12 +1503,40 @@ export const desativarItemInventario = onCall(async (req) => {
 });
 
 /* ── LISTA DE COMPRAS: fechar/enviar são as únicas ações restritas ──
- * Acrescentar itens é escrita direta do cliente (ver firestore.rules,
- * qualquer pessoa da base, só enquanto a lista está aberta) — só
- * fechar e enviar exigem ser líder da base ou o responsável do culto
- * de hoje, por isso passam por aqui (mesmo exigeGestorInventario do
- * módulo Inventário — é o mesmo círculo de gestão). Fechar já cria a
- * lista seguinte, vazia — nunca fica um momento sem lista aberta. */
+ * Acrescentar itens é aberto a qualquer pessoa da base, mas passa por
+ * aqui (não é escrita direta do cliente) porque tem de "abrir-se
+ * sozinha" — sem lista aberta nenhuma (primeiro item de sempre, ou
+ * depois de a última ter sido enviada sem ninguém ter acrescentado
+ * nada à seguinte), não deve exigir a líder para começar uma; o
+ * primeiro item de alguém já a cria. Fechar/enviar continuam a exigir
+ * ser líder da base ou o responsável do culto de hoje (mesmo
+ * exigeGestorInventario do módulo Inventário — o mesmo círculo de
+ * gestão). Fechar já cria a lista seguinte, vazia — nunca fica um
+ * momento sem lista aberta. */
+export const adicionarItemListaCompras = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { itemId, nome } = req.data || {};
+  if (!itemId || !nome?.trim()) throw new HttpsError("invalid-argument", "Falta o item.");
+
+  const col = db.collection(`bases/${baseId}/listasCompras`);
+  return db.runTransaction(async (tx) => {
+    const abertaSnap = await tx.get(col.where("estado", "==", "aberta").limit(1));
+    const existente = abertaSnap.empty ? null : abertaSnap.docs[0];
+    const ref = existente ? existente.ref : col.doc();
+    const itensAtuais = existente ? existente.data().itens || [] : [];
+    if (itensAtuais.some((i) => i.itemId === itemId)) return { jaAdicionado: true, listaId: ref.id };
+
+    const novoItem = { itemId, nome: nome.trim(), adicionadoPor: uid, adicionadoEm: admin.firestore.Timestamp.now() };
+    tx.set(ref, {
+      estado: "aberta",
+      itens: [...itensAtuais, novoItem],
+      criadaEm: existente ? existente.data().criadaEm : admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { jaAdicionado: false, listaId: ref.id };
+  });
+});
+
 export const fecharListaCompras = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
   const { listaId } = req.data || {};
