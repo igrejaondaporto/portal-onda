@@ -140,8 +140,8 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
                   />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <p className="nmt" style={{ minWidth: 0 }}>{i.nome}</p>
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    <p className="nmt" style={{ minWidth: 0, flex: "0 1 auto" }}>{i.nome}</p>
                     {estado.nivel !== "ok" && (
                       jaNaLista ? (
                         <span
