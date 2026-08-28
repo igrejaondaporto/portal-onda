@@ -156,6 +156,22 @@ service cloud.firestore {
         }
       }
 
+      // ── lista de compras: qualquer voluntário da base acrescenta
+      // itens à lista aberta (só o campo `itens`, só enquanto
+      // `estado == "aberta"` — antes e depois da escrita, para não
+      // dar para "reabrir" uma lista já fechada por esta via). Fechar
+      // e enviar mudam `estado` e são sempre por Cloud Function
+      // (mesma regra do inventário: líder da base, ou o responsável
+      // do culto de hoje — ver exigeGestorInventario). ──
+      match /listasCompras/{lista} {
+        allow read:   if minhaBase(base);
+        allow update: if minhaBase(base)
+                      && resource.data.estado == 'aberta'
+                      && request.resource.data.estado == 'aberta'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['itens']);
+        allow create, delete: if false;                // só por função
+      }
+
       // ── enquetes de indisponibilidade: um documento por mês,
       // aberto/fechado só pelo líder. Voto privado — cada voluntário
       // só lê a própria resposta, o líder vê o conjunto. Sempre por
