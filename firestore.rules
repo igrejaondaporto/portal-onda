@@ -156,16 +156,24 @@ service cloud.firestore {
         }
       }
 
-      // ── lista de compras: tudo por Cloud Function, mesmo
-      // acrescentar itens — precisa de "abrir-se sozinha" quando não
-      // há nenhuma lista aberta ainda (ver adicionarItemListaCompras
-      // em functions/index.js), o que uma regra de update comum não
-      // consegue fazer (não há documento para apontar a condição
-      // antes de ele existir). Fechar/enviar continuam restritos a
-      // líder da base ou responsável do culto de hoje. ──
+      // ── lista de compras: acrescentar/tirar/mexer quantidade é
+      // escrita direta do cliente (rápido, sem round-trip a uma
+      // função) — só o campo `itens` muda, só enquanto
+      // `estado == "aberta"` (antes e depois, para não dar para
+      // "reabrir" uma lista já fechada por esta via). A única exceção
+      // é o primeiro item de uma lista nova, quando ainda não há
+      // nenhuma "aberta" — aí passa por adicionarItemListaCompras
+      // (functions/index.js), porque uma regra de update comum não
+      // consegue apontar uma condição a um documento que ainda não
+      // existe. Fechar/enviar continuam restritos a líder da base ou
+      // responsável do culto de hoje, sempre por função. ──
       match /listasCompras/{lista} {
-        allow read:  if minhaBase(base);
-        allow write: if false;                         // só por função
+        allow read:   if minhaBase(base);
+        allow update: if minhaBase(base)
+                      && resource.data.estado == 'aberta'
+                      && request.resource.data.estado == 'aberta'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['itens']);
+        allow create, delete: if false;                // só por função
       }
 
       // ── enquetes de indisponibilidade: um documento por mês,
