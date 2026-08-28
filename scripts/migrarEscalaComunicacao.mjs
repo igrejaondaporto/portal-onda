@@ -24,11 +24,18 @@ admin.initializeApp({ credential: admin.credential.cert(chave) });
 const db = admin.firestore();
 
 async function main() {
-  const snap = await db.collectionGroup("escalas").where("baseId", "==", "comunicacao").get();
-  console.log(`${snap.size} escala(s) da Comunicação encontrada(s).\n`);
+  // Sem índice de collectionGroup para "escalas" — em vez de pedir um
+  // só para este script de uso único, percorre eventos/{id}/escalas/
+  // comunicacao diretamente (eventos são poucos, um por domingo).
+  const eventosSnap = await db.collection("eventos").get();
+  console.log(`${eventosSnap.size} evento(s) a verificar.\n`);
 
   let migradas = 0;
-  for (const doc of snap.docs) {
+  for (const ev of eventosSnap.docs) {
+    const ref = db.doc(`eventos/${ev.id}/escalas/comunicacao`);
+    const doc = await ref.get();
+    if (!doc.exists) continue;
+
     const dados = doc.data();
     const lugares = dados.lugares || [];
     const precisaMigrar = lugares.some((l) => "titularId" in l || "aprendizId" in l);
@@ -40,9 +47,9 @@ async function main() {
       return { ministerioId: l.ministerioId, pessoas };
     });
 
-    await doc.ref.update({ lugares: lugaresNovos });
+    await ref.update({ lugares: lugaresNovos });
     migradas++;
-    console.log(`migrada: ${doc.ref.path}`);
+    console.log(`migrada: ${ref.path}`);
   }
 
   console.log(`\n${migradas} escala(s) migrada(s).`);
