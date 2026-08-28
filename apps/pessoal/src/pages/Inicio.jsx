@@ -18,16 +18,15 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 
-function ordenarPorAtribuicao(lista, atribuicoes, checklist, voluntarios) {
-  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "";
-  const nomesDe = (ids) => [...ids].map(nomeDe).sort((a, b) => a.localeCompare(b, "pt")).join(" e ");
-  return [...lista]
-    .sort((a, b) => {
-      const na = nomesDe(atribuicoes[a.id] || []) || "zzzz";
-      const nb = nomesDe(atribuicoes[b.id] || []) || "zzzz";
-      return na.localeCompare(nb, "pt") || a.nome.localeCompare(b.nome, "pt");
-    })
-    .sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
+/** A checklist é espelho de Funções — mesma ordem (o líder reordena
+ *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
+ *  "ordem" (ver ouvirFuncoes em lib/painel.js), então aqui só falta
+ *  mandar quem já está feito para o fim — sort é estável, por isso
+ *  preserva a ordem de Funções dentro de cada grupo (feitas / por
+ *  fazer). Já existiu uma versão que ordenava por nome de quem
+ *  estava atribuído — foi removida por quebrar o espelho. */
+function ordenarPorAtribuicao(lista, checklist) {
+  return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrAcomodacao, onIrReembolsos }) {
@@ -279,7 +278,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
           {minhas.length ? (
             FASES.map(([k, t]) => {
-              const doF = ordenarPorAtribuicao(minhas.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+              const doF = ordenarPorAtribuicao(minhas.filter((f) => f.fase === k), checklist);
               if (!doF.length) return null;
               return (
                 <div key={k}>
@@ -335,7 +334,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 <button className="btn sec" style={{ flex: 1, padding: "11px 8px", fontSize: 13 }} onClick={() => marcarTodas(false)}>Limpar tudo</button>
               </div>
               {FASES.map(([k, t]) => {
-                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), atribuicoes, checklist, voluntarios);
+                const doF = ordenarPorAtribuicao(funcoesCulto.filter((f) => f.fase === k), checklist);
                 if (!doF.length) return null;
                 const fe = doF.filter((f) => checklist[f.id]).length;
                 return (

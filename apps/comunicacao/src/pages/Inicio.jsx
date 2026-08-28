@@ -14,15 +14,15 @@ import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.j
 import SheetPassarEquipamento from "../components/inicio/SheetPassarEquipamento";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 
-const ORDEM_FASE = { pre: 0, durante: 1, pos: 2 };
-
+/** A checklist é espelho de Funções — mesma ordem (o líder reordena
+ *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
+ *  "ordem" (ver ouvirFuncoes em lib/painel.js), então aqui só falta
+ *  mandar quem já está feito para o fim — sort é estável, por isso
+ *  preserva a ordem de Funções dentro de cada grupo (feitas / por
+ *  fazer). Já existiu uma versão que ordenava por fase + nome — foi
+ *  removida por quebrar o espelho. */
 function ordenarChecklist(lista, checklist) {
-  return [...lista].sort((a, b) => {
-    const okA = checklist[a.id] ? 1 : 0, okB = checklist[b.id] ? 1 : 0;
-    if (okA !== okB) return okA - okB;
-    if (ORDEM_FASE[a.fase] !== ORDEM_FASE[b.fase]) return ORDEM_FASE[a.fase] - ORDEM_FASE[b.fase];
-    return a.nome.localeCompare(b.nome, "pt");
-  });
+  return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrReembolsos, onIrSolicitacoes }) {
