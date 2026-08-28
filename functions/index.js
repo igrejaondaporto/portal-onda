@@ -1514,17 +1514,16 @@ export const desativarItemInventario = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── LISTA DE COMPRAS: fechar/enviar são as únicas ações restritas ──
- * Acrescentar itens é aberto a qualquer pessoa da base, mas passa por
- * aqui (não é escrita direta do cliente) porque tem de "abrir-se
- * sozinha" — sem lista aberta nenhuma (primeiro item de sempre, ou
- * depois de a última ter sido enviada sem ninguém ter acrescentado
- * nada à seguinte), não deve exigir a líder para começar uma; o
- * primeiro item de alguém já a cria. Fechar/enviar continuam a exigir
- * ser líder da base ou o responsável do culto de hoje (mesmo
- * exigeGestorInventario do módulo Inventário — o mesmo círculo de
- * gestão). Fechar já cria a lista seguinte, vazia — nunca fica um
- * momento sem lista aberta. */
+/* ── LISTA DE COMPRAS ──────────────────────────────────────────
+ * Acrescentar/tirar/mexer quantidade são escrita direta do cliente
+ * (ver firestore.rules — rápido, sem round-trip a uma função). Esta
+ * função só entra numa situação: não há NENHUMA lista aberta ainda
+ * (primeiro item de sempre, ou depois de a última ter sido enviada
+ * sem ninguém ter acrescentado nada à seguinte) — aí "abre-se
+ * sozinha", sem exigir a líder para começar. Fechar/enviar continuam
+ * restritos a líder da base ou responsável do culto de hoje (mesmo
+ * exigeGestorInventario do módulo Inventário). Fechar já cria a
+ * lista seguinte, vazia — nunca fica um momento sem lista aberta. */
 export const adicionarItemListaCompras = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1549,42 +1548,6 @@ export const adicionarItemListaCompras = onCall(async (req) => {
     }, { merge: true });
     return { jaAdicionado: false, listaId: ref.id };
   });
-});
-
-/** Mexer na quantidade a comprar, ou tirar um item da lista — aberto
- *  a qualquer pessoa da base (mesmo círculo de quem pode acrescentar),
- *  só enquanto a lista ainda está aberta. */
-export const alterarQuantidadeItemListaCompras = onCall(async (req) => {
-  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
-  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { listaId, itemId, delta } = req.data || {};
-  if (!listaId || !itemId || !Number.isFinite(delta)) throw new HttpsError("invalid-argument", "Dados inválidos.");
-  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
-    if (snap.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta lista já não está aberta.");
-    const itens = (snap.data().itens || []).map((i) =>
-      i.itemId === itemId ? { ...i, quantidade: Math.max(1, (i.quantidade || 1) + delta) } : i);
-    tx.update(ref, { itens });
-  });
-  return { ok: true };
-});
-
-export const removerItemListaCompras = onCall(async (req) => {
-  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
-  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { listaId, itemId } = req.data || {};
-  if (!listaId || !itemId) throw new HttpsError("invalid-argument", "Falta o item.");
-  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
-    if (snap.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta lista já não está aberta.");
-    const itens = (snap.data().itens || []).filter((i) => i.itemId !== itemId);
-    tx.update(ref, { itens });
-  });
-  return { ok: true };
 });
 
 export const fecharListaCompras = onCall(async (req) => {
