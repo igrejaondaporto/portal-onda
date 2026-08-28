@@ -61,11 +61,12 @@ export const funcoesDoCulto = (funcoes, eventoId) =>
 export const podeDistribuir = (papel, uid, escala) =>
   papel === "lider_base" || escala?.liderEscala === uid;
 
-/** O(s) lugar(es) em que a pessoa serve naquele culto — titular ou
- *  aprendiz. Normalmente um só; a regra de "uma pessoa, um ministério
- *  por culto" é validada em guardarEscalaComunicacao. */
+/** O(s) lugar(es) em que a pessoa serve naquele culto — a lista de
+ *  pessoas por ministério é aberta (sem titular/aprendiz fixos).
+ *  Normalmente um só; a regra de "uma pessoa, um ministério por
+ *  culto" é validada em guardarEscalaComunicacao. */
 export const meusLugares = (escala, uid) =>
-  (escala?.lugares || []).filter((l) => l.titularId === uid || l.aprendizId === uid);
+  (escala?.lugares || []).filter((l) => (l.pessoas || []).includes(uid));
 
 /** Funções (itens da checklist/atribuição) dos ministérios em que a
  *  pessoa serve naquele culto. */

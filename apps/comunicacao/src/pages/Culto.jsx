@@ -88,7 +88,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
   }, [eventoIdFoco, focoSeq, eventosMes.length, aba]);
 
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
-  const temEscala = eventosMes.some((e) => (e.escala.lugares || []).some((l) => l.titularId));
+  const temEscala = eventosMes.some((e) => (e.escala.lugares || []).some((l) => (l.pessoas || []).length));
 
   useEffect(() => {
     if (!ativo) return;
@@ -158,13 +158,11 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                           <td className="papel"><span className="quadmin" style={{ background: m.cor }} />{m.nome}</td>
                           {eventosMes.map((ev) => {
                             const lugar = lugarDe(ev, m.id);
-                            const titular = lugar?.titularId ? pessoaPorId(lugar.titularId) : null;
-                            const aprendiz = lugar?.aprendizId ? pessoaPorId(lugar.aprendizId) : null;
-                            const souEu = titular?.id === uid || aprendiz?.id === uid;
+                            const pessoasDoLugar = (lugar?.pessoas || []).map(pessoaPorId).filter(Boolean);
+                            const souEu = pessoasDoLugar.some((p) => p.id === uid);
                             return (
                               <td key={ev.id} className={souEu ? "mim" : ""}>
-                                {titular ? titular.nome : "—"}
-                                {aprendiz && <span style={{ opacity: 0.7 }}> +{aprendiz.nome}</span>}
+                                {pessoasDoLugar.length ? pessoasDoLugar.map((p) => p.nome).join(" · ") : "—"}
                               </td>
                             );
                           })}
@@ -173,7 +171,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                     </tbody>
                   </table>
                 </div>
-                <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. "+nome" é quem está em treino.</p>
+                <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul.</p>
               </>
             ) : (
               <div className="semescala" style={{ marginTop: 16 }}>
@@ -193,7 +191,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
               // em que ministério sirvo nesse dia — o Responsável acumula com
               // um operacional, por isso pode ser mais do que um
               const meusMinisterios = ministeriosEscala
-                .filter((m) => { const l = lugarDe(ev, m.id); return l?.titularId === uid || l?.aprendizId === uid; })
+                .filter((m) => (lugarDe(ev, m.id)?.pessoas || []).includes(uid))
                 .map((m) => m.nome);
               return (
                 <CartaoCulto
@@ -211,41 +209,31 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
                     {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
                   </p>
                 )}
-                {ministeriosEscala.some((m) => lugarDe(ev, m.id)?.titularId) ? (
+                {ministeriosEscala.some((m) => (lugarDe(ev, m.id)?.pessoas || []).length) ? (
                   ministeriosEscala.map((m) => {
                     const lugar = lugarDe(ev, m.id);
-                    if (!lugar?.titularId) return null;
-                    const titular = pessoaPorId(lugar.titularId);
-                    const aprendiz = lugar.aprendizId ? pessoaPorId(lugar.aprendizId) : null;
+                    const pessoasDoLugar = (lugar?.pessoas || []).map(pessoaPorId).filter(Boolean);
+                    if (!pessoasDoLugar.length) return null;
                     return (
                       <div key={m.id}>
-                        {titular && (
+                        {pessoasDoLugar.map((pessoa) => (
                           <LinhaPessoaContacto
-                            pessoa={titular}
-                            resumo={`${m.nome} · titular${titular.id === uid ? " · tu" : ""}`}
+                            key={pessoa.id}
+                            pessoa={pessoa}
+                            resumo={`${m.nome}${pessoa.id === uid ? " · tu" : ""}`}
                             corMinisterio={m.cor}
-                            aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === titular.id}
+                            aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === pessoa.id}
                             onToggle={() => setContactoAberto((a) =>
-                              a?.eventoId === ev.id && a?.pessoaId === titular.id ? null : { eventoId: ev.id, pessoaId: titular.id })}
+                              a?.eventoId === ev.id && a?.pessoaId === pessoa.id ? null : { eventoId: ev.id, pessoaId: pessoa.id })}
                           />
-                        )}
-                        {aprendiz && (
-                          <LinhaPessoaContacto
-                            pessoa={aprendiz}
-                            resumo={`${m.nome} · 📝 em treino${aprendiz.id === uid ? " · tu" : ""}`}
-                            corMinisterio={m.cor}
-                            aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === aprendiz.id}
-                            onToggle={() => setContactoAberto((a) =>
-                              a?.eventoId === ev.id && a?.pessoaId === aprendiz.id ? null : { eventoId: ev.id, pessoaId: aprendiz.id })}
-                          />
-                        )}
+                        ))}
                       </div>
                     );
                   })
                 ) : (
                   <div className="vaz">Ainda ninguém escalado.</div>
                 )}
-                {ministeriosEscala.some((m) => lugarDe(ev, m.id)?.titularId) && (
+                {ministeriosEscala.some((m) => (lugarDe(ev, m.id)?.pessoas || []).length) && (
                   <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => onVerFuncoes?.(ev.id)}>
                     Ver as funções deste culto
                   </button>

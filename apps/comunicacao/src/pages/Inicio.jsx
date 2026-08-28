@@ -96,7 +96,16 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
   const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
-  const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
+  // "em treino" continua a ser uma etiqueta da pessoa (pessoa.ministerios),
+  // não do lugar na escala — a escala em si já não distingue titular/aprendiz.
+  const meuMinisterioHoje = meusLugaresHoje[0]?.ministerioId;
+  const souAprendiz = !!meuMinisterioHoje && pessoa?.ministerios?.[meuMinisterioHoje] === "aprendiz";
+  const colegasDeHoje = souAprendiz
+    ? (meusLugaresHoje[0]?.pessoas || [])
+      .filter((id) => id !== uid)
+      .map((id) => voluntarios.find((p) => p.id === id)?.nome)
+      .filter(Boolean)
+    : [];
   const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid) : [];
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
@@ -106,7 +115,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   }
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome ?? "";
-  const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome;
 
   // Solicitações em fila — dois avisos diferentes no Início:
   // 1) o líder vê as que ainda não têm ministério nem pessoa nenhuma
@@ -276,9 +284,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         {souAprendiz && (
           <div className="caixa" style={{ background: "var(--agua)", border: 0, marginTop: 14 }}>
             <p className="ds">
-              📝 Estás em treino hoje com{" "}
-              {meusLugaresHoje.filter((l) => l.aprendizId === uid).map((l) => nomeDe(l.titularId)).filter(Boolean).join(" e ")}
-              {" "}— acompanha e pergunta.
+              📝 Estás em treino hoje{colegasDeHoje.length ? ` com ${colegasDeHoje.join(" e ")}` : ""} — acompanha e pergunta.
             </p>
           </div>
         )}
@@ -341,22 +347,21 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
         <div className="sect">
           <div className="cabecalho"><h3>Servem contigo</h3></div>
-          {ministerios.some((m) => (meuEvento.escala.lugares || []).find((l) => l.ministerioId === m.id)?.titularId && m.id !== meusLugaresHoje[0]?.ministerioId) ? (
+          {ministerios.some((m) => (meuEvento.escala.lugares || []).find((l) => l.ministerioId === m.id)?.pessoas?.length && m.id !== meusLugaresHoje[0]?.ministerioId) ? (
             ministerios.map((m) => {
               const lugar = (meuEvento.escala.lugares || []).find((l) => l.ministerioId === m.id);
-              if (!lugar?.titularId || meusLugaresHoje.some((l) => l.ministerioId === m.id)) return null;
-              const titular = voluntarios.find((p) => p.id === lugar.titularId);
-              const aprendiz = lugar.aprendizId ? voluntarios.find((p) => p.id === lugar.aprendizId) : null;
-              if (!titular) return null;
-              return (
+              if (!lugar?.pessoas?.length || meusLugaresHoje.some((l) => l.ministerioId === m.id)) return null;
+              const pessoasDoLugar = lugar.pessoas.map((id) => voluntarios.find((p) => p.id === id)).filter(Boolean);
+              if (!pessoasDoLugar.length) return null;
+              return pessoasDoLugar.map((p) => (
                 <LinhaPessoaContacto
-                  key={m.id} pessoa={titular}
-                  resumo={`${m.nome}${aprendiz ? ` · com ${aprendiz.nome} em treino` : ""}`}
+                  key={p.id} pessoa={p}
+                  resumo={m.nome}
                   corMinisterio={m.cor}
-                  aberta={contactoAberto === titular.id}
-                  onToggle={() => setContactoAberto((a) => (a === titular.id ? null : titular.id))}
+                  aberta={contactoAberto === p.id}
+                  onToggle={() => setContactoAberto((a) => (a === p.id ? null : p.id))}
                 />
-              );
+              ));
             })
           ) : (
             <div className="vaz">Ninguém mais escalado ainda.</div>

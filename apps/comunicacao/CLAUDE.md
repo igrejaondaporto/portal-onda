@@ -69,7 +69,9 @@ bases/comunicacao/ministerios/{id}
 
 Do organograma partilhado pelo líder: **Captação e Edição · UNVT ·
 Social Media · Storymaker · Redação e Design · Fotografia**. Titular +
-aprendiz por ministério, como a Técnica (ver `SheetEscalaMinisterios`).
+aprendiz é uma etiqueta da pessoa (`pessoa.ministerios[id]`), não um
+limite de vagas — ver "Escala: lista aberta, não titular+aprendiz"
+abaixo.
 
 **Sem "Responsável" rotativo como `liderEscala`.** A Técnica modela o
 líder de culto como um campo próprio na escala (`ordem:0`); a
@@ -84,8 +86,8 @@ escala nenhum).
 Isto não impediu o líder de criar, mais tarde, pelo próprio Painel
 (Ministérios → Novo), um ministério chamado literalmente
 **"Responsável"** — esse é um ministério normal como qualquer outro
-(`ordem: 99`, sem tratamento especial no código), com titular por
-culto como Storymaker ou Fotografia. Não é o `liderEscala`/`ordem:0`
+(`ordem: 99`, sem tratamento especial no código), escalado por culto
+como Storymaker ou Fotografia. Não é o `liderEscala`/`ordem:0`
 da Técnica, só tem o mesmo nome — ver "Ministérios que servem na
 Escala" abaixo.
 
@@ -670,14 +672,43 @@ Voluntário responde num banner no Início ("A precisar de ti —
 indisponibilidades de {mês}", `SheetResponderEnquete`) — mesmo
 componente e texto da Técnica.
 
+## Escala: lista aberta, não titular+aprendiz
+
+`eventos/{e}/escalas/comunicacao.lugares` = `[{ministerioId, pessoas: [id]}]`
+— um array de ids por ministério, sem limite de tamanho. Não é
+`{titularId, aprendizId}` como a Técnica: pedido explícito do líder,
+porque acontece de ter dois fotógrafos ou dois do Storymaker no mesmo
+culto, sem ninguém "em treino" — o modelo de 2 lugares fixos não dava
+para isso. `SheetEscalaMinisterios` nasce com um `<select>` vazio por
+ministério e um botão "+ Adicionar pessoa" por baixo, sem limite;
+"✕" remove um lugar (nunca deixa a lista sem nenhum `<select>`
+visível). `guardarEscalaComunicacao` (Cloud Function) só valida
+"ninguém em dois lugares ao mesmo tempo" — level-agnostic, não sabe
+nem precisa de saber quem é titular.
+
+**Titular/aprendiz não desapareceu — mudou de sítio.** Continua a
+existir como etiqueta da pessoa (`pessoa.ministerios[id]`, editável em
+`SheetPessoa`), só deixou de limitar quantos lugares a escala tem.
+`lib/sugestor.js` usa essa etiqueta só como preferência de ordenação
+(titular antes de quem está em treino) ao sugerir a ÚNICA pessoa que
+preenche um ministério ainda vazio — nunca sugere uma segunda pessoa
+sozinha nem decide sozinho que alguém é "o aprendiz daquele culto".
+O banner "Estás em treino hoje" no Início lê a mesma etiqueta da
+pessoa (não mais um campo da escala) para saber se mostra o aviso.
+
 ## Escala sugerida
 
 `lib/sugestor.js` — só `if`s, sem IA, botão "Sugestão automática"
 dentro do editor de escala (`SheetEscalaMinisterios`). Preenche só os
-lugares vazios (nunca troca o que o líder já escolheu) com quem, em
-cada ministério, está há mais tempo sem servir
+ministérios ainda **sem ninguém** (nunca troca o que o líder já
+escolheu, nunca acrescenta uma segunda pessoa sozinha — isso é sempre
+escolha manual do líder, no "+ Adicionar pessoa") com quem, em cada
+ministério, está há mais tempo sem servir
 (`obterEstatisticasEscala`, já genérica, reaproveitada de
-`lib/painel.js`), sem repetir pessoa no mesmo culto.
+`lib/painel.js`), sem repetir pessoa no mesmo culto. Titulares
+(`pessoa.ministerios[id]`) entram primeiro na ordenação, mas isso é só
+uma preferência da sugestão — a escala em si aceita qualquer pessoa do
+ministério, sem distinção.
 
 **Usa a indisponibilidade real** (ver Enquetes acima): antes de
 sugerir, `SheetEscalaMinisterios` busca as respostas do mês do culto

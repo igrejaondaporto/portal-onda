@@ -146,11 +146,11 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
               </span>
             </div>
             <p className="ds" style={{ padding: "8px 0 2px" }}>
-              Os domingos são criados sozinhos. Falta dizer o titular e o aprendiz de cada ministério.
+              Os domingos são criados sozinhos. Falta dizer quem serve em cada ministério.
             </p>
             {eventosMes.map((ev) => {
               const pessoasEscala = (ev.escala.pessoas || []).map(pessoaPorId).filter(Boolean);
-              const preenchidos = (ev.escala.lugares || []).filter((l) => l.titularId).length;
+              const preenchidos = (ev.escala.lugares || []).filter((l) => (l.pessoas || []).length).length;
               return (
                 <div
                   className="linha" style={{ cursor: "pointer" }} key={ev.id}

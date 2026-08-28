@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/apoio", "--", "--port", "5179", "--strictPort"],
       "port": 5179
+    },
+    {
+      "name": "comunicacao-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/comunicacao"],
+      "port": 5176
     }
   ]
 }

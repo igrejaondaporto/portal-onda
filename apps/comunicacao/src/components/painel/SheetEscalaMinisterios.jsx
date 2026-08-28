@@ -6,9 +6,14 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 
-/** Um titular + um aprendiz opcional por ministério. Guarda tudo de
- *  uma vez (ao contrário da Apoio, que grava a cada toque) porque há
- *  uma regra a confirmar antes de gravar: ninguém em dois lugares.
+/** Lista aberta de pessoas por ministério — nasce com um lugar vazio,
+ *  "+ Adicionar pessoa" acrescenta mais (dois fotógrafos, dois do
+ *  Storymaker, o que for preciso nesse culto). Sem titular/aprendiz
+ *  fixos: essa etiqueta continua a existir na pessoa (Painel do líder
+ *  → Ministérios), só deixou de limitar a escala a 2 lugares. Guarda
+ *  tudo de uma vez (ao contrário da Apoio, que grava a cada toque)
+ *  porque há uma regra a confirmar antes de gravar: ninguém em dois
+ *  lugares.
  *
  *  Ao contrário da Técnica, não há "Responsável"/líder de culto
  *  rotativo aqui — a Comunicação só tem o líder da base fixo (ver
@@ -40,7 +45,8 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
   const [lugares, setLugares] = useState(() =>
     ministerios.map((m) => {
       const existente = evento?.escala?.lugares?.find((l) => l.ministerioId === m.id);
-      return { ministerioId: m.id, titularId: existente?.titularId ?? null, aprendizId: existente?.aprendizId ?? null };
+      const pessoas = existente?.pessoas?.filter(Boolean) ?? [];
+      return { ministerioId: m.id, pessoas: pessoas.length ? pessoas : [null] };
     })
   );
   const [aGuardar, setAGuardar] = useState(false);
@@ -71,30 +77,43 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
     }
   }
 
-  const pessoasNoNivel = (ministerioId, nivel) =>
-    voluntarios.filter((p) => p.ministerios?.[ministerioId] === nivel);
+  const pessoasDoMinisterio = (ministerioId) =>
+    voluntarios.filter((p) => p.ministerios?.[ministerioId]);
 
-  function definirLugar(ministerioId, campo, valor) {
+  function definirPessoa(ministerioId, indice, valor) {
     setLugares((atual) => atual.map((l) => {
       if (l.ministerioId !== ministerioId) return l;
-      const novo = { ...l, [campo]: valor || null };
-      if (campo === "titularId" && !valor) novo.aprendizId = null; // aprendiz nunca sozinho
-      return novo;
+      const pessoas = [...l.pessoas];
+      pessoas[indice] = valor || null;
+      return { ...l, pessoas };
+    }));
+  }
+
+  function adicionarLugar(ministerioId) {
+    setLugares((atual) => atual.map((l) =>
+      l.ministerioId === ministerioId ? { ...l, pessoas: [...l.pessoas, null] } : l));
+  }
+
+  function removerLugar(ministerioId, indice) {
+    setLugares((atual) => atual.map((l) => {
+      if (l.ministerioId !== ministerioId) return l;
+      const pessoas = l.pessoas.filter((_, i) => i !== indice);
+      return { ...l, pessoas: pessoas.length ? pessoas : [null] }; // fica sempre pelo menos um lugar visível
     }));
   }
 
   async function guardar() {
+    const limpos = lugares.map((l) => ({ ministerioId: l.ministerioId, pessoas: l.pessoas.filter(Boolean) }));
     const usados = new Set();
-    for (const l of lugares) {
-      for (const id of [l.titularId, l.aprendizId]) {
-        if (!id) continue;
+    for (const l of limpos) {
+      for (const id of l.pessoas) {
         if (usados.has(id)) return torrada("Alguém está em dois lugares ao mesmo tempo — corrige antes de guardar.");
         usados.add(id);
       }
     }
     setAGuardar(true);
     try {
-      await guardarEscala(evento.id, { liderEscala: null, lugares });
+      await guardarEscala(evento.id, { liderEscala: null, lugares: limpos });
       onGuardado("Escala atualizada");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -108,7 +127,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
-        <p className="sb2">Titular e aprendiz por ministério · chegada {evento.horaChegada || "08:30"}</p>
+        <p className="sb2">Quem serve em cada ministério · chegada {evento.horaChegada || "08:30"}</p>
 
         <button className="btn sec full" style={{ marginTop: 14 }} disabled={aSugerir} onClick={sugerir}>
           {aSugerir ? "A sugerir…" : "Sugestão automática"}
@@ -117,30 +136,35 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
 
         {ministerios.map((m) => {
           const lugar = lugares.find((l) => l.ministerioId === m.id);
-          const titulares = pessoasNoNivel(m.id, "titular");
-          const aprendizes = pessoasNoNivel(m.id, "aprendiz");
+          const candidatos = pessoasDoMinisterio(m.id);
           return (
             <div key={m.id} className="caixa" style={{ marginTop: 14 }}>
               <p style={{ fontSize: 15, fontWeight: 700, color: m.cor }}>{m.nome}</p>
-              <label className="rot" style={{ marginTop: 8 }}>Titular</label>
-              <select
-                className="campo" value={lugar.titularId ?? ""}
-                onChange={(e) => definirLugar(m.id, "titularId", e.target.value)}
+              {lugar.pessoas.map((pessoaId, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                  <select
+                    className="campo" style={{ flex: 1 }} value={pessoaId ?? ""}
+                    onChange={(e) => definirPessoa(m.id, i, e.target.value)}
+                  >
+                    <option value="">Por definir</option>
+                    {candidatos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  </select>
+                  {lugar.pessoas.length > 1 && (
+                    <button
+                      type="button" className="oc-icobt mag" aria-label={`Remover lugar ${i + 1} de ${m.nome}`}
+                      onClick={() => removerLugar(m.id, i)}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button" className="btn sec" style={{ marginTop: 8, fontSize: 12.5, padding: "8px 14px" }}
+                onClick={() => adicionarLugar(m.id)}
               >
-                <option value="">Por definir</option>
-                {titulares.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-              </select>
-              <label className="rot">Aprendiz (opcional)</label>
-              <select
-                className="campo" value={lugar.aprendizId ?? ""} disabled={!lugar.titularId}
-                onChange={(e) => definirLugar(m.id, "aprendizId", e.target.value)}
-              >
-                <option value="">Nenhum</option>
-                {aprendizes.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-              </select>
-              {!lugar.titularId && aprendizes.length > 0 && (
-                <p className="ds" style={{ marginTop: 4 }}>Escolhe o titular primeiro — o aprendiz nunca fica sozinho.</p>
-              )}
+                + Adicionar pessoa
+              </button>
             </div>
           );
         })}
