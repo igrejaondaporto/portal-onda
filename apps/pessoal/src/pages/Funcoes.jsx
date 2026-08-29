@@ -112,8 +112,6 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
     }
   }
 
-  if (!evento) return null;
-
   return (
     <>
       <div className="cabecalho" style={{ paddingTop: 14 }}>
@@ -123,16 +121,21 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
           <button className="calbt" onClick={() => mudarMes(1)}>›</button>
         </span>
       </div>
-      {!eventosMes.length && <div className="vaz">Sem cultos marcados neste mês.</div>}
+      {/* eventosMes vazio é o caso comum de navegar para um mês sem
+          cultos gerados ainda; evento undefined com eventosMes cheio
+          é só o instante entre trocar de mês e o efeito de cima
+          escolher o primeiro — os dois merecem a mesma mensagem, nunca
+          uma página em branco (ver nota em obterMeuEvento/culto.js). */}
+      {!evento && <div className="vaz">Sem cultos marcados neste mês.</div>}
       <div className="menu" style={{ position: "static", border: 0, padding: "4px 0 4px", background: "none", backdropFilter: "none" }}>
         {eventosMes.map((e) => (
-          <button key={e.id} data-on={e.id === evento.id ? 1 : 0} onClick={() => setEventoId(e.id)}>
+          <button key={e.id} data-on={e.id === evento?.id ? 1 : 0} onClick={() => setEventoId(e.id)}>
             {e.tipo ? "✦ " : ""}{dataCurta(e.data)}
           </button>
         ))}
       </div>
 
-      {pode ? (
+      {evento && (pode ? (
         <div className="caixa" style={{ background: "var(--agua)", border: 0 }}>
           <p style={{ fontSize: 13.5, fontWeight: 600 }}>Podes distribuir as funções deste domingo</p>
           <p className="ds" style={{ marginTop: 4 }}>
@@ -146,7 +149,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
             {nomeLiderEscala ? `${nomeLiderEscala} é o responsável deste domingo e é quem distribui as funções.` : "O responsável ainda não foi definido."}
           </p>
         </div>
-      )}
+      ))}
 
       {pode && (
         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>

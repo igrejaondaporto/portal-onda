@@ -128,7 +128,12 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     }
   }
 
-  if (!planta || !meuEvento) return null;
+  if (!planta) return null;
+  // meuEvento fica null quando não há nenhum culto futuro gerado
+  // ainda (obterMeuEvento nunca recua para um culto passado) — raro,
+  // mas sem isto a página ficava em branco, como se tivesse
+  // travado, em vez de dizer o que se passa.
+  if (!meuEvento) return <div className="vaz" style={{ marginTop: 16 }}>Ainda sem culto marcado.</div>;
 
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
   Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
