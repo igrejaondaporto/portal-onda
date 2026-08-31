@@ -425,3 +425,78 @@
   vertical-align: middle;
   animation: respirar 1.2s ease-in-out infinite;
 }
+
+/* Chamadas — simulação do telão, portada do Kinder (kinder.painelonda.pt,
+ * fora do monorepo). Só aqui porque a ligação ao FreeShow é direta do
+ * browser (ver Chamadas.jsx) — nada disto passa pelas Cloud Functions. */
+.tec-ecra {
+  position: relative;
+  border-radius: 16px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  margin-top: 20px;
+  background: linear-gradient(145deg, #123fd4 0%, #0019be 40%, #020b52 100%);
+  display: grid;
+  place-items: center;
+  transition: box-shadow .3s ease;
+}
+.tec-ecra.live {
+  box-shadow: 0 0 0 3px var(--lima), 0 10px 34px rgba(216, 242, 75, .28);
+}
+.tec-marca {
+  font-size: clamp(20px, 6.5vw, 34px);
+  letter-spacing: -.035em;
+  color: rgba(255, 255, 255, .34);
+  line-height: 1;
+}
+.tec-marca i { font-style: normal; font-weight: 400; }
+.tec-marca b { font-weight: 800; }
+.tec-faixa {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ff4b46 0%, #e01c17 55%, #c41410 100%);
+  color: #fff;
+  padding: 4px 12px;
+  text-align: center;
+  font-size: clamp(10px, 2.9vw, 15px);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tec-estado {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .4);
+}
+.tec-estado s {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .28);
+  text-decoration: none;
+}
+.tec-ecra.live .tec-estado { color: var(--lima); }
+.tec-ecra.live .tec-estado s { background: var(--lima); box-shadow: 0 0 10px var(--lima); }
+.tec-luz {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lima);
+  flex: none;
+  transition: .2s;
+}
+.tec-luz.off { background: var(--magenta); }
