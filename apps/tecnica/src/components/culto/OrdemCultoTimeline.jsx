@@ -303,7 +303,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
                 {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
 
-                {l.extra && aReassociar === l.real.idFreeshow && (
+                {(l.extra || l.real?.reassociado) && aReassociar === l.real?.idFreeshow && (
                   <span className="tec-editar-hora-form">
                     <select
                       className="campo" style={{ width: 190, maxWidth: "100%" }} value={reassocEscolha}
