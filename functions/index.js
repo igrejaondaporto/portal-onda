@@ -2942,6 +2942,7 @@ export const reassociarSecaoAoVivo = onCall(async (req) => {
     const entrada = {
       ...secoes[i],
       nomeCorrespondente: nome,
+      reassociado: true, // fica para sempre — é o que mantém o ✏️ visível o resto do culto, mesmo já não sendo "não previsto"
       editadoManualmente: true,
       editadoPor: uid,
       editadoEm: admin.firestore.Timestamp.now(),

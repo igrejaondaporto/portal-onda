@@ -283,7 +283,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   {atual && cronometroMs != null && <span className="tec-cronometro">{formatarCronometro(cronometroMs)}</span>}
                   {passada && l.duracaoRealMs != null && <span className="tec-duracao">{formatarCronometro(l.duracaoRealMs)}</span>}
                   {l.real?.editadoManualmente && <span className="tec-editado-marca" title="Hora escrita à mão">editado</span>}
-                  {estado && l.extra && (
+                  {estado && (l.extra || l.real?.reassociado) && (
                     <button
                       className="tec-reassociar-btn" title="Escolher a seção certa"
                       onClick={() => { setAReassociar(l.real.idFreeshow); setReassocEscolha(""); }}
@@ -293,7 +293,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   )}
                   {estado && !l.extra && (
                     <button
-                      className="tec-reassociar-btn" title={l.real ? "Corrigir hora" : "Marcar hora à mão"}
+                      className="tec-corrigir-hora-btn" title={l.real ? "Corrigir hora" : "Marcar hora à mão"}
                       onClick={() => abrirEdicao(l)}
                     >
                       🕐

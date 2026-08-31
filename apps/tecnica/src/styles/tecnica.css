@@ -321,6 +321,21 @@
   cursor: pointer;
   vertical-align: middle;
 }
+.tec-corrigir-hora-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  border: 1px solid var(--fio);
+  border-radius: 7px;
+  background: var(--agua);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
 .tec-editar-hora-form {
   display: flex;
   flex-wrap: wrap;
