@@ -256,19 +256,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 {l.real ? (
                   <>
                     <b className={`tec-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
-                    {l.extra ? (
-                      <span>
-                        não previsto
-                        <button
-                          className="tec-reassociar-btn" title="Escolher a seção certa"
-                          onClick={() => { setAReassociar(l.real.idFreeshow); setReassocEscolha(""); }}
-                        >
-                          ✏️
-                        </button>
-                      </span>
-                    ) : (
-                      <span>previsto {previstoExibido}</span>
-                    )}
+                    <span>{l.extra ? "não previsto" : `previsto ${previstoExibido}`}</span>
                   </>
                 ) : l.pulada ? (
                   <>
@@ -295,12 +283,20 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   {atual && cronometroMs != null && <span className="tec-cronometro">{formatarCronometro(cronometroMs)}</span>}
                   {passada && l.duracaoRealMs != null && <span className="tec-duracao">{formatarCronometro(l.duracaoRealMs)}</span>}
                   {l.real?.editadoManualmente && <span className="tec-editado-marca" title="Hora escrita à mão">editado</span>}
+                  {estado && l.extra && (
+                    <button
+                      className="tec-reassociar-btn" title="Escolher a seção certa"
+                      onClick={() => { setAReassociar(l.real.idFreeshow); setReassocEscolha(""); }}
+                    >
+                      ✏️
+                    </button>
+                  )}
                   {estado && !l.extra && (
                     <button
                       className="tec-reassociar-btn" title={l.real ? "Corrigir hora" : "Marcar hora à mão"}
                       onClick={() => abrirEdicao(l)}
                     >
-                      ✏️
+                      🕐
                     </button>
                   )}
                 </p>
