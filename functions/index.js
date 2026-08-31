@@ -2909,6 +2909,53 @@ export const editarSecaoAoVivo = onCall(async (req) => {
   return { ok: true };
 });
 
+/* Corrige ao vivo uma secção que o FreeShow mandou com um nome que não
+ * batia com nada da correspondência (ex.: "OD News" em vez de "Onda
+ * News") — em vez de a Técnica marcar a hora à mão no momento certo
+ * (o que criava uma entrada NOVA, duplicada, ver histórico), isto
+ * troca o nomeCorrespondente da entrada que já existe, identificada
+ * por idFreeshow. Como o cruzamento com o previsto (cruzarComReal, em
+ * @portal/shared/lib/ordemAoVivo.js) casa por nome normalizado, a
+ * entrada passa a contar como a secção prevista escolhida e some da
+ * lista "não previsto" sozinha — sem código extra nenhum aqui para
+ * isso. Também grava o nome errado na correspondência, para o mesmo
+ * erro de digitação não se repetir nos próximos cultos. */
+export const reassociarSecaoAoVivo = onCall(async (req) => {
+  exigeBaseTecnica(req);
+  const uid = req.auth.uid;
+  const { eventoId, idFreeshow, nomeCorrespondente } = req.data || {};
+  if (!eventoId || !idFreeshow || !String(nomeCorrespondente || "").trim()) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const nome = nomeCorrespondente.trim();
+  const ref = refCultoAoVivo(eventoId);
+  let nomeFreeshow = null;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Culto não encontrado.");
+    const dados = snap.data();
+    const secoes = dados.secoesReais || [];
+    const i = secoes.findIndex((s) => s.idFreeshow === idFreeshow);
+    if (i < 0) throw new HttpsError("not-found", "Secção não encontrada.");
+    nomeFreeshow = secoes[i].nomeFreeshow;
+    const entrada = {
+      ...secoes[i],
+      nomeCorrespondente: nome,
+      editadoManualmente: true,
+      editadoPor: uid,
+      editadoEm: admin.firestore.Timestamp.now(),
+    };
+    tx.set(ref, { ...dados, secoesReais: secoes.with(i, entrada) }, { merge: true });
+  });
+
+  if (nomeFreeshow) {
+    await db.doc("bases/tecnica/config/correspondenciaFreeshow")
+      .set({ mapa: { [normalizarNome(nomeFreeshow)]: nome } }, { merge: true });
+  }
+  return { ok: true };
+});
+
 export const definirCorrespondenciaFreeshow = onCall(async (req) => {
   exigeBaseTecnica(req);
   const { mapa } = req.data || {};

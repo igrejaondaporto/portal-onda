@@ -125,7 +125,10 @@ export default function OrdemCultoAoVivo({ ordem, chegada, hoje, aoVivo }) {
                 {l.real ? (
                   <>
                     <b className={`oc-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
-                    <span>{l.extra ? "não previsto" : `previsto ${previstoExibido}`}</span>
+                    {/* "não previsto" é só um sinal para a Técnica corrigir
+                     * (ver OrdemCultoTimeline.jsx) — quem só lê vê a hora
+                     * real como qualquer outra secção, sem aviso nenhum */}
+                    {!l.extra && <span>previsto {previstoExibido}</span>}
                   </>
                 ) : l.pulada ? (
                   <>

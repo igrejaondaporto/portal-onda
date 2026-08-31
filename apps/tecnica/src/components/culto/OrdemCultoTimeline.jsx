@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { iniciarCultoAoVivo, descartarCultoAoVivo, finalizarCultoAoVivo, editarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
+import { iniciarCultoAoVivo, descartarCultoAoVivo, finalizarCultoAoVivo, editarSecaoAoVivo, reassociarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
 import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "@portal/shared/lib/ordemAoVivo.js";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
@@ -60,6 +60,9 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const [aConfirmarDescartar, setAConfirmarDescartar] = useState(false);
   const [aConfirmarFinalizar, setAConfirmarFinalizar] = useState(false);
   const [aFinalizar, setAFinalizar] = useState(false);
+  const [aReassociar, setAReassociar] = useState(null); // idFreeshow da secção "não previsto" em correção
+  const [reassocEscolha, setReassocEscolha] = useState("");
+  const [aGuardarReassoc, setAGuardarReassoc] = useState(false);
 
   // a cada segundo enquanto se grava — é o que faz o cronómetro contar
   // e a bolinha de progresso andar sozinhos, sem depender de cliques
@@ -86,6 +89,10 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
   const secoesReais = aoVivo?.secoesReais ?? [];
   const { linhas } = cruzarComReal(ordem.momentos, secoesReais);
   const comPrevisao = marcarPuladas(calcularPrevisoes(linhas));
+  // opções para "isto é afinal…" — só momentos previstos que ainda
+  // não têm hora real, é para esses que uma secção "não previsto"
+  // pode estar mal identificada
+  const pendentes = comPrevisao.filter((l) => !l.extra && !l.real);
 
   // a secção atual vem de secaoAtualId (só a sonda escreve isto) —
   // NUNCA do último item de secoesReais: esse array também recebe
@@ -135,6 +142,21 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
       torrada(e.message || "Não foi possível finalizar.");
     } finally {
       setAFinalizar(false);
+    }
+  }
+
+  async function reassociar(idFreeshow, nomeMomento) {
+    if (!nomeMomento) return;
+    setAGuardarReassoc(true);
+    try {
+      await reassociarSecaoAoVivo(eventoId, idFreeshow, nomeMomento);
+      setAReassociar(null);
+      setReassocEscolha("");
+      torrada("Associado à seção certa");
+    } catch (e) {
+      torrada(e.message || "Não foi possível associar.");
+    } finally {
+      setAGuardarReassoc(false);
     }
   }
 
@@ -234,7 +256,19 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 {l.real ? (
                   <>
                     <b className={`tec-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
-                    <span>{l.extra ? "não previsto" : `previsto ${previstoExibido}`}</span>
+                    {l.extra ? (
+                      <span>
+                        não previsto
+                        <button
+                          className="tec-reassociar-btn" title="Escolher a seção certa"
+                          onClick={() => { setAReassociar(l.real.idFreeshow); setReassocEscolha(""); }}
+                        >
+                          ✏️
+                        </button>
+                      </span>
+                    ) : (
+                      <span>previsto {previstoExibido}</span>
+                    )}
                   </>
                 ) : l.pulada ? (
                   <>
@@ -264,6 +298,33 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 </p>
                 <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
                 {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
+
+                {l.extra && aReassociar === l.real.idFreeshow && (
+                  <span className="tec-editar-hora-form">
+                    <select
+                      className="campo" style={{ width: 190 }} value={reassocEscolha}
+                      onChange={(e) => setReassocEscolha(e.target.value)}
+                    >
+                      <option value="">Isto é afinal…</option>
+                      {pendentes.map((p) => (
+                        <option key={p.momento} value={p.momento}>{p.momento}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }}
+                      disabled={aGuardarReassoc || !reassocEscolha}
+                      onClick={() => reassociar(l.real.idFreeshow, reassocEscolha)}
+                    >
+                      {aGuardarReassoc ? "…" : "Associar"}
+                    </button>
+                    <button
+                      className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }}
+                      onClick={() => { setAReassociar(null); setReassocEscolha(""); }}
+                    >
+                      Cancelar
+                    </button>
+                  </span>
+                )}
 
                 {estado && (
                   emEdicao ? (

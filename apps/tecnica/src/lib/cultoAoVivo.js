@@ -33,5 +33,12 @@ export const finalizarCultoAoVivo = (eventoId) =>
 export const editarSecaoAoVivo = (eventoId, nomeCorrespondente, horaReal) =>
   chamar("editarSecaoAoVivo")({ eventoId, nomeCorrespondente, horaReal }).then((r) => r.data);
 
+/** Corrige uma secção "não previsto" (nome do FreeShow sem
+ *  correspondência) para o momento certo, em vez de criar uma entrada
+ *  nova a mão — ver o comentário de reassociarSecaoAoVivo em
+ *  functions/index.js. */
+export const reassociarSecaoAoVivo = (eventoId, idFreeshow, nomeCorrespondente) =>
+  chamar("reassociarSecaoAoVivo")({ eventoId, idFreeshow, nomeCorrespondente }).then((r) => r.data);
+
 export const definirCorrespondenciaFreeshow = (mapa) =>
   chamar("definirCorrespondenciaFreeshow")({ mapa }).then((r) => r.data);

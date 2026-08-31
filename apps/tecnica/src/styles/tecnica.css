@@ -311,6 +311,16 @@
   margin-left: 8px;
   vertical-align: middle;
 }
+.tec-reassociar-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 3px;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
 .tec-editar-hora {
   background: none;
   border: 0;
