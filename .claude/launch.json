@@ -24,6 +24,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/comunicacao"],
       "port": 5176
+    },
+    {
+      "name": "kinder-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/kinder"],
+      "port": 5178
     }
   ]
 }

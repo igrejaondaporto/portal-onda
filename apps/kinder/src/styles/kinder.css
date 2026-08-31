@@ -1,0 +1,17 @@
+/* Kiosk de uma função só — sem casca de app (NavBar, MenuEu, tour),
+ * por isso as poucas coisas de layout que faltam ficam aqui em vez
+ * de no global.css partilhado. */
+@media (min-width: 900px) {
+  .crista {
+    padding: 26px 46px 0;
+  }
+  .curva {
+    width: calc(100% + 92px);
+    margin: 0 -46px -2px;
+  }
+  .folha {
+    padding: 6px 46px 60px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+}

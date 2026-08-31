@@ -754,6 +754,9 @@ textarea.campo {
   display: block;
   animation: up2 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
+.torrada.mau {
+  background: var(--magenta);
+}
 @keyframes up2 {
   from {
     opacity: 0;
@@ -2188,3 +2191,79 @@ textarea.campo {
 .cartaoculto-corpo {
   padding: 0 12px 6px;
 }
+
+/* PainelChamadas (components/PainelChamadas.jsx) — simulação do telão,
+ * portada do Kinder (era kinder.painelonda.pt, fora do monorepo). Usa
+ * ligação direta do browser ao FreeShow, não passa pelas Cloud
+ * Functions — ver o comentário no topo do componente. */
+.ecra {
+  position: relative;
+  border-radius: 16px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  margin-top: 20px;
+  background: linear-gradient(145deg, #123fd4 0%, #0019be 40%, #020b52 100%);
+  display: grid;
+  place-items: center;
+  transition: box-shadow .3s ease;
+}
+.ecra.live {
+  box-shadow: 0 0 0 3px var(--lima), 0 10px 34px rgba(216, 242, 75, .28);
+}
+.marca {
+  font-size: clamp(20px, 6.5vw, 34px);
+  letter-spacing: -.035em;
+  color: rgba(255, 255, 255, .34);
+  line-height: 1;
+}
+.marca i { font-style: normal; font-weight: 400; }
+.marca b { font-weight: 800; }
+.faixa {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ff4b46 0%, #e01c17 55%, #c41410 100%);
+  color: #fff;
+  padding: 4px 12px;
+  text-align: center;
+  font-size: clamp(10px, 2.9vw, 15px);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.estado {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .4);
+}
+.estado s {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .28);
+  text-decoration: none;
+}
+.ecra.live .estado { color: var(--lima); }
+.ecra.live .estado s { background: var(--lima); box-shadow: 0 0 10px var(--lima); }
+.luz {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lima);
+  flex: none;
+  transition: .2s;
+}
+.luz.off { background: var(--magenta); }
