@@ -60,6 +60,7 @@ export default function App() {
           </div>
         ) : (
           <>
+            <div className="tit" style={{ marginTop: 16 }}><h2>{canal.rotulo}</h2></div>
             <PainelChamadas canaisPermitidos={[estacaoId]} />
             <button className="btn sec full" style={{ marginTop: 24 }} onClick={() => setATrocar(true)}>
               Trocar de base
