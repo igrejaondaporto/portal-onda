@@ -321,22 +321,13 @@
   cursor: pointer;
   vertical-align: middle;
 }
-.tec-editar-hora {
-  background: none;
-  border: 0;
-  padding: 0;
-  margin-top: 5px;
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--azul);
-  cursor: pointer;
-}
 .tec-editar-hora-form {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-top: 8px;
+  width: 100%;
 }
 .tec-editar-hora-form .campo {
   flex: none;

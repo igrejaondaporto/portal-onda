@@ -295,6 +295,14 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   {atual && cronometroMs != null && <span className="tec-cronometro">{formatarCronometro(cronometroMs)}</span>}
                   {passada && l.duracaoRealMs != null && <span className="tec-duracao">{formatarCronometro(l.duracaoRealMs)}</span>}
                   {l.real?.editadoManualmente && <span className="tec-editado-marca" title="Hora escrita à mão">editado</span>}
+                  {estado && !l.extra && (
+                    <button
+                      className="tec-reassociar-btn" title={l.real ? "Corrigir hora" : "Marcar hora à mão"}
+                      onClick={() => abrirEdicao(l)}
+                    >
+                      ✏️
+                    </button>
+                  )}
                 </p>
                 <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
                 {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
@@ -302,7 +310,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 {l.extra && aReassociar === l.real.idFreeshow && (
                   <span className="tec-editar-hora-form">
                     <select
-                      className="campo" style={{ width: 190 }} value={reassocEscolha}
+                      className="campo" style={{ width: 190, maxWidth: "100%" }} value={reassocEscolha}
                       onChange={(e) => setReassocEscolha(e.target.value)}
                     >
                       <option value="">Isto é afinal…</option>
@@ -326,23 +334,17 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                   </span>
                 )}
 
-                {estado && (
-                  emEdicao ? (
-                    <span className="tec-editar-hora-form">
-                      <input
-                        className="campo" type="time" value={horaRascunho}
-                        onChange={(e) => setHoraRascunho(e.target.value)}
-                      />
-                      <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} disabled={aGuardar} onClick={() => guardarEdicao(l.momento)}>
-                        {aGuardar ? "…" : "Guardar"}
-                      </button>
-                      <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAEditar(null)}>Cancelar</button>
-                    </span>
-                  ) : (
-                    <button className="tec-editar-hora" onClick={() => abrirEdicao(l)}>
-                      {l.real ? "Corrigir hora" : "Marcar hora à mão"}
+                {estado && emEdicao && (
+                  <span className="tec-editar-hora-form">
+                    <input
+                      className="campo" type="time" value={horaRascunho}
+                      onChange={(e) => setHoraRascunho(e.target.value)}
+                    />
+                    <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} disabled={aGuardar} onClick={() => guardarEdicao(l.momento)}>
+                      {aGuardar ? "…" : "Guardar"}
                     </button>
-                  )
+                    <button className="btn sec" style={{ padding: "7px 12px", fontSize: 12 }} onClick={() => setAEditar(null)}>Cancelar</button>
+                  </span>
                 )}
               </div>
             </div>
