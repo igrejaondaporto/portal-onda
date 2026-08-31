@@ -8,11 +8,10 @@ const CHAVE_ESTACAO = "kinder-estacao";
 /**
  * kinder.igrejaonda.pt — kiosk sem login (pedido explícito: "não
  * precisa login por pessoa"). Em vez de PIN, cada aparelho escolhe UMA
- * vez a sua estação (Baby/Fun/Kinder/Carro) — guardada no
- * localStorage DESSE aparelho — e fica trancado nela: quem está no
- * Baby não vê nem consegue tocar no botão de outra categoria. "Trocar
- * de estação" existe para reconfigurar o aparelho, não para o dia a
- * dia.
+ * vez a sua base (Baby/Fun/Kinder/Carro) — guardada no localStorage
+ * DESSE aparelho — e fica trancado nela: quem está no Baby não vê nem
+ * consegue tocar no botão de outra categoria. "Trocar de base" existe
+ * para reconfigurar o aparelho, não para o dia a dia.
  */
 export default function App() {
   const [estacaoId, setEstacaoId] = useState(() => localStorage.getItem(CHAVE_ESTACAO));
@@ -42,7 +41,7 @@ export default function App() {
       <main className="folha">
         {mostrarEscolha ? (
           <div style={{ marginTop: 16 }}>
-            <span className="cap">Qual é a tua estação?</span>
+            <span className="cap">Qual é a tua base?</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
               {CANAIS_CHAMADAS.map((c) => (
                 <button
@@ -63,7 +62,7 @@ export default function App() {
           <>
             <PainelChamadas canaisPermitidos={[estacaoId]} />
             <button className="btn sec full" style={{ marginTop: 24 }} onClick={() => setATrocar(true)}>
-              Trocar de estação
+              Trocar de base
             </button>
           </>
         )}
