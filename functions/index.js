@@ -3243,19 +3243,37 @@ function slugCifraClub(texto) {
     .trim().replace(/\s+/g, "-").replace(/-+/g, "-");
 }
 
-/** Tenta a música, depois variações sem "(Ao Vivo)"/parênteses e sem
- *  feat./&, na mesma ordem do documento original (secção 5.2). Devolve
- *  também o slug que funcionou, para o link de letra (letras.mus.br)
- *  reaproveitar sem adivinhar de novo. */
-async function resolverTomCifraClub(titulo, artista) {
-  const variacoes = [
+/** letras.mus.br e cifraclub.com.br partilham o padrão {artista}/
+ *  {musica} — as mesmas variações servem aos dois (título sem
+ *  parênteses, artista sem feat./&, e só o primeiro artista quando
+ *  há mais do que um separado por vírgula ou " e "). Devolve só as
+ *  combinações com slug válido, sem duplicados. */
+function variacoesSlug(titulo, artista) {
+  const primeiroArtista = (artista || "").split(/,| e | & /i)[0].trim();
+  const brutas = [
     { t: titulo, a: artista },
     { t: (titulo || "").replace(/\(.*?\)/g, "").trim(), a: artista },
     { t: titulo, a: (artista || "").replace(/\bfeat\.?.*$/i, "").replace(/&.*$/, "").trim() },
+    { t: (titulo || "").replace(/\(.*?\)/g, "").trim(), a: primeiroArtista },
   ];
-  for (const v of variacoes) {
+  const vistas = new Set();
+  const variacoes = [];
+  for (const v of brutas) {
     const aSlug = slugCifraClub(v.a), tSlug = slugCifraClub(v.t);
     if (!aSlug || !tSlug) continue;
+    const chave = `${aSlug}/${tSlug}`;
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    variacoes.push({ aSlug, tSlug });
+  }
+  return variacoes;
+}
+
+/** Tenta cada variação até uma página existir E o título bater —
+ *  nunca confia numa página que o Cifra Club serviu mas não é a
+ *  música certa (ex.: redireciona para a busca). */
+async function resolverTomCifraClub(titulo, variacoes) {
+  for (const { aSlug, tSlug } of variacoes) {
     const url = `https://www.cifraclub.com.br/${aSlug}/${tSlug}/`;
     try {
       const ctrl = new AbortController();
@@ -3265,28 +3283,34 @@ async function resolverTomCifraClub(titulo, artista) {
       if (!resp.ok) continue;
       const html = await resp.text();
       const tituloTag = html.slice(html.indexOf("<title>"), html.indexOf("<title>") + 200);
-      if (!normLouvor(tituloTag).includes(normLouvor(v.t).slice(0, 8))) continue;
+      if (!normLouvor(tituloTag).includes(normLouvor(titulo).slice(0, 8))) continue;
       const m = html.match(/aria-label="Diminuir tom"[\s\S]{0,300}?<p[^>]*>([A-G](?:#|b)?m?)<\/p>/);
-      return { tom: m ? m[1] : null, link: url, aSlug, tSlug };
+      return { tom: m ? m[1] : null, link: url };
     } catch {
       continue;
     }
   }
-  return { tom: null, link: null, aSlug: null, tSlug: null };
+  return { tom: null, link: null };
 }
 
-/** Só existência (HEAD) — o conteúdo da letra não interessa aqui,
- *  só confirmar que a página não é 404 antes de sugerir o link. */
-async function linkExiste(url) {
-  try {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 4000);
-    const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0" } });
-    clearTimeout(timeout);
-    return resp.ok;
-  } catch {
-    return false;
+/** Letra: independente do Cifra Club — mesmas variações de slug,
+ *  mas testadas direto no letras.mus.br (podem ter catálogos
+ *  diferentes; um falhar não deve tirar a hipótese do outro). Só
+ *  existência (HEAD), o conteúdo não interessa aqui. */
+async function resolverLetra(variacoes) {
+  for (const { aSlug, tSlug } of variacoes) {
+    const url = `https://www.letras.mus.br/${aSlug}/${tSlug}/`;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 4000);
+      const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0" } });
+      clearTimeout(timeout);
+      if (resp.ok) return url;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 /** GetSongBPM: cascata de BPM (e tom de reserva, se o Cifra Club
@@ -3312,41 +3336,46 @@ async function resolverGetSongBpm(titulo, artista, apiKey) {
   }
 }
 
+const RESULTADOS_POR_PAGINA = 6;
+
 export const pesquisarMusicaLouvor = onCall({ secrets: [GETSONGBPM_API_KEY], cors: ORIGENS_PERMITIDAS }, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { nome } = req.data || {};
+  const { nome, pagina } = req.data || {};
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome da música.");
+  const indice = Math.max(0, Number(pagina) || 0) * RESULTADOS_POR_PAGINA;
 
-  const buscaResp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&limit=6`);
+  const buscaResp = await fetch(
+    `https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&index=${indice}&limit=${RESULTADOS_POR_PAGINA}`
+  );
   if (!buscaResp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
   const buscaJson = await buscaResp.json();
-  const brutos = (buscaJson.data || []).slice(0, 6);
+  const brutos = buscaJson.data || [];
+  // o Deezer devolve `total` (contagem geral da busca) em toda página —
+  // dá para saber se há mais sem adivinhar pelo tamanho desta página.
+  const total = typeof buscaJson.total === "number" ? buscaJson.total : indice + brutos.length;
 
   let apiKey = null;
   try { apiKey = GETSONGBPM_API_KEY.value() || null; } catch { apiKey = null; }
 
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
-    const [cifra, bpmInfo] = await Promise.all([
-      resolverTomCifraClub(titulo, artista).catch(() => ({ tom: null, link: null, aSlug: null, tSlug: null })),
+    const variacoes = variacoesSlug(titulo, artista);
+    const [cifra, letraLink, bpmInfo] = await Promise.all([
+      resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
+      resolverLetra(variacoes).catch(() => null),
       resolverGetSongBpm(titulo, artista, apiKey).catch(() => ({ bpm: null, tomReserva: null })),
     ]);
-    let letraLink = null;
-    if (cifra.aSlug && cifra.tSlug) {
-      const candidata = `https://www.letras.mus.br/${cifra.aSlug}/${cifra.tSlug}/`;
-      if (await linkExiste(candidata).catch(() => false)) letraLink = candidata;
-    }
     return {
       deezerId: String(t.id), titulo, artista,
       capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
       tom: cifra.tom || bpmInfo.tomReserva || null,
       fonteTom: cifra.tom ? "cifraclub" : (bpmInfo.tomReserva ? "getsongbpm" : null),
       bpm: bpmInfo.bpm, fonteBpm: bpmInfo.bpm ? "getsongbpm" : null,
-      linkCifra: cifra.link, linkLetra: letraLink,
+      linkCifra: cifra.link, linkLetra: letraLink, linkAudio: t.link || null,
     };
   }));
 
-  return { candidatos };
+  return { candidatos, temMais: indice + candidatos.length < total };
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
