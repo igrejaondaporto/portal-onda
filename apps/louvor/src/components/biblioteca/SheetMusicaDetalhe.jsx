@@ -11,6 +11,40 @@ const LINKS = [
   ["video", "Vídeo"],
 ];
 
+/** null em vez de rebentar com um link mal formado — já aconteceu
+ *  vir vazio ou só espaços de um cadastro manual. */
+function hostname(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+}
+
+/** Favicon do próprio site do link — carregado por domínio (serviço
+ *  público do Google, sem chave), nunca por nós escolhido à mão: a
+ *  Louvor não controla se um link é Cifra Club, Letras, Vagalume,
+ *  Spotify ou outro qualquer que o líder tenha colado. Esconde-se
+ *  sozinho se o favicon não existir (onError). */
+function FaviconLink({ url }) {
+  const host = hostname(url);
+  const [falhou, setFalhou] = useState(false);
+  if (!host || falhou) return <span className="link-favicon-vazio" aria-hidden="true" />;
+  return (
+    <img
+      className="link-favicon" alt="" width={20} height={20}
+      src={`https://www.google.com/s2/favicons?sz=64&domain=${host}`}
+      onError={() => setFalhou(true)}
+    />
+  );
+}
+
+function IconeLinkExterno() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+    </svg>
+  );
+}
+
 export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar }) {
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
@@ -92,8 +126,12 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
             <div className="cabecalho"><h3>Links</h3></div>
             {LINKS.map(([k, t]) => musica.links?.[k] && (
               <a className="linha" key={k} href={musica.links[k]} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
-                <div style={{ flex: 1 }}><p className="nmt">{t}</p></div>
-                <span className="seta">›</span>
+                <FaviconLink url={musica.links[k]} />
+                <div style={{ flex: 1 }}>
+                  <p className="nmt">{t}</p>
+                  {hostname(musica.links[k]) && <p className="ds">{hostname(musica.links[k])}</p>}
+                </div>
+                <span className="seta" style={{ color: "var(--cinza)" }}><IconeLinkExterno /></span>
               </a>
             ))}
             {musica.autoral && <p className="ds" style={{ marginTop: 8 }}>Música autoral, sem plataforma.</p>}

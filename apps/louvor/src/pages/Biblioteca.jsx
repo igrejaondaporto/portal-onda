@@ -106,6 +106,10 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
         })}
       </div>
 
+      <p className="ds" style={{ textAlign: "center", marginTop: 18 }}>
+        Tom e BPM sugeridos por <a href="https://getsongbpm.com" target="_blank" rel="noreferrer" style={{ color: "inherit" }}>GetSongBPM.com</a>
+      </p>
+
       <button className="bib-fab" onClick={() => setAAdicionar(true)} aria-label="Adicionar música">+</button>
 
       {aAdicionar && (

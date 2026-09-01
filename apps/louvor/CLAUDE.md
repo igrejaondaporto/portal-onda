@@ -113,7 +113,7 @@ para o modelo de dados e as decisões de produto. A única mudança real
 - Letra em texto (o FreeShow já resolve; guardamos só o link)
 
 **Não usamos a API do LouveApp em produção.** A migração inicial é
-pontual e manual (secção 8) — ainda por fazer.
+pontual e manual (ver "Importação do LouveApp" abaixo).
 
 ### 2. Decisões fechadas
 
@@ -173,6 +173,35 @@ A biblioteca fica abaixo de 500 documentos: `ouvirMusicas`
 (`src/lib/biblioteca.js`) carrega tudo com `onSnapshot` uma vez;
 busca e filtros correm no cliente. As versões de uma música só são
 lidas quando essa música é aberta (`ouvirVersoes`).
+
+### Importação do LouveApp
+
+O export vem em `.xlsx` com este cabeçalho:
+
+```
+nomeMusica | nomeArtista | observacaoMusica | nomeVersao | observacaoVersao |
+tom | bpm | duracao | classificacoes | letra | cifra | audio | video | referencias
+```
+
+Mapeamento:
+
+| Coluna | Destino |
+|---|---|
+| `nomeMusica`, `nomeArtista` | `musicas.titulo`, `musicas.artista` |
+| `observacaoMusica` | observação da versão importada |
+| `nomeVersao`, `observacaoVersao` | `versoes.nome`, `versoes.observacao` |
+| `tom`, `bpm`, `duracao` | `versoes.*`, com `fonteTom`/`fonteBpm` = `"louveapp"` |
+| `classificacoes` | `musicas.classificacoes` (separar por vírgula) |
+| `letra`, `cifra`, `audio`, `video` | `musicas.links` |
+
+Regras:
+- **URLs mobile** (`m.letras.mus.br`, `m.cifraclub.com.br`) são mantidas — 95% do acesso é celular.
+- **Parâmetros `#key=` são mantidos** nas músicas importadas (o tom já vem certo do LouveApp). Nas músicas novas cadastradas depois, o link é gerado limpo, e o tom da versão aparece ao lado do botão para o líder transpor no Cifra Club.
+- **Capas não vêm no export** — resolvidas em lote pelo script, uma busca no Deezer por música (mesma função que `buscarCapaDeezer`/`processarCapaMusica` usam, chamada direto via Admin SDK em vez de `onCall` — o script não tem sessão de utilizador). Sem correspondência clara, fica placeholder; o líder resolve depois pela Biblioteca.
+- Linhas com o mesmo `nomeMusica` + `nomeArtista` viram **uma música com várias versões** (`chaveIdentidade` é quem decide, não o texto exato da linha).
+- Roda uma vez, direto no Firestore de produção (Admin SDK, como os outros `scripts/seed*.mjs`) — repetir não duplica: música existente (mesma `chaveIdentidade`) ganha só a versão nova, se `nomeVersao` também for novo.
+
+Script: `scripts/importarLouveAppLouvor.mjs <ficheiro.xlsx>`. Só precisa do `service-account.json` na raiz (já existe) e do export do LouveApp.
 
 ## 5. Resolução automática — Fase 1 (feito) e Fase 2 (por fazer)
 
