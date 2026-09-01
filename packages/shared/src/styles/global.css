@@ -2267,3 +2267,37 @@ textarea.campo {
   transition: .2s;
 }
 .luz.off { background: var(--magenta); }
+
+/* "Chamados hoje" — cartão em vez da linha plana genérica (.linha),
+ * com a cor da categoria a marcar a borda esquerda, para bater com o
+ * .tag colorido lá dentro em vez de destoar dele. */
+.chamada-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--fio);
+  border-left: 4px solid var(--azul);
+  border-radius: 14px;
+  padding: 13px 16px;
+  margin-top: 10px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 2px 10px rgba(10, 15, 46, 0.05);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.chamada-linha:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+.chamada-linha .nmt {
+  font-size: 15px;
+  font-weight: 700;
+}
+.chamada-linha .seta {
+  margin-left: auto;
+  color: var(--cinza);
+  font-size: 18px;
+  flex: none;
+}

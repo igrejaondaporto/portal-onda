@@ -233,7 +233,10 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
         {historico.map((item, i) => {
           const restante = restanteCooldown(item.c.id, item.txt);
           return (
-            <button className="linha" key={i} onClick={() => { trocar(item.c); chamar(item.c, item.txt); }}>
+            <button
+              className="chamada-linha" key={i} style={{ borderLeftColor: item.c.cor }}
+              onClick={() => { trocar(item.c); chamar(item.c, item.txt); }}
+            >
               <span className="tag" style={{ background: item.c.cor }}>{item.c.rotulo}</span>
               <span className="nmt">
                 {item.txt}
