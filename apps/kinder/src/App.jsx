@@ -8,7 +8,7 @@ const CHAVE_ESTACAO = "kinder-estacao";
 /**
  * kinder.igrejaonda.pt — kiosk sem login (pedido explícito: "não
  * precisa login por pessoa"). Em vez de PIN, cada aparelho escolhe UMA
- * vez a sua base (Baby/Fun/Kinder/Carro) — guardada no localStorage
+ * vez a sua base (Baby/Fun/Júnior/Carro) — guardada no localStorage
  * DESSE aparelho — e fica trancado nela: quem está no Baby não vê nem
  * consegue tocar no botão de outra categoria. "Trocar de base" existe
  * para reconfigurar o aparelho, não para o dia a dia.
