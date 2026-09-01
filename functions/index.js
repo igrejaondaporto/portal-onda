@@ -10,10 +10,12 @@
  */
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { setGlobalOptions } from "firebase-functions/v2";
 import admin from "firebase-admin";
+import sharp from "sharp";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { logger } from "firebase-functions";
 import { sondarUmaVez, normalizarNome } from "./freeshow.js";
@@ -886,6 +888,69 @@ async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atuali
   }
   await lote.commit();
 }
+
+/* ── ESCALA (Base Louvor) ────────────────────────────────────
+ * Sem titular/aprendiz e sem lugar fixo por papel: o líder de escala
+ * escolhe livremente quantos vocais/guitarras/etc. entram, cada
+ * pessoa com um papel (ver PAPEIS em apps/louvor/src/lib/modelo.js —
+ * lista replicada aqui porque o cliente não pode ser a única
+ * validação). Uma pessoa não pode ocupar dois papéis no mesmo culto. */
+const PAPEIS_LOUVOR = new Set(["vocal", "teclado", "guitarra", "baixo", "bateria"]);
+
+export const guardarEscalaLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, liderEscala = null, escalados } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!Array.isArray(escalados)) throw new HttpsError("invalid-argument", "Faltam os escalados.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  const usados = new Set();
+  const escaladosLimpos = escalados.map((e) => {
+    if (!e?.pessoaId || !PAPEIS_LOUVOR.has(e.papel)) {
+      throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
+    }
+    if (usados.has(e.pessoaId)) {
+      throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois papéis no mesmo culto.");
+    }
+    usados.add(e.pessoaId);
+    return { pessoaId: e.pessoaId, papel: e.papel };
+  });
+  const pessoas = new Set(escaladosLimpos.map((e) => e.pessoaId));
+
+  const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
+  const adicionadas = [...pessoas].filter((id) => !pessoasAntigas.has(id));
+  const removidas = [...pessoasAntigas].filter((id) => !pessoas.has(id));
+  const multiBase = new Set();
+  for (const id of new Set([...adicionadas, ...removidas])) {
+    if ((await basesDaPessoa(id)).length > 1) multiBase.add(id);
+  }
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await garantirSemConflitoCrossBase(eventoId, baseId, id);
+  }
+
+  await ref.set({
+    baseId, liderEscala: liderEscala || null,
+    escalados: escaladosLimpos, pessoas: [...pessoas],
+  }, { merge: true });
+
+  for (const id of adicionadas) {
+    if (multiBase.has(id)) await marcarIndisponivel(eventoId, baseId, id, "escalado");
+  }
+  for (const id of removidas) {
+    if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
+  }
+  return { ok: true };
+});
 
 /* ── ESCALA (Base Comunicação) ──────────────────────────────
  * Lugares por ministério — lista aberta de pessoas (`pessoas: [id]`),
@@ -3091,4 +3156,108 @@ export const sondarFreeshowAgora = onCall(async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
   await executarSondaFreeshow();
   return { ok: true };
+});
+
+/* ── BIBLIOTECA (Base Louvor) ─────────────────────────────────
+ * Fase 1: só a capa é automática (Deezer, API pública sem chave).
+ * Tom, BPM e links continuam à mão — ver apps/louvor/CLAUDE.md,
+ * secção "Resolução automática", e o CLAUDE-louvor.md original
+ * (secção 5, resolverMusica, fica para uma entrega seguinte). */
+
+/** Busca capas candidatas — nunca grava nada, só devolve a lista para
+ *  o líder escolher (ver processarCapaMusica). */
+export const buscarCapaDeezer = onCall(async (req) => {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { titulo, artista } = req.data || {};
+  if (!titulo?.trim() || !artista?.trim()) throw new HttpsError("invalid-argument", "Falta o título ou o artista.");
+
+  const q = `track:"${titulo.trim()}" artist:"${artista.trim()}"`;
+  const resp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
+  if (!resp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
+  const json = await resp.json();
+  const resultados = (json.data || []).map((t) => ({
+    deezerId: String(t.id),
+    titulo: t.title,
+    artista: t.artist?.name || "",
+    capa: t.album?.cover_medium || null,
+    duracao: t.duration || null,
+    preview: t.preview || null,
+  }));
+  return { resultados };
+});
+
+/** Baixa a capa escolhida, converte para WebP 250px qualidade 80 e
+ *  copia para bases/{base}/capas/{musicaId}.webp — a música nunca
+ *  mais consulta o Deezer depois disto (decisão 14 do CLAUDE-louvor). */
+export const processarCapaMusica = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { musicaId, deezerId } = req.data || {};
+  if (!musicaId || !deezerId) throw new HttpsError("invalid-argument", "Falta a música ou a capa.");
+
+  const musicaRef = db.doc(`bases/${baseId}/musicas/${musicaId}`);
+  if (!(await musicaRef.get()).exists) throw new HttpsError("not-found", "Música não encontrada.");
+
+  const trackResp = await fetch(`https://api.deezer.com/track/${deezerId}`);
+  if (!trackResp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
+  const track = await trackResp.json();
+  const capaOrigemUrl = track.album?.cover_medium;
+  if (!capaOrigemUrl) throw new HttpsError("not-found", "Esta faixa não tem capa no Deezer.");
+
+  const imgResp = await fetch(capaOrigemUrl);
+  if (!imgResp.ok) throw new HttpsError("unavailable", "Não foi possível baixar a capa.");
+  const buffer = Buffer.from(await imgResp.arrayBuffer());
+  const webp = await sharp(buffer).resize(250, 250, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
+
+  const token = randomUUID();
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(`bases/${baseId}/capas/${musicaId}.webp`);
+  await file.save(webp, {
+    metadata: { contentType: "image/webp", metadata: { firebaseStorageDownloadTokens: token } },
+  });
+  const capaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}`;
+
+  await musicaRef.set({
+    capaUrl, capaOrigem: "deezer", deezerId: String(deezerId), previewUrl: track.preview || null,
+  }, { merge: true });
+
+  return { capaUrl };
+});
+
+/* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
+ * Histórico por música (não por versão, ver decisão 12): recalculado
+ * a cada escrita num repertório, só para as músicas que entraram ou
+ * saíram nesta escrita (não a biblioteca toda) — o volume é baixo
+ * (~1 repertório por semana, <500 músicas), por isso um recount
+ * completo por música afetada é barato e sempre correto, mesmo que
+ * um repertório antigo seja editado fora de ordem. */
+export const aoGravarRepertorioLouvor = onDocumentWritten("bases/{baseId}/repertorios/{repertorioId}", async (event) => {
+  const baseId = event.params.baseId;
+  const antes = event.data?.before?.data();
+  const depois = event.data?.after?.data();
+  const idsAntes = (antes?.itens || []).filter((i) => i.tipo === "musica").map((i) => i.musicaId);
+  const idsDepois = (depois?.itens || []).filter((i) => i.tipo === "musica").map((i) => i.musicaId);
+  const musicaIds = [...new Set([...idsAntes, ...idsDepois])];
+  if (!musicaIds.length) return;
+
+  const snap = await db.collection(`bases/${baseId}/repertorios`).get();
+  const repertorios = snap.docs.map((d) => d.data());
+  const limite90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const lote = db.batch();
+  for (const musicaId of musicaIds) {
+    let ultima = null;
+    let vezes90d = 0;
+    for (const rep of repertorios) {
+      const temMusica = (rep.itens || []).some((i) => i.tipo === "musica" && i.musicaId === musicaId);
+      if (!temMusica || !rep.data) continue;
+      if (!ultima || rep.data > ultima) ultima = rep.data;
+      if (rep.data >= limite90) vezes90d += 1;
+    }
+    lote.set(db.doc(`bases/${baseId}/musicas/${musicaId}`), {
+      ultimaVezTocada: ultima ? admin.firestore.Timestamp.fromDate(new Date(`${ultima}T00:00:00`)) : null,
+      vezes90d,
+    }, { merge: true });
+  }
+  await lote.commit();
 });

@@ -19,6 +19,13 @@ service firebase.storage {
       allow read:  if minhaBase(base);
       allow write: if lider(base) && imagem();
     }
+    // Biblioteca (Base Louvor): capa processada pela Cloud Function
+    // processarCapaMusica (Admin SDK, ignora estas regras) — o cliente
+    // só lê, nunca escreve aqui diretamente.
+    match /bases/{base}/capas/{ficheiro} {
+      allow read:  if minhaBase(base);
+      allow write: if false;
+    }
     match /bases/{base}/wiki/{ficheiro} {
       allow read:  if minhaBase(base);
       allow write: if minhaBase(base) && imagem();  // qualquer voluntário sobe foto de passo

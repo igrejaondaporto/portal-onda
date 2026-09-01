@@ -219,6 +219,34 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ── biblioteca de músicas (Base Louvor) — qualquer voluntário
+      // cadastra música e adiciona versão; só o líder marca a versão
+      // padrão da Onda (decisão 3 do CLAUDE.md desta base). Nada é
+      // apagado a sério, por isso não há allow delete. ──
+      match /musicas/{musica} {
+        allow read:   if minhaBase(base);
+        allow create: if minhaBase(base);
+        allow update: if minhaBase(base)
+                      && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['versaoPadraoId'])
+                          || souLiderBase(base));
+        allow delete: if false;
+        match /versoes/{versao} {
+          allow read:          if minhaBase(base);
+          allow create, update: if minhaBase(base);
+          allow delete:        if false;
+        }
+      }
+
+      // ── repertório do domingo (Base Louvor) — um por culto, sem
+      // rascunho: fica visível para a projeção assim que existe (a
+      // Técnica lê para a tela, ver CLAUDE.md da Louvor). Escrita só
+      // da própria base — a Técnica só lê. ──
+      match /repertorios/{repertorio} {
+        allow read:            if minhaBase(base) || minhaBase('tecnica');
+        allow create, update: if minhaBase(base);
+        allow delete:          if false;
+      }
+
       // ── Acomodação (Base Pessoal) — planta do auditório + arquivo ──
       // planta: configuração (fileiras, reservados, bloqueios
       // permanentes) — só a líder edita, direto do cliente, como
