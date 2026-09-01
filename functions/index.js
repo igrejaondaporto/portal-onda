@@ -2703,24 +2703,42 @@ export const excluirEnquete = onCall(async (req) => {
   return { ok: true };
 });
 
+/* pessoaId diferente do próprio uid só é aceite do líder — é como
+ * corrige o voto errado de um voluntário ou vota por quem ainda não
+ * respondeu (pedido explícito). Nesse caso ignora-se o "estado
+ * aberta": o líder pode corrigir mesmo depois de fechada, é
+ * precisamente para isso que serve — só a resposta da própria pessoa
+ * exige a enquete ainda aberta. */
 export const responderEnquete = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { mes, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
+  const { mes, pessoaId, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
   if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
   if (!Array.isArray(indisponivelEm)) throw new HttpsError("invalid-argument", "Indisponibilidade inválida.");
   if (!semIndisponibilidade && !indisponivelEm.length) {
     throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
   }
+
+  let alvo = uid;
+  if (pessoaId && pessoaId !== uid) {
+    if (req.auth.token.papel !== "lider_base") {
+      throw new HttpsError("permission-denied", "Só o líder pode responder por outra pessoa.");
+    }
+    alvo = pessoaId;
+  }
+
   const enquete = await refEnquete(baseId, mes).get();
   if (!enquete.exists || enquete.data().ativo === false) throw new HttpsError("not-found", "Enquete não encontrada.");
-  if (enquete.data().estado !== "aberta") throw new HttpsError("failed-precondition", "Esta enquete já está fechada.");
+  if (alvo === uid && enquete.data().estado !== "aberta") {
+    throw new HttpsError("failed-precondition", "Esta enquete já está fechada.");
+  }
 
-  await refEnquete(baseId, mes).collection("respostas").doc(uid).set({
+  await refEnquete(baseId, mes).collection("respostas").doc(alvo).set({
     indisponivelEm: semIndisponibilidade ? [] : indisponivelEm,
     semIndisponibilidade: !!semIndisponibilidade,
     nota: nota.trim(),
     respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
+    ...(alvo !== uid ? { respondidoPeloLider: true, respondidoPor: uid } : {}),
   });
   return { ok: true };
 });

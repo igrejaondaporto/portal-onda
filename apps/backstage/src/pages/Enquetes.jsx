@@ -7,6 +7,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
+import SheetResponderEnquete from "../components/SheetResponderEnquete";
 
 const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
 
@@ -16,19 +17,23 @@ const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^3
  *  ferramenta em cima de titular/aprendiz por ministério, que a
  *  Backstage não tem). O líder monta a escala à mão no ecrã Escala,
  *  como já faz hoje, usando as respostas daqui como referência. */
-function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId }) {
+function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, onEditar }) {
   return (
-    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)" }}>
+    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)", cursor: "pointer" }} onClick={onEditar}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
         <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
         <div style={{ flex: 1 }}>
-          <p className="nmt">{pessoa.nome}</p>
+          <p className="nmt">
+            {pessoa.nome}
+            {r.respondidoPeloLider && <span className="ds" style={{ marginLeft: 6 }}>(respondido pelo líder)</span>}
+          </p>
           <p className="ds">
             {r.semIndisponibilidade
               ? "Sem indisponibilidades"
               : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
           </p>
         </div>
+        <span className="seta">✏️</span>
       </div>
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8, marginLeft: 47 }}>
         {(domingos || []).map((id) => {
@@ -159,6 +164,7 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
   const [mostrarMontar, setMostrarMontar] = useState(false);
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [aExcluir, setAExcluir] = useState(false);
+  const [respostaAlvo, setRespostaAlvo] = useState(null); // { pessoa, resposta|null } — edição/voto pelo líder
   const fechada = enquete.estado === "fechada";
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
@@ -223,7 +229,10 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
 
       <label className="rot" style={{ marginTop: 16 }}>Respondeu ({respostas.length}/{voluntarios.length})</label>
       {respostasComPessoa.map(({ resposta: r, pessoa }) => (
-        <LinhaResposta key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId} />
+        <LinhaResposta
+          key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
+          onEditar={() => setRespostaAlvo({ pessoa, resposta: r })}
+        />
       ))}
 
       {naoResponderam.length > 0 && (
@@ -234,6 +243,12 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
               <Avatar pessoa={p} tamanho={34} fonte={13} />
               <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>
               <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => lembrar(p)}>Lembrar</button>
+              <button
+                className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, marginLeft: 6 }}
+                onClick={() => setRespostaAlvo({ pessoa: p, resposta: null })}
+              >
+                Votar
+              </button>
             </div>
           ))}
         </>
@@ -273,6 +288,17 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
         <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={() => setAConfirmarExcluir(true)}>
           Excluir enquete
         </button>
+      )}
+
+      {respostaAlvo && (
+        <SheetResponderEnquete
+          enquetes={[enquete]}
+          eventosPorId={eventosPorId}
+          minhasRespostas={respostaAlvo.resposta ? { [enquete.id]: respostaAlvo.resposta } : {}}
+          pessoaAlvo={{ id: respostaAlvo.pessoa.id, nome: respostaAlvo.pessoa.nome }}
+          onFechar={() => setRespostaAlvo(null)}
+          onGuardado={(msg) => { setRespostaAlvo(null); torrada(msg); }}
+        />
       )}
     </div>
   );

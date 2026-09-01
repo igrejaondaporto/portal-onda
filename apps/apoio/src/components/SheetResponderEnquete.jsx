@@ -12,8 +12,12 @@ const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
  *
  *  Quando o líder abre dois meses de uma vez, `enquetes` traz os
  *  dois — a pessoa responde a um de cada vez, 1/2 e depois 2/2, sem
- *  precisar de abrir a folha duas vezes. */
-export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRespostas, onFechar, onGuardado }) {
+ *  precisar de abrir a folha duas vezes.
+ *
+ *  `pessoaAlvo` ({id, nome}) é só do líder: corrigir o voto de quem
+ *  votou errado, ou votar por quem ainda não respondeu — ver
+ *  Montar.jsx. Sem isto, é sempre a própria pessoa a responder. */
+export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRespostas, pessoaAlvo, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [passo, setPasso] = useState(0);
   const [semIndisponibilidade, setSemIndisponibilidade] = useState(false);
@@ -51,6 +55,7 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
     try {
       await responderEnquete({
         mes: enquete.id,
+        pessoaId: pessoaAlvo?.id,
         indisponivelEm: semIndisponibilidade ? [] : Object.keys(indisponivel).filter((id) => indisponivel[id]),
         semIndisponibilidade,
         nota: nota.trim(),
@@ -78,7 +83,16 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
             Esta enquete é para os meses de {enquetes.map((e) => nomeMes(e.id)).join(" e ")} — passo {passo + 1}/{enquetes.length}
           </p>
         )}
-        <h2>Tens alguma indisponibilidade em {nomeMes(enquete.id)}?</h2>
+        <h2>
+          {pessoaAlvo
+            ? `${pessoaAlvo.nome.split(" ")[0]} tem alguma indisponibilidade em ${nomeMes(enquete.id)}?`
+            : `Tens alguma indisponibilidade em ${nomeMes(enquete.id)}?`}
+        </h2>
+        {pessoaAlvo && (
+          <p className="ds" style={{ color: "var(--magenta)", fontWeight: 600, marginTop: 2 }}>
+            A responder em nome de {pessoaAlvo.nome} — fica marcado que foi o líder a responder.
+          </p>
+        )}
         <p className="sb2">Prazo até {dataPorExtenso(enquete.prazo)}</p>
 
         <button

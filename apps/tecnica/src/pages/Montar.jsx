@@ -5,6 +5,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetAbrirEnquete from "../components/painel/SheetAbrirEnquete";
+import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SugestorEscala from "../components/painel/SugestorEscala";
@@ -14,13 +15,16 @@ const NIVEL_TXT = { titular: "Titular", aprendiz: "Em treino" };
 
 /** Uma resposta com o nome + o resumo (ministério/nível, se vier de
  *  um grupo) + os mini-cartões coloridos por domingo. */
-function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo }) {
+function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo, onEditar }) {
   return (
-    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)" }}>
+    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)", cursor: "pointer" }} onClick={onEditar}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
         <Avatar pessoa={pessoa} tamanho={34} fonte={13} />
         <div style={{ flex: 1 }}>
-          <p className="nmt">{pessoa.nome}</p>
+          <p className="nmt">
+            {pessoa.nome}
+            {r.respondidoPeloLider && <span className="ds" style={{ marginLeft: 6 }}>(respondido pelo líder)</span>}
+          </p>
           <p className="ds">
             {rotulo ? `${rotulo} · ` : ""}
             {r.semIndisponibilidade
@@ -28,6 +32,7 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo }) 
               : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
           </p>
         </div>
+        <span className="seta">✏️</span>
       </div>
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8, marginLeft: 47 }}>
         {(domingos || []).map((id) => {
@@ -58,6 +63,7 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
   const [respostas, setRespostas] = useState([]);
   const [aFechar, setAFechar] = useState(false);
   const [aReabrir, setAReabrir] = useState(false);
+  const [respostaAlvo, setRespostaAlvo] = useState(null); // { pessoa, resposta|null } — edição/voto pelo líder
   const fechada = enquete.estado === "fechada";
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
@@ -127,6 +133,7 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
             <LinhaResposta
               key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
               rotulo={`${m.nome} · ${NIVEL_TXT[pessoa.ministerios?.[m.id]] ?? "sem nível"}`}
+              onEditar={() => setRespostaAlvo({ pessoa, resposta: r })}
             />
           ))}
         </div>
@@ -135,7 +142,10 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
         <div>
           <p className="cap" style={{ padding: "10px 0 2px" }}>Sem ministério</p>
           {semMinisterio.map(({ resposta: r, pessoa }) => (
-            <LinhaResposta key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId} />
+            <LinhaResposta
+              key={r.id} pessoa={pessoa} resposta={r} domingos={enquete.domingos} eventosPorId={eventosPorId}
+              onEditar={() => setRespostaAlvo({ pessoa, resposta: r })}
+            />
           ))}
         </div>
       )}
@@ -148,6 +158,12 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
               <Avatar pessoa={p} tamanho={34} fonte={13} />
               <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>
               <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => lembrar(p)}>Lembrar</button>
+              <button
+                className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, marginLeft: 6 }}
+                onClick={() => setRespostaAlvo({ pessoa: p, resposta: null })}
+              >
+                Votar
+              </button>
             </div>
           ))}
         </>
@@ -161,6 +177,17 @@ function CartaoEnquete({ enquete, voluntarios, ministerios, eventosPorId }) {
         <button className="btn sec full" style={{ marginTop: 16 }} disabled={aFechar} onClick={fechar}>
           {aFechar ? "A fechar…" : "Fechar enquete"}
         </button>
+      )}
+
+      {respostaAlvo && (
+        <SheetResponderEnquete
+          enquetes={[enquete]}
+          eventosPorId={eventosPorId}
+          minhasRespostas={respostaAlvo.resposta ? { [enquete.id]: respostaAlvo.resposta } : {}}
+          pessoaAlvo={{ id: respostaAlvo.pessoa.id, nome: respostaAlvo.pessoa.nome }}
+          onFechar={() => setRespostaAlvo(null)}
+          onGuardado={(msg) => { setRespostaAlvo(null); torrada(msg); }}
+        />
       )}
     </div>
   );
