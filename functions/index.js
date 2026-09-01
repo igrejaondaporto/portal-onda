@@ -12,6 +12,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { defineSecret } from "firebase-functions/params";
 import admin from "firebase-admin";
 import sharp from "sharp";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
@@ -3222,6 +3223,130 @@ export const processarCapaMusica = onCall(async (req) => {
   }, { merge: true });
 
   return { capaUrl };
+});
+
+/* ── BIBLIOTECA (Base Louvor) — pesquisa por nome, Fase 2 ──────
+ * Busca no Deezer só pelo nome (sem artista) e devolve vários
+ * candidatos, cada um já enriquecido com tom (Cifra Club, melhor
+ * esforço) e BPM/tom de reserva (GetSongBPM, só se a secret estiver
+ * definida — sem ela, fica só o que o Deezer/Cifra Club derem). Um
+ * candidato individual falhar a enriquecer nunca derruba os outros
+ * nem a busca toda — mesma filosofia do resto desta base. */
+const GETSONGBPM_API_KEY = defineSecret("GETSONGBPM_API_KEY");
+
+const normLouvor = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+function slugCifraClub(texto) {
+  return normLouvor(texto)
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim().replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
+/** Tenta a música, depois variações sem "(Ao Vivo)"/parênteses e sem
+ *  feat./&, na mesma ordem do documento original (secção 5.2). Devolve
+ *  também o slug que funcionou, para o link de letra (letras.mus.br)
+ *  reaproveitar sem adivinhar de novo. */
+async function resolverTomCifraClub(titulo, artista) {
+  const variacoes = [
+    { t: titulo, a: artista },
+    { t: (titulo || "").replace(/\(.*?\)/g, "").trim(), a: artista },
+    { t: titulo, a: (artista || "").replace(/\bfeat\.?.*$/i, "").replace(/&.*$/, "").trim() },
+  ];
+  for (const v of variacoes) {
+    const aSlug = slugCifraClub(v.a), tSlug = slugCifraClub(v.t);
+    if (!aSlug || !tSlug) continue;
+    const url = `https://www.cifraclub.com.br/${aSlug}/${tSlug}/`;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 6000);
+      const resp = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0" } });
+      clearTimeout(timeout);
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      const tituloTag = html.slice(html.indexOf("<title>"), html.indexOf("<title>") + 200);
+      if (!normLouvor(tituloTag).includes(normLouvor(v.t).slice(0, 8))) continue;
+      const m = html.match(/aria-label="Diminuir tom"[\s\S]{0,300}?<p[^>]*>([A-G](?:#|b)?m?)<\/p>/);
+      return { tom: m ? m[1] : null, link: url, aSlug, tSlug };
+    } catch {
+      continue;
+    }
+  }
+  return { tom: null, link: null, aSlug: null, tSlug: null };
+}
+
+/** Só existência (HEAD) — o conteúdo da letra não interessa aqui,
+ *  só confirmar que a página não é 404 antes de sugerir o link. */
+async function linkExiste(url) {
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 4000);
+    const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0" } });
+    clearTimeout(timeout);
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** GetSongBPM: cascata de BPM (e tom de reserva, se o Cifra Club
+ *  falhar). Sem chave definida, devolve tudo null em silêncio — a
+ *  função de busca continua a funcionar, só sem esta camada. */
+async function resolverGetSongBpm(titulo, artista, apiKey) {
+  if (!apiKey) return { bpm: null, tomReserva: null };
+  try {
+    const lookup = `song:${titulo} artist:${artista}`;
+    const url = `https://api.getsongbpm.com/search/?api_key=${apiKey}&type=song&lookup=${encodeURIComponent(lookup)}`;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const resp = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return { bpm: null, tomReserva: null };
+    const json = await resp.json();
+    const primeiro = (json.search || [])[0];
+    if (!primeiro) return { bpm: null, tomReserva: null };
+    const bpm = primeiro.tempo ? Math.round(Number(primeiro.tempo)) : null;
+    return { bpm: Number.isFinite(bpm) ? bpm : null, tomReserva: primeiro.key_of || null };
+  } catch {
+    return { bpm: null, tomReserva: null };
+  }
+}
+
+export const pesquisarMusicaLouvor = onCall({ secrets: [GETSONGBPM_API_KEY], cors: ORIGENS_PERMITIDAS }, async (req) => {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { nome } = req.data || {};
+  if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome da música.");
+
+  const buscaResp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&limit=6`);
+  if (!buscaResp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
+  const buscaJson = await buscaResp.json();
+  const brutos = (buscaJson.data || []).slice(0, 6);
+
+  let apiKey = null;
+  try { apiKey = GETSONGBPM_API_KEY.value() || null; } catch { apiKey = null; }
+
+  const candidatos = await Promise.all(brutos.map(async (t) => {
+    const titulo = t.title, artista = t.artist?.name || "";
+    const [cifra, bpmInfo] = await Promise.all([
+      resolverTomCifraClub(titulo, artista).catch(() => ({ tom: null, link: null, aSlug: null, tSlug: null })),
+      resolverGetSongBpm(titulo, artista, apiKey).catch(() => ({ bpm: null, tomReserva: null })),
+    ]);
+    let letraLink = null;
+    if (cifra.aSlug && cifra.tSlug) {
+      const candidata = `https://www.letras.mus.br/${cifra.aSlug}/${cifra.tSlug}/`;
+      if (await linkExiste(candidata).catch(() => false)) letraLink = candidata;
+    }
+    return {
+      deezerId: String(t.id), titulo, artista,
+      capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
+      tom: cifra.tom || bpmInfo.tomReserva || null,
+      fonteTom: cifra.tom ? "cifraclub" : (bpmInfo.tomReserva ? "getsongbpm" : null),
+      bpm: bpmInfo.bpm, fonteBpm: bpmInfo.bpm ? "getsongbpm" : null,
+      linkCifra: cifra.link, linkLetra: letraLink,
+    };
+  }));
+
+  return { candidatos };
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
