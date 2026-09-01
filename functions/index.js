@@ -3398,24 +3398,15 @@ async function obterTokenSpotify(clientId, clientSecret) {
   return tokenSpotifyCache.token;
 }
 
-/** Pitch class do Spotify (0=C, 1=C#/Db … 11=B, -1=não detetado) para
- *  a notação usada no resto da app — "m" quando o `mode` é menor. */
-const NOTAS_SPOTIFY = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-function tomDeSpotify(key, mode) {
-  if (key == null || key < 0) return null;
-  return mode === 0 ? `${NOTAS_SPOTIFY[key]}m` : NOTAS_SPOTIFY[key];
-}
-
-/** Link, tom e BPM do Spotify — tudo numa função só porque o link
- *  vem da busca e o tom/BPM vêm de um segundo pedido (audio-features)
- *  sobre a MESMA faixa encontrada, sem repetir a busca. O tom aqui é
- *  detetado por algoritmo (não é uma cifra transcrita à mão como o
- *  Cifra Club) — por isso entra depois dele na cascata, mas cobre
- *  praticamente qualquer música do catálogo, ao contrário da
- *  raspagem. Sem credenciais definidas, devolve tudo null em
- *  silêncio, como as outras camadas. */
+/** Só o link — o Spotify descontinuou `audio-features`/`audio-analysis`
+ *  para qualquer app criada depois de 27/11/2024 (a nossa é de 2026):
+ *  403 sempre, para qualquer conta, mesmo Premium (confirmado —
+ *  https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api).
+ *  Não é algo que fique disponível esperando; não há tom/BPM por aqui.
+ *  Sem credenciais definidas, devolve tudo null em silêncio, como as
+ *  outras camadas. */
 async function resolverSpotify(titulo, artista, clientId, clientSecret) {
-  if (!clientId || !clientSecret) return { link: null, tom: null, bpm: null };
+  if (!clientId || !clientSecret) return { link: null };
   try {
     const token = await obterTokenSpotify(clientId, clientSecret);
     const q = `track:${titulo} artist:${artista}`;
@@ -3426,102 +3417,19 @@ async function resolverSpotify(titulo, artista, clientId, clientSecret) {
       { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal }
     );
     clearTimeout(timeout);
-    if (!buscaResp.ok) return { link: null, tom: null, bpm: null };
+    if (!buscaResp.ok) return { link: null };
     const buscaJson = await buscaResp.json();
     const faixa = buscaJson.tracks?.items?.[0];
-    if (!faixa) return { link: null, tom: null, bpm: null };
-
-    let tom = null, bpm = null;
-    try {
-      const featResp = await fetch(`https://api.spotify.com/v1/audio-features/${faixa.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (featResp.ok) {
-        const feat = await featResp.json();
-        tom = tomDeSpotify(feat.key, feat.mode);
-        bpm = feat.tempo ? Math.round(feat.tempo) : null;
-      }
-    } catch { /* fica só com o link, sem tom/BPM do Spotify */ }
-
-    return { link: faixa.external_urls?.spotify || null, tom, bpm };
+    return { link: faixa?.external_urls?.spotify || null };
   } catch {
-    return { link: null, tom: null, bpm: null };
-  }
-}
-
-/** LouveApp: repertório já curado pela própria igreja — quando a
- *  busca por nome encontra a música lá, o tom/BPM/links de lá valem
- *  mais do que qualquer coisa raspada ou detetada por algoritmo (ver
- *  cascata mais abaixo). Token guardado em memória do processo, igual
- *  ao Spotify — cada instância reaproveita até expirar. */
-const LOUVEAPP_CLIENT_ID = defineSecret("LOUVEAPP_CLIENT_ID");
-const LOUVEAPP_CLIENT_SECRET = defineSecret("LOUVEAPP_CLIENT_SECRET");
-const LOUVEAPP_MINISTRY_TOKEN = defineSecret("LOUVEAPP_MINISTRY_TOKEN");
-const LOUVEAPP_BASE_URL = "https://api.louveapp.com.br/partners";
-
-let tokenLouveAppCache = null; // { token, expiraEm }
-async function obterTokenLouveApp(clientId, clientSecret, ministryToken) {
-  if (tokenLouveAppCache && tokenLouveAppCache.expiraEm > Date.now()) return tokenLouveAppCache.token;
-  const resp = await fetch(`${LOUVEAPP_BASE_URL}/oauth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, clientSecret, ministryToken }),
-  });
-  const texto = await resp.text();
-  if (!resp.ok) {
-    logger.error("LouveApp oauth falhou", { status: resp.status, corpo: texto.slice(0, 500) });
-    throw new HttpsError("unavailable", `LouveApp: ${resp.status} — ${texto.slice(0, 200)}`);
-  }
-  const json = JSON.parse(texto);
-  if (!json.access_token) throw new HttpsError("unavailable", "O LouveApp não devolveu um token.");
-  tokenLouveAppCache = { token: json.access_token, expiraEm: Date.now() + (json.expires_in - 60) * 1000 };
-  return json.access_token;
-}
-
-/** Escolhe, entre as versões da música no LouveApp, a que tem mais
- *  dados preenchidos (tom e BPM primeiro) — sem isso, a primeira. */
-function melhorVersaoLouveApp(versoes) {
-  return (versoes || []).slice().sort((a, b) => {
-    const pontos = (v) => (v.key ? 2 : 0) + (v.bpm ? 1 : 0);
-    return pontos(b) - pontos(a);
-  })[0] || null;
-}
-
-/** Busca o LouveApp diretamente pelo nome (`search`, ignora acentos/
- *  caixa do lado deles) — sem chave/token válido, devolve lista vazia
- *  em silêncio, como as outras camadas. Cada música vem já com todas
- *  as versões; usamos a melhor (ver acima) como o candidato. */
-async function resolverLouveApp(nome, clientId, clientSecret, ministryToken) {
-  if (!clientId || !clientSecret || !ministryToken) return [];
-  try {
-    const token = await obterTokenLouveApp(clientId, clientSecret, ministryToken);
-    const resp = await fetch(`${LOUVEAPP_BASE_URL}/songs?search=${encodeURIComponent(nome)}&limit=6`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!resp.ok) return [];
-    const json = await resp.json();
-    return (json.data || []).map((m) => {
-      const v = melhorVersaoLouveApp(m.versions) || {};
-      return {
-        titulo: m.title, artista: m.artist || "",
-        tom: v.key || null, bpm: v.bpm || null, duracao: v.duration || null,
-        linkCifra: v.chordsUrl || null, linkLetra: v.lyricsUrl || null,
-        linkAudio: v.audioUrl || null, linkVideo: v.videoUrl || null,
-      };
-    }).filter((c) => c.titulo && c.artista);
-  } catch (e) {
-    logger.error("LouveApp search falhou", { erro: e.message });
-    return [];
+    return { link: null };
   }
 }
 
 const RESULTADOS_POR_PAGINA = 6;
 
 export const pesquisarMusicaLouvor = onCall({
-  secrets: [
-    GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET,
-    LOUVEAPP_CLIENT_ID, LOUVEAPP_CLIENT_SECRET, LOUVEAPP_MINISTRY_TOKEN,
-  ],
+  secrets: [GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
   cors: ORIGENS_PERMITIDAS,
 }, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -3529,23 +3437,9 @@ export const pesquisarMusicaLouvor = onCall({
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome da música.");
   const indice = Math.max(0, Number(pagina) || 0) * RESULTADOS_POR_PAGINA;
 
-  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
-  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
-  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
-  const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
-  const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
-  const louveAppId = valorSecret(LOUVEAPP_CLIENT_ID);
-  const louveAppSecret = valorSecret(LOUVEAPP_CLIENT_SECRET);
-  const louveAppMinistryToken = valorSecret(LOUVEAPP_MINISTRY_TOKEN);
-
-  // LouveApp só na primeira página — é o repertório já curado da
-  // igreja, o essencial já vem todo de uma vez, sem paginação própria.
-  const [buscaResp, louveAppMusicas] = await Promise.all([
-    fetch(`https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&index=${indice}&limit=${RESULTADOS_POR_PAGINA}`),
-    indice === 0
-      ? resolverLouveApp(nome.trim(), louveAppId, louveAppSecret, louveAppMinistryToken)
-      : Promise.resolve([]),
-  ]);
+  const buscaResp = await fetch(
+    `https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&index=${indice}&limit=${RESULTADOS_POR_PAGINA}`
+  );
   if (!buscaResp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
   const buscaJson = await buscaResp.json();
   const brutos = buscaJson.data || [];
@@ -3553,34 +3447,13 @@ export const pesquisarMusicaLouvor = onCall({
   // dá para saber se há mais sem adivinhar pelo tamanho desta página.
   const total = typeof buscaJson.total === "number" ? buscaJson.total : indice + brutos.length;
 
-  // Capa para cada música do LouveApp (a API deles não tem esse campo)
-  // — uma busca simples no Deezer por título+artista, sem cascata.
-  const candidatosLouveApp = await Promise.all(louveAppMusicas.map(async (m) => {
-    let capa = null, duracao = m.duracao, preview = null, deezerId = null;
-    try {
-      const q = `track:"${m.titulo}" artist:"${m.artista}"`;
-      const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
-      const j = r.ok ? await r.json() : null;
-      const t = j?.data?.[0];
-      if (t) {
-        capa = t.album?.cover_medium || null;
-        duracao = duracao || t.duration || null;
-        preview = t.preview || null;
-        deezerId = String(t.id);
-      }
-    } catch { /* segue sem capa */ }
-    return {
-      deezerId, titulo: m.titulo, artista: m.artista,
-      capa, duracao, preview,
-      tom: m.tom, fonteTom: m.tom ? "louveapp" : null,
-      bpm: m.bpm, fonteBpm: m.bpm ? "louveapp" : null,
-      linkCifra: m.linkCifra, linkLetra: m.linkLetra,
-      linkAudio: m.linkAudio || null, linkVideo: m.linkVideo,
-    };
-  }));
-  const chavesLouveApp = new Set(candidatosLouveApp.map((c) => `${normLouvor(c.artista)}__${normLouvor(c.titulo)}`));
+  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
+  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
+  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
+  const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
+  const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
 
-  const candidatosDeezer = await Promise.all(brutos.map(async (t) => {
+  const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = variacoesSlug(titulo, artista);
     const [cifra, letraLink, bpmInfo, linkVideo, spotify] = await Promise.all([
@@ -3588,15 +3461,16 @@ export const pesquisarMusicaLouvor = onCall({
       resolverLetra(variacoes).catch(() => null),
       resolverGetSongBpm(titulo, artista, chaveGetSongBpm).catch(() => ({ bpm: null, tomReserva: null })),
       resolverVideoYouTube(titulo, artista, chaveYoutube).catch(() => null),
-      resolverSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => ({ link: null, tom: null, bpm: null })),
+      resolverSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => ({ link: null })),
     ]);
-    // tom: Cifra Club (cifra transcrita à mão) → Spotify (algoritmo,
-    // mas cobre quase tudo) → GetSongBPM (comunidade, hoje bloqueado
-    // pela Cloudflare deles — ver CLAUDE.md desta base).
-    const tom = cifra.tom || spotify.tom || bpmInfo.tomReserva || null;
-    const fonteTom = cifra.tom ? "cifraclub" : spotify.tom ? "spotify" : bpmInfo.tomReserva ? "getsongbpm" : null;
-    const bpm = bpmInfo.bpm || spotify.bpm || null;
-    const fonteBpm = bpmInfo.bpm ? "getsongbpm" : spotify.bpm ? "spotify" : null;
+    // tom: Cifra Club (cifra transcrita à mão) → GetSongBPM (comunidade,
+    // hoje bloqueado pela Cloudflare deles — ver CLAUDE.md desta base).
+    // Spotify só entra com o link — o deles não dá mais tom/BPM (ver
+    // resolverSpotify).
+    const tom = cifra.tom || bpmInfo.tomReserva || null;
+    const fonteTom = cifra.tom ? "cifraclub" : bpmInfo.tomReserva ? "getsongbpm" : null;
+    const bpm = bpmInfo.bpm || null;
+    const fonteBpm = bpmInfo.bpm ? "getsongbpm" : null;
     return {
       deezerId: String(t.id), titulo, artista,
       capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
@@ -3605,155 +3479,8 @@ export const pesquisarMusicaLouvor = onCall({
       linkAudio: spotify.link || t.link || null, linkVideo,
     };
   }));
-  // uma música já resolvida pelo LouveApp (melhor fonte) não entra
-  // duplicada pela busca geral do Deezer.
-  const candidatosSemDuplicar = candidatosDeezer.filter(
-    (c) => !chavesLouveApp.has(`${normLouvor(c.artista)}__${normLouvor(c.titulo)}`)
-  );
 
-  const candidatos = [...candidatosLouveApp, ...candidatosSemDuplicar];
-  return { candidatos, temMais: indice + candidatosDeezer.length < total };
-});
-
-/* ── BIBLIOTECA (Base Louvor) — sincronização com o LouveApp ───
- * Parceria aprovada em 2026-09: API oficial, só leitura (songs:read),
- * com o repertório já curado pela igreja (tom/BPM/links por versão).
- * Isto passa a ser a fonte principal — a cascata Cifra Club/Spotify/
- * GetSongBPM acima continua a servir músicas cadastradas à mão que
- * não estejam no LouveApp. Ver LOUVEAPP_CLIENT_ID etc. e
- * obterTokenLouveApp() logo acima de pesquisarMusicaLouvor — a mesma
- * autenticação serve a busca por nome e esta sincronização em lote. */
-
-/** Só para músicas novas (a API do LouveApp não tem campo de capa) —
- *  mesma lógica de processarCapaMusica, mas melhor esforço em lote:
- *  uma falha aqui nunca derruba a sincronização, a música fica só com
- *  placeholder até o líder resolver pela Biblioteca. */
-async function resolverCapaLouveApp(baseId, musicaId, titulo, artista) {
-  try {
-    const q = `track:"${titulo}" artist:"${artista}"`;
-    const buscaResp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
-    if (!buscaResp.ok) return null;
-    const buscaJson = await buscaResp.json();
-    const faixa = buscaJson.data?.[0];
-    if (!faixa?.album?.cover_medium) return null;
-    const imgResp = await fetch(faixa.album.cover_medium);
-    if (!imgResp.ok) return null;
-    const buffer = Buffer.from(await imgResp.arrayBuffer());
-    const webp = await sharp(buffer).resize(250, 250, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
-    const token = randomUUID();
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(`bases/${baseId}/capas/${musicaId}.webp`);
-    await file.save(webp, { metadata: { contentType: "image/webp", metadata: { firebaseStorageDownloadTokens: token } } });
-    const capaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}`;
-    return { capaUrl, deezerId: String(faixa.id), previewUrl: faixa.preview || null };
-  } catch {
-    return null;
-  }
-}
-
-/** Classificações do LouveApp chegam como texto livre por versão —
- *  casa por normalização direta com os ids fixos desta app (mesmos
- *  seis nomes, ver CLASSIFICACOES em src/lib/biblioteca.js). Uma
- *  classificação que não bata com nenhum id conhecido é ignorada, não
- *  quebra a sincronização. */
-const CLASSIFICACOES_LOUVOR_IDS = ["adoracao", "alegria", "consagracao", "contemplacao", "especiais", "louvor"];
-function classifLouveApp(nome) {
-  const alvo = normLouvor(nome).replace(/[^a-z0-9]/g, "");
-  return CLASSIFICACOES_LOUVOR_IDS.find((id) => id === alvo) || null;
-}
-
-/** Puxa o repertório inteiro do LouveApp e atualiza a Biblioteca:
- *  música nova (por chaveIdentidade) é criada com capa do Deezer;
- *  música já existente nunca tem classificações/links/capa
- *  sobrescritos (podem ter sido editados à mão no Portal desde
- *  então) — só as versões são atualizadas a cada sincronização, para
- *  tom/BPM ficarem sempre com o que o LouveApp tiver de mais recente. */
-export const sincronizarLouveAppLouvor = onCall({
-  secrets: [LOUVEAPP_CLIENT_ID, LOUVEAPP_CLIENT_SECRET, LOUVEAPP_MINISTRY_TOKEN],
-  cors: ORIGENS_PERMITIDAS,
-  timeoutSeconds: 300,
-}, async (req) => {
-  const baseId = exigeLider(req);
-  const token = await obterTokenLouveApp(
-    LOUVEAPP_CLIENT_ID.value(), LOUVEAPP_CLIENT_SECRET.value(), LOUVEAPP_MINISTRY_TOKEN.value()
-  );
-
-  const musicasLouveApp = [];
-  let pagina = 1, temMais = true;
-  while (temMais && pagina <= 50) {
-    const resp = await fetch(`${LOUVEAPP_BASE_URL}/songs?limit=50&page=${pagina}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!resp.ok) throw new HttpsError("unavailable", "Não foi possível ler o repertório do LouveApp.");
-    const json = await resp.json();
-    musicasLouveApp.push(...(json.data || []));
-    temMais = json.pagination?.hasMore === true;
-    pagina += 1;
-  }
-
-  const existentesSnap = await db.collection(`bases/${baseId}/musicas`).get();
-  const porChave = new Map(existentesSnap.docs.map((d) => [d.data().chaveIdentidade, d.id]));
-
-  let musicasCriadas = 0, versoesCriadas = 0, versoesAtualizadas = 0, capasResolvidas = 0;
-
-  for (const m of musicasLouveApp) {
-    const titulo = (m.title || "").trim(), artista = (m.artist || "").trim();
-    if (!titulo || !artista) continue;
-    const versoesLouveApp = m.versions || [];
-    const chave = `${normLouvor(artista)}__${normLouvor(titulo)}`;
-
-    let musicaId = porChave.get(chave);
-    if (!musicaId) {
-      musicaId = db.collection(`bases/${baseId}/musicas`).doc().id;
-      const classificacoes = [...new Set(
-        versoesLouveApp.flatMap((v) => v.classifications || []).map(classifLouveApp).filter(Boolean)
-      )];
-      const primeiraComLink = versoesLouveApp.find((v) => v.lyricsUrl || v.chordsUrl || v.audioUrl || v.videoUrl);
-      const capa = await resolverCapaLouveApp(baseId, musicaId, titulo, artista);
-      if (capa) capasResolvidas++;
-      await db.doc(`bases/${baseId}/musicas/${musicaId}`).set({
-        titulo, artista, chaveIdentidade: chave,
-        slug: `${slugCifraClub(artista)}/${slugCifraClub(titulo)}`,
-        classificacoes, duracao: versoesLouveApp[0]?.duration || null,
-        capaUrl: capa?.capaUrl || null, capaOrigem: capa ? "deezer" : "placeholder",
-        deezerId: capa?.deezerId || null, previewUrl: capa?.previewUrl || null,
-        links: {
-          letra: primeiraComLink?.lyricsUrl || "", cifra: primeiraComLink?.chordsUrl || "",
-          audio: primeiraComLink?.audioUrl || "", video: primeiraComLink?.videoUrl || "",
-        },
-        autoral: false, criadoPor: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-        ultimaVezTocada: null, vezes90d: 0, versaoPadraoId: null,
-      });
-      porChave.set(chave, musicaId);
-      musicasCriadas++;
-    }
-
-    const versoesSnap = await db.collection(`bases/${baseId}/musicas/${musicaId}/versoes`).get();
-    const versaoIdPorNome = new Map(versoesSnap.docs.map((d) => [normLouvor(d.data().nome), d.id]));
-
-    for (const v of versoesLouveApp) {
-      const nomeVersao = (v.name || "Onda").trim();
-      const dadosVersao = {
-        nome: nomeVersao, tom: v.key || "", bpm: v.bpm || null, duracao: v.duration || null,
-        observacao: [m.notes, v.notes].filter(Boolean).join(" — "),
-        fonteTom: v.key ? "louveapp" : "manual", fonteBpm: v.bpm ? "louveapp" : "manual",
-      };
-      const versaoIdExistente = versaoIdPorNome.get(normLouvor(nomeVersao));
-      if (versaoIdExistente) {
-        await db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoIdExistente}`).set(dadosVersao, { merge: true });
-        versoesAtualizadas++;
-      } else {
-        const versaoId = db.collection(`bases/${baseId}/musicas/${musicaId}/versoes`).doc().id;
-        await db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).set({
-          ...dadosVersao, criadoPor: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        versaoIdPorNome.set(normLouvor(nomeVersao), versaoId);
-        versoesCriadas++;
-      }
-    }
-  }
-
-  return { total: musicasLouveApp.length, musicasCriadas, versoesCriadas, versoesAtualizadas, capasResolvidas };
+  return { candidatos, temMais: indice + candidatos.length < total };
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
