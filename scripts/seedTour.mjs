@@ -368,6 +368,61 @@ const TOURS = {
       },
     ],
   },
+
+  louvor: {
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel da Louvor",
+        texto: "Aqui vês quando serves, o repertório do domingo e a biblioteca de músicas da Onda.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Toca em Escala para veres o mês todo — quem toca ou canta em cada culto, e em que papel.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "Em Culto encontras a ordem do culto, o estado do equipamento e os feedbacks de cada domingo.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-biblioteca",
+        titulo: "Biblioteca",
+        texto: "Todas as músicas da Onda ficam aqui — tom, BPM, letra e cifra de cada uma.",
+        alvo: "nav-biblioteca", pagina: "inicio",
+      },
+      {
+        chave: "nav-repertorio",
+        titulo: "Repertório",
+        texto: "Em Repertório montas a lista de músicas e momentos do domingo.",
+        alvo: "nav-repertorio", pagina: "inicio",
+      },
+      {
+        chave: "repertorio",
+        titulo: "O repertório de domingo",
+        texto: "Aqui em cima vês sempre o repertório do teu próximo culto — toca para abrir.",
+        alvo: "repertorio-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês — toca num culto para escolher quem toca ou canta, e em que papel.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
 };
 
 async function main() {

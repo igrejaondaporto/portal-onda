@@ -1,0 +1,222 @@
+# Base de Louvor — igrejaonda
+
+Contexto específico desta base. Lê primeiro o `CLAUDE.md` da raiz do
+repositório (regras que valem para todas as bases, RGPD, stack).
+
+## O que é
+
+A banda e ministração do culto. Chegam às 07:00 de domingo (afinação
+e passagem de som), o culto é às 10:30 na Casa do Povo de Vermoim.
+Além de servir no culto, esta base mantém a **biblioteca de músicas**
+da Onda e monta o **repertório** de cada domingo — a Base Técnica lê
+o repertório para a projeção.
+
+Uso real: telemóvel pessoal, em pé, com pressa, antes de abrir as
+portas. Não é um dashboard de escritório. Se uma tarefa exige mais de
+três toques, está mal desenhada.
+
+## Estado
+
+Em produção em `louvor.igrejaonda.pt`. Primeira entrega: as cinco
+abas (Início, Escala, Culto, Biblioteca, Repertório) todas
+funcionais, biblioteca em **Fase 1** (sem resolução automática de
+tom/BPM/links — ver secção 5).
+
+**Deliberadamente fora desta entrega** (mais simples do que o
+`CLAUDE.md` original da biblioteca previa, para caber num primeiro
+lançamento):
+- **`resolverMusica`** (Cifra Club/GetSongBPM/YouTube/análise de
+  áudio) — precisa de chaves de API que ainda não existem e de uma
+  peça de DSP à parte. Só a capa (Deezer, API pública) é automática.
+  Tom, BPM, links e classificações são preenchidos à mão.
+- **Enquete de indisponibilidade + sugestor de escala** ("Montar") —
+  o schema/Cloud Functions já são genéricos (ver `CLAUDE.md` raiz,
+  "O que NÃO precisa de mudar"), só falta portar se vier a fazer
+  falta.
+- **"Solicitar BG" à Comunicação** — componente partilhado, pronto a
+  ligar quando for pedido.
+- **Reordenar o repertório por arrasto** — o documento original pedia
+  arrasto; ficou por setas ↑/↓ por item (mesmo padrão que a Técnica já
+  usa para reordenar a checklist, `tec-ordem` em `tecnica.css`), mais
+  simples e mais fiável no telemóvel.
+
+## Vocabulário — usa exatamente estes termos
+
+| Termo | O que é |
+|---|---|
+| **Líder da base** | Fixo (Adriel). Vê e edita tudo, em qualquer data |
+| **Líder de escala** | Rotativo, um por culto |
+| **Escala** | Quem serve em cada culto, e em que papel |
+| **Papel** | Vocal, Teclado, Guitarra, Baixo ou Bateria — não há titular/aprendiz, o líder de escala escolhe livremente quantos por papel |
+| **Música** | Título + artista — um cover de outro artista é música separada, nunca uma versão |
+| **Versão** | Um arranjo da música (tom, BPM, duração, observação) — só o Adriel marca a "versão padrão da Onda" |
+| **Repertório** | A lista de músicas e momentos de um domingo |
+| **Momento** | Item do repertório que não é música (Ceia, Oferta…) |
+| **Culto** | O evento. Domingos 10:30, mais especiais |
+
+Não digas "líder do dia", "turno", "ministério" (a Louvor não tem
+ministérios, tem papéis) nem "faixa" (é "música") na interface.
+
+## Escala: papéis, sem titular/aprendiz
+
+```js
+eventos/{e}/escalas/louvor
+  liderEscala: "adriel-louvor"
+  escalados: [
+    { papel: "vocal", pessoaId: "..." },
+    { papel: "vocal", pessoaId: "..." },       // pode haver 2 vocais
+    { papel: "guitarra", pessoaId: "..." },
+  ]
+  pessoas: [...]                                // união plana, recalculada no servidor
+```
+
+Os cinco papéis são uma lista fixa em código
+(`src/lib/modelo.js`, `PAPEIS`) — sem catálogo no Firestore, sem CRUD.
+Mudar a lista é editar ali (e a cópia server-side em
+`functions/index.js`, `PAPEIS_LOUVOR`, usada por `guardarEscalaLouvor`
+para validar). Uma pessoa não pode ocupar dois papéis no mesmo culto.
+Sem níveis: qualquer voluntário serve em qualquer papel que o líder
+lhe atribuir.
+
+## Culto: Ordem, Equipamentos, Feedbacks
+
+Três sub-abas dentro de Culto (`src/pages/Culto.jsx`). Ordem do culto
+e Feedbacks são o ecrã genérico partilhado com Apoio/Técnica (nada de
+especial aqui). **Equipamentos** é o "Inventário em modo património"
+da Técnica (`bases/louvor/inventario/{item}`, Cloud Functions
+`criarEquipamento`/`guardarEquipamento`/`desativarEquipamento`,
+genéricas por `baseId` — nenhuma função nova precisou de ser escrita)
+com o agrupamento por ministério trocado pelos cinco papéis da escala
+(ver `PAPEIS` acima) em vez de uma coleção `ministerios` — um
+amplificador ou um microfone tem um papel, não um ministério.
+
+## Biblioteca e Repertório
+
+O que está abaixo é o documento de decisões original desta
+funcionalidade, escrito antes de qualquer código — continua a valer
+para o modelo de dados e as decisões de produto. A única mudança real
+é a Fase 1 (secção "Estado" acima): sem `resolverMusica`.
+
+### 1. Escopo da v1
+
+**Dentro:**
+- Biblioteca de músicas com busca, filtro por classificação e histórico de uso
+- Cadastro de música nova com capa automática do Deezer (tom/BPM/links à mão nesta fase)
+- Versões por música (tom, BPM, duração, observação)
+- Montagem do repertório do domingo, com momentos intercalados
+- Compartilhamento do repertório com a projeção (leitura pela Base Técnica)
+
+**Fora (fica para depois):**
+- Escala de voluntários por instrumento — **feito**, ver secção "Escala" acima
+- Tela de leitura do repertório: mora no painel da Técnica, não aqui
+- Integração com a timeline de ordem de culto do Painel Kinder
+- Letra em texto (o FreeShow já resolve; guardamos só o link)
+
+**Não usamos a API do LouveApp em produção.** A migração inicial é
+pontual e manual (secção 8) — ainda por fazer.
+
+### 2. Decisões fechadas
+
+| # | Decisão |
+|---|---|
+| 1 | Identidade da música = título + artista. Cover de outro artista é **música separada**, não versão. |
+| 2 | Qualquer membro da base Louvor cadastra música e adiciona versão. |
+| 3 | Só o **Adriel** (líder) marca a versão padrão da Onda. |
+| 4 | Repertório: um por domingo. Qualquer membro monta. |
+| 5 | Sem estado rascunho. O repertório fica compartilhado com a projeção assim que existe, com selo de "atualizado há X". |
+| 6 | Momentos são itens da lista, intercalados com músicas. Momento vazio continua aparecendo. |
+| 7 | A mesma música pode entrar duas vezes no repertório em versões diferentes. |
+| 8 | O que a projeção enxerga: nome, artista, link, momentos e o selo de atualização. Não vê tom, BPM nem observações. A tela que consome esses dados fica no painel da Técnica (ainda por construir). |
+| 9 | Duplicata: ao detectar título+artista já existente, perguntar "é uma versão nova?" e mostrar a música já cadastrada. Nunca bloqueia. |
+| 10 | Classificações são **múltiplas** por música (toggles). |
+| 11 | Autorais sem plataforma: cadastro manual, o líder cola o link que tiver. Sem upload de arquivo. |
+| 12 | Histórico conta por **música**, não por versão. |
+| 13 | Capa vem do Deezer, é comprimida (WebP 250px, qualidade 80) e copiada para o Storage (`bases/louvor/capas/{musicaId}.webp`). |
+| 14 | Uma vez resolvida e confirmada, a música **nunca mais** consulta API externa. |
+
+### Classificações (do LouveApp, confirmadas)
+
+`Adoração` · `Alegria` · `Consagração` · `Contemplação` · `Especiais` · `Louvor` — ver `src/lib/biblioteca.js`, `CLASSIFICACOES` (com o texto de ajuda de cada uma).
+
+### 3. Modelo de dados (Firestore)
+
+```
+bases/louvor/musicas/{musicaId}
+  titulo, artista, chaveIdentidade, slug
+  classificacoes: string[]
+  duracao, capaUrl, capaOrigem: "deezer"|"manual"|"placeholder"
+  deezerId, previewUrl, links: { letra, cifra, audio, video }
+  autoral, criadoPor, criadoEm
+  ultimaVezTocada, vezes90d        ← escrito pela trigger aoGravarRepertorioLouvor
+  versaoPadraoId                    ← só o líder escreve (ver firestore.rules)
+
+bases/louvor/musicas/{musicaId}/versoes/{versaoId}
+  nome, tom, bpm, duracao, observacao
+  fonteTom, fonteBpm: "manual" nesta fase (cascata do CLAUDE-louvor
+  original — cifraclub/getsongbpm/análise — fica para a Fase 2)
+
+bases/louvor/repertorios/{eventoId}     ← o próprio id do culto, "um por domingo"
+  itens: [{ tipo:"musica", id, musicaId, versaoId } | { tipo:"momento", id, nome }]
+  montadoPor, atualizadoEm, atualizadoPor
+```
+
+Array de itens, não subcoleção: no máximo ~20 itens, uma escrita só
+por edição (ver `src/lib/repertorio.js`).
+
+> **Compatibilidade com o Painel Kinder.** O campo `nome` do momento
+> usa a mesma nomenclatura das seções da spec de ordem de culto — a
+> ponte ainda não existe, mas o vocabulário já está alinhado.
+
+### 4. Sincronização e cache
+
+A biblioteca fica abaixo de 500 documentos: `ouvirMusicas`
+(`src/lib/biblioteca.js`) carrega tudo com `onSnapshot` uma vez;
+busca e filtros correm no cliente. As versões de uma música só são
+lidas quando essa música é aberta (`ouvirVersoes`).
+
+## 5. Resolução automática — Fase 1 (feito) e Fase 2 (por fazer)
+
+**Feito:** `buscarCapaDeezer` (callable) procura no Deezer público,
+sem chave, e devolve candidatos (capa, duração, preview). Nada é
+gravado até o cadastro ser confirmado. `processarCapaMusica`
+(callable) baixa a capa escolhida, converte para WebP 250px/q80
+(`sharp`, `functions/package.json`) e copia para o Storage — grava
+`capaUrl`/`capaOrigem`/`deezerId`/`previewUrl` na música.
+
+**Por fazer** (documento original, intacto para quando houver chaves
+de API): cascata de tom (Cifra Club → GetSongBPM → análise do
+preview), BPM (GetSongBPM → análise), vídeo (YouTube Data API v3),
+semáforo ok/conferir/vazio por campo. Ver o histórico do repositório
+(commit que introduziu este `CLAUDE.md`) para o texto completo dessa
+especificação, se for retomada.
+
+## 6. Permissões (firestore.rules)
+
+| Ação | Quem |
+|---|---|
+| Ler biblioteca | membros da base Louvor |
+| Criar música / versão | membros da base Louvor |
+| Definir `versaoPadraoId` | só o líder — `souLiderBase('louvor')` no `firestore.rules` |
+| Criar/editar repertório | membros da base Louvor |
+| Ler repertório | base Louvor + base Técnica |
+| Escrever repertório | só base Louvor |
+
+Escrita direta do cliente (sem Cloud Function) para música/versão/
+repertório — o único campo restrito (`versaoPadraoId`) é gate por
+`diff().affectedKeys()` na regra, não por função.
+
+## 7. Riscos e débito técnico
+
+| Risco | Mitigação |
+|---|---|
+| `sharp` como dependência nativa das Functions | Node 20, `firebase deploy` reinstala no Linux do Cloud Build — testar o primeiro deploy antes de confiar. |
+| Deezer sem resultado / API fora do ar | `buscarCapaDeezer` nunca bloqueia o cadastro — segue sem capa (placeholder lima com a inicial do título). |
+| Repertório consumido pela projeção antes de estar pronto | `atualizadoEm` a cada escrita; a Técnica (quando ligar a leitura) mostra "atualizado há X" e sabe que ainda pode mudar. |
+| Listener `onSnapshot` órfão | Desanexar em todo `useEffect` — principal risco de custo (ver `CLAUDE.md` raiz). |
+
+## Dados de seed
+
+Só o Adriel (`scripts/seedLouvor.mjs`), PIN provisório de 6 dígitos.
+Restantes voluntários entram pelo Painel do líder → Adicionar — nunca
+por seed (evita colisão de id com outra base, ver `CLAUDE.md` raiz,
+regra 9).

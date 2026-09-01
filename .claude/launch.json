@@ -30,6 +30,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/kinder"],
       "port": 5178
+    },
+    {
+      "name": "louvor-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/louvor"],
+      "port": 5179
     }
   ]
 }

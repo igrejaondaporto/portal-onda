@@ -1,0 +1,214 @@
+/* Ajustes locais da base Louvor por cima do global.css partilhado —
+ * nunca editar o partilhado a pensar só nesta base (ver CLAUDE.md da
+ * raiz). O --lima daqui é o C8F02E do CLAUDE-louvor.md (o global é
+ * D8F24B, mais claro) — só se aplica dentro do bundle desta app. */
+:root {
+  --lima: #c8f02e;
+}
+
+/* ── Equipamentos (portado de apps/tecnica/src/styles/tecnica.css,
+ * classes tec-* renomeadas lv-*; .mincartao/.cabtoque/.cartaomelh/
+ * .quadmin/etc. já vêm do global.css partilhado) ── */
+.cabtoque.lv-min .nome {
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+}
+.lv-equip {
+  margin-bottom: 10px;
+}
+.lv-equip-avarias .mincartao-barra,
+.lv-equip-avarias .ponto {
+  background: var(--magenta);
+}
+.lv-equip-avarias .conta {
+  color: var(--magenta);
+  font-weight: 800;
+}
+.lv-equip-avaria {
+  color: var(--magenta);
+  font-weight: 800;
+}
+.lv-equip-reparacao {
+  color: var(--laranja);
+  font-weight: 800;
+}
+.lv-equip-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+.lv-equip-corpo {
+  padding: 4px 12px 8px;
+}
+.lv-equip-lista {
+  margin-top: 18px;
+}
+
+/* ── Biblioteca ─────────────────────────────────────────────── */
+.bib-busca {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--agua);
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin-top: 14px;
+}
+.bib-busca input {
+  flex: 1;
+  border: 0;
+  background: none;
+  font-size: 14.5px;
+  font-family: inherit;
+  outline: none;
+}
+.bib-chips {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 12px 0 4px;
+  margin: 0 -22px;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+.bib-chips::-webkit-scrollbar { display: none; }
+.bib-chip {
+  flex: none;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cinza);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bib-chip[data-on="1"] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+.bib-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--fio);
+  cursor: pointer;
+}
+.bib-capa {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  flex: none;
+  background: var(--grad);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+.bib-frescor {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bib-frescor.recente { color: var(--magenta); }
+.bib-frescor.descansada { color: var(--verde); }
+.bib-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: 11;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--lima);
+  color: var(--tinta);
+  font-size: 26px;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(200, 240, 46, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Conferir/editar música ─────────────────────────────────── */
+.bib-capa-grande {
+  width: 96px;
+  height: 96px;
+  border-radius: 16px;
+  margin: 0 auto;
+  background: var(--grad);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 28px;
+}
+.bib-capas-opcoes {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 0 2px;
+}
+.bib-capa-opcao {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+.bib-capa-opcao[data-on="1"] { border-color: var(--lima); }
+
+/* ── Repertório ─────────────────────────────────────────────── */
+.rep-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--agua);
+  margin-bottom: 8px;
+}
+.rep-item.momento {
+  background: #fff;
+  border: 1.5px dashed var(--fio);
+}
+.rep-alca {
+  color: var(--cinza);
+  cursor: grab;
+  font-size: 16px;
+  line-height: 1;
+  touch-action: none;
+  padding: 4px;
+}
+.rep-item .bib-capa { width: 38px; height: 38px; font-size: 13px; border-radius: 8px; }
+.rep-remover {
+  border: 0;
+  background: none;
+  color: var(--magenta);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.rep-selo {
+  font-size: 11.5px;
+  color: var(--cinza);
+  text-align: center;
+  margin-top: 4px;
+}
