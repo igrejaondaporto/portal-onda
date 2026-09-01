@@ -116,6 +116,13 @@ export const buscarCapaDeezer = (titulo, artista) =>
 export const aplicarCapaDeezer = (musicaId, deezerId) =>
   chamar("processarCapaMusica")({ musicaId, deezerId }).then((r) => r.data);
 
+/** O link de prévia do Deezer expira em poucas horas — nunca tocar
+ *  direto o que estiver gravado (`previewUrl`/`preview`), pedir
+ *  sempre um novo aqui pelo `deezerId` (esse não expira) na hora de
+ *  tocar. Ver obterPreviaDeezer em functions/index.js. */
+export const obterPreviaDeezer = (deezerId) =>
+  chamar("obterPreviaDeezer")({ deezerId }).then((r) => r.data.preview);
+
 /** Fase 2 — pesquisa só pelo nome e devolve vários candidatos já
  *  enriquecidos (capa, tom via Cifra Club, BPM via GetSongBPM quando
  *  a chave estiver definida, links de cifra/letra/áudio). Nunca falha
