@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES, sincronizarLouveApp } from "../lib/biblioteca";
+import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES, sincronizarLouveApp, obterPreviaDeezer } from "../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
@@ -36,6 +36,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [abertaId, setAbertaId] = useState(null);
   const versoesAberta = useVersoesDe(abertaId);
   const [aTocarId, setATocarId] = useState(null);
+  const [aCarregarPreview, setACarregarPreview] = useState(null);
   const [aSincronizar, setASincronizar] = useState(false);
   const audioRef = useRef(null);
 
@@ -54,18 +55,29 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
     }
   }
 
-  function alternarPreview(e, musica) {
+  async function alternarPreview(e, musica) {
     e.stopPropagation();
-    if (!musica.previewUrl) return;
+    if (!musica.deezerId) return;
     const audio = audioRef.current;
     if (aTocarId === musica.id) {
       audio.pause();
       setATocarId(null);
       return;
     }
-    audio.src = musica.previewUrl;
-    audio.play().catch(() => {});
-    setATocarId(musica.id);
+    setACarregarPreview(musica.id);
+    try {
+      // o link gravado (previewUrl) é só um token do Deezer que
+      // expira em poucas horas — pede sempre um novo pelo deezerId.
+      const preview = await obterPreviaDeezer(musica.deezerId);
+      if (!preview) { torrada("Sem prévia para esta música."); return; }
+      audio.src = preview;
+      await audio.play();
+      setATocarId(musica.id);
+    } catch {
+      torrada("Não foi possível tocar a prévia.");
+    } finally {
+      setACarregarPreview(null);
+    }
   }
 
   const filtradas = useMemo(() => {
@@ -136,9 +148,9 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
                 style={m.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}
               >
                 {!m.capaUrl && m.titulo[0]?.toUpperCase()}
-                {m.previewUrl && (
+                {m.deezerId && (
                   <button className="bib-preview-play" onClick={(e) => alternarPreview(e, m)} aria-label="Tocar prévia">
-                    <IconePlay aTocar={aTocarId === m.id} />
+                    {aCarregarPreview === m.id ? "…" : <IconePlay aTocar={aTocarId === m.id} />}
                   </button>
                 )}
               </div>

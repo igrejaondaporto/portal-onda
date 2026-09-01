@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   novaMusicaId, novaVersaoId, criarMusica, criarVersao, encontrarDuplicata,
-  pesquisarMusica, aplicarCapaDeezer, CLASSIFICACOES,
+  pesquisarMusica, aplicarCapaDeezer, obterPreviaDeezer, CLASSIFICACOES,
 } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import IconePlay from "./IconePlay";
@@ -26,22 +26,34 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [duplicata, setDuplicata] = useState(null);
   const [ignorarAviso, setIgnorarAviso] = useState(false);
   const [aTocarId, setATocarId] = useState(null);
+  const [aCarregarPreview, setACarregarPreview] = useState(null);
   const audioRef = useRef(null);
 
   useEffect(() => () => audioRef.current?.pause(), []);
 
-  function alternarPreview(e, candidato) {
+  async function alternarPreview(e, candidato) {
     e.stopPropagation();
-    if (!candidato.preview) return;
+    if (!candidato.deezerId) return;
     const audio = audioRef.current;
     if (aTocarId === candidato.deezerId) {
       audio.pause();
       setATocarId(null);
       return;
     }
-    audio.src = candidato.preview;
-    audio.play().catch(() => torrada("Não foi possível tocar a prévia."));
-    setATocarId(candidato.deezerId);
+    setACarregarPreview(candidato.deezerId);
+    try {
+      // o `preview` que já veio da busca é só um token do Deezer que
+      // expira em poucas horas — pede sempre um novo na hora de tocar.
+      const preview = await obterPreviaDeezer(candidato.deezerId);
+      if (!preview) { torrada("Sem prévia para esta música."); return; }
+      audio.src = preview;
+      await audio.play();
+      setATocarId(candidato.deezerId);
+    } catch {
+      torrada("Não foi possível tocar a prévia.");
+    } finally {
+      setACarregarPreview(null);
+    }
   }
 
   const [titulo, setTitulo] = useState("");
@@ -192,9 +204,9 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
                 <div className="bib-item" key={c.deezerId} onClick={() => escolher(c)}>
                   <div className="bib-capa" style={c.capa ? { backgroundImage: `url(${c.capa})` } : {}}>
                     {!c.capa && c.titulo[0]?.toUpperCase()}
-                    {c.preview && (
+                    {c.deezerId && (
                       <button className="bib-preview-play" onClick={(e) => alternarPreview(e, c)} aria-label="Tocar prévia">
-                        <IconePlay aTocar={aTocarId === c.deezerId} />
+                        {aCarregarPreview === c.deezerId ? "…" : <IconePlay aTocar={aTocarId === c.deezerId} />}
                       </button>
                     )}
                   </div>
