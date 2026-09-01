@@ -3,6 +3,13 @@ import { io } from "socket.io-client";
 import { useTorrada } from "../lib/TorradaContext.jsx";
 import { CANAIS_CHAMADAS, PADRAO_FREESHOW, INTERVALO_SONDA_MS } from "../lib/chamadas.js";
 
+const COOLDOWN_MS = 3 * 60 * 1000; // tempo mínimo antes de poder chamar o mesmo nome outra vez
+
+const formatarRestante = (ms) => {
+  const totalSeg = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(totalSeg / 60)}:${String(totalSeg % 60).padStart(2, "0")}`;
+};
+
 /**
  * O painel de chamadas em si — seletor de canal, simulação do telão,
  * campo + Chamar/Limpar, histórico da sessão. Genuinamente igual em
@@ -28,6 +35,7 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
   const [noAr, setNoAr] = useState(null); // { canal, texto } — o que está mesmo no ar agora
   const [mostrarLigacao, setMostrarLigacao] = useState(false);
   const [host, setHost] = useState(PADRAO_FREESHOW);
+  const [agora, setAgora] = useState(() => Date.now()); // só para o contador do histórico "andar"
 
   const socketRef = useRef(null);
   const sondaRef = useRef(null);
@@ -37,6 +45,22 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
   useEffect(() => {
     definirCabecalho?.({ titulo: "Chamadas", subtitulo: "Escreve o nome e aparece na projeção", chips: [] });
   }, [definirCabecalho]);
+
+  // só para o contador de cada nome em "Chamados hoje" ir andando sozinho
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // quanto falta (ms) até dar para chamar este nome outra vez neste canal
+  // — 0 quando já pode. Serve tanto para o aviso ao escrever como para
+  // o contador dentro do nome em "Chamados hoje".
+  function restanteCooldown(canalId, texto) {
+    const chave = texto.trim().toLowerCase();
+    const ultima = historico.find((h) => h.c.id === canalId && h.txt.trim().toLowerCase() === chave);
+    if (!ultima) return 0;
+    return Math.max(0, ultima.quando + COOLDOWN_MS - agora);
+  }
 
   function perguntar() {
     const s = socketRef.current;
@@ -121,6 +145,12 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
     if (!txt) { torrada("Escreve o nome primeiro.", true); return; }
     if (k.maiusculas) txt = txt.toUpperCase();
 
+    const restante = restanteCooldown(k.id, txt);
+    if (restante > 0) {
+      torrada(`Aguarda ${formatarRestante(restante)} para chamar "${txt}" outra vez.`, true);
+      return;
+    }
+
     if (!enviar("change_variable", { name: k.variavel, key: "value", value: txt })) {
       torrada("Sem ligação à projeção.", true);
       setMostrarLigacao(true);
@@ -132,7 +162,9 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
     setTimeout(perguntar, 300);
     torrada("Na projeção: " + txt);
 
-    setHistorico((h) => [{ c: k, txt }, ...h.filter((item) => !(item.c.id === k.id && item.txt === txt))].slice(0, 10));
+    const quando = Date.now();
+    setAgora(quando);
+    setHistorico((h) => [{ c: k, txt, quando }, ...h.filter((item) => !(item.c.id === k.id && item.txt === txt))].slice(0, 10));
     setValor("");
   }
 
@@ -198,13 +230,23 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
       <div className="sect">
         <div className="cabecalho"><h3>Chamados hoje</h3></div>
         {historico.length === 0 && <p className="vaz">Ainda não chamaste ninguém.</p>}
-        {historico.map((item, i) => (
-          <button className="linha" key={i} onClick={() => { trocar(item.c); chamar(item.c, item.txt); }}>
-            <span className="tag" style={{ background: item.c.cor }}>{item.c.rotulo}</span>
-            <span className="nmt">{item.txt}</span>
-            <span className="seta">↺</span>
-          </button>
-        ))}
+        {historico.map((item, i) => {
+          const restante = restanteCooldown(item.c.id, item.txt);
+          return (
+            <button className="linha" key={i} onClick={() => { trocar(item.c); chamar(item.c, item.txt); }}>
+              <span className="tag" style={{ background: item.c.cor }}>{item.c.rotulo}</span>
+              <span className="nmt">
+                {item.txt}
+                {restante > 0 && (
+                  <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 600, color: "var(--cinza)" }}>
+                    aguarda {formatarRestante(restante)}
+                  </span>
+                )}
+              </span>
+              <span className="seta">↺</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
