@@ -3382,24 +3382,54 @@ async function obterTokenSpotify(clientId, clientSecret) {
   return tokenSpotifyCache.token;
 }
 
-/** Link do Spotify para a música — preferido ao do Deezer quando
- *  existe (é a plataforma mais usada), sem chave definida devolve
- *  null em silêncio, como as outras camadas. */
-async function resolverAudioSpotify(titulo, artista, clientId, clientSecret) {
-  if (!clientId || !clientSecret) return null;
+/** Pitch class do Spotify (0=C, 1=C#/Db … 11=B, -1=não detetado) para
+ *  a notação usada no resto da app — "m" quando o `mode` é menor. */
+const NOTAS_SPOTIFY = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function tomDeSpotify(key, mode) {
+  if (key == null || key < 0) return null;
+  return mode === 0 ? `${NOTAS_SPOTIFY[key]}m` : NOTAS_SPOTIFY[key];
+}
+
+/** Link, tom e BPM do Spotify — tudo numa função só porque o link
+ *  vem da busca e o tom/BPM vêm de um segundo pedido (audio-features)
+ *  sobre a MESMA faixa encontrada, sem repetir a busca. O tom aqui é
+ *  detetado por algoritmo (não é uma cifra transcrita à mão como o
+ *  Cifra Club) — por isso entra depois dele na cascata, mas cobre
+ *  praticamente qualquer música do catálogo, ao contrário da
+ *  raspagem. Sem credenciais definidas, devolve tudo null em
+ *  silêncio, como as outras camadas. */
+async function resolverSpotify(titulo, artista, clientId, clientSecret) {
+  if (!clientId || !clientSecret) return { link: null, tom: null, bpm: null };
   try {
     const token = await obterTokenSpotify(clientId, clientSecret);
     const q = `track:${titulo} artist:${artista}`;
-    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`;
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
+    const buscaResp = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal }
+    );
     clearTimeout(timeout);
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    return json.tracks?.items?.[0]?.external_urls?.spotify || null;
+    if (!buscaResp.ok) return { link: null, tom: null, bpm: null };
+    const buscaJson = await buscaResp.json();
+    const faixa = buscaJson.tracks?.items?.[0];
+    if (!faixa) return { link: null, tom: null, bpm: null };
+
+    let tom = null, bpm = null;
+    try {
+      const featResp = await fetch(`https://api.spotify.com/v1/audio-features/${faixa.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (featResp.ok) {
+        const feat = await featResp.json();
+        tom = tomDeSpotify(feat.key, feat.mode);
+        bpm = feat.tempo ? Math.round(feat.tempo) : null;
+      }
+    } catch { /* fica só com o link, sem tom/BPM do Spotify */ }
+
+    return { link: faixa.external_urls?.spotify || null, tom, bpm };
   } catch {
-    return null;
+    return { link: null, tom: null, bpm: null };
   }
 }
 
@@ -3433,21 +3463,26 @@ export const pesquisarMusicaLouvor = onCall({
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = variacoesSlug(titulo, artista);
-    const [cifra, letraLink, bpmInfo, linkVideo, audioSpotify] = await Promise.all([
+    const [cifra, letraLink, bpmInfo, linkVideo, spotify] = await Promise.all([
       resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
       resolverLetra(variacoes).catch(() => null),
       resolverGetSongBpm(titulo, artista, chaveGetSongBpm).catch(() => ({ bpm: null, tomReserva: null })),
       resolverVideoYouTube(titulo, artista, chaveYoutube).catch(() => null),
-      resolverAudioSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => null),
+      resolverSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => ({ link: null, tom: null, bpm: null })),
     ]);
+    // tom: Cifra Club (cifra transcrita à mão) → Spotify (algoritmo,
+    // mas cobre quase tudo) → GetSongBPM (comunidade, hoje bloqueado
+    // pela Cloudflare deles — ver CLAUDE.md desta base).
+    const tom = cifra.tom || spotify.tom || bpmInfo.tomReserva || null;
+    const fonteTom = cifra.tom ? "cifraclub" : spotify.tom ? "spotify" : bpmInfo.tomReserva ? "getsongbpm" : null;
+    const bpm = bpmInfo.bpm || spotify.bpm || null;
+    const fonteBpm = bpmInfo.bpm ? "getsongbpm" : spotify.bpm ? "spotify" : null;
     return {
       deezerId: String(t.id), titulo, artista,
       capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
-      tom: cifra.tom || bpmInfo.tomReserva || null,
-      fonteTom: cifra.tom ? "cifraclub" : (bpmInfo.tomReserva ? "getsongbpm" : null),
-      bpm: bpmInfo.bpm, fonteBpm: bpmInfo.bpm ? "getsongbpm" : null,
+      tom, fonteTom, bpm, fonteBpm,
       linkCifra: cifra.link, linkLetra: letraLink,
-      linkAudio: audioSpotify || t.link || null, linkVideo,
+      linkAudio: spotify.link || t.link || null, linkVideo,
     };
   }));
 
