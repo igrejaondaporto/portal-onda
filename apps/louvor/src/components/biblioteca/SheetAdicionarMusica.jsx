@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   novaMusicaId, novaVersaoId, criarMusica, criarVersao, encontrarDuplicata,
   pesquisarMusica, aplicarCapaDeezer, CLASSIFICACOES,
 } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+
+function IconePlay({ aTocar }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true">
+      {aTocar
+        ? <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>
+        : <path d="M8 5v14l11-7z" />}
+    </svg>
+  );
+}
 
 /**
  * Três etapas: procurar (só o nome), escolher entre os candidatos
@@ -24,6 +34,24 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [candidatoEscolhido, setCandidatoEscolhido] = useState(null);
   const [duplicata, setDuplicata] = useState(null);
   const [ignorarAviso, setIgnorarAviso] = useState(false);
+  const [aTocarId, setATocarId] = useState(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  function alternarPreview(e, candidato) {
+    e.stopPropagation();
+    if (!candidato.preview) return;
+    const audio = audioRef.current;
+    if (aTocarId === candidato.deezerId) {
+      audio.pause();
+      setATocarId(null);
+      return;
+    }
+    audio.src = candidato.preview;
+    audio.play().catch(() => torrada("Não foi possível tocar a prévia."));
+    setATocarId(candidato.deezerId);
+  }
 
   const [titulo, setTitulo] = useState("");
   const [artista, setArtista] = useState("");
@@ -80,6 +108,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     setCifra(candidato?.linkCifra || "");
     setLetra(candidato?.linkLetra || "");
     setAudio(candidato?.linkAudio || "");
+    setVideo(candidato?.linkVideo || "");
   }
 
   function escolher(candidato) {
@@ -172,6 +201,11 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
                 <div className="bib-item" key={c.deezerId} onClick={() => escolher(c)}>
                   <div className="bib-capa" style={c.capa ? { backgroundImage: `url(${c.capa})` } : {}}>
                     {!c.capa && c.titulo[0]?.toUpperCase()}
+                    {c.preview && (
+                      <button className="bib-preview-play" onClick={(e) => alternarPreview(e, c)} aria-label="Tocar prévia">
+                        <IconePlay aTocar={aTocarId === c.deezerId} />
+                      </button>
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p className="nmt">{c.titulo}</p>
@@ -263,6 +297,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
           </>
         )}
       </div>
+      <audio ref={audioRef} onEnded={() => setATocarId(null)} style={{ display: "none" }} />
     </>
   );
 }
