@@ -3489,6 +3489,162 @@ export const pesquisarMusicaLouvor = onCall({
   return { candidatos, temMais: indice + candidatos.length < total };
 });
 
+/* ── BIBLIOTECA (Base Louvor) — sincronização com o LouveApp ───
+ * Parceria aprovada em 2026-09: API oficial, só leitura (songs:read),
+ * com o repertório já curado pela igreja (tom/BPM/links por versão).
+ * Isto passa a ser a fonte principal — a cascata Cifra Club/Spotify/
+ * GetSongBPM acima continua a servir músicas cadastradas à mão que
+ * não estejam no LouveApp. Só o líder dispara (ação administrativa,
+ * mexe na biblioteca toda de uma vez). */
+const LOUVEAPP_CLIENT_ID = defineSecret("LOUVEAPP_CLIENT_ID");
+const LOUVEAPP_CLIENT_SECRET = defineSecret("LOUVEAPP_CLIENT_SECRET");
+const LOUVEAPP_MINISTRY_TOKEN = defineSecret("LOUVEAPP_MINISTRY_TOKEN");
+const LOUVEAPP_BASE_URL = "https://api.louveapp.com.br/partners";
+
+async function obterTokenLouveApp(clientId, clientSecret, ministryToken) {
+  const resp = await fetch(`${LOUVEAPP_BASE_URL}/oauth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, clientSecret, ministryToken }),
+  });
+  if (!resp.ok) throw new HttpsError("unavailable", "Não foi possível autenticar no LouveApp.");
+  const json = await resp.json();
+  if (!json.access_token) throw new HttpsError("unavailable", "O LouveApp não devolveu um token.");
+  return json.access_token;
+}
+
+/** Só para músicas novas (a API do LouveApp não tem campo de capa) —
+ *  mesma lógica de processarCapaMusica, mas melhor esforço em lote:
+ *  uma falha aqui nunca derruba a sincronização, a música fica só com
+ *  placeholder até o líder resolver pela Biblioteca. */
+async function resolverCapaLouveApp(baseId, musicaId, titulo, artista) {
+  try {
+    const q = `track:"${titulo}" artist:"${artista}"`;
+    const buscaResp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
+    if (!buscaResp.ok) return null;
+    const buscaJson = await buscaResp.json();
+    const faixa = buscaJson.data?.[0];
+    if (!faixa?.album?.cover_medium) return null;
+    const imgResp = await fetch(faixa.album.cover_medium);
+    if (!imgResp.ok) return null;
+    const buffer = Buffer.from(await imgResp.arrayBuffer());
+    const webp = await sharp(buffer).resize(250, 250, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
+    const token = randomUUID();
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(`bases/${baseId}/capas/${musicaId}.webp`);
+    await file.save(webp, { metadata: { contentType: "image/webp", metadata: { firebaseStorageDownloadTokens: token } } });
+    const capaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}`;
+    return { capaUrl, deezerId: String(faixa.id), previewUrl: faixa.preview || null };
+  } catch {
+    return null;
+  }
+}
+
+/** Classificações do LouveApp chegam como texto livre por versão —
+ *  casa por normalização direta com os ids fixos desta app (mesmos
+ *  seis nomes, ver CLASSIFICACOES em src/lib/biblioteca.js). Uma
+ *  classificação que não bata com nenhum id conhecido é ignorada, não
+ *  quebra a sincronização. */
+const CLASSIFICACOES_LOUVOR_IDS = ["adoracao", "alegria", "consagracao", "contemplacao", "especiais", "louvor"];
+function classifLouveApp(nome) {
+  const alvo = normLouvor(nome).replace(/[^a-z0-9]/g, "");
+  return CLASSIFICACOES_LOUVOR_IDS.find((id) => id === alvo) || null;
+}
+
+/** Puxa o repertório inteiro do LouveApp e atualiza a Biblioteca:
+ *  música nova (por chaveIdentidade) é criada com capa do Deezer;
+ *  música já existente nunca tem classificações/links/capa
+ *  sobrescritos (podem ter sido editados à mão no Portal desde
+ *  então) — só as versões são atualizadas a cada sincronização, para
+ *  tom/BPM ficarem sempre com o que o LouveApp tiver de mais recente. */
+export const sincronizarLouveAppLouvor = onCall({
+  secrets: [LOUVEAPP_CLIENT_ID, LOUVEAPP_CLIENT_SECRET, LOUVEAPP_MINISTRY_TOKEN],
+  cors: ORIGENS_PERMITIDAS,
+  timeoutSeconds: 300,
+}, async (req) => {
+  const baseId = exigeLider(req);
+  const token = await obterTokenLouveApp(
+    LOUVEAPP_CLIENT_ID.value(), LOUVEAPP_CLIENT_SECRET.value(), LOUVEAPP_MINISTRY_TOKEN.value()
+  );
+
+  const musicasLouveApp = [];
+  let pagina = 1, temMais = true;
+  while (temMais && pagina <= 50) {
+    const resp = await fetch(`${LOUVEAPP_BASE_URL}/songs?limit=50&page=${pagina}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new HttpsError("unavailable", "Não foi possível ler o repertório do LouveApp.");
+    const json = await resp.json();
+    musicasLouveApp.push(...(json.data || []));
+    temMais = json.pagination?.hasMore === true;
+    pagina += 1;
+  }
+
+  const existentesSnap = await db.collection(`bases/${baseId}/musicas`).get();
+  const porChave = new Map(existentesSnap.docs.map((d) => [d.data().chaveIdentidade, d.id]));
+
+  let musicasCriadas = 0, versoesCriadas = 0, versoesAtualizadas = 0, capasResolvidas = 0;
+
+  for (const m of musicasLouveApp) {
+    const titulo = (m.title || "").trim(), artista = (m.artist || "").trim();
+    if (!titulo || !artista) continue;
+    const versoesLouveApp = m.versions || [];
+    const chave = `${normLouvor(artista)}__${normLouvor(titulo)}`;
+
+    let musicaId = porChave.get(chave);
+    if (!musicaId) {
+      musicaId = db.collection(`bases/${baseId}/musicas`).doc().id;
+      const classificacoes = [...new Set(
+        versoesLouveApp.flatMap((v) => v.classifications || []).map(classifLouveApp).filter(Boolean)
+      )];
+      const primeiraComLink = versoesLouveApp.find((v) => v.lyricsUrl || v.chordsUrl || v.audioUrl || v.videoUrl);
+      const capa = await resolverCapaLouveApp(baseId, musicaId, titulo, artista);
+      if (capa) capasResolvidas++;
+      await db.doc(`bases/${baseId}/musicas/${musicaId}`).set({
+        titulo, artista, chaveIdentidade: chave,
+        slug: `${slugCifraClub(artista)}/${slugCifraClub(titulo)}`,
+        classificacoes, duracao: versoesLouveApp[0]?.duration || null,
+        capaUrl: capa?.capaUrl || null, capaOrigem: capa ? "deezer" : "placeholder",
+        deezerId: capa?.deezerId || null, previewUrl: capa?.previewUrl || null,
+        links: {
+          letra: primeiraComLink?.lyricsUrl || "", cifra: primeiraComLink?.chordsUrl || "",
+          audio: primeiraComLink?.audioUrl || "", video: primeiraComLink?.videoUrl || "",
+        },
+        autoral: false, criadoPor: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+        ultimaVezTocada: null, vezes90d: 0, versaoPadraoId: null,
+      });
+      porChave.set(chave, musicaId);
+      musicasCriadas++;
+    }
+
+    const versoesSnap = await db.collection(`bases/${baseId}/musicas/${musicaId}/versoes`).get();
+    const versaoIdPorNome = new Map(versoesSnap.docs.map((d) => [normLouvor(d.data().nome), d.id]));
+
+    for (const v of versoesLouveApp) {
+      const nomeVersao = (v.name || "Onda").trim();
+      const dadosVersao = {
+        nome: nomeVersao, tom: v.key || "", bpm: v.bpm || null, duracao: v.duration || null,
+        observacao: [m.notes, v.notes].filter(Boolean).join(" — "),
+        fonteTom: v.key ? "louveapp" : "manual", fonteBpm: v.bpm ? "louveapp" : "manual",
+      };
+      const versaoIdExistente = versaoIdPorNome.get(normLouvor(nomeVersao));
+      if (versaoIdExistente) {
+        await db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoIdExistente}`).set(dadosVersao, { merge: true });
+        versoesAtualizadas++;
+      } else {
+        const versaoId = db.collection(`bases/${baseId}/musicas/${musicaId}/versoes`).doc().id;
+        await db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).set({
+          ...dadosVersao, criadoPor: req.auth.uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        versaoIdPorNome.set(normLouvor(nomeVersao), versaoId);
+        versoesCriadas++;
+      }
+    }
+  }
+
+  return { total: musicasLouveApp.length, musicasCriadas, versoesCriadas, versoesAtualizadas, capasResolvidas };
+});
+
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
  * Histórico por música (não por versão, ver decisão 12): recalculado
  * a cada escrita num repertório, só para as músicas que entraram ou
