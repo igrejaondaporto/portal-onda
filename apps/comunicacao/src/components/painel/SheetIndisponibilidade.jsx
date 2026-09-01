@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ouvirRespostas, fecharEnquete, reabrirEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp } from "../../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
+import SheetResponderEnquete from "../SheetResponderEnquete";
 
 const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
 
@@ -14,12 +15,16 @@ export default function SheetIndisponibilidade({ enquete, voluntarios, eventosPo
   const [respostas, setRespostas] = useState([]);
   const [aEnviar, setAEnviar] = useState(false);
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
+  const [respostaAlvo, setRespostaAlvo] = useState(null); // { pessoa, resposta|null } — edição/voto pelo líder
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
 
   const responderam = new Set(respostas.map((r) => r.id));
   const naoResponderam = voluntarios.filter((p) => !responderam.has(p.id));
   const nomeDe = (id) => voluntarios.find((p) => p.id === id)?.nome ?? "alguém";
+  const respostasComPessoa = respostas
+    .map((r) => ({ resposta: r, pessoa: voluntarios.find((p) => p.id === r.id) }))
+    .filter((x) => x.pessoa);
 
   async function fechar() {
     setAEnviar(true);
@@ -74,10 +79,41 @@ export default function SheetIndisponibilidade({ enquete, voluntarios, eventosPo
           );
         })}
 
+        <label className="rot" style={{ marginTop: 16 }}>Respondeu ({respostas.length}/{voluntarios.length})</label>
+        {respostasComPessoa.map(({ resposta: r, pessoa }) => (
+          <div
+            className="linha" style={{ cursor: "pointer" }} key={pessoa.id}
+            onClick={() => setRespostaAlvo({ pessoa, resposta: r })}
+          >
+            <div style={{ flex: 1 }}>
+              <p className="nmt">
+                {pessoa.nome}
+                {r.respondidoPeloLider && <span className="ds" style={{ marginLeft: 6 }}>(respondido pelo líder)</span>}
+              </p>
+              <p className="ds">
+                {r.semIndisponibilidade
+                  ? "Sem indisponibilidades"
+                  : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
+              </p>
+            </div>
+            <span className="seta">✏️</span>
+          </div>
+        ))}
+
         {naoResponderam.length > 0 && (
           <>
             <label className="rot" style={{ marginTop: 16 }}>Ainda não responderam ({naoResponderam.length})</label>
-            <p className="ds">{naoResponderam.map((p) => p.nome).join(", ")}</p>
+            {naoResponderam.map((p) => (
+              <div className="linha" key={p.id}>
+                <div style={{ flex: 1 }}><p className="nmt">{p.nome}</p></div>
+                <button
+                  className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }}
+                  onClick={() => setRespostaAlvo({ pessoa: p, resposta: null })}
+                >
+                  Votar
+                </button>
+              </div>
+            ))}
           </>
         )}
 
@@ -102,6 +138,17 @@ export default function SheetIndisponibilidade({ enquete, voluntarios, eventosPo
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
+
+      {respostaAlvo && (
+        <SheetResponderEnquete
+          enquetes={[enquete]}
+          eventosPorId={eventosPorId}
+          minhasRespostas={respostaAlvo.resposta ? { [enquete.id]: respostaAlvo.resposta } : {}}
+          pessoaAlvo={{ id: respostaAlvo.pessoa.id, nome: respostaAlvo.pessoa.nome }}
+          onFechar={() => setRespostaAlvo(null)}
+          onGuardado={(msg) => { setRespostaAlvo(null); torrada(msg); }}
+        />
+      )}
     </>
   );
 }
