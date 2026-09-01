@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [apoio, tecnica, backstage, comunicacao, pessoal, kinder]
+        app: [apoio, tecnica, backstage, comunicacao, pessoal, kinder, louvor]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
