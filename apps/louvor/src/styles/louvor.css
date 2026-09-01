@@ -141,6 +141,17 @@
   justify-content: center;
 }
 
+.link-favicon,
+.link-favicon-vazio {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex: none;
+}
+.link-favicon-vazio {
+  background: var(--agua);
+}
+
 /* ── Conferir/editar música ─────────────────────────────────── */
 .bib-capa-grande {
   width: 96px;

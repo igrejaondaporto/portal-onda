@@ -115,3 +115,10 @@ export const buscarCapaDeezer = (titulo, artista) =>
  *  previewUrl no Firestore (ver functions/index.js). */
 export const aplicarCapaDeezer = (musicaId, deezerId) =>
   chamar("processarCapaMusica")({ musicaId, deezerId }).then((r) => r.data);
+
+/** Fase 2 — pesquisa só pelo nome e devolve vários candidatos já
+ *  enriquecidos (capa, tom via Cifra Club, BPM via GetSongBPM quando
+ *  a chave estiver definida, links de cifra/letra). Nunca falha por
+ *  um candidato não se conseguir enriquecer — só vem com menos dados. */
+export const pesquisarMusica = (nome) =>
+  chamar("pesquisarMusicaLouvor")({ nome }).then((r) => r.data.candidatos);
