@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES } from "../lib/biblioteca";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
+import IconePlay from "../components/biblioteca/IconePlay";
 
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -32,8 +33,25 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [aAdicionar, setAAdicionar] = useState(false);
   const [abertaId, setAbertaId] = useState(null);
   const versoesAberta = useVersoesDe(abertaId);
+  const [aTocarId, setATocarId] = useState(null);
+  const audioRef = useRef(null);
 
   useEffect(() => ouvirMusicas(setMusicas), []);
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  function alternarPreview(e, musica) {
+    e.stopPropagation();
+    if (!musica.previewUrl) return;
+    const audio = audioRef.current;
+    if (aTocarId === musica.id) {
+      audio.pause();
+      setATocarId(null);
+      return;
+    }
+    audio.src = musica.previewUrl;
+    audio.play().catch(() => {});
+    setATocarId(musica.id);
+  }
 
   const filtradas = useMemo(() => {
     const q = norm(busca.trim());
@@ -95,6 +113,11 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
                 style={m.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}
               >
                 {!m.capaUrl && m.titulo[0]?.toUpperCase()}
+                {m.previewUrl && (
+                  <button className="bib-preview-play" onClick={(e) => alternarPreview(e, m)} aria-label="Tocar prévia">
+                    <IconePlay aTocar={aTocarId === m.id} />
+                  </button>
+                )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="nmt">{m.titulo}</p>
@@ -122,6 +145,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           onFechar={() => setAbertaId(null)}
         />
       )}
+      <audio ref={audioRef} onEnded={() => setATocarId(null)} style={{ display: "none" }} />
     </>
   );
 }
