@@ -124,3 +124,9 @@ export const aplicarCapaDeezer = (musicaId, deezerId) =>
  *  também `temMais`, para o "Ver mais" só aparecer quando faz sentido. */
 export const pesquisarMusica = (nome, pagina = 0) =>
   chamar("pesquisarMusicaLouvor")({ nome, pagina }).then((r) => r.data);
+
+/** Só o líder — puxa o repertório inteiro da parceria oficial com o
+ *  LouveApp (tom/BPM/links já curados pela igreja) e atualiza a
+ *  Biblioteca. Ver functions/index.js, sincronizarLouveAppLouvor. */
+export const sincronizarLouveApp = () =>
+  chamar("sincronizarLouveAppLouvor")({}).then((r) => r.data);

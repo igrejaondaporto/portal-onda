@@ -17,18 +17,15 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Em produção em `louvor.igrejaonda.pt`. Primeira entrega: as cinco
-abas (Início, Escala, Culto, Biblioteca, Repertório) todas
-funcionais, biblioteca em **Fase 1** (sem resolução automática de
-tom/BPM/links — ver secção 5).
+Em produção em `louvor.igrejaonda.pt`. As cinco abas (Início, Escala,
+Culto, Biblioteca, Repertório) todas funcionais. Biblioteca já com
+resolução automática de tom/BPM/links (busca por nome + sincronização
+com o LouveApp — ver secção 5); cadastro manual continua possível a
+qualquer momento.
 
 **Deliberadamente fora desta entrega** (mais simples do que o
 `CLAUDE.md` original da biblioteca previa, para caber num primeiro
 lançamento):
-- **`resolverMusica`** (Cifra Club/GetSongBPM/YouTube/análise de
-  áudio) — precisa de chaves de API que ainda não existem e de uma
-  peça de DSP à parte. Só a capa (Deezer, API pública) é automática.
-  Tom, BPM, links e classificações são preenchidos à mão.
 - **Enquete de indisponibilidade + sugestor de escala** ("Montar") —
   o schema/Cloud Functions já são genéricos (ver `CLAUDE.md` raiz,
   "O que NÃO precisa de mudar"), só falta portar se vier a fazer
@@ -112,8 +109,11 @@ para o modelo de dados e as decisões de produto. A única mudança real
 - Integração com a timeline de ordem de culto do Painel Kinder
 - Letra em texto (o FreeShow já resolve; guardamos só o link)
 
-**Não usamos a API do LouveApp em produção.** A migração inicial é
-pontual e manual (ver "Importação do LouveApp" abaixo).
+**Usamos a API oficial do LouveApp em produção** (parceria de
+parceiro aprovada, só leitura — `songs:read`). A migração inicial foi
+pontual e manual (ver "Importação do LouveApp" abaixo, mantida como
+ferramenta de recurso); a partir daí, a fonte principal de tom/BPM/
+links passa a ser a sincronização com essa API (ver secção 5).
 
 ### 2. Decisões fechadas
 
@@ -203,21 +203,39 @@ Regras:
 
 Script: `scripts/importarLouveAppLouvor.mjs <ficheiro.xlsx>`. Só precisa do `service-account.json` na raiz (já existe) e do export do LouveApp.
 
-## 5. Resolução automática — Fase 1 (feito) e Fase 2 (por fazer)
+## 5. Resolução automática — capa, busca por nome e LouveApp
 
-**Feito:** `buscarCapaDeezer` (callable) procura no Deezer público,
+**Capa:** `buscarCapaDeezer` (callable) procura no Deezer público,
 sem chave, e devolve candidatos (capa, duração, preview). Nada é
 gravado até o cadastro ser confirmado. `processarCapaMusica`
 (callable) baixa a capa escolhida, converte para WebP 250px/q80
 (`sharp`, `functions/package.json`) e copia para o Storage — grava
 `capaUrl`/`capaOrigem`/`deezerId`/`previewUrl` na música.
 
-**Por fazer** (documento original, intacto para quando houver chaves
-de API): cascata de tom (Cifra Club → GetSongBPM → análise do
-preview), BPM (GetSongBPM → análise), vídeo (YouTube Data API v3),
-semáforo ok/conferir/vazio por campo. Ver o histórico do repositório
-(commit que introduziu este `CLAUDE.md`) para o texto completo dessa
-especificação, se for retomada.
+**Busca por nome (`pesquisarMusicaLouvor`, callable, paginada):**
+procura no Deezer só pelo nome e enriquece cada candidato em
+paralelo — tom por Cifra Club (raspagem, cifra transcrita à mão) →
+Spotify (Client Credentials + audio-features, algoritmo, cobre quase
+todo o catálogo mas exige conta Premium do dono da app) →
+GetSongBPM (hoje bloqueado pela Cloudflare deles, fica como
+fallback adormecido); BPM por GetSongBPM → Spotify; letra
+(letras.mus.br) e vídeo (YouTube Data API v3) resolvidos à parte. Uma
+camada falhar nunca derruba as outras nem o candidato.
+
+**Sincronização com o LouveApp (`sincronizarLouveAppLouvor`,
+callable, só líder):** parceria de parceiro aprovada em 2026-09,
+`songs:read`. Autentica (`POST /partners/oauth` com
+`LOUVEAPP_CLIENT_ID`/`LOUVEAPP_CLIENT_SECRET`/`LOUVEAPP_MINISTRY_TOKEN`),
+pagina `GET /partners/songs` e atualiza `musicas`/`versoes` com o
+tom/BPM/duração/links que a própria igreja já curou no LouveApp —
+passa a ser a fonte principal, mais completa que a cascata acima para
+quem já está no repertório de lá. Música nova ganha capa pelo mesmo
+caminho do Deezer (a API do LouveApp não tem esse campo); música já
+existente nunca tem classificações/links/capa sobrescritos por uma
+sincronização (podem ter sido editados à mão no Portal), só as
+versões são atualizadas a cada vez, para tom/BPM ficarem sempre com o
+que o LouveApp tiver de mais recente. Botão na Biblioteca, visível só
+para o líder.
 
 ## 6. Permissões (firestore.rules)
 
