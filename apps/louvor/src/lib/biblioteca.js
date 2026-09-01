@@ -118,7 +118,9 @@ export const aplicarCapaDeezer = (musicaId, deezerId) =>
 
 /** Fase 2 — pesquisa só pelo nome e devolve vários candidatos já
  *  enriquecidos (capa, tom via Cifra Club, BPM via GetSongBPM quando
- *  a chave estiver definida, links de cifra/letra). Nunca falha por
- *  um candidato não se conseguir enriquecer — só vem com menos dados. */
-export const pesquisarMusica = (nome) =>
-  chamar("pesquisarMusicaLouvor")({ nome }).then((r) => r.data.candidatos);
+ *  a chave estiver definida, links de cifra/letra/áudio). Nunca falha
+ *  por um candidato não se conseguir enriquecer — só vem com menos
+ *  dados. `pagina` (0, 1, 2…) pede mais resultados do Deezer; devolve
+ *  também `temMais`, para o "Ver mais" só aparecer quando faz sentido. */
+export const pesquisarMusica = (nome, pagina = 0) =>
+  chamar("pesquisarMusicaLouvor")({ nome, pagina }).then((r) => r.data);

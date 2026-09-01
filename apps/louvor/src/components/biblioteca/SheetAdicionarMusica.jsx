@@ -17,7 +17,10 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [etapa, setEtapa] = useState("procurar");
   const [nomeBusca, setNomeBusca] = useState("");
   const [aBuscar, setABuscar] = useState(false);
+  const [aBuscarMais, setABuscarMais] = useState(false);
   const [candidatos, setCandidatos] = useState([]);
+  const [pagina, setPagina] = useState(0);
+  const [temMais, setTemMais] = useState(false);
   const [candidatoEscolhido, setCandidatoEscolhido] = useState(null);
   const [duplicata, setDuplicata] = useState(null);
   const [ignorarAviso, setIgnorarAviso] = useState(false);
@@ -40,14 +43,31 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     if (!nomeBusca.trim()) return torrada("Escreve o nome da música.");
     setABuscar(true);
     try {
-      const r = await pesquisarMusica(nomeBusca.trim());
+      const { candidatos: r, temMais: m } = await pesquisarMusica(nomeBusca.trim(), 0);
       if (!r.length) torrada("Nada encontrado — podes cadastrar à mão.");
       setCandidatos(r);
+      setPagina(0);
+      setTemMais(m);
       setEtapa("candidatos");
     } catch (e) {
       torrada(e.message || "Não foi possível procurar.");
     } finally {
       setABuscar(false);
+    }
+  }
+
+  async function procurarMais() {
+    setABuscarMais(true);
+    try {
+      const proxima = pagina + 1;
+      const { candidatos: r, temMais: m } = await pesquisarMusica(nomeBusca.trim(), proxima);
+      setCandidatos((atual) => [...atual, ...r]);
+      setPagina(proxima);
+      setTemMais(m);
+    } catch (e) {
+      torrada(e.message || "Não foi possível procurar mais.");
+    } finally {
+      setABuscarMais(false);
     }
   }
 
@@ -59,6 +79,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     setDuracaoVersao(candidato?.duracao ? String(candidato.duracao) : "");
     setCifra(candidato?.linkCifra || "");
     setLetra(candidato?.linkLetra || "");
+    setAudio(candidato?.linkAudio || "");
   }
 
   function escolher(candidato) {
@@ -164,6 +185,11 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
                 </div>
               ))}
               {candidatos.length === 0 && <div className="vaz">Nada encontrado.</div>}
+              {temMais && (
+                <button className="btn sec full" style={{ marginTop: 10 }} disabled={aBuscarMais} onClick={procurarMais}>
+                  {aBuscarMais ? "A procurar mais…" : "Ver mais resultados"}
+                </button>
+              )}
             </div>
             <button className="btn sec full" style={{ marginTop: 14 }} onClick={cadastroManual}>
               Nenhuma destas — cadastrar à mão
