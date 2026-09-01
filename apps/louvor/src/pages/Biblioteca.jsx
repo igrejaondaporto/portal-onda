@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES } from "../lib/biblioteca";
+import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES, sincronizarLouveApp } from "../lib/biblioteca";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
 import IconePlay from "../components/biblioteca/IconePlay";
@@ -27,6 +28,7 @@ function useVersoesDe(musicaId) {
 
 export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const souLider = papel === "lider_base";
+  const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
   const [busca, setBusca] = useState("");
   const [classifAtiva, setClassifAtiva] = useState(null);
@@ -34,10 +36,23 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [abertaId, setAbertaId] = useState(null);
   const versoesAberta = useVersoesDe(abertaId);
   const [aTocarId, setATocarId] = useState(null);
+  const [aSincronizar, setASincronizar] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => () => audioRef.current?.pause(), []);
+
+  async function sincronizar() {
+    setASincronizar(true);
+    try {
+      const r = await sincronizarLouveApp();
+      torrada(`${r.musicasCriadas} músicas novas, ${r.versoesCriadas + r.versoesAtualizadas} versões atualizadas`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível sincronizar com o LouveApp.");
+    } finally {
+      setASincronizar(false);
+    }
+  }
 
   function alternarPreview(e, musica) {
     e.stopPropagation();
@@ -83,6 +98,14 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           placeholder="Título ou artista"
         />
       </div>
+      {souLider && (
+        <button
+          className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, marginTop: 10 }}
+          disabled={aSincronizar} onClick={sincronizar}
+        >
+          {aSincronizar ? "A sincronizar…" : "Sincronizar com o LouveApp"}
+        </button>
+      )}
       <div className="bib-chips">
         <button className="bib-chip" data-on={classifAtiva === null ? 1 : 0} onClick={() => setClassifAtiva(null)}>
           Todas
