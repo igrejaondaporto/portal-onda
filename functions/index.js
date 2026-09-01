@@ -3336,9 +3336,79 @@ async function resolverGetSongBpm(titulo, artista, apiKey) {
   }
 }
 
+const YOUTUBE_API_KEY = defineSecret("YOUTUBE_API_KEY");
+const SPOTIFY_CLIENT_ID = defineSecret("SPOTIFY_CLIENT_ID");
+const SPOTIFY_CLIENT_SECRET = defineSecret("SPOTIFY_CLIENT_SECRET");
+
+/** Um único resultado, sem tentar casar canal com artista (ao
+ *  contrário do documento original — aqui já estamos a mostrar vários
+ *  candidatos por música, casar canal a mais tornaria a busca lenta
+ *  para pouco ganho). Sem chave definida, devolve null em silêncio. */
+async function resolverVideoYouTube(titulo, artista, apiKey) {
+  if (!apiKey) return null;
+  try {
+    const q = `${titulo} ${artista}`;
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&type=video&q=${encodeURIComponent(q)}&key=${apiKey}`;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const resp = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const videoId = json.items?.[0]?.id?.videoId;
+    return videoId ? `https://youtu.be/${videoId}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Token de acesso do Spotify (Client Credentials — não precisa de
+ *  login de ninguém, só identifica a nossa app). Guardado em memória
+ *  do processo entre chamadas: cada instância da function reaproveita
+ *  o token até expirar, em vez de pedir um novo a cada música. Uma
+ *  instância nova (cold start) começa sem cache, pede um — normal. */
+let tokenSpotifyCache = null; // { token, expiraEm }
+async function obterTokenSpotify(clientId, clientSecret) {
+  if (tokenSpotifyCache && tokenSpotifyCache.expiraEm > Date.now()) return tokenSpotifyCache.token;
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const resp = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Authorization": `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  if (!resp.ok) throw new Error("falha a autenticar no Spotify");
+  const json = await resp.json();
+  tokenSpotifyCache = { token: json.access_token, expiraEm: Date.now() + (json.expires_in - 60) * 1000 };
+  return tokenSpotifyCache.token;
+}
+
+/** Link do Spotify para a música — preferido ao do Deezer quando
+ *  existe (é a plataforma mais usada), sem chave definida devolve
+ *  null em silêncio, como as outras camadas. */
+async function resolverAudioSpotify(titulo, artista, clientId, clientSecret) {
+  if (!clientId || !clientSecret) return null;
+  try {
+    const token = await obterTokenSpotify(clientId, clientSecret);
+    const q = `track:${titulo} artist:${artista}`;
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return json.tracks?.items?.[0]?.external_urls?.spotify || null;
+  } catch {
+    return null;
+  }
+}
+
 const RESULTADOS_POR_PAGINA = 6;
 
-export const pesquisarMusicaLouvor = onCall({ secrets: [GETSONGBPM_API_KEY], cors: ORIGENS_PERMITIDAS }, async (req) => {
+export const pesquisarMusicaLouvor = onCall({
+  secrets: [GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
+  cors: ORIGENS_PERMITIDAS,
+}, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { nome, pagina } = req.data || {};
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome da música.");
@@ -3354,16 +3424,21 @@ export const pesquisarMusicaLouvor = onCall({ secrets: [GETSONGBPM_API_KEY], cor
   // dá para saber se há mais sem adivinhar pelo tamanho desta página.
   const total = typeof buscaJson.total === "number" ? buscaJson.total : indice + brutos.length;
 
-  let apiKey = null;
-  try { apiKey = GETSONGBPM_API_KEY.value() || null; } catch { apiKey = null; }
+  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
+  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
+  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
+  const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
+  const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
 
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = variacoesSlug(titulo, artista);
-    const [cifra, letraLink, bpmInfo] = await Promise.all([
+    const [cifra, letraLink, bpmInfo, linkVideo, audioSpotify] = await Promise.all([
       resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
       resolverLetra(variacoes).catch(() => null),
-      resolverGetSongBpm(titulo, artista, apiKey).catch(() => ({ bpm: null, tomReserva: null })),
+      resolverGetSongBpm(titulo, artista, chaveGetSongBpm).catch(() => ({ bpm: null, tomReserva: null })),
+      resolverVideoYouTube(titulo, artista, chaveYoutube).catch(() => null),
+      resolverAudioSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => null),
     ]);
     return {
       deezerId: String(t.id), titulo, artista,
@@ -3371,7 +3446,8 @@ export const pesquisarMusicaLouvor = onCall({ secrets: [GETSONGBPM_API_KEY], cor
       tom: cifra.tom || bpmInfo.tomReserva || null,
       fonteTom: cifra.tom ? "cifraclub" : (bpmInfo.tomReserva ? "getsongbpm" : null),
       bpm: bpmInfo.bpm, fonteBpm: bpmInfo.bpm ? "getsongbpm" : null,
-      linkCifra: cifra.link, linkLetra: letraLink, linkAudio: t.link || null,
+      linkCifra: cifra.link, linkLetra: letraLink,
+      linkAudio: audioSpotify || t.link || null, linkVideo,
     };
   }));
 
