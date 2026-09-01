@@ -3225,6 +3225,22 @@ export const processarCapaMusica = onCall(async (req) => {
   return { capaUrl };
 });
 
+/** O link de prévia do Deezer é um token assinado de curta duração
+ *  (poucas horas, não dias) — guardar `previewUrl` uma vez e tocar
+ *  depois sempre falha com 403 assim que expira. Por isso o botão de
+ *  prévia nunca usa o campo gravado direto: pede sempre um link novo
+ *  aqui, na hora de tocar, a partir do `deezerId` (esse sim é
+ *  permanente). */
+export const obterPreviaDeezer = onCall(async (req) => {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { deezerId } = req.data || {};
+  if (!deezerId) throw new HttpsError("invalid-argument", "Falta a faixa do Deezer.");
+  const resp = await fetch(`https://api.deezer.com/track/${deezerId}`);
+  if (!resp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
+  const track = await resp.json();
+  return { preview: track.preview || null };
+});
+
 /* ── BIBLIOTECA (Base Louvor) — pesquisa por nome, Fase 2 ──────
  * Busca no Deezer só pelo nome (sem artista) e devolve vários
  * candidatos, cada um já enriquecido com tom (Cifra Club, melhor
@@ -3433,10 +3449,79 @@ async function resolverSpotify(titulo, artista, clientId, clientSecret) {
   }
 }
 
+/** LouveApp: repertório já curado pela própria igreja — quando a
+ *  busca por nome encontra a música lá, o tom/BPM/links de lá valem
+ *  mais do que qualquer coisa raspada ou detetada por algoritmo (ver
+ *  cascata mais abaixo). Token guardado em memória do processo, igual
+ *  ao Spotify — cada instância reaproveita até expirar. */
+const LOUVEAPP_CLIENT_ID = defineSecret("LOUVEAPP_CLIENT_ID");
+const LOUVEAPP_CLIENT_SECRET = defineSecret("LOUVEAPP_CLIENT_SECRET");
+const LOUVEAPP_MINISTRY_TOKEN = defineSecret("LOUVEAPP_MINISTRY_TOKEN");
+const LOUVEAPP_BASE_URL = "https://api.louveapp.com.br/partners";
+
+let tokenLouveAppCache = null; // { token, expiraEm }
+async function obterTokenLouveApp(clientId, clientSecret, ministryToken) {
+  if (tokenLouveAppCache && tokenLouveAppCache.expiraEm > Date.now()) return tokenLouveAppCache.token;
+  const resp = await fetch(`${LOUVEAPP_BASE_URL}/oauth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, clientSecret, ministryToken }),
+  });
+  const texto = await resp.text();
+  if (!resp.ok) {
+    logger.error("LouveApp oauth falhou", { status: resp.status, corpo: texto.slice(0, 500) });
+    throw new HttpsError("unavailable", `LouveApp: ${resp.status} — ${texto.slice(0, 200)}`);
+  }
+  const json = JSON.parse(texto);
+  if (!json.access_token) throw new HttpsError("unavailable", "O LouveApp não devolveu um token.");
+  tokenLouveAppCache = { token: json.access_token, expiraEm: Date.now() + (json.expires_in - 60) * 1000 };
+  return json.access_token;
+}
+
+/** Escolhe, entre as versões da música no LouveApp, a que tem mais
+ *  dados preenchidos (tom e BPM primeiro) — sem isso, a primeira. */
+function melhorVersaoLouveApp(versoes) {
+  return (versoes || []).slice().sort((a, b) => {
+    const pontos = (v) => (v.key ? 2 : 0) + (v.bpm ? 1 : 0);
+    return pontos(b) - pontos(a);
+  })[0] || null;
+}
+
+/** Busca o LouveApp diretamente pelo nome (`search`, ignora acentos/
+ *  caixa do lado deles) — sem chave/token válido, devolve lista vazia
+ *  em silêncio, como as outras camadas. Cada música vem já com todas
+ *  as versões; usamos a melhor (ver acima) como o candidato. */
+async function resolverLouveApp(nome, clientId, clientSecret, ministryToken) {
+  if (!clientId || !clientSecret || !ministryToken) return [];
+  try {
+    const token = await obterTokenLouveApp(clientId, clientSecret, ministryToken);
+    const resp = await fetch(`${LOUVEAPP_BASE_URL}/songs?search=${encodeURIComponent(nome)}&limit=6`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    return (json.data || []).map((m) => {
+      const v = melhorVersaoLouveApp(m.versions) || {};
+      return {
+        titulo: m.title, artista: m.artist || "",
+        tom: v.key || null, bpm: v.bpm || null, duracao: v.duration || null,
+        linkCifra: v.chordsUrl || null, linkLetra: v.lyricsUrl || null,
+        linkAudio: v.audioUrl || null, linkVideo: v.videoUrl || null,
+      };
+    }).filter((c) => c.titulo && c.artista);
+  } catch (e) {
+    logger.error("LouveApp search falhou", { erro: e.message });
+    return [];
+  }
+}
+
 const RESULTADOS_POR_PAGINA = 6;
 
 export const pesquisarMusicaLouvor = onCall({
-  secrets: [GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
+  secrets: [
+    GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET,
+    LOUVEAPP_CLIENT_ID, LOUVEAPP_CLIENT_SECRET, LOUVEAPP_MINISTRY_TOKEN,
+  ],
   cors: ORIGENS_PERMITIDAS,
 }, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -3444,9 +3529,23 @@ export const pesquisarMusicaLouvor = onCall({
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome da música.");
   const indice = Math.max(0, Number(pagina) || 0) * RESULTADOS_POR_PAGINA;
 
-  const buscaResp = await fetch(
-    `https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&index=${indice}&limit=${RESULTADOS_POR_PAGINA}`
-  );
+  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
+  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
+  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
+  const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
+  const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
+  const louveAppId = valorSecret(LOUVEAPP_CLIENT_ID);
+  const louveAppSecret = valorSecret(LOUVEAPP_CLIENT_SECRET);
+  const louveAppMinistryToken = valorSecret(LOUVEAPP_MINISTRY_TOKEN);
+
+  // LouveApp só na primeira página — é o repertório já curado da
+  // igreja, o essencial já vem todo de uma vez, sem paginação própria.
+  const [buscaResp, louveAppMusicas] = await Promise.all([
+    fetch(`https://api.deezer.com/search?q=${encodeURIComponent(nome.trim())}&index=${indice}&limit=${RESULTADOS_POR_PAGINA}`),
+    indice === 0
+      ? resolverLouveApp(nome.trim(), louveAppId, louveAppSecret, louveAppMinistryToken)
+      : Promise.resolve([]),
+  ]);
   if (!buscaResp.ok) throw new HttpsError("unavailable", "O Deezer não respondeu.");
   const buscaJson = await buscaResp.json();
   const brutos = buscaJson.data || [];
@@ -3454,13 +3553,34 @@ export const pesquisarMusicaLouvor = onCall({
   // dá para saber se há mais sem adivinhar pelo tamanho desta página.
   const total = typeof buscaJson.total === "number" ? buscaJson.total : indice + brutos.length;
 
-  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
-  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
-  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
-  const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
-  const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
+  // Capa para cada música do LouveApp (a API deles não tem esse campo)
+  // — uma busca simples no Deezer por título+artista, sem cascata.
+  const candidatosLouveApp = await Promise.all(louveAppMusicas.map(async (m) => {
+    let capa = null, duracao = m.duracao, preview = null, deezerId = null;
+    try {
+      const q = `track:"${m.titulo}" artist:"${m.artista}"`;
+      const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
+      const j = r.ok ? await r.json() : null;
+      const t = j?.data?.[0];
+      if (t) {
+        capa = t.album?.cover_medium || null;
+        duracao = duracao || t.duration || null;
+        preview = t.preview || null;
+        deezerId = String(t.id);
+      }
+    } catch { /* segue sem capa */ }
+    return {
+      deezerId, titulo: m.titulo, artista: m.artista,
+      capa, duracao, preview,
+      tom: m.tom, fonteTom: m.tom ? "louveapp" : null,
+      bpm: m.bpm, fonteBpm: m.bpm ? "louveapp" : null,
+      linkCifra: m.linkCifra, linkLetra: m.linkLetra,
+      linkAudio: m.linkAudio || null, linkVideo: m.linkVideo,
+    };
+  }));
+  const chavesLouveApp = new Set(candidatosLouveApp.map((c) => `${normLouvor(c.artista)}__${normLouvor(c.titulo)}`));
 
-  const candidatos = await Promise.all(brutos.map(async (t) => {
+  const candidatosDeezer = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = variacoesSlug(titulo, artista);
     const [cifra, letraLink, bpmInfo, linkVideo, spotify] = await Promise.all([
@@ -3485,8 +3605,14 @@ export const pesquisarMusicaLouvor = onCall({
       linkAudio: spotify.link || t.link || null, linkVideo,
     };
   }));
+  // uma música já resolvida pelo LouveApp (melhor fonte) não entra
+  // duplicada pela busca geral do Deezer.
+  const candidatosSemDuplicar = candidatosDeezer.filter(
+    (c) => !chavesLouveApp.has(`${normLouvor(c.artista)}__${normLouvor(c.titulo)}`)
+  );
 
-  return { candidatos, temMais: indice + candidatos.length < total };
+  const candidatos = [...candidatosLouveApp, ...candidatosSemDuplicar];
+  return { candidatos, temMais: indice + candidatosDeezer.length < total };
 });
 
 /* ── BIBLIOTECA (Base Louvor) — sincronização com o LouveApp ───
@@ -3494,24 +3620,9 @@ export const pesquisarMusicaLouvor = onCall({
  * com o repertório já curado pela igreja (tom/BPM/links por versão).
  * Isto passa a ser a fonte principal — a cascata Cifra Club/Spotify/
  * GetSongBPM acima continua a servir músicas cadastradas à mão que
- * não estejam no LouveApp. Só o líder dispara (ação administrativa,
- * mexe na biblioteca toda de uma vez). */
-const LOUVEAPP_CLIENT_ID = defineSecret("LOUVEAPP_CLIENT_ID");
-const LOUVEAPP_CLIENT_SECRET = defineSecret("LOUVEAPP_CLIENT_SECRET");
-const LOUVEAPP_MINISTRY_TOKEN = defineSecret("LOUVEAPP_MINISTRY_TOKEN");
-const LOUVEAPP_BASE_URL = "https://api.louveapp.com.br/partners";
-
-async function obterTokenLouveApp(clientId, clientSecret, ministryToken) {
-  const resp = await fetch(`${LOUVEAPP_BASE_URL}/oauth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, clientSecret, ministryToken }),
-  });
-  if (!resp.ok) throw new HttpsError("unavailable", "Não foi possível autenticar no LouveApp.");
-  const json = await resp.json();
-  if (!json.access_token) throw new HttpsError("unavailable", "O LouveApp não devolveu um token.");
-  return json.access_token;
-}
+ * não estejam no LouveApp. Ver LOUVEAPP_CLIENT_ID etc. e
+ * obterTokenLouveApp() logo acima de pesquisarMusicaLouvor — a mesma
+ * autenticação serve a busca por nome e esta sincronização em lote. */
 
 /** Só para músicas novas (a API do LouveApp não tem campo de capa) —
  *  mesma lógica de processarCapaMusica, mas melhor esforço em lote:
