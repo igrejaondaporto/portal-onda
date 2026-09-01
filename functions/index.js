@@ -3392,7 +3392,10 @@ async function obterTokenSpotify(clientId, clientSecret) {
     headers: { "Authorization": `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: "grant_type=client_credentials",
   });
-  if (!resp.ok) throw new Error("falha a autenticar no Spotify");
+  if (!resp.ok) {
+    logger.error("Spotify token falhou", { status: resp.status, corpo: (await resp.text()).slice(0, 500) });
+    throw new Error("falha a autenticar no Spotify");
+  }
   const json = await resp.json();
   tokenSpotifyCache = { token: json.access_token, expiraEm: Date.now() + (json.expires_in - 60) * 1000 };
   return tokenSpotifyCache.token;
@@ -3417,11 +3420,15 @@ async function resolverSpotify(titulo, artista, clientId, clientSecret) {
       { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal }
     );
     clearTimeout(timeout);
-    if (!buscaResp.ok) return { link: null };
+    if (!buscaResp.ok) {
+      logger.error("Spotify search falhou", { status: buscaResp.status, corpo: (await buscaResp.text()).slice(0, 500) });
+      return { link: null };
+    }
     const buscaJson = await buscaResp.json();
     const faixa = buscaJson.tracks?.items?.[0];
     return { link: faixa?.external_urls?.spotify || null };
-  } catch {
+  } catch (e) {
+    logger.error("Spotify resolverSpotify falhou", { erro: e.message });
     return { link: null };
   }
 }
