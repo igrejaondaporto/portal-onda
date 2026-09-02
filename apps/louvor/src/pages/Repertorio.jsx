@@ -56,10 +56,23 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, eventoAtual?.id, mes, ano, nMusicas, repertorio?.atualizadoEm]);
 
+  // A Técnica lê o repertório (regras já permitem), mas não a
+  // biblioteca de músicas — de propósito, decisão 8 do CLAUDE.md
+  // desta base: a projeção só vê nome/artista/capa/links, nunca
+  // tom/BPM/observações. Por isso guarda uma cópia desses campos no
+  // próprio item, sempre que grava — cobre também repertórios de
+  // antes desta função existir (a próxima vez que alguém tocar neles,
+  // ficam corrigidos sozinhos).
   async function persistir(novosItens) {
     if (!eventoId) return;
+    const enriquecidos = novosItens.map((item) => {
+      if (item.tipo !== "musica") return item;
+      const m = musicaPorId[item.musicaId];
+      if (!m) return item; // música apagada da biblioteca — mantém o que já lá estava
+      return { ...item, titulo: m.titulo, artista: m.artista, capaUrl: m.capaUrl || null, links: m.links || null };
+    });
     try {
-      await guardarRepertorio(eventoId, novosItens, uid);
+      await guardarRepertorio(eventoId, enriquecidos, uid);
     } catch (e) {
       torrada(e.message || "Não foi possível guardar o repertório.");
     }

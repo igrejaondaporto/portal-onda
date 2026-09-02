@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ouvirMusicas, ouvirVersoes, CLASSIFICACOES, obterPreviaDeezer } from "../lib/biblioteca";
+import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer } from "../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
@@ -13,6 +13,25 @@ function frescor(musica) {
   const semanas = Math.round(dias / 7);
   if (semanas <= 3) return { texto: `Há ${semanas <= 1 ? "1 semana" : semanas + " semanas"}`, classe: "recente" };
   return { texto: `Há ${semanas} semanas`, classe: "descansada" };
+}
+
+/** As classificações do LouveApp vieram todas iguais ("Louvor" em
+ *  todas as 211 músicas importadas, sem exceção) — não servem pra
+ *  filtrar nada, então saíram da Biblioteca (o campo continua a
+ *  existir no cadastro manual, só não filtra mais aqui). No lugar,
+ *  ordenar por frescor (o que já era o padrão) ou A-Z, que são os
+ *  dois eixos com dado de verdade em toda música. */
+const MODOS_ORDEM = [
+  { id: "descansadas", nome: "Descansadas primeiro" },
+  { id: "recentes", nome: "Tocadas recentemente" },
+  { id: "az", nome: "A-Z" },
+];
+function ordenarMusicas(lista, modo) {
+  const arr = [...lista];
+  if (modo === "az") return arr.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt"));
+  const ts = (m) => m.ultimaVezTocada?.toDate?.().getTime() ?? null;
+  if (modo === "recentes") return arr.sort((a, b) => (ts(b) ?? -1) - (ts(a) ?? -1));
+  return arr.sort((a, b) => (ts(a) ?? -1) - (ts(b) ?? -1)); // descansadas: nunca tocada primeiro
 }
 
 /** Só carrega as versões da música aberta — 500 músicas com todas as
@@ -31,7 +50,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
   const [busca, setBusca] = useState("");
-  const [classifAtiva, setClassifAtiva] = useState(null);
+  const [modoOrdem, setModoOrdem] = useState("descansadas");
   const [aAdicionar, setAAdicionar] = useState(false);
   const [abertaId, setAbertaId] = useState(null);
   const versoesAberta = useVersoesDe(abertaId);
@@ -69,22 +88,19 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
 
   const filtradas = useMemo(() => {
     const q = norm(busca.trim());
-    return musicas.filter((m) => {
-      if (classifAtiva && !(m.classificacoes || []).includes(classifAtiva)) return false;
-      if (!q) return true;
-      return norm(m.titulo).includes(q) || norm(m.artista).includes(q);
-    });
-  }, [musicas, busca, classifAtiva]);
+    const base = q ? musicas.filter((m) => norm(m.titulo).includes(q) || norm(m.artista).includes(q)) : musicas;
+    return ordenarMusicas(base, modoOrdem);
+  }, [musicas, busca, modoOrdem]);
 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
       titulo: "Biblioteca",
-      subtitulo: "Descansadas há mais tempo primeiro",
+      subtitulo: MODOS_ORDEM.find((m) => m.id === modoOrdem)?.nome,
       chips: [`${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, musicas.length]);
+  }, [ativo, musicas.length, modoOrdem]);
 
   const musicaAberta = musicas.find((m) => m.id === abertaId) ?? null;
 
@@ -98,16 +114,12 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
         />
       </div>
       <div className="bib-chips">
-        <button className="bib-chip" data-on={classifAtiva === null ? 1 : 0} onClick={() => setClassifAtiva(null)}>
-          Todas
-        </button>
-        {CLASSIFICACOES.map((c) => (
+        {MODOS_ORDEM.map((m) => (
           <button
-            key={c.id} className="bib-chip" data-on={classifAtiva === c.id ? 1 : 0}
-            onClick={() => setClassifAtiva((v) => (v === c.id ? null : c.id))}
-            title={c.ajuda}
+            key={m.id} className="bib-chip" data-on={modoOrdem === m.id ? 1 : 0}
+            onClick={() => setModoOrdem(m.id)}
           >
-            {c.nome}
+            {m.nome}
           </button>
         ))}
       </div>
@@ -135,7 +147,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="nmt">{m.titulo}</p>
-                <p className="ds">{m.artista}{(m.classificacoes || []).length ? ` · ${m.classificacoes.length} classificação${m.classificacoes.length > 1 ? "ões" : ""}` : ""}</p>
+                <p className="ds">{m.artista}</p>
               </div>
               <span className={`bib-frescor ${f.classe}`}>{f.texto}</span>
             </div>
