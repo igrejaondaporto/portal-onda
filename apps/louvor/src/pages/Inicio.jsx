@@ -8,8 +8,16 @@ import { ouvirRepertorio } from "../lib/repertorio";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
+import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
+import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
+
+// Referência estável para "sem itens" — ver o mesmo cuidado em
+// Repertorio.jsx (comentário lá tem a história completa do bug).
+const ITENS_VAZIOS = [];
 
 /** "há X" desde um Timestamp do Firestore — mesmo texto que o
  *  Repertório usa no selo de atualização. */
@@ -23,8 +31,9 @@ function haQuanto(ts) {
   return `há ${Math.round(h / 24)}d`;
 }
 
-export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrRepertorio, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrRepertorio, onIrReembolsos }) {
   const torrada = useTorrada();
+  const souLider = papel === "lider_base";
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -36,6 +45,8 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
+  const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -43,6 +54,10 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
   useEffect(() => ouvirMusicas(setMusicas), []);
+  useEffect(() => {
+    if (!souLider) return;
+    return ouvirMinhasSolicitacoes(setMinhasSolicitacoes);
+  }, [souLider]);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo
   useEffect(() => {
@@ -66,7 +81,26 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "07:00";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
-  const nMusicasRep = (repertorio?.itens || []).filter((i) => i.tipo === "musica").length;
+  const itensRep = repertorio?.itens ?? ITENS_VAZIOS;
+  const nMusicasRep = itensRep.filter((i) => i.tipo === "musica").length;
+  const emCurso = minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length;
+
+  // Prévia simplificada do repertório — ordem, nome, artista, e um
+  // medley colado ao número da música que "puxa" (mesma regra de
+  // numerosOrdinais em Repertorio.jsx: uma continuação de medley não
+  // avança o número, só se junta ao bloco anterior).
+  const musicaPorId = Object.fromEntries(musicas.map((m) => [m.id, m]));
+  const blocosRepertorio = [];
+  itensRep.forEach((item, i) => {
+    if (item.tipo !== "musica") return;
+    const continuaMedley = item.medley === true && itensRep[i - 1]?.tipo === "musica";
+    const m = musicaPorId[item.musicaId];
+    if (continuaMedley && blocosRepertorio.length) {
+      blocosRepertorio.at(-1).musicas.push(m);
+    } else {
+      blocosRepertorio.push({ numero: blocosRepertorio.length + 1, musicas: [m] });
+    }
+  });
 
   function fecharAvisoReembolso() {
     marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
@@ -172,6 +206,23 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
             <>
               <p className="ds">{nMusicasRep} {nMusicasRep === 1 ? "música" : "músicas"} no repertório</p>
               <p className="ds" style={{ marginTop: 4, color: "var(--cinza)" }}>Atualizado {haQuanto(repertorio.atualizadoEm)}</p>
+              {blocosRepertorio.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  {blocosRepertorio.map((b) => (
+                    <div key={b.numero} style={{ display: "flex", gap: 8, padding: "4px 0" }}>
+                      <span className="rep-num">{b.numero}ª</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {b.musicas.map((m, i) => (
+                          <p key={i} className="ds" style={{ color: "var(--tinta)" }}>
+                            {m?.titulo ?? "Música removida"}
+                            <span style={{ color: "var(--cinza)" }}> · {m?.artista ?? ""}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div className="vaz" style={{ border: 0 }}>Ainda ninguém montou o repertório deste domingo.</div>
@@ -229,7 +280,6 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
           {[
             ["biblioteca", "Biblioteca", `${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`, () => onIrBiblioteca?.()],
             ["culto", "Culto", "Ordem, equipamentos e feedback", () => onIrCulto?.("ordem")],
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
           ].map(([k, t, d, ir]) => (
             <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
               <div style={{ flex: 1 }}>
@@ -239,9 +289,57 @@ export default function Inicio({ uid, pessoa, mes, ano, mudarMes, ativo, definir
               <span className="seta">›</span>
             </div>
           ))}
+          {/* Reembolsos e (para o líder) Solicitar BG só se alcançam por
+            * aqui — sem entrada própria na barra de baixo, ao contrário
+            * de Biblioteca/Culto acima. Em cor para se distinguirem à
+            * vista do resto da lista. */}
+          <div className="destaque" style={{ background: "var(--laranja)", marginTop: 14, marginBottom: 0 }} onClick={() => onIrReembolsos?.()}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Reembolsos</p>
+              <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Nota e valor</p>
+            </div>
+            <span style={{ fontSize: 24 }}>›</span>
+          </div>
+          {souLider && (
+            <div className="destaque" style={{ background: "var(--violeta)", marginTop: 10, marginBottom: 0 }} onClick={() => setSheetComunicacao({ tipo: "lista" })}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Solicitar BG</p>
+                <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Peças gráficas, vídeo ou fotografia</p>
+              </div>
+              {emCurso > 0 ? (
+                <span style={{ background: "rgba(255,255,255,.25)", color: "#fff", fontSize: 11.5, fontWeight: 700, padding: "5px 11px", borderRadius: 100, whiteSpace: "nowrap" }}>
+                  {emCurso} em curso
+                </span>
+              ) : (
+                <span style={{ fontSize: 24 }}>›</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
+    {sheetComunicacao?.tipo === "lista" && (
+      <SheetSolicitacoesBase
+        solicitacoes={minhasSolicitacoes}
+        onFechar={() => setSheetComunicacao(null)}
+        onNovoPedido={() => setSheetComunicacao({ tipo: "abrir" })}
+        onVerDetalhe={(s) => setSheetComunicacao({ tipo: "detalhe", solicitacao: s })}
+      />
+    )}
+    {sheetComunicacao?.tipo === "abrir" && (
+      <SheetAbrirSolicitacao
+        onFechar={() => setSheetComunicacao({ tipo: "lista" })}
+        onGuardado={(msg) => { setSheetComunicacao({ tipo: "lista" }); torrada(msg); }}
+      />
+    )}
+    {sheetComunicacao?.tipo === "detalhe" && (
+      <SheetDetalheSolicitacao
+        solicitacao={minhasSolicitacoes.find((s) => s.id === sheetComunicacao.solicitacao.id) ?? sheetComunicacao.solicitacao}
+        papel={papel}
+        onFechar={() => setSheetComunicacao({ tipo: "lista" })}
+        onExcluido={() => setSheetComunicacao({ tipo: "lista" })}
+      />
+    )}
     </>
   );
 }

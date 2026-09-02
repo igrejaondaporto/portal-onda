@@ -155,17 +155,28 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           placeholder="Título ou artista"
         />
       </div>
-      <div className="bib-chips">
-        <button className="bib-chip" data-on={modoOrdem === "recentes" ? 1 : 0} onClick={() => clicarOrdem("recentes")}>
-          Tocadas recentemente {modoOrdem === "recentes" ? (direcao === "desc" ? "↓" : "↑") : "⇅"}
-        </button>
-        <button className="bib-chip" data-on={modoOrdem === "az" ? 1 : 0} onClick={() => clicarOrdem("az")}>
-          A-Z {modoOrdem === "az" ? (direcao === "asc" ? "↑" : "↓") : "⇅"}
-        </button>
-        <button className="bib-chip" data-on={modoOrdem === "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("maisTocadas"); setPagina(0); }}>
+      {/* Mais tocadas é um modo à parte, não mais uma opção de ordenar —
+        * por isso vive no seu próprio menu, não ao lado dos chips de
+        * Ordenar (pedido do líder: aqueles são "como ordenar a lista
+        * toda", isto é "ver só o ranking"). */}
+      <div className="subtabs">
+        <button data-on={modoOrdem === "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("maisTocadas"); setPagina(0); }}>
           Mais tocadas
         </button>
+        <button data-on={modoOrdem !== "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("recentes"); setDirecao("desc"); setPagina(0); }}>
+          Todas
+        </button>
       </div>
+      {modoOrdem !== "maisTocadas" && (
+        <div className="bib-chips">
+          <button className="bib-chip" data-on={modoOrdem === "recentes" ? 1 : 0} onClick={() => clicarOrdem("recentes")}>
+            Tocadas recentemente {modoOrdem === "recentes" ? (direcao === "desc" ? "↓" : "↑") : "⇅"}
+          </button>
+          <button className="bib-chip" data-on={modoOrdem === "az" ? 1 : 0} onClick={() => clicarOrdem("az")}>
+            A-Z {modoOrdem === "az" ? (direcao === "asc" ? "↑" : "↓") : "⇅"}
+          </button>
+        </div>
+      )}
 
       <div style={{ marginTop: 6 }}>
         {filtradas.length === 0 && (
