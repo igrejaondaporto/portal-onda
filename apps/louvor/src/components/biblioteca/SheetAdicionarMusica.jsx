@@ -15,7 +15,7 @@ import IconePlay from "./IconePlay";
  * conferir (tudo editável antes de guardar). Nunca bloqueia por
  * duplicata — só avisa e deixa continuar (decisão 9).
  */
-export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada }) {
+export default function SheetAdicionarMusica({ aberta, uid, musicas, onFechar, onCriada }) {
   const torrada = useTorrada();
   const [etapa, setEtapa] = useState("procurar");
   const [nomeBusca, setNomeBusca] = useState("");
@@ -33,6 +33,15 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const escolhaLookupId = useRef(0);
 
   useEffect(() => () => audioRef.current?.pause(), []);
+  // A folha agora fica sempre montada (só troca de visível — ver
+  // aberta), pra fechar e reabrir manter a busca de onde parou (pedido
+  // do líder: fechar sem querer não podia obrigar a procurar de
+  // novo). Sem isto, uma prévia a tocar continuaria em segundo plano
+  // depois de fechar, já que o cleanup do efeito acima só corre num
+  // desmonte de verdade, que deixou de acontecer ao fechar.
+  useEffect(() => {
+    if (!aberta) audioRef.current?.pause();
+  }, [aberta]);
 
   async function alternarPreview(e, candidato) {
     e.stopPropagation();
@@ -166,6 +175,21 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     setClassificacoes((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
   }
 
+  // Só depois de guardar com sucesso — fechar sem terminar preserva
+  // tudo (ver aberta), mas depois de adicionar uma música a próxima
+  // abertura começa limpa, não com os dados da anterior.
+  function limpar() {
+    setEtapa("procurar");
+    setNomeBusca("");
+    setCandidatos([]);
+    setPagina(0);
+    setTemMais(false);
+    setCandidatoEscolhido(null);
+    setDuplicata(null);
+    setIgnorarAviso(false);
+    preencherDe(null);
+  }
+
   async function guardar() {
     if (!titulo.trim() || !artista.trim()) return torrada("Preenche o título e o artista.");
     setAGuardar(true);
@@ -193,6 +217,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
         });
       }
       torrada("Música adicionada à biblioteca");
+      limpar();
       onCriada(musicaId);
     } catch (e) {
       torrada(e.message || "Não foi possível guardar a música.");
@@ -203,8 +228,8 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
 
   return (
     <>
-      <div className="veu on" onClick={onFechar} />
-      <div className="pin on" role="dialog" aria-modal="true">
+      <div className={`veu${aberta ? " on" : ""}`} onClick={onFechar} />
+      <div className={`pin${aberta ? " on" : ""}`} role="dialog" aria-modal="true">
         <button className="pin-fechar" onClick={onFechar} aria-label="Fechar">✕</button>
         <div className="pux" />
         {etapa === "procurar" && (
@@ -214,9 +239,12 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
               Escreve só o nome — mostramos os candidatos com tom, BPM e links já preenchidos.
             </p>
             <label className="rot" style={{ marginTop: 12 }}>Nome da música</label>
+            {/* sem autoFocus de propósito — abrir já com o teclado do
+             * telemóvel em cima do sheet inteiro confundia mais do que
+             * ajudava (relato do líder); toca no campo pra escrever. */}
             <input
               className="campo" value={nomeBusca} onChange={(e) => setNomeBusca(e.target.value)}
-              placeholder="Lugar Secreto" autoFocus
+              placeholder="Lugar Secreto"
               onKeyDown={(e) => e.key === "Enter" && procurar()}
             />
             <button className="btn full" style={{ marginTop: 18 }} disabled={aBuscar} onClick={procurar}>
