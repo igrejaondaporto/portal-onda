@@ -6,6 +6,7 @@ import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
+import RepertorioCard from "../components/culto/RepertorioCard";
 
 export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, onVerFuncoes, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = papel === "lider_base";
@@ -46,12 +47,21 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
 
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
 
+  // Repertório (Culto → Repertório): só líder da base ou quem serve
+  // na Projeção (titular ou em treino — os dois contam, ver
+  // apps/tecnica/CLAUDE.md, "nível por ministério"). Quem monta é a
+  // Base Louvor; aqui é só leitura, para saber a ordem e os medleys.
+  const eu = voluntarios.find((p) => p.id === uid);
+  const souProjecao = !!eu?.ministerios?.projecao;
+  const vejoRepertorio = souLiderBase || souProjecao;
+
   useEffect(() => {
     if (!ativo) return;
+    const subtitulos = { ordem: "A ordem do culto que o pastor envia", feedbacks: "O que ficou registado de cada domingo", repertorio: "O que a Louvor vai tocar, montado por ela" };
     definirCabecalho({
       titulo: "Culto",
-      subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
-      chips: aba === "ordem" ? [`${MESES[mes]} ${ano}`] : [`${MESES[mes]} ${ano}`, `${comFeedback} de ${eventosMes.length} com feedback`],
+      subtitulo: subtitulos[aba],
+      chips: aba === "feedbacks" ? [`${MESES[mes]} ${ano}`, `${comFeedback} de ${eventosMes.length} com feedback`] : [`${MESES[mes]} ${ano}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes, eventosMes.length, comFeedback]);
@@ -77,6 +87,9 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
             Ordem do culto
             {aoVivoGravando && <span className="tec-subtab-alerta" />}
           </button>
+          {vejoRepertorio && (
+            <button data-on={aba === "repertorio" ? 1 : 0} onClick={() => setAba("repertorio")}>Repertório</button>
+          )}
           <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         </div>
         <span className="calnav">
@@ -112,6 +125,30 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
             onPdfEnviado={(eventoId, url) => setOrdens((o) => ({ ...o, [eventoId]: url }))}
             onNotasGuardadas={(eventoId, notas) => setEventosMes((lista) => lista.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}
             onVerFuncoes={onVerFuncoes}
+          />
+        ))}
+        </div>
+      ) : aba === "repertorio" ? (
+        <div style={{ marginTop: 16 }}>
+        {anteriores.length > 0 && proximos.length > 0 && (
+          <div className="subtabs tec-filtro-culto">
+            <button data-on={!verAnteriores ? 1 : 0} onClick={() => setFiltroCulto("proximos")}>
+              Próximos ({proximos.length})
+            </button>
+            <button data-on={verAnteriores ? 1 : 0} onClick={() => setFiltroCulto("anteriores")}>
+              Anteriores ({anteriores.length})
+            </button>
+          </div>
+        )}
+        {listaOrdem.length === 0 && (
+          <div className="vaz">
+            {anteriores.length ? "Não há mais cultos este mês." : "Ainda não há cultos neste mês."}
+          </div>
+        )}
+        {listaOrdem.map((ev) => (
+          <RepertorioCard
+            key={ev.id} evento={ev}
+            aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
           />
         ))}
         </div>

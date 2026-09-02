@@ -425,3 +425,67 @@
   vertical-align: middle;
   animation: respirar 1.2s ease-in-out infinite;
 }
+
+/* ── Repertório (Culto → Repertório, só leitura, só projeção) ──
+ * Mesmo desenho do .rep-item da Louvor (apps/louvor/src/styles/
+ * louvor.css) — sem os botões de reordenar/remover, que aqui não
+ * existem (quem monta é a Louvor). Prefixo tec- por estar noutra
+ * app, não por ser diferente de propósito. */
+.tec-rep-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--agua);
+  margin-bottom: 8px;
+}
+.tec-rep-item.momento {
+  background: #fff;
+  border: 1.5px dashed var(--fio);
+}
+.tec-rep-capa {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  flex: none;
+  background: var(--grad);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+.tec-rep-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: none;
+}
+.tec-rep-links a {
+  text-decoration: none;
+}
+/* Medley: as duas músicas ficam coladas, com uma faixa lima do lado
+ * de quem entra em seguida — ver Repertorio.jsx da Louvor, mesma
+ * lógica de agrupamento. */
+.tec-rep-item.medley-topo {
+  margin-bottom: 2px;
+  border-radius: 14px 14px 4px 4px;
+}
+.tec-rep-item.medley-cauda {
+  border-radius: 4px 4px 14px 14px;
+  border-left: 3px solid var(--lima);
+  cursor: pointer;
+}
+.tec-rep-medley-obs {
+  background: #fff;
+  border: 1.5px dashed var(--fio);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--cinza);
+}
