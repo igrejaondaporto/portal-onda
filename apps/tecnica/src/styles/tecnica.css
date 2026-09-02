@@ -430,11 +430,13 @@
  * Mesmo desenho do .rep-item da Louvor (apps/louvor/src/styles/
  * louvor.css) — sem os botões de reordenar/remover, que aqui não
  * existem (quem monta é a Louvor). Prefixo tec- por estar noutra
- * app, não por ser diferente de propósito. */
+ * app, não por ser diferente de propósito. Coluna, não linha: os
+ * links viraram botões de verdade (2026-09) e precisam da própria
+ * fileira, embaixo do título/artista, para não espremer a capa. */
 .tec-rep-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
   background: var(--agua);
@@ -443,6 +445,19 @@
 .tec-rep-item.momento {
   background: #fff;
   border: 1.5px dashed var(--fio);
+}
+.tec-rep-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tec-rep-num {
+  flex: none;
+  width: 20px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cinza);
 }
 .tec-rep-capa {
   width: 38px;
@@ -462,11 +477,30 @@
 .tec-rep-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+}
+.tec-rep-link-botao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--fio);
+  text-decoration: none;
+  color: var(--tinta);
+  font-size: 12px;
+  font-weight: 700;
+}
+.link-favicon,
+.link-favicon-vazio {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
   flex: none;
 }
-.tec-rep-links a {
-  text-decoration: none;
+.link-favicon-vazio {
+  background: var(--agua);
 }
 /* Medley: as duas músicas ficam coladas, com uma faixa lima do lado
  * de quem entra em seguida — ver Repertorio.jsx da Louvor, mesma
