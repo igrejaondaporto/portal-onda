@@ -12,7 +12,7 @@ import Equipamentos from "./Equipamentos";
  *  CLAUDE.md desta base) + Feedbacks — as três coisas que já
  *  existiam noutra base (Ordem/Feedbacks, de Apoio/Técnica) ou eram
  *  uma aba própria (Equipamentos, da Técnica) juntam-se aqui. */
-export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
+export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
@@ -69,6 +69,18 @@ export default function Culto({ uid, papel, mes, ano, abaInicial, ativo, definir
         <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
+
+      {/* Equipamentos é catálogo, não é por mês — só Ordem e Feedbacks
+        * precisam de mudar de mês sem sair da aba. */}
+      {(aba === "ordem" || aba === "feedbacks") && (
+        <div className="cabecalho" style={{ marginTop: 16 }}>
+          <h3>{MESES[mes]} {ano}</h3>
+          <span className="calnav">
+            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+          </span>
+        </div>
+      )}
 
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
