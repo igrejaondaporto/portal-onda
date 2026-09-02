@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   novaMusicaId, novaVersaoId, criarMusica, criarVersao, encontrarDuplicata,
-  pesquisarMusica, aplicarCapaDeezer, obterPreviaDeezer, resolverVideo, CLASSIFICACOES,
+  pesquisarMusica, aplicarCapaDeezer, obterPreviaDeezer, resolverVideo, resolverTomAudio,
+  CLASSIFICACOES,
 } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import IconePlay from "./IconePlay";
@@ -29,7 +30,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [aTocarId, setATocarId] = useState(null);
   const [aCarregarPreview, setACarregarPreview] = useState(null);
   const audioRef = useRef(null);
-  const videoLookupId = useRef(0);
+  const escolhaLookupId = useRef(0);
 
   useEffect(() => () => audioRef.current?.pause(), []);
 
@@ -68,6 +69,8 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [video, setVideo] = useState("");
   const [tom, setTom] = useState("");
   const [bpm, setBpm] = useState("");
+  const [fonteTom, setFonteTom] = useState(null);
+  const [fonteBpm, setFonteBpm] = useState(null);
   const [duracaoVersao, setDuracaoVersao] = useState("");
   const [observacao, setObservacao] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
@@ -109,6 +112,8 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     setArtista(candidato?.artista || "");
     setTom(candidato?.tom || "");
     setBpm(candidato?.bpm ? String(candidato.bpm) : "");
+    setFonteTom(candidato?.fonteTom || null);
+    setFonteBpm(candidato?.fonteBpm || null);
     setDuracaoVersao(candidato?.duracao ? String(candidato.duracao) : "");
     setCifra(candidato?.linkCifra || "");
     setLetra(candidato?.linkLetra || "");
@@ -129,12 +134,25 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     // para gastar em busca que talvez nem vire cadastro). Guardado
     // pela escolha (não a etapa): se o líder trocar de candidato antes
     // disto responder, o resultado antigo não pisa o do novo.
-    const idDestaEscolha = ++videoLookupId.current;
+    const idDestaEscolha = ++escolhaLookupId.current;
     resolverVideo(candidato.titulo, candidato.artista)
       .then((video) => {
-        if (video && videoLookupId.current === idDestaEscolha) setVideo((v) => v || video);
+        if (video && escolhaLookupId.current === idDestaEscolha) setVideo((v) => v || video);
       })
       .catch(() => {});
+
+    // Tom/BPM por análise de áudio só entra quando o Cifra Club não
+    // achou nada — mesmo raciocínio do vídeo: caro demais para gastar
+    // em candidato que talvez nem vire cadastro.
+    if (candidato.deezerId && !candidato.tom) {
+      resolverTomAudio(candidato.deezerId, candidato.titulo, candidato.artista)
+        .then(({ tom: tomAudio, bpm: bpmAudio }) => {
+          if (escolhaLookupId.current !== idDestaEscolha) return;
+          if (tomAudio) { setTom((v) => v || tomAudio); setFonteTom((f) => f || "audio"); }
+          if (bpmAudio) { setBpm((v) => v || String(bpmAudio)); setFonteBpm((f) => f || "audio"); }
+        })
+        .catch(() => {});
+    }
   }
 
   function cadastroManual() {
@@ -165,8 +183,8 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
         tom, bpm: bpm ? Number(bpm) : null,
         duracao: duracaoVersao ? Number(duracaoVersao) : null,
         observacao,
-        fonteTom: candidatoEscolhido?.fonteTom || "manual",
-        fonteBpm: candidatoEscolhido?.fonteBpm || "manual",
+        fonteTom: fonteTom || "manual",
+        fonteBpm: fonteBpm || "manual",
         criadoPor: uid,
       });
       if (candidatoEscolhido?.deezerId) {
@@ -284,10 +302,10 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
               ))}
             </div>
 
-            <label className="rot">Tom (versão Onda){candidatoEscolhido?.fonteTom && <span className="ds" style={{ marginLeft: 6 }}>· {candidatoEscolhido.fonteTom}</span>}</label>
-            <input className="campo" value={tom} onChange={(e) => setTom(e.target.value)} placeholder="A" />
-            <label className="rot">BPM{candidatoEscolhido?.fonteBpm && <span className="ds" style={{ marginLeft: 6 }}>· {candidatoEscolhido.fonteBpm}</span>}</label>
-            <input className="campo" inputMode="numeric" value={bpm} onChange={(e) => setBpm(e.target.value)} placeholder="70" />
+            <label className="rot">Tom (versão Onda){fonteTom && <span className="ds" style={{ marginLeft: 6 }}>· {fonteTom}</span>}</label>
+            <input className="campo" value={tom} onChange={(e) => { setTom(e.target.value); setFonteTom("manual"); }} placeholder="A" />
+            <label className="rot">BPM{fonteBpm && <span className="ds" style={{ marginLeft: 6 }}>· {fonteBpm}</span>}</label>
+            <input className="campo" inputMode="numeric" value={bpm} onChange={(e) => { setBpm(e.target.value); setFonteBpm("manual"); }} placeholder="70" />
             <label className="rot">Duração (segundos)</label>
             <input className="campo" inputMode="numeric" value={duracaoVersao} onChange={(e) => setDuracaoVersao(e.target.value)} placeholder="310" />
             <label className="rot">Observação</label>
