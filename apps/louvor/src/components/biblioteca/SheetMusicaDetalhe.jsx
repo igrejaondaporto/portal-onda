@@ -45,7 +45,7 @@ function IconeLinkExterno() {
   );
 }
 
-export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar }) {
+export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar, onAdicionarRepertorio }) {
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
   const [aDefinir, setADefinir] = useState(null);
@@ -138,7 +138,12 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
           </div>
         )}
 
-        <button className="btn sec full" style={{ marginTop: 4 }} onClick={onFechar}>Fechar</button>
+        {onAdicionarRepertorio && (
+          <button className="btn full" style={{ marginTop: 16 }} onClick={onAdicionarRepertorio}>
+            Adicionar ao repertório
+          </button>
+        )}
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
 
       {sheetVersao && (

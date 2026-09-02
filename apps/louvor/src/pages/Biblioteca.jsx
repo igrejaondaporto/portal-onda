@@ -64,9 +64,17 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [paraRepertorio, setParaRepertorio] = useState(null); // música escolhida para o atalho "+ repertório"
   const [proximoEventoId, setProximoEventoId] = useState(null);
   const audioRef = useRef(null);
+  const paginaAtivaRef = useRef(null);
 
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => () => audioRef.current?.pause(), []);
+
+  // Mantém o número da página atual visível na fileira — sem isto,
+  // ir avançando pelas setas ‹ › podia deixar o número aceso fora do
+  // que já foi scrollado.
+  useEffect(() => {
+    paginaAtivaRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [pagina]);
 
   // Resolvido uma vez, para o atalho "+ repertório" de cada música —
   // mesma escolha de "próximo culto" que Repertorio.jsx usa por
@@ -194,9 +202,8 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
                   className="bib-add-rep" aria-label="Adicionar ao repertório"
                   onClick={(e) => { e.stopPropagation(); setParaRepertorio(m); }}
                 >
-                  <span aria-hidden="true">+</span>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
                   </svg>
                 </button>
               </div>
@@ -206,7 +213,17 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
         {ordenadas.length > POR_PAGINA && (
           <div className="bib-paginas">
             <button className="calbt" disabled={paginaAtual === 0} onClick={() => setPagina((p) => p - 1)}>‹</button>
-            <span className="ds">Página {paginaAtual + 1} de {totalPaginas}</span>
+            <div className="bib-paginas-nums">
+              {Array.from({ length: totalPaginas }, (_, i) => (
+                <button
+                  key={i} className="bib-pagina-num" data-on={i === paginaAtual ? 1 : 0}
+                  ref={i === paginaAtual ? paginaAtivaRef : undefined}
+                  onClick={() => setPagina(i)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
             <button className="calbt" disabled={paginaAtual >= totalPaginas - 1} onClick={() => setPagina((p) => p + 1)}>›</button>
           </div>
         )}
@@ -226,6 +243,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           uid={uid} souLider={souLider}
           musica={musicaAberta} versoes={versoesAberta}
           onFechar={() => setAbertaId(null)}
+          onAdicionarRepertorio={() => { setAbertaId(null); setParaRepertorio(musicaAberta); }}
         />
       )}
       {paraRepertorio && (

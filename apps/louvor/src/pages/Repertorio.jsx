@@ -35,7 +35,10 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [itensLocais, setItensLocais] = useState([]);
   const [arrastoId, setArrastoId] = useState(null);
   const [arrastoOffsetY, setArrastoOffsetY] = useState(0);
-  const arrastoStartY = useRef(0);
+  const arrastoAgarrar = useRef(0); // distância do dedo ao topo do item, no momento em que agarrou
+  const arrastoTopoNatural = useRef(0); // topo do item SEM transform — atualiza a cada troca de posição
+  const arrastoAltura = useRef(0);
+  const arrastoLimites = useRef({ topo: 0, fundo: 0 }); // topo/fundo absolutos da lista (não mudam com trocas)
   const refsLinhas = useRef({});
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
@@ -124,45 +127,86 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   // ── Arrastar para reordenar (ponteiro único — mouse e toque) ──
   // O handle captura o ponteiro (setPointerCapture): continua a
   // receber move/up mesmo que o dedo saia da área dele, sem precisar
-  // de listeners no window. Troca de posição ao vivo em itensLocais
-  // conforme o centro do item arrastado cruza o centro de um vizinho;
-  // só grava a sério (persistir) quando solta.
+  // de listeners no window. A posição visual (arrastoOffsetY, somado
+  // ao topo natural do item) segue o dedo, sempre presa entre o topo
+  // do primeiro item e o fundo do último — sem isto o item seguia o
+  // dedo por cima de tudo (botões, calendário, o resto da página),
+  // parecia "andar pela página toda". Troca de posição ao vivo em
+  // itensLocais conforme o centro do item arrastado cruza o centro de
+  // um vizinho; nessa troca, `arrastoTopoNatural` é atualizado para o
+  // topo do vizinho — sem isto, o deslocamento visual ficava a somar
+  // em cima do topo ANTIGO a cada troca, e o item ia derivando cada
+  // vez mais longe do dedo. Só grava a sério (persistir) quando solta.
   function iniciarArrasto(e, id) {
     const el = refsLinhas.current[id];
     if (!el) return;
     el.setPointerCapture(e.pointerId);
-    arrastoStartY.current = e.clientY;
+
+    const linhas = itensLocais.map((it) => refsLinhas.current[it.id]).filter(Boolean);
+    const elRect = el.getBoundingClientRect();
+    const primeira = linhas[0]?.getBoundingClientRect() ?? elRect;
+    const ultima = linhas[linhas.length - 1]?.getBoundingClientRect() ?? elRect;
+
+    arrastoAgarrar.current = e.clientY - elRect.top;
+    arrastoTopoNatural.current = elRect.top;
+    arrastoAltura.current = elRect.height;
+    arrastoLimites.current = { topo: primeira.top, fundo: ultima.bottom };
+
     setArrastoOffsetY(0);
     setArrastoId(id);
   }
 
   function moverArrasto(e) {
     if (!arrastoId) return;
-    const offsetY = e.clientY - arrastoStartY.current;
-    setArrastoOffsetY(offsetY);
+    const altura = arrastoAltura.current;
+    const { topo, fundo } = arrastoLimites.current;
+    const topoVisual = Math.min(fundo - altura, Math.max(topo, e.clientY - arrastoAgarrar.current));
 
-    const idxAtual = itensLocais.findIndex((it) => it.id === arrastoId);
-    const elAtual = refsLinhas.current[arrastoId];
-    if (idxAtual === -1 || !elAtual) return;
-    const rectAtual = elAtual.getBoundingClientRect();
-    const centroAtual = rectAtual.top + rectAtual.height / 2 + offsetY;
+    let lista = itensLocais;
+    let idxAtual = lista.findIndex((it) => it.id === arrastoId);
+    if (idxAtual === -1) return;
 
-    for (let idx = 0; idx < itensLocais.length; idx++) {
-      if (idx === idxAtual) continue;
-      const el = refsLinhas.current[itensLocais[idx].id];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const centro = rect.top + rect.height / 2;
-      const cruzouParaCima = idx < idxAtual && centroAtual < centro;
-      const cruzouParaBaixo = idx > idxAtual && centroAtual > centro;
-      if (cruzouParaCima || cruzouParaBaixo) {
-        const nova = [...itensLocais];
-        const [item] = nova.splice(idxAtual, 1);
-        nova.splice(idx, 0, item);
-        setItensLocais(nova);
-        break;
+    // Encostado num dos limites (arrastado até ao topo ou ao fundo da
+    // lista), o centro do item dá EXATAMENTE empatado com o do vizinho
+    // que ocupava aquele lugar — com comparação estrita (< / >) nunca
+    // trocava (ficava sempre parado uma posição atrás do limite), e
+    // com <= / >= dos dois lados entrava em vaivém infinito (troca,
+    // destroca, troca…, cancelando-se sempre — o guarda-loop parava
+    // num nº par de trocas e parecia que nada tinha acontecido). Este
+    // nudge de 0.01px inclina o empate SEMPRE para o lado do
+    // movimento, sem abrir mão da comparação estrita.
+    const centroAtual = topoVisual + altura / 2 + (topoVisual <= topo ? -0.01 : topoVisual >= fundo - altura ? 0.01 : 0);
+    let mudou = false;
+    let cruzou = true;
+    let guarda = 0;
+    while (cruzou && guarda < lista.length) {
+      cruzou = false;
+      guarda += 1;
+      for (let idx = 0; idx < lista.length; idx++) {
+        if (idx === idxAtual) continue;
+        const el = refsLinhas.current[lista[idx].id];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const centro = rect.top + rect.height / 2;
+        const cruzouParaCima = idx < idxAtual && centroAtual < centro;
+        const cruzouParaBaixo = idx > idxAtual && centroAtual > centro;
+        if (cruzouParaCima || cruzouParaBaixo) {
+          arrastoTopoNatural.current = rect.top;
+          const nova = [...lista];
+          const [item] = nova.splice(idxAtual, 1);
+          nova.splice(idx, 0, item);
+          lista = nova;
+          idxAtual = idx;
+          mudou = true;
+          cruzou = true;
+          break;
+        }
       }
     }
+    // só agora, com arrastoTopoNatural já a refletir a última troca
+    // (senão o offset ficava a somar em cima do topo antigo).
+    setArrastoOffsetY(topoVisual - arrastoTopoNatural.current);
+    if (mudou) setItensLocais(lista);
   }
 
   function soltarArrasto() {
@@ -173,6 +217,21 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   }
 
   const musicaPorId = useMemo(() => Object.fromEntries(musicas.map((m) => [m.id, m])), [musicas]);
+
+  // Numeração 1ª/2ª/3ª… só conta músicas (momento não é "a Nª
+  // música"); um medley conta como a MESMA música do que veio antes,
+  // por isso repete o número em vez de avançar.
+  const numerosOrdinais = useMemo(() => {
+    const mapa = {};
+    let n = 0;
+    itensLocais.forEach((item, i) => {
+      if (item.tipo !== "musica") return;
+      const continuaMedley = item.medley === true && itensLocais[i - 1]?.tipo === "musica";
+      if (!continuaMedley) n += 1;
+      mapa[item.id] = n;
+    });
+    return mapa;
+  }, [itensLocais]);
 
   // novo item entra sempre no fim — "anterior" é sempre o último, só
   // vale como par de medley se também for música (não dá pra colar
@@ -249,6 +308,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                   className="rep-alca" onPointerDown={(e) => iniciarArrasto(e, item.id)}
                   onPointerMove={moverArrasto} onPointerUp={soltarArrasto} onPointerCancel={soltarArrasto}
                 >⠿</span>
+                <span className="rep-num">{numerosOrdinais[item.id]}ª</span>
                 <div className="bib-capa" style={m?.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}>
                   {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
                 </div>
@@ -264,7 +324,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                 <button className="rep-remover" onClick={(e) => { e.stopPropagation(); remover(item.id); }}>✕</button>
               </div>
               {podeExpandir && medleyExpandidoId === item.id && (
-                <div className="rep-medley-obs">{item.observacaoMedley}</div>
+                <div className="rep-medley-obs">"{item.observacaoMedley}"</div>
               )}
             </div>
           );

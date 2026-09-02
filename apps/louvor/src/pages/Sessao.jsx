@@ -18,10 +18,13 @@ import Repertorio from "./Repertorio";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
 
-// biblioteca (estante) e repertório (lista com notas) — não existem
-// no ICO padrão do NavBar (ver packages/shared/components/NavBar.jsx)
+// biblioteca (estante) e repertório (lista) — não existem no ICO
+// padrão do NavBar (ver packages/shared/components/NavBar.jsx). O
+// repertório já foi uma nota musical — trocado por uma lista (2026-09,
+// confundia com o atalho "+ repertório" da Biblioteca, que usa o
+// mesmo desenho de lista).
 const ICONE_BIBLIOTECA = '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>';
-const ICONE_REPERTORIO = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
+const ICONE_REPERTORIO = '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>';
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
