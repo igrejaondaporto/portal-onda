@@ -3436,7 +3436,7 @@ async function resolverSpotify(titulo, artista, clientId, clientSecret) {
 const RESULTADOS_POR_PAGINA = 6;
 
 export const pesquisarMusicaLouvor = onCall({
-  secrets: [GETSONGBPM_API_KEY, YOUTUBE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
+  secrets: [GETSONGBPM_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
   cors: ORIGENS_PERMITIDAS,
 }, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -3456,18 +3456,16 @@ export const pesquisarMusicaLouvor = onCall({
 
   const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
   const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
-  const chaveYoutube = valorSecret(YOUTUBE_API_KEY);
   const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
   const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
 
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = variacoesSlug(titulo, artista);
-    const [cifra, letraLink, bpmInfo, linkVideo, spotify] = await Promise.all([
+    const [cifra, letraLink, bpmInfo, spotify] = await Promise.all([
       resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
       resolverLetra(variacoes).catch(() => null),
       resolverGetSongBpm(titulo, artista, chaveGetSongBpm).catch(() => ({ bpm: null, tomReserva: null })),
-      resolverVideoYouTube(titulo, artista, chaveYoutube).catch(() => null),
       resolverSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => ({ link: null })),
     ]);
     // tom: Cifra Club (cifra transcrita à mão) → GetSongBPM (comunidade,
@@ -3483,11 +3481,28 @@ export const pesquisarMusicaLouvor = onCall({
       capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
       tom, fonteTom, bpm, fonteBpm,
       linkCifra: cifra.link, linkLetra: letraLink,
-      linkAudio: spotify.link || t.link || null, linkVideo,
+      linkAudio: spotify.link || t.link || null, linkVideo: null,
     };
   }));
 
   return { candidatos, temMais: indice + candidatos.length < total };
+});
+
+/** Vídeo do YouTube, só para a música escolhida — a cota diária da
+ *  YouTube Data API é de 100 buscas (100 unidades cada, de um total
+ *  de 10 000/dia): buscar vídeo para os 6 candidatos de toda página
+ *  pesquisada esgotava a cota em ~16 buscas por dia. Só vale a pena
+ *  gastar cota na música que o líder de facto escolheu. */
+export const resolverVideoMusica = onCall({
+  secrets: [YOUTUBE_API_KEY],
+  cors: ORIGENS_PERMITIDAS,
+}, async (req) => {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { titulo, artista } = req.data || {};
+  if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título da música.");
+  const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
+  const video = await resolverVideoYouTube(titulo.trim(), artista?.trim() || "", valorSecret(YOUTUBE_API_KEY));
+  return { video };
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
