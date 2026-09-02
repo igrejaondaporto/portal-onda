@@ -205,6 +205,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     <>
       <div className="veu on" onClick={onFechar} />
       <div className="pin on" role="dialog" aria-modal="true">
+        <button className="pin-fechar" onClick={onFechar} aria-label="Fechar">✕</button>
         <div className="pux" />
         {etapa === "procurar" && (
           <>
