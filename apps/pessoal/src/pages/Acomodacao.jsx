@@ -54,7 +54,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Mapa",
+      titulo: <em>Mapa</em>,
       subtitulo: meuEvento ? `Auditório · ${meuEvento.data}` : "",
       chips: souDrive ? [] : ["Só leitura — não tens a função Mapa nem és o responsável deste culto"],
     });

@@ -36,7 +36,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
 
   useEffect(() => {
     definirCabecalho({
-      titulo: "Reembolsos",
+      titulo: <em>Reembolsos</em>,
       subtitulo: "Sobe a nota e o líder trata do resto",
       chips: souLiderBase
         ? [`${pendentes.length} por tratar`]

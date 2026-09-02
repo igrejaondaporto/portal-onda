@@ -94,14 +94,14 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
     if (!ativo) return;
     if (aba === "escala") {
       definirCabecalho({
-        titulo: "Culto",
+        titulo: <em>Culto</em>,
         subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
         chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:30"}` : "Escala por definir"],
       });
       return;
     }
     definirCabecalho({
-      titulo: "Culto",
+      titulo: <em>Culto</em>,
       subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
       chips: aba === "ordem" ? [MESES[mes]] : [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`],
     });

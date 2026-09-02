@@ -243,7 +243,7 @@ export default function Brand({ papel, ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Brand",
+      titulo: <em>Brand</em>,
       subtitulo: aba === "marcas" ? "Logos, fontes e cores de cada marca" : "Fotos, templates e outros materiais",
       chips: [],
     });

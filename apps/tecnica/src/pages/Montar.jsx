@@ -271,7 +271,7 @@ export default function Montar({ ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Montar",
+      titulo: <em>Montar</em>,
       subtitulo: "Enquete e escala do mês",
       chips: [],
     });

@@ -59,7 +59,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
     if (!ativo) return;
     const subtitulos = { ordem: "A ordem do culto que o pastor envia", feedbacks: "O que ficou registado de cada domingo", repertorio: "O que a Louvor vai tocar, montado por ela" };
     definirCabecalho({
-      titulo: "Culto",
+      titulo: <em>Culto</em>,
       subtitulo: subtitulos[aba],
       chips: aba === "feedbacks" ? [`${MESES[mes]} ${ano}`, `${comFeedback} de ${eventosMes.length} com feedback`] : [`${MESES[mes]} ${ano}`],
     });
