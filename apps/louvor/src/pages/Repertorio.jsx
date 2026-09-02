@@ -6,6 +6,18 @@ import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/da
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
 
+// Referência estável para "sem itens" — `repertorio?.itens ?? []`
+// parecia inofensivo, mas cria um array NOVO a cada render sempre que
+// repertorio for null (antes do primeiro snapshot chegar, ou num
+// culto ainda sem repertório montado). Esse array alimentava um
+// useEffect (a cópia local do arrasto) por identidade, não valor —
+// React via "mudou" a cada render, disparava o efeito, que gravava
+// estado, que causava outro render, ad infinitum. "Maximum update
+// depth exceeded" a 100% de CPU, sem nenhum erro visível na tela —
+// só a app a ficar cada vez mais lenta até precisar de recarregar
+// várias vezes. Reutilizar SEMPRE a mesma referência corta o ciclo.
+const ITENS_VAZIOS = [];
+
 function haQuanto(ts) {
   if (!ts?.toDate) return "agora mesmo";
   const min = Math.round((Date.now() - ts.toDate().getTime()) / 60000);
@@ -26,7 +38,9 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [aEscolherMusica, setAEscolherMusica] = useState(null); // null | "musica" | "medley"
   const [aNomearMomento, setANomearMomento] = useState(false);
   const [nomeMomento, setNomeMomento] = useState("");
-  const [medleyExpandidoId, setMedleyExpandidoId] = useState(null);
+  // Observação do medley visível por omissão — só entra aqui quem foi
+  // explicitamente fechado (o oposto do que "expandido" seria).
+  const [medleysFechados, setMedleysFechados] = useState(() => new Set());
 
   // Cópia local dos itens — o arrasto reordena isto ao vivo, sem
   // gravar a cada troca; só persiste quando o dedo solta. Sincroniza
@@ -55,7 +69,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   useEffect(() => ouvirRepertorio(eventoId, setRepertorio), [eventoId]);
 
   const eventoAtual = eventosMes.find((e) => e.id === eventoId) ?? null;
-  const itens = repertorio?.itens ?? [];
+  const itens = repertorio?.itens ?? ITENS_VAZIOS;
 
   useEffect(() => {
     if (!arrastoId) setItensLocais(itens);
@@ -122,6 +136,15 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     persistir([...itensLocais, itemMomento(nome)]);
     setNomeMomento("");
     setANomearMomento(false);
+  }
+
+  function alternarMedleyFechado(id) {
+    setMedleysFechados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
   }
 
   // ── Arrastar para reordenar (ponteiro único — mouse e toque) ──
@@ -302,7 +325,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                 className={`rep-item${proximoEhMedley ? " medley-topo" : ""}${esteEhMedley ? " medley-cauda" : ""}`}
                 style={estilo}
                 ref={(el) => { refsLinhas.current[item.id] = el; }}
-                onClick={podeExpandir ? () => setMedleyExpandidoId((v) => (v === item.id ? null : item.id)) : undefined}
+                onClick={podeExpandir ? () => alternarMedleyFechado(item.id) : undefined}
               >
                 <span
                   className="rep-alca" onPointerDown={(e) => iniciarArrasto(e, item.id)}
@@ -323,7 +346,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                 <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itensLocais.length - 1} onClick={(e) => { e.stopPropagation(); mover(item.id, 1); }}>↓</button>
                 <button className="rep-remover" onClick={(e) => { e.stopPropagation(); remover(item.id); }}>✕</button>
               </div>
-              {podeExpandir && medleyExpandidoId === item.id && (
+              {podeExpandir && !medleysFechados.has(item.id) && (
                 <div className="rep-medley-obs">"{item.observacaoMedley}"</div>
               )}
             </div>
