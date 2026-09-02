@@ -15,3 +15,53 @@
     margin: 0 auto;
   }
 }
+
+/* ── Voltar ao início, no cabeçalho ──
+ *
+ * A saída da base era um botão de texto no fim da página, depois do
+ * histórico de chamados — fora da vista de quem acabou de entrar. Sobe
+ * para o cabeçalho, ao lado do logo, que está sempre no mesmo sítio.
+ *
+ * O desenho é o do `.chip` do partilhado (a pílula branca translúcida
+ * que já vive sobre o azul da crista); repete-se aqui em vez de se usar
+ * a classe porque `.chip` não é botão — não tem cursor, borda a zero
+ * nem reação ao toque. */
+.kin-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  background: rgba(255, 255, 255, 0.17);
+  border: 0;
+  border-radius: 100px;
+  /* 12px em cima e em baixo dão 40px de altura ao botão. Com os 9px do
+   * `.chip`, que é só um rótulo e não se toca, ficava em 34px — pouco
+   * para um polegar apressado com a criança ao colo. */
+  padding: 12px 16px 12px 13px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.14s;
+}
+.kin-voltar:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.96);
+}
+
+/* O logo leva ao mesmo sítio, como na Técnica: é onde a mão vai por
+ * hábito. Só tira a moldura de <button> — o tamanho, a cor e o peso
+ * das letras continuam a vir de `.logo`, no partilhado. */
+.kin-logo-botao {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* A linha do logo tem a altura do botão mesmo quando ele não está lá
+ * (na escolha da base). Sem isto o cabeçalho encolhe 21px ao voltar ao
+ * início e o "Chamadas Kinder" dá um salto entre as duas telas. */
+.crista .lin {
+  min-height: 40px;
+}
