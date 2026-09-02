@@ -8,6 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // registo manual em main.jsx (registarAtualizacaoAutomatica) —
+      // sem isto, o script auto-injetado só regista o SW e nunca
+      // recarrega a página quando há versão nova (ver packages/shared
+      // /src/lib/pwa.js).
+      injectRegister: false,
       manifest: {
         name: "Base de Apoio — igrejaonda",
         short_name: "Base de Apoio",
