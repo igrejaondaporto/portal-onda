@@ -279,7 +279,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <div className="cabecalho"><h3>A base</h3></div>
           {[
             ["biblioteca", "Biblioteca", `${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`, () => onIrBiblioteca?.()],
-            ["culto", "Culto", "Ordem, equipamentos e feedback", () => onIrCulto?.("ordem")],
+            ["culto", "Culto", "Ordem e feedback", () => onIrCulto?.("ordem")],
           ].map(([k, t, d, ir]) => (
             <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
               <div style={{ flex: 1 }}>

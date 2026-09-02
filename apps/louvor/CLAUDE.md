@@ -17,10 +17,13 @@ três toques, está mal desenhada.
 
 ## Estado
 
-Em produção em `louvor.igrejaonda.pt`. As cinco abas (Início, Escala,
-Culto, Biblioteca, Repertório) todas funcionais. Biblioteca já com
-resolução automática de tom/BPM/links na busca por nome (ver secção
-5); cadastro manual continua possível a qualquer momento.
+Em produção em `louvor.igrejaonda.pt`. As seis abas (Início, Escala,
+Culto, Equipamentos, Biblioteca, Repertório) todas funcionais.
+Biblioteca já com resolução automática de tom/BPM/links na busca por
+nome (ver secção 5); cadastro manual continua possível a qualquer
+momento. "Solicitar BG" à Comunicação está ligado (item "A base" no
+Início, só para o líder — mesmo componente partilhado que Apoio/
+Técnica/Backstage já usavam).
 
 **Deliberadamente fora desta entrega** (mais simples do que o
 `CLAUDE.md` original da biblioteca previa, para caber num primeiro
@@ -29,8 +32,6 @@ lançamento):
   o schema/Cloud Functions já são genéricos (ver `CLAUDE.md` raiz,
   "O que NÃO precisa de mudar"), só falta portar se vier a fazer
   falta.
-- **"Solicitar BG" à Comunicação** — componente partilhado, pronto a
-  ligar quando for pedido.
 
 Repertório reordena por arrasto (Pointer Events lavrados à mão, sem
 dependência nova — pega pelo ⠿ à esquerda de cada item) **e** pelas
@@ -74,17 +75,42 @@ para validar). Uma pessoa não pode ocupar dois papéis no mesmo culto.
 Sem níveis: qualquer voluntário serve em qualquer papel que o líder
 lhe atribuir.
 
-## Culto: Ordem, Equipamentos, Feedbacks
+Cada pessoa tem também `instrumentos: string[]` no perfil (os mesmos
+ids de `PAPEIS`, pode ter mais do que um — ver `SheetPessoa.jsx`),
+opcional e só informativo: ao montar a escala (`SheetEscala.jsx`), os
+voluntários aparecem agrupados por instrumento, um bloco por papel,
+"como se fosse um ministério" — mas isso é só filtro de exibição,
+**não** trava quem o líder pode escalar em quê. Quem ainda não tem
+instrumento no perfil cai num bloco "Sem instrumento definido", com o
+seletor de papel manual de sempre. Campo aceite por `criarVoluntario`/
+`editarVoluntario` (genéricas, `functions/index.js`) sem validação de
+enum — mesmo tratamento que `ministerios`/`nivel`/`cargo` já têm nas
+outras bases.
 
-Três sub-abas dentro de Culto (`src/pages/Culto.jsx`). Ordem do culto
-e Feedbacks são o ecrã genérico partilhado com Apoio/Técnica (nada de
-especial aqui). **Equipamentos** é o "Inventário em modo património"
-da Técnica (`bases/louvor/inventario/{item}`, Cloud Functions
-`criarEquipamento`/`guardarEquipamento`/`desativarEquipamento`,
-genéricas por `baseId` — nenhuma função nova precisou de ser escrita)
-com o agrupamento por ministério trocado pelos cinco papéis da escala
-(ver `PAPEIS` acima) em vez de uma coleção `ministerios` — um
-amplificador ou um microfone tem um papel, não um ministério.
+## Culto: Ordem, Feedbacks — Equipamentos é aba própria
+
+Duas sub-abas dentro de Culto (`src/pages/Culto.jsx`), ecrã genérico
+partilhado com Apoio/Técnica (nada de especial aqui). **Equipamentos**
+já foi uma terceira sub-aba aqui, mas ganhou aba própria na barra de
+baixo (2026-09) — é o "Inventário em modo património" da Técnica
+(`bases/louvor/inventario/{item}`, Cloud Functions `criarEquipamento`/
+`guardarEquipamento`/`desativarEquipamento`, genéricas por `baseId` —
+nenhuma função nova precisou de ser escrita) com o agrupamento por
+ministério trocado pelos cinco papéis da escala (ver `PAPEIS` acima)
+em vez de uma coleção `ministerios` — um amplificador ou um microfone
+tem um papel, não um ministério.
+
+Dentro de Equipamentos (`src/pages/Equipamentos.jsx`), duas sub-abas
+próprias: **Equipamentos** (o catálogo, agrupado por papel — o botão
+"Reportar avaria"/"Reportar melhoria" fica visível nas duas) e
+**Melhorias** (tudo o que os dois botões de reportar criam —
+`bases/louvor/melhorias/{id}`, mesma coleção para avaria e melhoria,
+só `gravidade` muda —, com "A precisar de atenção" primeiro e "Já
+resolvidas" fechado no fim). Já foi um ecrã só (ver comentário no
+código) — voltou a separar-se a pedido do líder; o que evita perder a
+"visão completa de um equipamento" é o estado de avaria continuar
+inline no catálogo e a ficha do equipamento (`SheetEquipamentoDetalhe`)
+continuar a mostrar o histórico de melhorias ligado a ele.
 
 ## Biblioteca e Repertório
 
