@@ -30,6 +30,19 @@ html {
    * no sítio. Afeta qualquer "Ver mais"/expansão de lista, em
    * qualquer base. */
   overflow-anchor: none;
+  /* iOS Safari sem isto: arrastar para os lados mostra o fundo do
+   * WebView além do conteúdo (não há nada horizontal pra rolar, é só
+   * o "elástico" nativo), e puxar para baixo no topo da página
+   * arrasta a página inteira consigo — incluindo o NavBar fixo, que
+   * fica meio cortado até o elástico voltar. overflow-x tem de estar
+   * aqui e no body (o `body { overflow-x: hidden }` sozinho não
+   * chega — o elástico é do documento, não do overflow do body).
+   * overscroll-behavior:none tira o elástico nas duas direções, sem
+   * mexer no scroll normal (vertical, dentro da página) nem no
+   * scroll de dentro de folhas/carrosséis, que continuam com o seu
+   * próprio overflow. */
+  overflow-x: hidden;
+  overscroll-behavior: none;
 }
 body {
   font-family: var(--o);
@@ -37,6 +50,7 @@ body {
   background: #fff;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overscroll-behavior: none;
 }
 button,
 input,
