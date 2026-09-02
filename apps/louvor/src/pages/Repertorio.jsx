@@ -26,6 +26,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [aEscolherMusica, setAEscolherMusica] = useState(false);
   const [aNomearMomento, setANomearMomento] = useState(false);
   const [nomeMomento, setNomeMomento] = useState("");
+  const [medleyExpandidoId, setMedleyExpandidoId] = useState(null);
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
@@ -77,8 +78,8 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     persistir(itens.filter((it) => it.id !== id));
   }
 
-  function adicionarMusica(musicaId, versaoId) {
-    persistir([...itens, itemMusica(musicaId, versaoId)]);
+  function adicionarMusica(musicaId, versaoId, medley) {
+    persistir([...itens, itemMusica(musicaId, versaoId, medley)]);
     setAEscolherMusica(false);
   }
 
@@ -91,6 +92,12 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   }
 
   const musicaPorId = useMemo(() => Object.fromEntries(musicas.map((m) => [m.id, m])), [musicas]);
+
+  // novo item entra sempre no fim — "anterior" é sempre o último, só
+  // vale como par de medley se também for música (não dá pra colar
+  // num momento como "Ceia").
+  const ultimoItem = itens.at(-1);
+  const musicaAnteriorTitulo = ultimoItem?.tipo === "musica" ? musicaPorId[ultimoItem.musicaId]?.titulo : null;
 
   return (
     <>
@@ -130,19 +137,40 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
             );
           }
           const m = musicaPorId[item.musicaId];
+          // novo item entra sempre no fim, mas a reordenação (↑↓) pode
+          // deixar um medley no meio da lista — por isso olha para os
+          // dois lados, não só para "é o último". `medley` só desenha
+          // colado de facto quando ainda há uma música logo antes: se
+          // o líder mover o item e quebrar a vizinhança, o dado
+          // continua guardado (volta a colar se ele mover de volta),
+          // só o visual "conectado" some, pra não mentir sem parceiro.
+          const proximoEhMedley = itens[i + 1]?.tipo === "musica" && itens[i + 1]?.medley === true;
+          const esteEhMedley = item.medley === true && itens[i - 1]?.tipo === "musica";
+          const podeExpandir = esteEhMedley && !!item.observacaoMedley;
           return (
-            <div className="rep-item" key={item.id}>
-              <span className="rep-alca">⠿</span>
-              <div className="bib-capa" style={m?.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}>
-                {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
+            <div key={item.id}>
+              <div
+                className={`rep-item${proximoEhMedley ? " medley-topo" : ""}${esteEhMedley ? " medley-cauda" : ""}`}
+                onClick={podeExpandir ? () => setMedleyExpandidoId((v) => (v === item.id ? null : item.id)) : undefined}
+              >
+                <span className="rep-alca">⠿</span>
+                <div className="bib-capa" style={m?.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}>
+                  {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="nmt">
+                    {m?.titulo ?? "Música removida"}
+                    {esteEhMedley && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
+                  </p>
+                  <p className="ds">{m?.artista ?? ""}</p>
+                </div>
+                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={(e) => { e.stopPropagation(); mover(item.id, -1); }}>↑</button>
+                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itens.length - 1} onClick={(e) => { e.stopPropagation(); mover(item.id, 1); }}>↓</button>
+                <button className="rep-remover" onClick={(e) => { e.stopPropagation(); remover(item.id); }}>✕</button>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="nmt">{m?.titulo ?? "Música removida"}</p>
-                <p className="ds">{m?.artista ?? ""}</p>
-              </div>
-              <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={() => mover(item.id, -1)}>↑</button>
-              <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itens.length - 1} onClick={() => mover(item.id, 1)}>↓</button>
-              <button className="rep-remover" onClick={() => remover(item.id)}>✕</button>
+              {podeExpandir && medleyExpandidoId === item.id && (
+                <div className="rep-medley-obs">{item.observacaoMedley}</div>
+              )}
             </div>
           );
         })}
@@ -175,6 +203,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       {aEscolherMusica && (
         <SheetEscolherMusica
           musicas={musicas}
+          musicaAnteriorTitulo={musicaAnteriorTitulo}
           onFechar={() => setAEscolherMusica(false)}
           onEscolhida={adicionarMusica}
         />
