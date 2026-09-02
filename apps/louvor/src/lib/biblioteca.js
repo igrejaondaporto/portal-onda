@@ -4,10 +4,9 @@
  * tom/BPM/duração por arranjo; só o Adriel marca a versão padrão da
  * Onda (ver CLAUDE.md desta base).
  *
- * Fase 1: sem resolução automática de tom/BPM/links — isso fica para
- * quando houver chaves do GetSongBPM/YouTube. Só a capa é automática
- * (Deezer, API pública sem chave), via as Cloud Functions
- * buscarCapaDeezer/processarCapaMusica.
+ * Resolução automática de capa/tom/BPM/links na busca por nome (ver
+ * CLAUDE.md desta base, secção 5) — cadastro manual continua possível
+ * a qualquer momento, por cima do que a busca sugerir.
  *
  * A biblioteca fica abaixo de 500 músicas — carrega tudo com
  * onSnapshot uma vez; busca e filtros correm no cliente contra essa
@@ -123,12 +122,12 @@ export const aplicarCapaDeezer = (musicaId, deezerId) =>
 export const obterPreviaDeezer = (deezerId) =>
   chamar("obterPreviaDeezer")({ deezerId }).then((r) => r.data.preview);
 
-/** Fase 2 — pesquisa só pelo nome e devolve vários candidatos já
- *  enriquecidos (capa, tom via Cifra Club, BPM via GetSongBPM quando
- *  a chave estiver definida, links de cifra/letra/áudio). Nunca falha
- *  por um candidato não se conseguir enriquecer — só vem com menos
- *  dados. `pagina` (0, 1, 2…) pede mais resultados do Deezer; devolve
- *  também `temMais`, para o "Ver mais" só aparecer quando faz sentido. */
+/** Pesquisa só pelo nome e devolve vários candidatos já enriquecidos
+ *  (capa, tom via Cifra Club, links de cifra/letra/áudio — sem BPM
+ *  nesta camada, ver `resolverTomAudio` abaixo). Nunca falha por um
+ *  candidato não se conseguir enriquecer — só vem com menos dados.
+ *  `pagina` (0, 1, 2…) pede mais resultados do Deezer; devolve também
+ *  `temMais`, para o "Ver mais" só aparecer quando faz sentido. */
 export const pesquisarMusica = (nome, pagina = 0) =>
   chamar("pesquisarMusicaLouvor")({ nome, pagina }).then((r) => r.data);
 
