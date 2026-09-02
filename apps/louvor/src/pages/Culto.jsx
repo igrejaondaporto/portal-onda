@@ -6,12 +6,11 @@ import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
-import Equipamentos from "./Equipamentos";
 
-/** Ordem do culto + Equipamentos (instrumentos e som de palco, ver
- *  CLAUDE.md desta base) + Feedbacks — as três coisas que já
- *  existiam noutra base (Ordem/Feedbacks, de Apoio/Técnica) ou eram
- *  uma aba própria (Equipamentos, da Técnica) juntam-se aqui. */
+/** Ordem do culto + Feedbacks — as duas coisas que já existiam noutra
+ *  base (Apoio/Técnica) juntam-se aqui. Equipamentos tem menu próprio
+ *  desde 2026-09 (era subaba daqui, mas era o único sítio "escondido"
+ *  dentro doutra coisa — as outras bases já tinham como aba de base). */
 export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = papel === "lider_base";
   const podePublicar = souLiderBase && podePublicarCulto;
@@ -48,7 +47,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
   const comFeedback = eventosMes.filter((e) => e.feedback?.texto).length;
 
   useEffect(() => {
-    if (!ativo || aba === "equipamentos") return;
+    if (!ativo) return;
     definirCabecalho({
       titulo: <em>Culto</em>,
       subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
@@ -66,21 +65,16 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
           Ordem do culto
           {aoVivoGravando && <span className="oc-subtab-alerta" />}
         </button>
-        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
 
-      {/* Equipamentos é catálogo, não é por mês — só Ordem e Feedbacks
-        * precisam de mudar de mês sem sair da aba. */}
-      {(aba === "ordem" || aba === "feedbacks") && (
-        <div className="cabecalho" style={{ marginTop: 16 }}>
-          <h3>{MESES[mes]} {ano}</h3>
-          <span className="calnav">
-            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
-            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
-          </span>
-        </div>
-      )}
+      <div className="cabecalho" style={{ marginTop: 16 }}>
+        <h3>{MESES[mes]} {ano}</h3>
+        <span className="calnav">
+          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+        </span>
+      </div>
 
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
@@ -94,12 +88,6 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
             onNotasGuardadas={(eventoId, notas) => setEventosMes((lista) => lista.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}
           />
         ))}
-        </div>
-      )}
-
-      {aba === "equipamentos" && (
-        <div style={{ marginTop: 16 }}>
-          <Equipamentos uid={uid} papel={papel} ativo={false} definirCabecalho={() => {}} />
         </div>
       )}
 

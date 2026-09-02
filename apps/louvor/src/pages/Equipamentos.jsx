@@ -54,6 +54,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const ministerios = PAPEIS;
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
+  const [aba, setAba] = useState("equipamentos"); // "equipamentos" | "melhorias"
   // Que cartões estão abertos. `undefined` = por decidir, e aí o
   // padrão é: avarias abertas (é o que precisa de ação), ministérios
   // fechados (é catálogo, consulta-se quando se procura alguma coisa).
@@ -76,15 +77,13 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Equipamentos</em>,
-      subtitulo: "Instrumentos e equipamento de palco",
-      chips: [
-        `${equipamentos.length} itens`,
-        comProblema ? `${comProblema} com problema` : "Tudo ok",
-        ...(abertas ? [`${abertas} em aberto`] : []),
-      ],
+      subtitulo: aba === "equipamentos" ? "Instrumentos e equipamento de palco" : "Avarias e melhorias reportadas",
+      chips: aba === "equipamentos"
+        ? [`${equipamentos.length} itens`, comProblema ? `${comProblema} com problema` : "Tudo ok"]
+        : [abertas ? `${abertas} em aberto` : "Nada em aberto", `${melhoriasResolvidas.length} resolvidas`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, equipamentos.length, comProblema, abertas]);
+  }, [ativo, aba, equipamentos.length, comProblema, abertas, melhoriasResolvidas.length]);
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome;
   const equipamentoAtual = sheet?.equipamentoId ? equipamentos.find((e) => e.id === sheet.equipamentoId) : null;
@@ -148,10 +147,22 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
 
   return (
     <>
-      {/* Um ecrã só. Havia duas abas — Equipamentos e Melhorias — e um
-        * mesmo equipamento vivia nas duas: "o COB esquerdo está a
-        * piscar" numa, "comprar cabos XLR para testar" na outra. Para
-        * perceber um equipamento era preciso olhar para dois sítios. */}
+      {/* Já foi um ecrã só (ver histórico) — um equipamento avariado
+        * vivia partido entre "Equipamentos" e "Melhorias", era preciso
+        * olhar para dois sítios para perceber o que se passava com ele.
+        * Voltou a separar-se (pedido do líder, 2026-09) porque agora
+        * cada equipamento continua a mostrar o estado de avaria inline
+        * no catálogo, e a ficha dele (SheetEquipamentoDetalhe) já traz
+        * o histórico de melhorias ligado — a "visão completa de um
+        * item" não depende mais de estarem as duas listas na mesma
+        * página. */}
+      <div className="subtabs">
+        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
+        <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>
+          Melhorias
+          {abertas > 0 && <span className="oc-subtab-alerta" />}
+        </button>
+      </div>
 
       <div className="sect">
         <div style={{ display: "flex", gap: 8 }}>
@@ -164,7 +175,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             Reportar melhoria
           </button>
         </div>
-        {souLiderBase && (
+        {souLiderBase && aba === "equipamentos" && (
           <button className="btn sec full" style={{ marginTop: 8, padding: "10px 8px", fontSize: 13 }}
             onClick={() => setSheet({ tipo: "novoEquipamento" })}>
             Novo equipamento
@@ -181,7 +192,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             * fim, depois de todo o equipamento que funciona — ao contrário
             * do que interessa a quem abre isto de manhã com o projetor em
             * baixo. Fecha-se depois de visto, mas não se esconde. */}
-          {(comProblema > 0 || abertas > 0) && (() => {
+          {aba === "melhorias" && (comProblema > 0 || abertas > 0) && (() => {
             const avariados = equipamentos.filter((e) => e.estado !== "ok");
             // as que não são avaria: "comprar cabos XLR", ou ligadas a um
             // equipamento que continua em serviço. Sem isto ficavam
@@ -294,7 +305,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
             * incluídos, com etiqueta. Antes o filtro era `estado === "ok"`
             * e o projetor avariado sumia do grupo Projeção: quem fosse ver
             * "o que temos na projeção" recebia uma resposta incompleta. */}
-          {(ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
+          {aba === "equipamentos" && (ministerios.length ? [...ministerios, { id: null, nome: "Geral" }] : [{ id: null, nome: "Geral" }]).map((m) => {
             const doM = equipamentos.filter((e) => e.ministerioId === m.id);
             if (!doM.length) return null;
             const chave = m.id ?? "geral";
@@ -339,7 +350,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
 
           {/* O histórico fica no fim e fechado: já não pede nada a
             * ninguém, mas é o que alimenta os artigos da Wiki. */}
-          {melhoriasResolvidas.length > 0 && (
+          {aba === "melhorias" && melhoriasResolvidas.length > 0 && (
             <div className="mincartao lv-equip">
               <div className="mincartao-barra" style={{ background: "var(--verde)" }} />
               <button className="mincartao-cab cabtoque" data-aberto={estaAberto("resolvidas") ? 1 : 0}

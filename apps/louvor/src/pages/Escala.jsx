@@ -57,8 +57,21 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             <button className="calbt" onClick={() => mudarMes(1)}>›</button>
           </span>
         </div>
-        {temEscala ? (
+        {eventosMes.length === 0 ? (
+          <div className="semescala" style={{ marginTop: 16 }}>Sem cultos criados neste mês ainda.</div>
+        ) : (
           <>
+            {/* A tabela fica sempre pronta, com as cinco linhas de sempre
+              * (Vocal/Teclado/Guitarra/Baixo/Bateria) — antes só aparecia
+              * depois de alguém já estar escalado, e até lá mostrava só
+              * um aviso. As células vêm direto de escalados, por isso já
+              * se atualizam sozinhas quando o líder junta ou tira alguém
+              * (nenhum estado próprio aqui, é sempre o que está gravado). */}
+            {!temEscala && (
+              <div className="semescala" style={{ marginTop: 16, marginBottom: 12 }}>
+                Os {eventosMes.length} cultos já existem, falta dizer quem serve.
+              </div>
+            )}
             <div className="tabwrap">
               <table className="tab">
                 <thead>
@@ -98,10 +111,6 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             </div>
             <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. Desliza a tabela se não couber.</p>
           </>
-        ) : (
-          <div className="semescala" style={{ marginTop: 16 }}>
-            Os {eventosMes.length} cultos já existem, falta dizer quem serve.
-          </div>
         )}
       </div>
 

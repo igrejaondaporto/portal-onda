@@ -198,7 +198,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
             </div>
           </div>
           <p className="ds" style={{ padding: "0 4px" }}>
-            Equipamento (instrumentos e som) gere-se em Culto → Equipamentos. Músicas e repertório vivem nas abas
+            Equipamento (instrumentos e som) gere-se na aba Equipamentos. Músicas e repertório vivem nas abas
             Biblioteca e Repertório.
           </p>
         </div>

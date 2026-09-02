@@ -13,6 +13,7 @@ import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Culto from "./Culto";
+import Equipamentos from "./Equipamentos";
 import Biblioteca from "./Biblioteca";
 import Repertorio from "./Repertorio";
 import Reembolsos from "./Reembolsos";
@@ -25,10 +26,16 @@ import Perfil from "./Perfil";
 // mesmo desenho de lista).
 const ICONE_BIBLIOTECA = '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>';
 const ICONE_REPERTORIO = '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>';
+// mesmo desenho do "inventario" no NavBar padrão (packages/shared) —
+// Equipamentos aqui é o mesmo conceito (instrumentos e som de palco),
+// só copiado em vez de importado pra não puxar o ICO inteiro do
+// partilhado só por uma chave.
+const ICONE_EQUIPAMENTOS = '<path d="M21 8.5 12 3.5 3 8.5v7L12 20.5l9-5z"/><path d="M3 8.5 12 13.5l9-5M12 13.5v7"/>';
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
   ["culto", "Culto"],
+  ["equipamentos", "Equipamentos", ICONE_EQUIPAMENTOS],
   ["biblioteca", "Biblioteca", ICONE_BIBLIOTECA],
   ["repertorio", "Repertório", ICONE_REPERTORIO],
 ];
@@ -173,6 +180,12 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               ativo={pagina === "culto"} definirCabecalho={setCab}
               podePublicarCulto={podePublicarCulto}
               aoVivoGravando={aoVivoGravando}
+            />
+          </div>
+          <div style={{ display: pagina === "equipamentos" ? "" : "none" }}>
+            <Equipamentos
+              uid={uid} papel={papel}
+              ativo={pagina === "equipamentos"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "biblioteca" ? "" : "none" }}>
