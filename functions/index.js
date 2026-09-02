@@ -3246,11 +3246,11 @@ export const obterPreviaDeezer = onCall(async (req) => {
 /* ── BIBLIOTECA (Base Louvor) — pesquisa por nome, Fase 2 ──────
  * Busca no Deezer só pelo nome (sem artista) e devolve vários
  * candidatos, cada um já enriquecido com tom (Cifra Club, melhor
- * esforço) e BPM/tom de reserva (GetSongBPM, só se a secret estiver
- * definida — sem ela, fica só o que o Deezer/Cifra Club derem). Um
- * candidato individual falhar a enriquecer nunca derruba os outros
- * nem a busca toda — mesma filosofia do resto desta base. */
-const GETSONGBPM_API_KEY = defineSecret("GETSONGBPM_API_KEY");
+ * esforço). Um candidato individual falhar a enriquecer nunca derruba
+ * os outros nem a busca toda — mesma filosofia do resto desta base.
+ * (GetSongBPM foi removido: a Cloudflare deles bloqueia o acesso por
+ * API há muito, nunca deu para usar de facto — ver histórico do
+ * repositório se um dia for retomado.) */
 
 const normLouvor = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
@@ -3383,29 +3383,6 @@ async function resolverLetra(variacoes) {
   return null;
 }
 
-/** GetSongBPM: cascata de BPM (e tom de reserva, se o Cifra Club
- *  falhar). Sem chave definida, devolve tudo null em silêncio — a
- *  função de busca continua a funcionar, só sem esta camada. */
-async function resolverGetSongBpm(titulo, artista, apiKey) {
-  if (!apiKey) return { bpm: null, tomReserva: null };
-  try {
-    const lookup = `song:${titulo} artist:${artista}`;
-    const url = `https://api.getsongbpm.com/search/?api_key=${apiKey}&type=song&lookup=${encodeURIComponent(lookup)}`;
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 5000);
-    const resp = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timeout);
-    if (!resp.ok) return { bpm: null, tomReserva: null };
-    const json = await resp.json();
-    const primeiro = (json.search || [])[0];
-    if (!primeiro) return { bpm: null, tomReserva: null };
-    const bpm = primeiro.tempo ? Math.round(Number(primeiro.tempo)) : null;
-    return { bpm: Number.isFinite(bpm) ? bpm : null, tomReserva: primeiro.key_of || null };
-  } catch {
-    return { bpm: null, tomReserva: null };
-  }
-}
-
 const YOUTUBE_API_KEY = defineSecret("YOUTUBE_API_KEY");
 const SPOTIFY_CLIENT_ID = defineSecret("SPOTIFY_CLIENT_ID");
 const SPOTIFY_CLIENT_SECRET = defineSecret("SPOTIFY_CLIENT_SECRET");
@@ -3490,7 +3467,7 @@ async function resolverSpotify(titulo, artista, clientId, clientSecret) {
 const RESULTADOS_POR_PAGINA = 6;
 
 export const pesquisarMusicaLouvor = onCall({
-  secrets: [GETSONGBPM_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
+  secrets: [SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET],
   cors: ORIGENS_PERMITIDAS,
 }, async (req) => {
   if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -3509,27 +3486,24 @@ export const pesquisarMusicaLouvor = onCall({
   const total = typeof buscaJson.total === "number" ? buscaJson.total : indice + brutos.length;
 
   const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
-  const chaveGetSongBpm = valorSecret(GETSONGBPM_API_KEY);
   const spotifyId = valorSecret(SPOTIFY_CLIENT_ID);
   const spotifySecret = valorSecret(SPOTIFY_CLIENT_SECRET);
 
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
     const variacoes = await variacoesSlug(titulo, artista);
-    const [cifra, letraLink, bpmInfo, spotify] = await Promise.all([
+    const [cifra, letraLink, spotify] = await Promise.all([
       resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
       resolverLetra(variacoes).catch(() => null),
-      resolverGetSongBpm(titulo, artista, chaveGetSongBpm).catch(() => ({ bpm: null, tomReserva: null })),
       resolverSpotify(titulo, artista, spotifyId, spotifySecret).catch(() => ({ link: null })),
     ]);
-    // tom: Cifra Club (cifra transcrita à mão) → GetSongBPM (comunidade,
-    // hoje bloqueado pela Cloudflare deles — ver CLAUDE.md desta base).
-    // Spotify só entra com o link — o deles não dá mais tom/BPM (ver
-    // resolverSpotify).
-    const tom = cifra.tom || bpmInfo.tomReserva || null;
-    const fonteTom = cifra.tom ? "cifraclub" : bpmInfo.tomReserva ? "getsongbpm" : null;
-    const bpm = bpmInfo.bpm || null;
-    const fonteBpm = bpmInfo.bpm ? "getsongbpm" : null;
+    // tom: só Cifra Club por agora (cifra transcrita à mão). Spotify
+    // só entra com o link — o deles não dá mais tom/BPM (ver
+    // resolverSpotify). BPM: ninguém dá cobertura de verdade hoje.
+    const tom = cifra.tom || null;
+    const fonteTom = cifra.tom ? "cifraclub" : null;
+    const bpm = null;
+    const fonteBpm = null;
     return {
       deezerId: String(t.id), titulo, artista,
       capa: t.album?.cover_medium || null, duracao: t.duration || null, preview: t.preview || null,
@@ -3625,11 +3599,11 @@ async function analisarAudioDeezer(deezerId) {
   }
 }
 
-/** Só entra quando o Cifra Club (e o GetSongBPM, hoje bloqueado) não
- *  acharam nada — o líder escolhe o candidato, e só aí vale a pena
- *  gastar alguns segundos de CPU a analisar o áudio. Cache permanente
- *  por música, igual ao vídeo: nunca reanalisa a mesma música duas
- *  vezes, mesmo quando o resultado é null. */
+/** Só entra quando o Cifra Club não achou nada — o líder escolhe o
+ *  candidato, e só aí vale a pena gastar alguns segundos de CPU a
+ *  analisar o áudio. Cache permanente por música, igual ao vídeo:
+ *  nunca reanalisa a mesma música duas vezes, mesmo quando o
+ *  resultado é null. */
 export const resolverTomAudioMusica = onCall({
   cors: ORIGENS_PERMITIDAS,
   timeoutSeconds: 60,
