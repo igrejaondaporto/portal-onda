@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import {
   novaMusicaId, novaVersaoId, criarMusica, criarVersao, encontrarDuplicata,
-  pesquisarMusica, aplicarCapaDeezer, obterPreviaDeezer, CLASSIFICACOES,
+  pesquisarMusica, aplicarCapaDeezer, obterPreviaDeezer, resolverVideo, CLASSIFICACOES,
 } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import IconePlay from "./IconePlay";
 
 /**
  * Três etapas: procurar (só o nome), escolher entre os candidatos
- * (cada um já com capa/tom/BPM/links resolvidos — ver
- * pesquisarMusicaLouvor em functions/index.js) e conferir (tudo
- * editável antes de guardar). Nunca bloqueia por duplicata — só
- * avisa e deixa continuar (decisão 9).
+ * (cada um já com capa/tom/BPM/links de letra/cifra/áudio resolvidos
+ * — ver pesquisarMusicaLouvor em functions/index.js; o vídeo do
+ * YouTube só é buscado depois, na escolha — ver escolher()) e
+ * conferir (tudo editável antes de guardar). Nunca bloqueia por
+ * duplicata — só avisa e deixa continuar (decisão 9).
  */
 export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada }) {
   const torrada = useTorrada();
@@ -28,6 +29,7 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
   const [aTocarId, setATocarId] = useState(null);
   const [aCarregarPreview, setACarregarPreview] = useState(null);
   const audioRef = useRef(null);
+  const videoLookupId = useRef(0);
 
   useEffect(() => () => audioRef.current?.pause(), []);
 
@@ -121,6 +123,18 @@ export default function SheetAdicionarMusica({ uid, musicas, onFechar, onCriada 
     setDuplicata(dup);
     setIgnorarAviso(false);
     setEtapa("conferir");
+
+    // Vídeo só é buscado aqui, para a música escolhida — nunca para
+    // os candidatos da lista (a cota diária do YouTube é curta demais
+    // para gastar em busca que talvez nem vire cadastro). Guardado
+    // pela escolha (não a etapa): se o líder trocar de candidato antes
+    // disto responder, o resultado antigo não pisa o do novo.
+    const idDestaEscolha = ++videoLookupId.current;
+    resolverVideo(candidato.titulo, candidato.artista)
+      .then((video) => {
+        if (video && videoLookupId.current === idDestaEscolha) setVideo((v) => v || video);
+      })
+      .catch(() => {});
   }
 
   function cadastroManual() {

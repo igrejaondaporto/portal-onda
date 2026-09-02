@@ -131,3 +131,10 @@ export const obterPreviaDeezer = (deezerId) =>
  *  também `temMais`, para o "Ver mais" só aparecer quando faz sentido. */
 export const pesquisarMusica = (nome, pagina = 0) =>
   chamar("pesquisarMusicaLouvor")({ nome, pagina }).then((r) => r.data);
+
+/** Vídeo do YouTube só para a música escolhida (não em cada
+ *  candidato da lista) — a cota diária da API é pequena demais para
+ *  gastar em busca que talvez nem vire cadastro. Ver
+ *  resolverVideoMusica em functions/index.js. */
+export const resolverVideo = (titulo, artista) =>
+  chamar("resolverVideoMusica")({ titulo, artista }).then((r) => r.data.video);
