@@ -19,7 +19,15 @@ export function ouvirRepertorio(eventoId, cb) {
  *  coleção, só existe dentro do array `itens`. */
 export const novoItemId = () => Math.random().toString(36).slice(2, 10);
 
-export const itemMusica = (musicaId, versaoId) => ({ tipo: "musica", id: novoItemId(), musicaId, versaoId });
+/** `medley`: passa { observacaoMedley } quando esta música entra
+ *  colada na anterior (mesmo bloco, sem parar) — ver Repertorio.jsx,
+ *  que desenha as duas juntas, sem o espaço normal entre itens. A
+ *  observação (ex.: "entra depois do refrão da anterior") é o que a
+ *  Técnica lê para saber a hora certa de trocar o slide. */
+export const itemMusica = (musicaId, versaoId, medley) => ({
+  tipo: "musica", id: novoItemId(), musicaId, versaoId,
+  ...(medley ? { medley: true, observacaoMedley: medley.observacaoMedley || null } : {}),
+});
 export const itemMomento = (nome) => ({ tipo: "momento", id: novoItemId(), nome });
 
 /** Grava a lista inteira de uma vez (~20 itens, uma escrita só) —
