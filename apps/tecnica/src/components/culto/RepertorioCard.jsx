@@ -49,7 +49,18 @@ function IconeLinkExterno() {
  *  esses campos, ver apps/louvor/src/pages/Repertorio.jsx). */
 export default function RepertorioCard({ evento, aberto, onAbrir }) {
   const [repertorio, setRepertorio] = useState(null);
-  const [medleyExpandidoId, setMedleyExpandidoId] = useState(null);
+  // Observação do medley visível por omissão — só entra aqui quem foi
+  // explicitamente fechado (o oposto do que "expandido" seria).
+  const [medleysFechados, setMedleysFechados] = useState(() => new Set());
+
+  function alternarMedleyFechado(id) {
+    setMedleysFechados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
 
   // só ouve enquanto o cartão está aberto — mesma ideia do
   // OrdemCultoCard, um mês inteiro não precisa de um listener cada.
@@ -114,7 +125,7 @@ export default function RepertorioCard({ evento, aberto, onAbrir }) {
               <div key={item.id}>
                 <div
                   className={`tec-rep-item${proximoEhMedley ? " medley-topo" : ""}${esteEhMedley ? " medley-cauda" : ""}`}
-                  onClick={podeExpandir ? () => setMedleyExpandidoId((v) => (v === item.id ? null : item.id)) : undefined}
+                  onClick={podeExpandir ? () => alternarMedleyFechado(item.id) : undefined}
                 >
                   <div className="tec-rep-linha">
                     <span className="tec-rep-num">{numerosOrdinais[item.id]}ª</span>
@@ -144,7 +155,7 @@ export default function RepertorioCard({ evento, aberto, onAbrir }) {
                     </div>
                   )}
                 </div>
-                {podeExpandir && medleyExpandidoId === item.id && (
+                {podeExpandir && !medleysFechados.has(item.id) && (
                   <div className="tec-rep-medley-obs">"{item.observacaoMedley}"</div>
                 )}
               </div>
