@@ -523,3 +523,27 @@
   font-size: 12.5px;
   color: var(--cinza);
 }
+
+/* Início — prévia do repertório pra quem serve na Projeção esta
+ * semana: dentro do .blococor azul do bloco, os itens ficam brancos
+ * (senão desapareciam contra o mesmo tom). Mesmo desenho do
+ * .rep-mini-item da Louvor — cópia de propósito, apps diferentes sem
+ * import cruzado entre bundles (ver FaviconLink acima). */
+.tec-rep-mini-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.tec-rep-mini-item .tec-rep-capa { width: 34px; height: 34px; font-size: 12px; }
+.tec-rep-mini-item.medley-topo {
+  margin-bottom: 2px;
+  border-radius: 12px 12px 4px 4px;
+}
+.tec-rep-mini-item.medley-cauda {
+  border-radius: 4px 4px 12px 12px;
+  border-left: 3px solid var(--lima);
+}
