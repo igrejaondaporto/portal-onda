@@ -34,7 +34,7 @@ export default function Wiki({ uid, papel, ativo, definirCabecalho, wikiIdFoco, 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Wiki",
+      titulo: <em>Wiki</em>,
       subtitulo: "Artigos e dúvidas da equipa",
       chips: [`${itens.length} publicados`],
     });

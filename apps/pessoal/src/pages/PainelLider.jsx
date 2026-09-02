@@ -103,7 +103,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
 
   useEffect(() => {
     definirCabecalho({
-      titulo: "Painel do líder",
+      titulo: <em>Painel do líder</em>,
       subtitulo: "Escalas, voluntários e catálogo",
       chips: [
         `${voluntarios.length} voluntários`,

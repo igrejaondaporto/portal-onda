@@ -49,7 +49,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Culto",
+      titulo: <em>Culto</em>,
       subtitulo: aba === "ordem"
         ? "A ordem do culto que o pastor envia"
         : aba === "feedbacks" ? "O que ficou registado de cada domingo" : "O que precisa de ser melhorado",

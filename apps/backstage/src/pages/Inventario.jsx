@@ -31,7 +31,7 @@ export default function Inventario({ uid, papel, ativo, definirCabecalho, onIrRe
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Inventário",
+      titulo: <em>Inventário</em>,
       subtitulo: "O material da base, sempre atualizado",
       chips: [`${itens.length} itens`, falta.length ? `${falta.length} abaixo do mínimo` : "Tudo em ordem"],
     });

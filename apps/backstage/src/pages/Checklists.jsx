@@ -61,7 +61,7 @@ export default function Checklists({ ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Checklists",
+      titulo: <em>Checklists</em>,
       subtitulo: evento ? (evento.tipo || dataPorExtenso(evento.data)) : "",
       chips: [],
     });

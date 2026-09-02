@@ -106,7 +106,7 @@ export default function Solicitacoes({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Solicitações",
+      titulo: <em>Solicitações</em>,
       subtitulo: "Pedidos das outras bases",
       chips: [`${porColuna("fila").length} na fila`, `${porColuna("producao").length + porColuna("revisao").length} em curso`],
     });

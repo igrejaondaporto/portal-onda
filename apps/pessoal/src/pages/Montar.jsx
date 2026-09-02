@@ -223,7 +223,7 @@ export default function Montar({ ativo, definirCabecalho }) {
 
   useEffect(() => {
     if (!ativo) return;
-    definirCabecalho({ titulo: "Montar", subtitulo: "Enquete e escala do mês", chips: [] });
+    definirCabecalho({ titulo: <em>Montar</em>, subtitulo: "Enquete e escala do mês", chips: [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo]);
 

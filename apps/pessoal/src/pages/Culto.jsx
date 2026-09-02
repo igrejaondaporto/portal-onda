@@ -74,7 +74,7 @@ export default function Culto({
 
   useEffect(() => {
     if (!ativo) return;
-    definirCabecalho({ titulo: "Culto", subtitulo: SUBTITULOS[aba], chips: [] });
+    definirCabecalho({ titulo: <em>Culto</em>, subtitulo: SUBTITULOS[aba], chips: [] });
   }, [ativo, aba, definirCabecalho]);
 
   const hoje = hojeISO();

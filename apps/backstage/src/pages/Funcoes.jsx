@@ -83,7 +83,7 @@ export default function Funcoes({ uid, papel, eventoIdFoco, focoSeq, mes, ano, m
   useEffect(() => {
     if (!ativo || !evento) return;
     definirCabecalho({
-      titulo: "Funções",
+      titulo: <em>Funções</em>,
       subtitulo: evento.tipo ? `${evento.tipo} · ${dataPorExtenso(evento.data)}` : "Toca numa função para ver como se faz",
       chips: [
         dataCurta(evento.data),

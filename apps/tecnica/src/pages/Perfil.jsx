@@ -45,7 +45,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
 
   useEffect(() => {
     definirCabecalho({
-      titulo: "Perfil",
+      titulo: <em>Perfil</em>,
       subtitulo: "As tuas informações",
       chips: [souLiderBase ? "Líder da base" : "Voluntário", `${domingos.length} domingo${domingos.length === 1 ? "" : "s"}`],
     });

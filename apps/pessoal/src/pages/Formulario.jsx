@@ -76,7 +76,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Formulário", subtitulo: "Novo contacto de visitante",
+      titulo: <em>Formulário</em>, subtitulo: "Novo contacto de visitante",
       chips: contactosFiltrados.length ? [`${contactosFiltrados.length} visitante${contactosFiltrados.length === 1 ? "" : "s"}`] : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
