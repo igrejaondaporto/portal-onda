@@ -41,6 +41,8 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   // Observação do medley visível por omissão — só entra aqui quem foi
   // explicitamente fechado (o oposto do que "expandido" seria).
   const [medleysFechados, setMedleysFechados] = useState(() => new Set());
+  const [medleyAEditar, setMedleyAEditar] = useState(null); // id do item, ou null
+  const [obsEditando, setObsEditando] = useState("");
 
   // Cópia local dos itens — o arrasto reordena isto ao vivo, sem
   // gravar a cada troca; só persiste quando o dedo solta. Sincroniza
@@ -145,6 +147,20 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       else novo.add(id);
       return novo;
     });
+  }
+
+  // Observação do medley editável a qualquer momento, não só na hora
+  // de adicionar — faltava um jeito de voltar e dizer "entra a partir
+  // do refrão" numa música que já estava no repertório sem isso.
+  function iniciarEdicaoObs(item) {
+    setObsEditando(item.observacaoMedley || "");
+    setMedleyAEditar(item.id);
+  }
+
+  function guardarObsMedley(id) {
+    const texto = obsEditando.trim() || null;
+    persistir(itensLocais.map((it) => (it.id === id ? { ...it, observacaoMedley: texto } : it)));
+    setMedleyAEditar(null);
   }
 
   // ── Arrastar para reordenar (ponteiro único — mouse e toque) ──
@@ -346,9 +362,28 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                 <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itensLocais.length - 1} onClick={(e) => { e.stopPropagation(); mover(item.id, 1); }}>↓</button>
                 <button className="rep-remover" onClick={(e) => { e.stopPropagation(); remover(item.id); }}>✕</button>
               </div>
-              {podeExpandir && !medleysFechados.has(item.id) && (
-                <div className="rep-medley-obs">"{item.observacaoMedley}"</div>
-              )}
+              {esteEhMedley && medleyAEditar === item.id ? (
+                <div className="rep-medley-obs">
+                  <label className="rot">Qual parte desta música vai ser usada?</label>
+                  <input
+                    className="campo" value={obsEditando} onChange={(e) => setObsEditando(e.target.value)}
+                    placeholder="Só o refrão, a partir da ponte…" autoFocus
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button className="btn full" style={{ flex: 1 }} onClick={() => guardarObsMedley(item.id)}>Guardar</button>
+                    <button className="btn sec full" style={{ flex: 1 }} onClick={() => setMedleyAEditar(null)}>Cancelar</button>
+                  </div>
+                </div>
+              ) : podeExpandir && !medleysFechados.has(item.id) ? (
+                <div className="rep-medley-obs">
+                  "{item.observacaoMedley}"
+                  <button className="rep-medley-editar" onClick={() => iniciarEdicaoObs(item)} aria-label="Editar observação">✎</button>
+                </div>
+              ) : esteEhMedley && !item.observacaoMedley ? (
+                <button className="rep-medley-add" onClick={() => iniciarEdicaoObs(item)}>
+                  + Qual parte desta música vai ser usada?
+                </button>
+              ) : null}
             </div>
           );
         })}
