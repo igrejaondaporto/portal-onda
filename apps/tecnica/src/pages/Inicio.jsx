@@ -3,6 +3,7 @@ import { onSnapshot } from "firebase/firestore";
 import { cEscala, funcoesDosMeusMinisterios, meusLugares } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { ouvirChecklist, marcarFeito, desmarcarFeito, obterMeuEvento } from "../lib/culto";
+import { ouvirRepertorioLouvor } from "../lib/repertorioLouvor";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirMelhorias, minhasTarefas } from "../lib/melhorias";
@@ -30,6 +31,12 @@ function ordenarChecklist(lista, checklist) {
   return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
+// Referência estável para "sem itens" — ver o mesmo cuidado em
+// apps/louvor/src/pages/Repertorio.jsx (o comentário lá tem a
+// história completa do bug: um array novo a cada render, mesmo
+// vazio, é "mudou" por identidade pra um useEffect — loop infinito).
+const ITENS_VAZIOS_REP = [];
+
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrReembolsos, onIrWiki }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
@@ -53,6 +60,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aResponderEnquete, setAResponderEnquete] = useState(false);
   const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
   const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
+  const [repertorio, setRepertorio] = useState(null);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -103,10 +111,33 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirChecklist(meuEvento.id, setChecklist);
   }, [meuEvento?.id]);
 
-
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
   const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
   const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
+  // Repertório no Início: só pra quem está escalado na Projeção NESTE
+  // culto (meuEvento já é "o meu próximo domingo a servir", ver
+  // obterMeuEvento em lib/culto.js — passado o domingo, vira sozinho
+  // pra quem estiver na Projeção do seguinte). Ao contrário do
+  // souProjecao de Culto.jsx (ministerios.projecao da pessoa, um
+  // atributo permanente, sempre visível), isto é por escala da
+  // semana — quem só entra daqui a duas semanas não vê já.
+  const souProjecaoHoje = meusLugaresHoje.some((l) => l.ministerioId === "projecao");
+  useEffect(() => {
+    if (!souProjecaoHoje) { setRepertorio(null); return; }
+    return ouvirRepertorioLouvor(meuEvento.id, setRepertorio);
+  }, [souProjecaoHoje, meuEvento?.id]);
+  const itensRep = repertorio?.itens ?? ITENS_VAZIOS_REP;
+  const blocosRepertorio = [];
+  itensRep.forEach((item, i) => {
+    if (item.tipo !== "musica") return;
+    const continuaMedley = item.medley === true && itensRep[i - 1]?.tipo === "musica";
+    const entrada = { titulo: item.titulo, artista: item.artista, capaUrl: item.capaUrl, observacaoMedley: item.observacaoMedley || null };
+    if (continuaMedley && blocosRepertorio.length) {
+      blocosRepertorio.at(-1).itens.push(entrada);
+    } else {
+      blocosRepertorio.push({ numero: blocosRepertorio.length + 1, itens: [entrada] });
+    }
+  });
   const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid, souLiderBase) : [];
   const funcoesCulto = meuEvento ? funcoes.filter((f) => !f.eventoId || f.eventoId === meuEvento.id) : [];
   const liderNome = meuEvento?.escala.liderEscala
@@ -325,6 +356,58 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </div>
           )}
         </div>
+
+        {/* Só pra quem está na Projeção NESTE domingo (ver
+          * souProjecaoHoje acima) — passado o domingo, some sozinho e
+          * volta só quando for de novo a vez da pessoa. */}
+        {souProjecaoHoje && (
+          <div className="blococor">
+            <div className="cabecalho">
+              <h3>Repertório de {dataPorExtenso(meuEvento.data)}</h3>
+            </div>
+            {repertorio ? (
+              blocosRepertorio.length > 0 ? (
+                <div style={{ marginTop: 4 }}>
+                  {blocosRepertorio.map((b) => (
+                    <div key={b.numero}>
+                      {b.itens.map((it, i) => {
+                        const medleyTopo = i === 0 && b.itens.length > 1;
+                        const medleyCauda = i > 0;
+                        return (
+                          <div key={i}>
+                            <div className={`tec-rep-mini-item${medleyTopo ? " medley-topo" : ""}${medleyCauda ? " medley-cauda" : ""}`}>
+                              <span className="tec-rep-num">{b.numero}ª</span>
+                              <div
+                                className="tec-rep-capa"
+                                style={it.capaUrl ? { backgroundImage: `url(${it.capaUrl})` } : {}}
+                              >
+                                {!it.capaUrl && (it.titulo?.[0]?.toUpperCase() ?? "?")}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p className="nmt">
+                                  {it.titulo ?? "Música removida"}
+                                  {medleyCauda && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
+                                </p>
+                                <p className="ds">{it.artista ?? ""}</p>
+                              </div>
+                            </div>
+                            {medleyCauda && it.observacaoMedley && (
+                              <div className="tec-rep-medley-obs">"{it.observacaoMedley}"</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="vaz" style={{ border: 0 }}>Só momentos por agora, sem músicas.</div>
+              )
+            ) : (
+              <div className="vaz" style={{ border: 0 }}>A Louvor ainda não montou o repertório deste domingo.</div>
+            )}
+          </div>
+        )}
       </div>
 
       <div>
