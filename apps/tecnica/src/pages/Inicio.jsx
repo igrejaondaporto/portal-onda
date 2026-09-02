@@ -114,18 +114,27 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
   const meusLugaresHoje = meuEvento ? meusLugares(meuEvento.escala, uid) : [];
   const souAprendiz = meusLugaresHoje.some((l) => l.aprendizId === uid);
-  // Repertório no Início: só pra quem está escalado na Projeção NESTE
-  // culto (meuEvento já é "o meu próximo domingo a servir", ver
-  // obterMeuEvento em lib/culto.js — passado o domingo, vira sozinho
-  // pra quem estiver na Projeção do seguinte). Ao contrário do
-  // souProjecao de Culto.jsx (ministerios.projecao da pessoa, um
-  // atributo permanente, sempre visível), isto é por escala da
-  // semana — quem só entra daqui a duas semanas não vê já.
+  // Repertório no Início: pro líder da base (sempre) ou pra quem está
+  // escalado na Projeção NESTE culto (meuEvento já é "o meu próximo
+  // domingo a servir", ver obterMeuEvento em lib/culto.js — passado o
+  // domingo, vira sozinho pra quem estiver na Projeção do seguinte).
+  // souProjecaoHoje fica à parte (não misturado com souLiderBase) por
+  // ser por escala da semana — quem é da Projeção mas só entra daqui
+  // a duas semanas continua a ver a aba Repertório em Culto (isso é o
+  // souProjecao de Culto.jsx, permanente — ministerios.projecao da
+  // pessoa), só não vê o cartão aqui no Início antes de ser a vez dele.
   const souProjecaoHoje = meusLugaresHoje.some((l) => l.ministerioId === "projecao");
+  const vejoRepertorioInicio = souLiderBase || souProjecaoHoje;
   useEffect(() => {
-    if (!souProjecaoHoje) { setRepertorio(null); return; }
+    // souLiderBase não depende do meuEvento ter chegado do Firestore —
+    // ao contrário de souProjecaoHoje (que só é true depois de
+    // meusLugaresHoje existir, e por isso já implicava meuEvento
+    // pronto), aqui vejoRepertorioInicio pode ficar true numa
+    // renderização em que meuEvento ainda é null. Sem este guard
+    // próprio, `meuEvento.id` rebentava nessa primeira passagem.
+    if (!vejoRepertorioInicio || !meuEvento) { setRepertorio(null); return; }
     return ouvirRepertorioLouvor(meuEvento.id, setRepertorio);
-  }, [souProjecaoHoje, meuEvento?.id]);
+  }, [vejoRepertorioInicio, meuEvento?.id]);
   const itensRep = repertorio?.itens ?? ITENS_VAZIOS_REP;
   const blocosRepertorio = [];
   itensRep.forEach((item, i) => {
@@ -357,10 +366,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           )}
         </div>
 
-        {/* Só pra quem está na Projeção NESTE domingo (ver
-          * souProjecaoHoje acima) — passado o domingo, some sozinho e
-          * volta só quando for de novo a vez da pessoa. */}
-        {souProjecaoHoje && (
+        {/* Líder vê sempre; quem só é da Projeção vê só na sua semana
+          * (ver vejoRepertorioInicio acima) — passado o domingo, some
+          * sozinho e volta quando for de novo a vez da pessoa. */}
+        {vejoRepertorioInicio && (
           <div className="blococor">
             <div className="cabecalho">
               <h3>Repertório de {dataPorExtenso(meuEvento.data)}</h3>
