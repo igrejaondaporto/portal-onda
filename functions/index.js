@@ -373,12 +373,20 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null } = req.data || {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
   // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
   // ministério onde pendurar, ao contrário do nivel por-ministério da
   // Técnica). Nas outras bases o campo nunca aparece.
   const comNivel = nivel ? { nivel } : {};
+  // instrumentos: só a Louvor envia isto — que papéis (vocal/teclado/
+  // guitarra/baixo/bateria, ver PAPEIS_LOUVOR mais abaixo) a pessoa
+  // toca, para agrupar por "instrumento" ao montar a escala (ver
+  // guardarEscalaLouvor). Uma pessoa pode tocar mais do que um; sem
+  // validação de valores aqui — a mesma confiança no cliente que
+  // ministerios/nivel/cargo já têm, o enum real vive só na UI da
+  // Louvor (apps/louvor/src/lib/modelo.js, PAPEIS).
+  const comInstrumentos = Array.isArray(instrumentos) ? { instrumentos: instrumentos.filter((x) => typeof x === "string") } : {};
   // cargo: etiqueta livre (ex.: "Auxiliar", Comunicação) — sem poder
   // nenhum associado, é só o que aparece a par do nome. Nas outras
   // bases o campo nunca aparece.
@@ -432,7 +440,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel, ...comCargo,
+      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -448,7 +456,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel, ...comCargo,
+    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -514,7 +522,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -538,6 +546,7 @@ export const editarVoluntario = onCall(async (req) => {
   if (ministerios && typeof ministerios === "object") dados.ministerios = ministerios;
   if (nivel) dados.nivel = nivel;
   if (cargo !== undefined) dados.cargo = cargo ? String(cargo).trim() : null;
+  if (Array.isArray(instrumentos)) dados.instrumentos = instrumentos.filter((x) => typeof x === "string");
   // o próprio já muda a sua foto por escrita direta (firestore.rules
   // permite ao dono); isto é só o líder a mudar a foto de outra
   // pessoa — o upload em si já passou pelo Storage antes de chegar
