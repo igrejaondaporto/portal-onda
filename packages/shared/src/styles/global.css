@@ -243,6 +243,15 @@ textarea {
 }
 
 /* ── folha do PIN ── */
+/* Trava o scroll do fundo enquanto uma folha está aberta — sem isto,
+ * arrastar por cima da faixa de fundo visível (para tentar fechar a
+ * folha, por exemplo) mexia na lista por trás em vez de só tocar no
+ * fundo. `:has()` evita repetir isto em cada folha que abre/fecha —
+ * ativa e desativa sozinho seguindo a MESMA classe (.veu.on) que já
+ * existe em todas. */
+body:has(.veu.on) {
+  overflow: hidden;
+}
 .veu {
   position: fixed;
   inset: 0;
