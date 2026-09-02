@@ -15,6 +15,8 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import admin from "firebase-admin";
 import sharp from "sharp";
+import decodeAudio from "audio-decode";
+import essentiaLib from "essentia.js";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -3510,12 +3512,93 @@ export const resolverVideoMusica = onCall({
   const chave = `${normLouvor(artista || "")}__${normLouvor(titulo)}`;
   const cacheRef = db.doc(`bases/${baseId}/cacheVideosYoutube/${chave}`);
   const cache = await cacheRef.get();
-  if (cache.exists) return { video: cache.data().video, doCache: true };
+  if (cache.exists) return { video: cache.data().video };
 
   const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
   const video = await resolverVideoYouTube(titulo.trim(), artista?.trim() || "", valorSecret(YOUTUBE_API_KEY));
   await cacheRef.set({ video, resolvidoEm: admin.firestore.FieldValue.serverTimestamp() });
-  return { video, doCache: false };
+  return { video };
+});
+
+/** Instância única do Essentia por instância da Cloud Function —
+ *  inicializar o WASM custa caro, reaproveitar entre pedidos "quentes"
+ *  (mesma ideia do token do Spotify/LouveApp em memória). Nunca
+ *  chamar .delete() nela: isso destruía a instância partilhada. */
+let essentiaInstancia = null;
+function obterEssentia() {
+  if (!essentiaInstancia) essentiaInstancia = new essentiaLib.Essentia(essentiaLib.EssentiaWASM);
+  return essentiaInstancia;
+}
+
+/** A Essentia devolve tom em bemol quando é mais natural nessa nota
+ *  (Eb, Ab…) — o resto da app usa sustenido (D#, G#…), igual ao que
+ *  já saía do Cifra Club/Spotify. Só conversão de notação, a nota é a
+ *  mesma. */
+const FLAT_PARA_SUSTENIDO = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#" };
+
+/** Detecta tom e BPM analisando os 30s de prévia do Deezer — nunca
+ *  substitui o Cifra Club (cifra transcrita à mão, mais confiável),
+ *  só cobre o que ele não tem. Detecção algorítmica nunca é perfeita
+ *  (a mesma ressalva que já valia para o extinto audio-features do
+ *  Spotify) — errar por um semitom acontece, mas é melhor do que
+ *  ficar em branco. O deezerId é sempre revalidado (o link de preview
+ *  gravado expira em horas — ver obterPreviaDeezer). */
+async function analisarAudioDeezer(deezerId) {
+  const trackResp = await fetch(`https://api.deezer.com/track/${deezerId}`);
+  if (!trackResp.ok) return { tom: null, bpm: null };
+  const track = await trackResp.json();
+  if (!track.preview) return { tom: null, bpm: null };
+  const audioResp = await fetch(track.preview);
+  if (!audioResp.ok) return { tom: null, bpm: null };
+
+  const { channelData, sampleRate } = await decodeAudio(await audioResp.arrayBuffer());
+  if (!channelData?.[0]?.length) return { tom: null, bpm: null };
+
+  const essentia = obterEssentia();
+  const vetor = essentia.arrayToVector(channelData[0]);
+  try {
+    const { key, scale } = essentia.KeyExtractor(
+      vetor, true, 4096, 4096, 12, 3500, 60, 25, 0.2, "bgate",
+      sampleRate, 0.0001, 440, "cosine", "hann"
+    );
+    const nota = FLAT_PARA_SUSTENIDO[key] || key;
+    const tom = nota ? (scale === "minor" ? `${nota}m` : nota) : null;
+
+    const { bpm: bpmBruto } = essentia.RhythmExtractor2013(vetor);
+    const bpm = bpmBruto ? Math.round(bpmBruto) : null;
+
+    return { tom, bpm };
+  } finally {
+    if (typeof vetor.delete === "function") vetor.delete();
+  }
+}
+
+/** Só entra quando o Cifra Club (e o GetSongBPM, hoje bloqueado) não
+ *  acharam nada — o líder escolhe o candidato, e só aí vale a pena
+ *  gastar alguns segundos de CPU a analisar o áudio. Cache permanente
+ *  por música, igual ao vídeo: nunca reanalisa a mesma música duas
+ *  vezes, mesmo quando o resultado é null. */
+export const resolverTomAudioMusica = onCall({
+  cors: ORIGENS_PERMITIDAS,
+  timeoutSeconds: 60,
+  memory: "1GiB",
+}, async (req) => {
+  const baseId = req.auth?.token?.baseId;
+  if (!req.auth?.uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { deezerId, titulo, artista } = req.data || {};
+  if (!deezerId || !titulo?.trim()) throw new HttpsError("invalid-argument", "Falta a faixa do Deezer ou o título.");
+
+  const chave = `${normLouvor(artista || "")}__${normLouvor(titulo)}`;
+  const cacheRef = db.doc(`bases/${baseId}/cacheTomAudio/${chave}`);
+  const cache = await cacheRef.get();
+  if (cache.exists) return cache.data();
+
+  const resultado = await analisarAudioDeezer(deezerId).catch((e) => {
+    logger.error("Análise de áudio falhou", { erro: e.message, deezerId, titulo });
+    return { tom: null, bpm: null };
+  });
+  await cacheRef.set({ ...resultado, resolvidoEm: admin.firestore.FieldValue.serverTimestamp() });
+  return resultado;
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
