@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { criarVoluntario, editarVoluntario, enviarFotoVoluntario, reporPin } from "../../lib/painel";
+import { PAPEIS } from "../../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
@@ -14,6 +15,9 @@ export default function SheetPessoa({
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
+  // instrumentos é só desta base (não vem de pessoaExistente — quem já
+  // é voluntário noutra base ainda não tem isto definido para a Louvor).
+  const [instrumentos, setInstrumentos] = useState(pessoa?.instrumentos ?? []);
   const [foto, setFoto] = useState(pessoa?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -35,16 +39,20 @@ export default function SheetPessoa({
     }
   }
 
+  function alternarInstrumento(id) {
+    setInstrumentos((atual) => (atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]));
+  }
+
   async function guardar() {
     const n = nome.trim();
     if (!n) return torrada("O voluntário precisa de um nome");
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel };
+        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -115,6 +123,15 @@ export default function SheetPessoa({
           <button data-on={papel === "lider_base" ? 1 : 0} onClick={() => setPapel("lider_base")}>Líder da base</button>
         </div>
         <p className="ds" style={{ marginTop: 8 }}>O líder da base tem código de 6 dígitos e acesso a tudo.</p>
+        <label className="rot" style={{ marginTop: 14 }}>Instrumentos</label>
+        <div className="subtabs">
+          {PAPEIS.map((p) => (
+            <button key={p.id} data-on={instrumentos.includes(p.id) ? 1 : 0} onClick={() => alternarInstrumento(p.id)}>
+              {p.nome}
+            </button>
+          ))}
+        </div>
+        <p className="ds" style={{ marginTop: 8 }}>Pode escolher mais do que um. Usado para agrupar a escala por instrumento.</p>
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>
