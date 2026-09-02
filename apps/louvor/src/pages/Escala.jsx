@@ -38,7 +38,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Escala",
+      titulo: <em>Escala</em>,
       subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
       chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "07:00"}` : "Escala por definir"],
     });

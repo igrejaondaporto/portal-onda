@@ -75,7 +75,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Equipamentos",
+      titulo: <em>Equipamentos</em>,
       subtitulo: "Instrumentos e equipamento de palco",
       chips: [
         `${equipamentos.length} itens`,

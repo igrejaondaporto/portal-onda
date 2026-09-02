@@ -5,18 +5,19 @@ const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 
 /** Escolher música e, se houver mais do que uma versão, qual delas —
  *  sem versão nenhuma cadastrada, entra no repertório sem versaoId
- *  (mostra só o nome, sem tom/BPM). Quando já existe uma música antes
- *  no repertório (`musicaAnteriorTitulo`), pergunta se esta entra em
- *  medley com ela — Repertorio.jsx desenha as duas coladas, e a
- *  observação aqui é o que diz à Técnica a hora certa de trocar o
- *  slide (decisão do líder, 2026-09: "fica difícil a projeção saber
- *  em qual momento será o medley"). */
-export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, onFechar, onEscolhida }) {
+ *  (mostra só o nome, sem tom/BPM). `comoMedley` decide o modo — quem
+ *  chama já sabe (botão "+ Música" vs. "+ Medley" em Repertorio.jsx),
+ *  por isso não há mais um toggle de sim/não aqui dentro: em modo
+ *  medley, pede sempre a observação; fora dele, nunca pergunta nada
+ *  de medley. A observação é sobre a música que está a ENTRAR agora
+ *  (ex.: "só o refrão") — não sobre onde ela encaixa na anterior,
+ *  porque quem projeta precisa saber o que vem, não o timing exato
+ *  (decisão do líder, 2026-09). */
+export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, comoMedley, onFechar, onEscolhida }) {
   const [busca, setBusca] = useState("");
   const [musicaEscolhida, setMusicaEscolhida] = useState(null);
   const [versoes, setVersoes] = useState([]);
   const [versaoEscolhida, setVersaoEscolhida] = useState(undefined);
-  const [ehMedley, setEhMedley] = useState(false);
   const [observacaoMedley, setObservacaoMedley] = useState("");
 
   useEffect(() => {
@@ -25,12 +26,12 @@ export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, onF
   }, [musicaEscolhida]);
 
   function escolherVersao(versaoId) {
-    if (!musicaAnteriorTitulo) { onEscolhida(musicaEscolhida.id, versaoId, null); return; }
+    if (!comoMedley) { onEscolhida(musicaEscolhida.id, versaoId, null); return; }
     setVersaoEscolhida(versaoId);
   }
 
   function confirmar() {
-    onEscolhida(musicaEscolhida.id, versaoEscolhida, ehMedley ? { observacaoMedley: observacaoMedley.trim() || null } : null);
+    onEscolhida(musicaEscolhida.id, versaoEscolhida, { observacaoMedley: observacaoMedley.trim() || null });
   }
 
   const q = norm(busca.trim());
@@ -43,7 +44,7 @@ export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, onF
         <div className="pux" />
         {!musicaEscolhida ? (
           <>
-            <h2>Escolher música</h2>
+            <h2>{comoMedley ? `Medley com "${musicaAnteriorTitulo}"` : "Escolher música"}</h2>
             <div className="bib-busca" style={{ marginTop: 12 }}>
               <span aria-hidden="true">🔎</span>
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Título ou artista" autoFocus />
@@ -93,19 +94,11 @@ export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, onF
           <>
             <h2>{musicaEscolhida.titulo}</h2>
             <p className="sb2">{musicaEscolhida.artista}</p>
-            <label className="opcao" style={{ marginTop: 18 }} onClick={() => setEhMedley((v) => !v)}>
-              <span style={{ flex: 1 }}>Medley com "{musicaAnteriorTitulo}"?</span>
-              <span className={`chk${ehMedley ? " on" : ""}`}>✓</span>
-            </label>
-            {ehMedley && (
-              <>
-                <label className="rot" style={{ marginTop: 10 }}>Em que parte entra? (opcional)</label>
-                <input
-                  className="campo" value={observacaoMedley} onChange={(e) => setObservacaoMedley(e.target.value)}
-                  placeholder="Depois do refrão da anterior…" autoFocus
-                />
-              </>
-            )}
+            <label className="rot" style={{ marginTop: 18 }}>Qual parte desta música vai ser usada?</label>
+            <input
+              className="campo" value={observacaoMedley} onChange={(e) => setObservacaoMedley(e.target.value)}
+              placeholder="Só o refrão, a partir da ponte…" autoFocus
+            />
             <button className="btn full" style={{ marginTop: 18 }} onClick={confirmar}>Adicionar ao repertório</button>
             <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setVersaoEscolhida(undefined)}>Voltar</button>
           </>

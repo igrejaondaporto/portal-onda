@@ -31,10 +31,10 @@ lançamento):
   falta.
 - **"Solicitar BG" à Comunicação** — componente partilhado, pronto a
   ligar quando for pedido.
-- **Reordenar o repertório por arrasto** — o documento original pedia
-  arrasto; ficou por setas ↑/↓ por item (mesmo padrão que a Técnica já
-  usa para reordenar a checklist, `tec-ordem` em `tecnica.css`), mais
-  simples e mais fiável no telemóvel.
+
+Repertório reordena por arrasto (Pointer Events lavrados à mão, sem
+dependência nova — pega pelo ⠿ à esquerda de cada item) **e** pelas
+setas ↑/↓, os dois lado a lado (`src/pages/Repertorio.jsx`).
 
 ## Vocabulário — usa exatamente estes termos
 

@@ -5,7 +5,7 @@
  * base). Escrita direta do cliente — as regras já só deixam a base
  * Louvor escrever, e a Técnica lê para a projeção.
  */
-import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
 
 const refRepertorio = (eventoId) => doc(db, `bases/${BASE_ID}/repertorios/${eventoId}`);
@@ -37,6 +37,29 @@ export async function guardarRepertorio(eventoId, itens, uid) {
     baseId: BASE_ID,
     data: eventoId,
     itens,
+    montadoPor: uid,
+    atualizadoEm: serverTimestamp(),
+    atualizadoPor: uid,
+  }, { merge: true });
+}
+
+/** Atalho da Biblioteca — "+ repertório" numa música já cadastrada,
+ *  sem passar pela busca. Lê o que já lá está (a Biblioteca não tem o
+ *  repertório carregado como o Repertorio.jsx tem) e acrescenta no
+ *  fim, já denormalizado (ver Repertorio.jsx, persistir — a Técnica
+ *  lê estes campos, nunca bases/louvor/musicas). */
+export async function adicionarMusicaAoRepertorio(eventoId, musica, versaoId, uid) {
+  const ref = refRepertorio(eventoId);
+  const snap = await getDoc(ref);
+  const itensAtuais = snap.exists() ? (snap.data().itens || []) : [];
+  const novoItem = {
+    tipo: "musica", id: novoItemId(), musicaId: musica.id, versaoId,
+    titulo: musica.titulo, artista: musica.artista, capaUrl: musica.capaUrl || null, links: musica.links || null,
+  };
+  await setDoc(ref, {
+    baseId: BASE_ID,
+    data: eventoId,
+    itens: [...itensAtuais, novoItem],
     montadoPor: uid,
     atualizadoEm: serverTimestamp(),
     atualizadoPor: uid,

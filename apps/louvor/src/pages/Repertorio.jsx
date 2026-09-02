@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
 import { ouvirMusicas } from "../lib/biblioteca";
@@ -23,10 +23,20 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [musicas, setMusicas] = useState([]);
   const [eventoId, setEventoId] = useState(null);
   const [repertorio, setRepertorio] = useState(null);
-  const [aEscolherMusica, setAEscolherMusica] = useState(false);
+  const [aEscolherMusica, setAEscolherMusica] = useState(null); // null | "musica" | "medley"
   const [aNomearMomento, setANomearMomento] = useState(false);
   const [nomeMomento, setNomeMomento] = useState("");
   const [medleyExpandidoId, setMedleyExpandidoId] = useState(null);
+
+  // Cópia local dos itens — o arrasto reordena isto ao vivo, sem
+  // gravar a cada troca; só persiste quando o dedo solta. Sincroniza
+  // com o Firestore sempre que não está a meio de um arrasto (senão
+  // o próprio eco do snapshot da nossa escrita interrompia o gesto).
+  const [itensLocais, setItensLocais] = useState([]);
+  const [arrastoId, setArrastoId] = useState(null);
+  const [arrastoOffsetY, setArrastoOffsetY] = useState(0);
+  const arrastoStartY = useRef(0);
+  const refsLinhas = useRef({});
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
@@ -43,13 +53,19 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
 
   const eventoAtual = eventosMes.find((e) => e.id === eventoId) ?? null;
   const itens = repertorio?.itens ?? [];
-  const nMusicas = itens.filter((i) => i.tipo === "musica").length;
+
+  useEffect(() => {
+    if (!arrastoId) setItensLocais(itens);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, eventoId]);
+
+  const nMusicas = itensLocais.filter((i) => i.tipo === "musica").length;
   const autor = repertorio?.atualizadoPor ? voluntarios.find((p) => p.id === repertorio.atualizadoPor)?.nome : null;
 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: "Repertório",
+      titulo: <em>Repertório</em>,
       subtitulo: eventoAtual ? dataPorExtenso(eventoAtual.data) : `${MESES[mes]} ${ano}`,
       chips: [`${nMusicas} ${nMusicas === 1 ? "música" : "músicas"}`, repertorio ? `Atualizado ${haQuanto(repertorio.atualizadoEm)}` : "Ainda não montado"],
     });
@@ -71,6 +87,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       if (!m) return item; // música apagada da biblioteca — mantém o que já lá estava
       return { ...item, titulo: m.titulo, artista: m.artista, capaUrl: m.capaUrl || null, links: m.links || null };
     });
+    setItensLocais(enriquecidos);
     try {
       await guardarRepertorio(eventoId, enriquecidos, uid);
     } catch (e) {
@@ -79,29 +96,80 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   }
 
   function mover(id, delta) {
-    const i = itens.findIndex((it) => it.id === id);
+    const i = itensLocais.findIndex((it) => it.id === id);
     const j = i + delta;
-    if (i < 0 || j < 0 || j >= itens.length) return;
-    const nova = [...itens];
+    if (i < 0 || j < 0 || j >= itensLocais.length) return;
+    const nova = [...itensLocais];
     [nova[i], nova[j]] = [nova[j], nova[i]];
     persistir(nova);
   }
 
   function remover(id) {
-    persistir(itens.filter((it) => it.id !== id));
+    persistir(itensLocais.filter((it) => it.id !== id));
   }
 
   function adicionarMusica(musicaId, versaoId, medley) {
-    persistir([...itens, itemMusica(musicaId, versaoId, medley)]);
-    setAEscolherMusica(false);
+    persistir([...itensLocais, itemMusica(musicaId, versaoId, medley)]);
+    setAEscolherMusica(null);
   }
 
   function confirmarMomento() {
     const nome = nomeMomento.trim();
     if (!nome) return;
-    persistir([...itens, itemMomento(nome)]);
+    persistir([...itensLocais, itemMomento(nome)]);
     setNomeMomento("");
     setANomearMomento(false);
+  }
+
+  // ── Arrastar para reordenar (ponteiro único — mouse e toque) ──
+  // O handle captura o ponteiro (setPointerCapture): continua a
+  // receber move/up mesmo que o dedo saia da área dele, sem precisar
+  // de listeners no window. Troca de posição ao vivo em itensLocais
+  // conforme o centro do item arrastado cruza o centro de um vizinho;
+  // só grava a sério (persistir) quando solta.
+  function iniciarArrasto(e, id) {
+    const el = refsLinhas.current[id];
+    if (!el) return;
+    el.setPointerCapture(e.pointerId);
+    arrastoStartY.current = e.clientY;
+    setArrastoOffsetY(0);
+    setArrastoId(id);
+  }
+
+  function moverArrasto(e) {
+    if (!arrastoId) return;
+    const offsetY = e.clientY - arrastoStartY.current;
+    setArrastoOffsetY(offsetY);
+
+    const idxAtual = itensLocais.findIndex((it) => it.id === arrastoId);
+    const elAtual = refsLinhas.current[arrastoId];
+    if (idxAtual === -1 || !elAtual) return;
+    const rectAtual = elAtual.getBoundingClientRect();
+    const centroAtual = rectAtual.top + rectAtual.height / 2 + offsetY;
+
+    for (let idx = 0; idx < itensLocais.length; idx++) {
+      if (idx === idxAtual) continue;
+      const el = refsLinhas.current[itensLocais[idx].id];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const centro = rect.top + rect.height / 2;
+      const cruzouParaCima = idx < idxAtual && centroAtual < centro;
+      const cruzouParaBaixo = idx > idxAtual && centroAtual > centro;
+      if (cruzouParaCima || cruzouParaBaixo) {
+        const nova = [...itensLocais];
+        const [item] = nova.splice(idxAtual, 1);
+        nova.splice(idx, 0, item);
+        setItensLocais(nova);
+        break;
+      }
+    }
+  }
+
+  function soltarArrasto() {
+    if (!arrastoId) return;
+    setArrastoId(null);
+    setArrastoOffsetY(0);
+    persistir(itensLocais);
   }
 
   const musicaPorId = useMemo(() => Object.fromEntries(musicas.map((m) => [m.id, m])), [musicas]);
@@ -109,7 +177,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   // novo item entra sempre no fim — "anterior" é sempre o último, só
   // vale como par de medley se também for música (não dá pra colar
   // num momento como "Ceia").
-  const ultimoItem = itens.at(-1);
+  const ultimoItem = itensLocais.at(-1);
   const musicaAnteriorTitulo = ultimoItem?.tipo === "musica" ? musicaPorId[ultimoItem.musicaId]?.titulo : null;
 
   return (
@@ -137,36 +205,50 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       )}
 
       <div style={{ marginTop: 14 }}>
-        {itens.map((item, i) => {
+        {itensLocais.map((item, i) => {
+          const arrastandoEste = arrastoId === item.id;
+          const estilo = arrastandoEste
+            ? { transform: `translateY(${arrastoOffsetY}px)`, position: "relative", zIndex: 5, boxShadow: "0 8px 20px rgba(10,15,46,0.18)" }
+            : { transition: arrastoId ? "transform 0.15s" : undefined };
           if (item.tipo === "momento") {
             return (
-              <div className="rep-item momento" key={item.id}>
-                <span className="rep-alca">⠿</span>
+              <div
+                className="rep-item momento" key={item.id} style={estilo}
+                ref={(el) => { refsLinhas.current[item.id] = el; }}
+              >
+                <span
+                  className="rep-alca" onPointerDown={(e) => iniciarArrasto(e, item.id)}
+                  onPointerMove={moverArrasto} onPointerUp={soltarArrasto} onPointerCancel={soltarArrasto}
+                >⠿</span>
                 <div style={{ flex: 1 }}><p className="nmt">{item.nome}</p><p className="ds">Momento</p></div>
                 <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={() => mover(item.id, -1)}>↑</button>
-                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itens.length - 1} onClick={() => mover(item.id, 1)}>↓</button>
+                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itensLocais.length - 1} onClick={() => mover(item.id, 1)}>↓</button>
                 <button className="rep-remover" onClick={() => remover(item.id)}>✕</button>
               </div>
             );
           }
           const m = musicaPorId[item.musicaId];
-          // novo item entra sempre no fim, mas a reordenação (↑↓) pode
-          // deixar um medley no meio da lista — por isso olha para os
-          // dois lados, não só para "é o último". `medley` só desenha
-          // colado de facto quando ainda há uma música logo antes: se
-          // o líder mover o item e quebrar a vizinhança, o dado
-          // continua guardado (volta a colar se ele mover de volta),
-          // só o visual "conectado" some, pra não mentir sem parceiro.
-          const proximoEhMedley = itens[i + 1]?.tipo === "musica" && itens[i + 1]?.medley === true;
-          const esteEhMedley = item.medley === true && itens[i - 1]?.tipo === "musica";
+          // a reordenação pode deixar um medley no meio da lista — por
+          // isso olha para os dois lados, não só para "é o último".
+          // `medley` só desenha colado de facto quando ainda há uma
+          // música logo antes: se a ordem mudar e quebrar a
+          // vizinhança, o dado continua guardado (volta a colar se
+          // voltar a ficar junto), só o visual "conectado" some.
+          const proximoEhMedley = itensLocais[i + 1]?.tipo === "musica" && itensLocais[i + 1]?.medley === true;
+          const esteEhMedley = item.medley === true && itensLocais[i - 1]?.tipo === "musica";
           const podeExpandir = esteEhMedley && !!item.observacaoMedley;
           return (
             <div key={item.id}>
               <div
                 className={`rep-item${proximoEhMedley ? " medley-topo" : ""}${esteEhMedley ? " medley-cauda" : ""}`}
+                style={estilo}
+                ref={(el) => { refsLinhas.current[item.id] = el; }}
                 onClick={podeExpandir ? () => setMedleyExpandidoId((v) => (v === item.id ? null : item.id)) : undefined}
               >
-                <span className="rep-alca">⠿</span>
+                <span
+                  className="rep-alca" onPointerDown={(e) => iniciarArrasto(e, item.id)}
+                  onPointerMove={moverArrasto} onPointerUp={soltarArrasto} onPointerCancel={soltarArrasto}
+                >⠿</span>
                 <div className="bib-capa" style={m?.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}>
                   {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
                 </div>
@@ -178,7 +260,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                   <p className="ds">{m?.artista ?? ""}</p>
                 </div>
                 <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={(e) => { e.stopPropagation(); mover(item.id, -1); }}>↑</button>
-                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itens.length - 1} onClick={(e) => { e.stopPropagation(); mover(item.id, 1); }}>↓</button>
+                <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === itensLocais.length - 1} onClick={(e) => { e.stopPropagation(); mover(item.id, 1); }}>↓</button>
                 <button className="rep-remover" onClick={(e) => { e.stopPropagation(); remover(item.id); }}>✕</button>
               </div>
               {podeExpandir && medleyExpandidoId === item.id && (
@@ -187,11 +269,17 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
             </div>
           );
         })}
-        {itens.length === 0 && <div className="vaz">Ainda sem itens neste repertório.</div>}
+        {itensLocais.length === 0 && <div className="vaz">Ainda sem itens neste repertório.</div>}
+
+        {musicaAnteriorTitulo && (
+          <button className="btn sec full" style={{ marginTop: 10, borderStyle: "dashed" }} disabled={!eventoId} onClick={() => setAEscolherMusica("medley")}>
+            + Medley com "{musicaAnteriorTitulo}"
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        <button className="btn full" style={{ flex: 1 }} disabled={!eventoId} onClick={() => setAEscolherMusica(true)}>
+        <button className="btn full" style={{ flex: 1 }} disabled={!eventoId} onClick={() => setAEscolherMusica("musica")}>
           + Música
         </button>
         <button className="btn sec full" style={{ flex: 1 }} disabled={!eventoId} onClick={() => setANomearMomento(true)}>
@@ -217,7 +305,8 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
         <SheetEscolherMusica
           musicas={musicas}
           musicaAnteriorTitulo={musicaAnteriorTitulo}
-          onFechar={() => setAEscolherMusica(false)}
+          comoMedley={aEscolherMusica === "medley"}
+          onFechar={() => setAEscolherMusica(null)}
           onEscolhida={adicionarMusica}
         />
       )}
