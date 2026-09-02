@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { definirVersaoPadrao, CLASSIFICACOES } from "../../lib/biblioteca";
+import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES } from "../../lib/biblioteca";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
@@ -49,6 +49,32 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
   const [aDefinir, setADefinir] = useState(null);
+  const [aEditarLinks, setAEditarLinks] = useState(false);
+  const [linksForm, setLinksForm] = useState({ letra: "", cifra: "", audio: "", video: "" });
+  const [aGuardarLinks, setAGuardarLinks] = useState(false);
+
+  function abrirEdicaoLinks() {
+    setLinksForm({
+      letra: musica.links?.letra || "",
+      cifra: musica.links?.cifra || "",
+      audio: musica.links?.audio || "",
+      video: musica.links?.video || "",
+    });
+    setAEditarLinks(true);
+  }
+
+  async function guardarLinks() {
+    setAGuardarLinks(true);
+    try {
+      await guardarMusica(musica.id, { links: linksForm });
+      torrada("Links atualizados");
+      setAEditarLinks(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar os links.");
+    } finally {
+      setAGuardarLinks(false);
+    }
+  }
 
   async function marcarPadrao(versaoId) {
     setADefinir(versaoId);
@@ -121,22 +147,49 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
           </div>
         </div>
 
-        {(LINKS.some(([k]) => musica.links?.[k]) || musica.autoral) && (
-          <div className="sect">
-            <div className="cabecalho"><h3>Links</h3></div>
-            {LINKS.map(([k, t]) => musica.links?.[k] && (
-              <a className="linha" key={k} href={musica.links[k]} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
-                <FaviconLink url={musica.links[k]} />
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{t}</p>
-                  {hostname(musica.links[k]) && <p className="ds">{hostname(musica.links[k])}</p>}
-                </div>
-                <span className="seta" style={{ color: "var(--cinza)" }}><IconeLinkExterno /></span>
-              </a>
-            ))}
-            {musica.autoral && <p className="ds" style={{ marginTop: 8 }}>Música autoral, sem plataforma.</p>}
+        <div className="sect">
+          <div className="cabecalho">
+            <h3>Links</h3>
+            {!aEditarLinks && (
+              <button className="lapis" onClick={abrirEdicaoLinks} aria-label="Editar links">✎</button>
+            )}
           </div>
-        )}
+          {aEditarLinks ? (
+            <>
+              {LINKS.map(([k, t]) => (
+                <div key={k}>
+                  <label className="rot">{t}</label>
+                  <input
+                    className="campo" value={linksForm[k]}
+                    onChange={(e) => setLinksForm((f) => ({ ...f, [k]: e.target.value }))}
+                    placeholder="https://…"
+                  />
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn full" style={{ flex: 1 }} disabled={aGuardarLinks} onClick={guardarLinks}>
+                  {aGuardarLinks ? "A guardar…" : "Guardar"}
+                </button>
+                <button className="btn sec full" style={{ flex: 1 }} onClick={() => setAEditarLinks(false)}>Cancelar</button>
+              </div>
+            </>
+          ) : (
+            <>
+              {LINKS.map(([k, t]) => musica.links?.[k] && (
+                <a className="linha" key={k} href={musica.links[k]} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
+                  <FaviconLink url={musica.links[k]} />
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{t}</p>
+                    {hostname(musica.links[k]) && <p className="ds">{hostname(musica.links[k])}</p>}
+                  </div>
+                  <span className="seta" style={{ color: "var(--cinza)" }}><IconeLinkExterno /></span>
+                </a>
+              ))}
+              {!LINKS.some(([k]) => musica.links?.[k]) && !musica.autoral && <div className="vaz">Sem links ainda.</div>}
+              {musica.autoral && <p className="ds" style={{ marginTop: 8 }}>Música autoral, sem plataforma.</p>}
+            </>
+          )}
+        </div>
 
         {onAdicionarRepertorio && (
           <button className="btn full" style={{ marginTop: 16 }} onClick={onAdicionarRepertorio}>
