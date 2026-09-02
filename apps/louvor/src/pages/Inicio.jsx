@@ -94,11 +94,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   itensRep.forEach((item, i) => {
     if (item.tipo !== "musica") return;
     const continuaMedley = item.medley === true && itensRep[i - 1]?.tipo === "musica";
-    const m = musicaPorId[item.musicaId];
+    const entrada = { m: musicaPorId[item.musicaId], observacaoMedley: item.observacaoMedley || null };
     if (continuaMedley && blocosRepertorio.length) {
-      blocosRepertorio.at(-1).musicas.push(m);
+      blocosRepertorio.at(-1).itens.push(entrada);
     } else {
-      blocosRepertorio.push({ numero: blocosRepertorio.length + 1, musicas: [m] });
+      blocosRepertorio.push({ numero: blocosRepertorio.length + 1, itens: [entrada] });
     }
   });
 
@@ -197,28 +197,50 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         ) : null}
 
-        <div className="sect" data-tour="repertorio-bloco" onClick={() => onIrRepertorio?.()} style={{ cursor: "pointer" }}>
+        {/* Fundo azul (mesmo .blococor de "O teu papel" abaixo) pra ler
+          * como uma área à parte, não mais um .sect branco igual aos
+          * outros — pedido do líder depois de ver o mesmo bloco na
+          * Técnica. Os itens dentro ficam brancos (.rep-mini-item),
+          * senão desapareciam contra o próprio fundo do cartão. */}
+        <div className="blococor" data-tour="repertorio-bloco" onClick={() => onIrRepertorio?.()} style={{ cursor: "pointer" }}>
           <div className="cabecalho">
             <h3>Repertório de {dataPorExtenso(meuEvento.data)}</h3>
             <span className="seta">›</span>
           </div>
           {repertorio ? (
             <>
-              <p className="ds">{nMusicasRep} {nMusicasRep === 1 ? "música" : "músicas"} no repertório</p>
-              <p className="ds" style={{ marginTop: 4, color: "var(--cinza)" }}>Atualizado {haQuanto(repertorio.atualizadoEm)}</p>
+              <p className="ds">{nMusicasRep} {nMusicasRep === 1 ? "música" : "músicas"} no repertório · atualizado {haQuanto(repertorio.atualizadoEm)}</p>
               {blocosRepertorio.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   {blocosRepertorio.map((b) => (
-                    <div key={b.numero} style={{ display: "flex", gap: 8, padding: "4px 0" }}>
-                      <span className="rep-num">{b.numero}ª</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {b.musicas.map((m, i) => (
-                          <p key={i} className="ds" style={{ color: "var(--tinta)" }}>
-                            {m?.titulo ?? "Música removida"}
-                            <span style={{ color: "var(--cinza)" }}> · {m?.artista ?? ""}</span>
-                          </p>
-                        ))}
-                      </div>
+                    <div key={b.numero}>
+                      {b.itens.map((it, i) => {
+                        const medleyTopo = i === 0 && b.itens.length > 1;
+                        const medleyCauda = i > 0;
+                        return (
+                          <div key={i}>
+                            <div className={`rep-mini-item${medleyTopo ? " medley-topo" : ""}${medleyCauda ? " medley-cauda" : ""}`}>
+                              <span className="rep-num">{b.numero}ª</span>
+                              <div
+                                className="bib-capa"
+                                style={it.m?.capaUrl ? { backgroundImage: `url(${it.m.capaUrl})` } : {}}
+                              >
+                                {!it.m?.capaUrl && (it.m?.titulo?.[0]?.toUpperCase() ?? "?")}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p className="nmt">
+                                  {it.m?.titulo ?? "Música removida"}
+                                  {medleyCauda && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
+                                </p>
+                                <p className="ds">{it.m?.artista ?? ""}</p>
+                              </div>
+                            </div>
+                            {medleyCauda && it.observacaoMedley && (
+                              <div className="rep-medley-obs" style={{ margin: "0 0 8px" }}>"{it.observacaoMedley}"</div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
