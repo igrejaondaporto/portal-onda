@@ -45,9 +45,12 @@ export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, com
         {!musicaEscolhida ? (
           <>
             <h2>{comoMedley ? `Medley com "${musicaAnteriorTitulo}"` : "Escolher música"}</h2>
+            {/* sem autoFocus de propósito — o teclado a abrir sozinho
+             * por cima da lista, mal o sheet aparece, confundia mais
+             * do que ajudava (relato do líder). */}
             <div className="bib-busca" style={{ marginTop: 12 }}>
               <span aria-hidden="true">🔎</span>
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Título ou artista" autoFocus />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Título ou artista" />
             </div>
             <div style={{ marginTop: 8, maxHeight: "50vh", overflowY: "auto" }}>
               {filtradas.map((m) => (

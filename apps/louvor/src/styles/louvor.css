@@ -6,6 +6,14 @@
   --lima: #c8f02e;
 }
 
+/* As folhas (.pin) do partilhado vão até 88vh — quase o ecrã todo
+ * num telemóvel, sobrava pouco fundo visível pra tocar fora e fechar
+ * (pedido do líder, calibrado por ele num iPhone Pro Max). 70vh deixa
+ * uma faixa de fundo bem maior à mostra. */
+.pin {
+  max-height: 70vh;
+}
+
 /* ── Equipamentos (portado de apps/tecnica/src/styles/tecnica.css,
  * classes tec-* renomeadas lv-*; .mincartao/.cabtoque/.cartaomelh/
  * .quadmin/etc. já vêm do global.css partilhado) ── */

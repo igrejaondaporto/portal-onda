@@ -231,13 +231,12 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
 
       <button className="bib-fab" onClick={() => setAAdicionar(true)} aria-label="Adicionar música">+</button>
 
-      {aAdicionar && (
-        <SheetAdicionarMusica
-          uid={uid} musicas={musicas}
-          onFechar={() => setAAdicionar(false)}
-          onCriada={(musicaId) => { setAAdicionar(false); setAbertaId(musicaId); }}
-        />
-      )}
+      <SheetAdicionarMusica
+        aberta={aAdicionar}
+        uid={uid} musicas={musicas}
+        onFechar={() => setAAdicionar(false)}
+        onCriada={(musicaId) => { setAAdicionar(false); setAbertaId(musicaId); }}
+      />
       {musicaAberta && (
         <SheetMusicaDetalhe
           uid={uid} souLider={souLider}
