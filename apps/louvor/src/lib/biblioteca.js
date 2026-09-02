@@ -138,3 +138,10 @@ export const pesquisarMusica = (nome, pagina = 0) =>
  *  resolverVideoMusica em functions/index.js. */
 export const resolverVideo = (titulo, artista) =>
   chamar("resolverVideoMusica")({ titulo, artista }).then((r) => r.data.video);
+
+/** Tom e BPM por análise dos 30s de prévia do Deezer — só entra
+ *  quando o Cifra Club não achou nada, e só para a música escolhida
+ *  (nunca em lote pelos candidatos). Ver resolverTomAudioMusica em
+ *  functions/index.js. */
+export const resolverTomAudio = (deezerId, titulo, artista) =>
+  chamar("resolverTomAudioMusica")({ deezerId, titulo, artista }).then((r) => r.data);
