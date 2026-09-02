@@ -3264,7 +3264,51 @@ function slugCifraClub(texto) {
  *  parênteses, artista sem feat./&, e só o primeiro artista quando
  *  há mais do que um separado por vírgula ou " e "). Devolve só as
  *  combinações com slug válido, sem duplicados. */
-function variacoesSlug(titulo, artista) {
+/** Busca no motor de sugestão deles (o mesmo que alimenta a caixa de
+ *  busca do site — endpoint público, sem chave, é o que qualquer
+ *  visitante já chama) — devolve o slug REAL deles, que letras.mus.br
+ *  também usa (mesma empresa, mesmo dns/url). Existe porque muita
+ *  banda usa um nome curto (ex.: "fhop music") que o Cifra Club
+ *  cataloga pelo nome por extenso ("Florianópolis House Of Prayer")
+ *  — nenhuma variação de slug gerada a partir do nome curto bate,
+ *  então nada substitui perguntar a eles mesmos. tipo "2" = música
+ *  (tipo "1" é artista, sem url de música). */
+async function buscarSlugsCifraClub(titulo, artista) {
+  try {
+    // O endpoint deles é Solr puro — o parser da query deles não é
+    // tolerante: manter "(Ao Vivo)"/"(Live)" como termo de busca some
+    // com o resultado certo (confirmado: "Sublime fhop music" acha,
+    // "Sublime Ao Vivo fhop music" não acha nada, 0 resultados, sem
+    // erro nenhum). Remove o conteúdo entre parênteses inteiro (não
+    // só os caracteres) antes de perguntar — a comparação de título
+    // mais abaixo continua a usar o título original, sem cortar nada.
+    const limpar = (s) => (s || "")
+      .replace(/\(.*?\)/g, " ")
+      .replace(/[()[\]{}+\-!^~*?:"\\]/g, " ")
+      .replace(/\s+/g, " ").trim();
+    const q = `${limpar(titulo)} ${limpar(artista)}`.trim();
+    if (!q) return [];
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 4000);
+    const resp = await fetch(`https://solr.sscdn.co/cc/c7/?q=${encodeURIComponent(q)}&limit=10`, { signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    const tNorm = normLouvor(titulo);
+    return (json.response?.docs || [])
+      .filter((d) => d.tipo === "2" && d.dns && d.url)
+      .filter((d) => {
+        const dNorm = normLouvor(d.txt || "");
+        return dNorm === tNorm || dNorm.includes(tNorm) || tNorm.includes(dNorm) || dNorm.slice(0, 10) === tNorm.slice(0, 10);
+      })
+      .slice(0, 2)
+      .map((d) => ({ aSlug: d.dns, tSlug: d.url }));
+  } catch {
+    return [];
+  }
+}
+
+async function variacoesSlug(titulo, artista) {
   const primeiroArtista = (artista || "").split(/,| e | & /i)[0].trim();
   const brutas = [
     { t: titulo, a: artista },
@@ -3274,6 +3318,14 @@ function variacoesSlug(titulo, artista) {
   ];
   const vistas = new Set();
   const variacoes = [];
+  // slug real deles primeiro — quando acha, é o mais confiável de
+  // todos (validado pela busca deles, não adivinhado por nós).
+  for (const v of await buscarSlugsCifraClub(titulo, artista)) {
+    const chave = `${v.aSlug}/${v.tSlug}`;
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    variacoes.push(v);
+  }
   for (const v of brutas) {
     const aSlug = slugCifraClub(v.a), tSlug = slugCifraClub(v.t);
     if (!aSlug || !tSlug) continue;
@@ -3461,7 +3513,7 @@ export const pesquisarMusicaLouvor = onCall({
 
   const candidatos = await Promise.all(brutos.map(async (t) => {
     const titulo = t.title, artista = t.artist?.name || "";
-    const variacoes = variacoesSlug(titulo, artista);
+    const variacoes = await variacoesSlug(titulo, artista);
     const [cifra, letraLink, bpmInfo, spotify] = await Promise.all([
       resolverTomCifraClub(titulo, variacoes).catch(() => ({ tom: null, link: null })),
       resolverLetra(variacoes).catch(() => null),
