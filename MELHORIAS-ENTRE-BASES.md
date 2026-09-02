@@ -15,7 +15,18 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
-Nada pendente no momento.
+- **O logo leva ao Início** (`apps/tecnica/src/pages/Sessao.jsx` e
+  `apps/kinder/src/App.jsx`, classes `.tec-logo-botao`/`.kin-logo-botao`).
+  O canto superior esquerdo é onde a mão vai por hábito, e não custa
+  nada: envolver o `<span className="logo">` num `<button>` com
+  `aria-label`, mais quatro linhas de CSS local a tirar a moldura de
+  botão. Falta na Apoio, Backstage, Comunicação, Louvor e Pessoal —
+  todas têm o mesmo cabeçalho e a mesma função `irPara`. **Não copiar
+  o `font: inherit` do `.tec-logo-botao`**: o atalho `font` reescreve
+  o `font-size: 19px` que vem de `.logo` no global.css (a regra local
+  carrega depois, mesmo peso) e o logo encolhe para os 16px do body —
+  medido, 22px→16px em ecrã largo. Chegam `background`, `border`,
+  `padding` e `cursor`.
 
 ## Já portado
 
