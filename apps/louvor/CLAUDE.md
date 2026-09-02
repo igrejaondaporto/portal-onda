@@ -155,8 +155,8 @@ bases/louvor/musicas/{musicaId}
 
 bases/louvor/musicas/{musicaId}/versoes/{versaoId}
   nome, tom, bpm, duracao, observacao
-  fonteTom, fonteBpm: "manual" nesta fase (cascata do CLAUDE-louvor
-  original — cifraclub/getsongbpm/análise — fica para a Fase 2)
+  fonteTom, fonteBpm: "manual", "cifraclub" ou "audio" — ver secção 5
+  (cadastro à mão continua a permitir editar por cima)
 
 bases/louvor/repertorios/{eventoId}     ← o próprio id do culto, "um por domingo"
   itens: [{ tipo:"musica", id, musicaId, versaoId } | { tipo:"momento", id, nome }]
@@ -220,10 +220,14 @@ token que expira em poucas horas, nunca gravar e tocar depois.
 
 **Busca por nome (`pesquisarMusicaLouvor`, callable, paginada):**
 procura no Deezer só pelo nome e enriquece cada candidato em
-paralelo — tom por Cifra Club (raspagem, cifra transcrita à mão) →
-GetSongBPM (hoje bloqueado pela Cloudflare deles, fica como fallback
-adormecido); BPM por GetSongBPM; Spotify entra só com o link de
-áudio (busca, `Client Credentials`) — **não** dá mais tom/BPM: a
+paralelo — tom só por Cifra Club (raspagem, cifra transcrita à mão);
+sem BPM automático nesta camada (GetSongBPM foi removido — a
+Cloudflare deles bloqueia o acesso por API há muito, nunca deu para
+usar de facto; ver `git log` por "GetSongBPM" se for retomado). Se o
+Cifra Club não achar tom, `resolverTomAudioMusica` entra ao escolher
+o candidato — análise do preview do Deezer via essentia.js/audio-decode
+(tom **e** BPM, `fonteTom`/`fonteBpm: "audio"`). Spotify entra só com
+o link de áudio (busca, `Client Credentials`) — **não** dá tom/BPM: a
 Spotify descontinuou `audio-features`/`audio-analysis` para qualquer
 app criada depois de 27/11/2024 (a nossa é de 2026), 403 sempre,
 independente de conta Premium
