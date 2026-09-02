@@ -8,9 +8,14 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
- * Ao juntar alguém, escolhe-se logo o papel (Vocal, Teclado…): não há
- * titular/aprendiz aqui, mas cada pessoa entra com um papel — nunca
- * "só na escala" sem se saber o que vai tocar/cantar.
+ * Agrupado por instrumento (`pessoa.instrumentos`, definido no perfil
+ * em SheetPessoa.jsx) — cada bloco só lista quem toca aquilo, como um
+ * "ministério" dentro da base. Quem toca mais do que um aparece em
+ * mais do que um bloco; escalar num bloco onde já está escalado
+ * noutro move-a para aqui (nunca em dois papéis ao mesmo tempo, ver
+ * guardarEscalaLouvor). Quem ainda não tem instrumento no perfil cai
+ * num bloco à parte, com o seletor de papel de sempre — para não
+ * desaparecer da escala só por o perfil estar incompleto.
  */
 export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
@@ -18,7 +23,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [estatisticas, setEstatisticas] = useState({});
   const [ordem, setOrdem] = useState("vezes");
-  const [aEscolherPapel, setAEscolherPapel] = useState(null); // pessoaId, a meio de juntar
+  const [aEscolherPapel, setAEscolherPapel] = useState(null); // pessoaId, a meio de juntar (só no bloco "sem instrumento")
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
 
@@ -98,6 +103,104 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     return va - vb || a.nome.localeCompare(b.nome, "pt");
   });
 
+  function linhaEstatistica(p) {
+    const stat = estatisticas[p.id];
+    const semServico = !stat?.vezes;
+    const texto = semServico
+      ? "Ainda não serviu neste trimestre"
+      : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
+    return { stat, semServico, texto };
+  }
+
+  // Linha dentro de um bloco de instrumento — clicar no nome escala
+  // aqui (ou move para aqui, se já estava noutro papel); clicar de
+  // novo, já escalado, tira. Sem seletor: já se sabe o papel, é o
+  // bloco onde está.
+  function linhaNoBloco(p, papelId) {
+    const entrada = escalados.find((e) => e.pessoaId === p.id);
+    const lid = liderEscala === p.id;
+    const aquiEscalado = entrada?.papel === papelId;
+    const { semServico, stat, texto } = linhaEstatistica(p);
+    return (
+      <div key={p.id} className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}>
+        <span
+          onClick={() => (aquiEscalado ? tirar(p.id) : entrada ? trocarPapel(p.id, papelId) : juntarComPapel(p.id, papelId))}
+          style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
+        >
+          <Avatar pessoa={p} tamanho={38} fonte={15} />
+          <span style={{ flex: 1 }}>
+            <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+            <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
+              {entrada && !aquiEscalado ? `já escalado como ${nomePapel(entrada.papel)}` : aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
+            </span>
+            <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
+              {texto}
+              {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
+            </span>
+          </span>
+        </span>
+        {aquiEscalado && (
+          <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">★</button>
+        )}
+        {aquiEscalado && (
+          <span className="chk on" onClick={() => tirar(p.id)} style={{ cursor: "pointer" }}>✓</span>
+        )}
+      </div>
+    );
+  }
+
+  // Linha no bloco "sem instrumento definido" — mantém o seletor de
+  // papel de sempre, porque aqui não há um bloco só para decidir por.
+  function linhaSemInstrumento(p) {
+    const entrada = escalados.find((e) => e.pessoaId === p.id);
+    const lid = liderEscala === p.id;
+    const { semServico, stat, texto } = linhaEstatistica(p);
+    const aEscolher = aEscolherPapel === p.id;
+    return (
+      <div key={p.id}>
+        <div className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}>
+          <span
+            onClick={() => (entrada ? setAEscolherPapel(aEscolher ? null : p.id) : setAEscolherPapel(p.id))}
+            style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
+          >
+            <Avatar pessoa={p} tamanho={38} fonte={15} />
+            <span style={{ flex: 1 }}>
+              <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+              <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
+                {entrada ? `${nomePapel(entrada.papel)}${lid ? " · líder de escala" : ""}` : "fora deste culto"}
+              </span>
+              <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
+                {texto}
+                {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
+              </span>
+            </span>
+          </span>
+          {entrada && (
+            <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">★</button>
+          )}
+          {entrada && (
+            <span className="chk on" onClick={() => tirar(p.id)} style={{ cursor: "pointer" }}>✓</span>
+          )}
+        </div>
+        {aEscolher && (
+          <div className="subtabs" style={{ margin: "0 0 12px" }}>
+            {PAPEIS.map((papel) => (
+              <button
+                key={papel.id}
+                data-on={entrada?.papel === papel.id ? 1 : 0}
+                onClick={() => (entrada ? trocarPapel(p.id, papel.id) : juntarComPapel(p.id, papel.id))}
+              >
+                {papel.nome}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const semInstrumento = voluntariosOrdenados.filter((p) => !(p.instrumentos || []).length);
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -106,69 +209,40 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
         <h2>{nomeEvento(evento)}</h2>
         <p className="sb2">{escalados.length} pessoas · chegada {evento.horaChegada || "07:00"}</p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
-          Toca no nome para escolher o papel. A estrela define quem é o líder de escala.
+          Toca no nome, dentro do instrumento, para escalar. A estrela define quem é o líder de escala.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>
           <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
           <button data-on={ordem === "nome" ? 1 : 0} onClick={() => setOrdem("nome")}>Nome</button>
         </div>
-        <div style={{ marginTop: 12 }}>
-          {voluntariosOrdenados.map((p) => {
-            const entrada = escalados.find((e) => e.pessoaId === p.id);
-            const lid = liderEscala === p.id;
-            const stat = estatisticas[p.id];
-            const semServico = !stat?.vezes;
-            const statTexto = semServico
-              ? "Ainda não serviu neste trimestre"
-              : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
-            const aEscolher = aEscolherPapel === p.id;
-            return (
-              <div key={p.id}>
-                <div
-                  className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
-                >
-                  <span
-                    onClick={() => (entrada ? setAEscolherPapel(aEscolher ? null : p.id) : setAEscolherPapel(p.id))}
-                    style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
-                  >
-                    <Avatar pessoa={p} tamanho={38} fonte={15} />
-                    <span style={{ flex: 1 }}>
-                      <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
-                      <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                        {entrada ? `${nomePapel(entrada.papel)}${lid ? " · líder de escala" : ""}` : "fora deste culto"}
-                      </span>
-                      <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
-                        {statTexto}
-                        {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
-                      </span>
-                    </span>
-                  </span>
-                  {entrada && (
-                    <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">
-                      ★
-                    </button>
-                  )}
-                  {entrada && (
-                    <span className="chk on" onClick={() => tirar(p.id)} style={{ cursor: "pointer" }}>✓</span>
-                  )}
-                </div>
-                {aEscolher && (
-                  <div className="subtabs" style={{ margin: "0 0 12px" }}>
-                    {PAPEIS.map((papel) => (
-                      <button
-                        key={papel.id}
-                        data-on={entrada?.papel === papel.id ? 1 : 0}
-                        onClick={() => (entrada ? trocarPapel(p.id, papel.id) : juntarComPapel(p.id, papel.id))}
-                      >
-                        {papel.nome}
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+        {PAPEIS.map((papel) => {
+          const pessoasDoPapel = voluntariosOrdenados.filter((p) => (p.instrumentos || []).includes(papel.id));
+          if (!pessoasDoPapel.length) return null;
+          const nEscalados = escalados.filter((e) => e.papel === papel.id).length;
+          return (
+            <div key={papel.id} style={{ marginTop: 18 }}>
+              <div className="cabecalho" style={{ paddingTop: 0, marginBottom: 2 }}>
+                <h3>{papel.nome}</h3>
+                <span className="cap">{nEscalados ? `${nEscalados} escalado${nEscalados === 1 ? "" : "s"}` : "ninguém ainda"}</span>
               </div>
-            );
-          })}
-        </div>
+              {pessoasDoPapel.map((p) => linhaNoBloco(p, papel.id))}
+            </div>
+          );
+        })}
+
+        {semInstrumento.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <div className="cabecalho" style={{ paddingTop: 0, marginBottom: 2 }}>
+              <h3>Sem instrumento definido</h3>
+            </div>
+            <p className="ds" style={{ margin: "0 0 8px" }}>
+              Ainda sem instrumento no perfil — dá para escalar à mesma, escolhendo o papel abaixo.
+            </p>
+            {semInstrumento.map((p) => linhaSemInstrumento(p))}
+          </div>
+        )}
+
         <button className="btn full" style={{ marginTop: 20 }} onClick={() => onGuardado("Escala atualizada")}>
           Concluir
         </button>
