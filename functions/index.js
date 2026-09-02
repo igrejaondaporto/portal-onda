@@ -3497,12 +3497,25 @@ export const resolverVideoMusica = onCall({
   secrets: [YOUTUBE_API_KEY],
   cors: ORIGENS_PERMITIDAS,
 }, async (req) => {
-  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const baseId = req.auth?.token?.baseId;
+  if (!req.auth?.uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { titulo, artista } = req.data || {};
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título da música.");
+
+  // Cache permanente por música — a cota diária da YouTube Data API é
+  // só 100 buscas; sem isto, procurar a MESMA música outra vez (ex.:
+  // reiniciar a app, voltar a pesquisar) gastava cota de novo à toa.
+  // Guarda mesmo quando não encontra vídeo nenhum (null), senão uma
+  // música sem correspondência voltava a gastar cota a cada busca.
+  const chave = `${normLouvor(artista || "")}__${normLouvor(titulo)}`;
+  const cacheRef = db.doc(`bases/${baseId}/cacheVideosYoutube/${chave}`);
+  const cache = await cacheRef.get();
+  if (cache.exists) return { video: cache.data().video, doCache: true };
+
   const valorSecret = (s) => { try { return s.value() || null; } catch { return null; } };
   const video = await resolverVideoYouTube(titulo.trim(), artista?.trim() || "", valorSecret(YOUTUBE_API_KEY));
-  return { video };
+  await cacheRef.set({ video, resolvidoEm: admin.firestore.FieldValue.serverTimestamp() });
+  return { video, doCache: false };
 });
 
 /* ── REPERTÓRIO (Base Louvor) ─────────────────────────────────
