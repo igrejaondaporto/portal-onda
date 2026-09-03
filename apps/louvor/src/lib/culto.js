@@ -10,6 +10,12 @@ import { obterEventosDoMes } from "./painel";
 export const definirFrase = (eventoId, frase) =>
   chamar("definirFrase")({ eventoId, frase }).then((r) => r.data);
 
+/** Ênfase, cores da roupa, data do ensaio e observação de um culto —
+ *  ver Escala.jsx. Só manda os campos que mudaram (undefined = não
+ *  mexer), a Cloud Function grava por cima do que já lá está. */
+export const definirDetalhesCultoLouvor = (eventoId, detalhes) =>
+  chamar("definirDetalhesCultoLouvor")({ eventoId, ...detalhes }).then((r) => r.data);
+
 export const definirFeedback = (eventoId, texto) =>
   chamar("definirFeedback")({ eventoId, texto }).then((r) => r.data);
 

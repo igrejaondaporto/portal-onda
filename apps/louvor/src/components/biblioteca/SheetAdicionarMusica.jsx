@@ -6,6 +6,7 @@ import {
 } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import IconePlay from "./IconePlay";
+import GradeTom from "./GradeTom";
 
 /**
  * Três etapas: procurar (só o nome), escolher entre os candidatos
@@ -332,7 +333,7 @@ export default function SheetAdicionarMusica({ aberta, uid, musicas, onFechar, o
             </div>
 
             <label className="rot">Tom (versão Onda){fonteTom && <span className="ds" style={{ marginLeft: 6 }}>· {fonteTom}</span>}</label>
-            <input className="campo" value={tom} onChange={(e) => { setTom(e.target.value); setFonteTom("manual"); }} placeholder="A" />
+            <GradeTom valor={tom} onEscolher={(v) => { setTom(v); setFonteTom("manual"); }} />
             <label className="rot">BPM{fonteBpm && <span className="ds" style={{ marginLeft: 6 }}>· {fonteBpm}</span>}</label>
             <input className="campo" inputMode="numeric" value={bpm} onChange={(e) => { setBpm(e.target.value); setFonteBpm("manual"); }} placeholder="70" />
             <label className="rot">Duração (segundos)</label>

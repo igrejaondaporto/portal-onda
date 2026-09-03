@@ -48,8 +48,9 @@ function useVersoesDe(musicaId) {
   return versoes;
 }
 
-export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
+export default function Biblioteca({ uid, papel, pessoa, ativo, definirCabecalho }) {
   const souLider = papel === "lider_base";
+  const podeCadastrar = souLider || pessoa?.auxiliarBiblioteca === true;
   const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
   const [busca, setBusca] = useState("");
@@ -240,7 +241,9 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
         )}
       </div>
 
-      <button className="bib-fab" onClick={() => setAAdicionar(true)} aria-label="Adicionar música">+</button>
+      {podeCadastrar && (
+        <button className="bib-fab" onClick={() => setAAdicionar(true)} aria-label="Adicionar música">+</button>
+      )}
 
       <SheetAdicionarMusica
         aberta={aAdicionar}

@@ -4,7 +4,6 @@ import { cEscala, meusPapeisNoCulto, nomePapel } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
-import { ouvirRepertorio } from "../lib/repertorio";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -15,30 +14,13 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 
-// Referência estável para "sem itens" — ver o mesmo cuidado em
-// Repertorio.jsx (comentário lá tem a história completa do bug).
-const ITENS_VAZIOS = [];
-
-/** "há X" desde um Timestamp do Firestore — mesmo texto que o
- *  Repertório usa no selo de atualização. */
-function haQuanto(ts) {
-  if (!ts?.toDate) return "agora mesmo";
-  const min = Math.round((Date.now() - ts.toDate().getTime()) / 60000);
-  if (min < 1) return "agora mesmo";
-  if (min < 60) return `há ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `há ${h}h`;
-  return `há ${Math.round(h / 24)}d`;
-}
-
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrRepertorio, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLider = papel === "lider_base";
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
-  const [repertorio, setRepertorio] = useState(null);
   const [musicas, setMusicas] = useState([]);
   const [frase, setFrase] = useState("");
   const [aEditarFrase, setAEditarFrase] = useState(false);
@@ -69,8 +51,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meuEvento?.id]);
 
-  useEffect(() => ouvirRepertorio(meuEvento?.id, setRepertorio), [meuEvento?.id]);
-
   useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
@@ -81,26 +61,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "07:00";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
-  const itensRep = repertorio?.itens ?? ITENS_VAZIOS;
-  const nMusicasRep = itensRep.filter((i) => i.tipo === "musica").length;
   const emCurso = minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length;
-
-  // Prévia simplificada do repertório — ordem, nome, artista, e um
-  // medley colado ao número da música que "puxa" (mesma regra de
-  // numerosOrdinais em Repertorio.jsx: uma continuação de medley não
-  // avança o número, só se junta ao bloco anterior).
-  const musicaPorId = Object.fromEntries(musicas.map((m) => [m.id, m]));
-  const blocosRepertorio = [];
-  itensRep.forEach((item, i) => {
-    if (item.tipo !== "musica") return;
-    const continuaMedley = item.medley === true && itensRep[i - 1]?.tipo === "musica";
-    const entrada = { m: musicaPorId[item.musicaId], observacaoMedley: item.observacaoMedley || null };
-    if (continuaMedley && blocosRepertorio.length) {
-      blocosRepertorio.at(-1).itens.push(entrada);
-    } else {
-      blocosRepertorio.push({ numero: blocosRepertorio.length + 1, itens: [entrada] });
-    }
-  });
 
   function fecharAvisoReembolso() {
     marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
@@ -196,60 +157,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p className="aut">{liderNome ?? "líder de escala"} · líder de escala de {dataPorExtenso(meuEvento.data)}</p>
           </div>
         ) : null}
-
-        {/* Fundo azul (mesmo .blococor de "O teu papel" abaixo) pra ler
-          * como uma área à parte, não mais um .sect branco igual aos
-          * outros — pedido do líder depois de ver o mesmo bloco na
-          * Técnica. Os itens dentro ficam brancos (.rep-mini-item),
-          * senão desapareciam contra o próprio fundo do cartão. */}
-        <div className="blococor" data-tour="repertorio-bloco" onClick={() => onIrRepertorio?.()} style={{ cursor: "pointer" }}>
-          <div className="cabecalho">
-            <h3>Repertório de {dataPorExtenso(meuEvento.data)}</h3>
-            <span className="seta">›</span>
-          </div>
-          {repertorio ? (
-            <>
-              <p className="ds">{nMusicasRep} {nMusicasRep === 1 ? "música" : "músicas"} no repertório · atualizado {haQuanto(repertorio.atualizadoEm)}</p>
-              {blocosRepertorio.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  {blocosRepertorio.map((b) => (
-                    <div key={b.numero}>
-                      {b.itens.map((it, i) => {
-                        const medleyTopo = i === 0 && b.itens.length > 1;
-                        const medleyCauda = i > 0;
-                        return (
-                          <div key={i}>
-                            <div className={`rep-mini-item${medleyTopo ? " medley-topo" : ""}${medleyCauda ? " medley-cauda" : ""}`}>
-                              <span className="rep-num">{b.numero}ª</span>
-                              <div
-                                className="bib-capa"
-                                style={it.m?.capaUrl ? { backgroundImage: `url(${it.m.capaUrl})` } : {}}
-                              >
-                                {!it.m?.capaUrl && (it.m?.titulo?.[0]?.toUpperCase() ?? "?")}
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="nmt">
-                                  {it.m?.titulo ?? "Música removida"}
-                                  {medleyCauda && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
-                                </p>
-                                <p className="ds">{it.m?.artista ?? ""}</p>
-                              </div>
-                            </div>
-                            {medleyCauda && it.observacaoMedley && (
-                              <div className="rep-medley-obs" style={{ margin: "0 0 8px" }}>"{it.observacaoMedley}"</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="vaz" style={{ border: 0 }}>Ainda ninguém montou o repertório deste domingo.</div>
-          )}
-        </div>
 
         {sirvo && (
           <div className="blococor">

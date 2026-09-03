@@ -1,25 +1,200 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel } from "../lib/modelo";
+import { PAPEIS, nomePapel, ENFASES, nomeEnfase, enfaseDefault, podeDistribuir } from "../lib/modelo";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
+import { definirDetalhesCultoLouvor } from "../lib/culto";
+import { ouvirRepertorio, agruparItensMedley } from "../lib/repertorio";
+import { ouvirMusicas, obterTomVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 
-export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+// Referência estável para "sem itens" — mesmo cuidado documentado em
+// Repertorio.jsx/Inicio.jsx: um `?? []` novo a cada render quebraria
+// o useEffect que busca os tons (dependência muda sempre, mesmo sem
+// dado novo nenhum).
+const ITENS_VAZIOS_REP = [];
+
+/** Repertório resumido + cores da roupa/ensaio/observação de um
+ *  culto — só monta quando o cartão está aberto (é `children` do
+ *  CartaoCulto). `podeEditar` já vem calculado (líder da base ou
+ *  líder de escala deste culto, ver podeDistribuir). */
+function DetalhesCulto({ evento, musicas, podeEditar }) {
+  const torrada = useTorrada();
+  const [repertorio, setRepertorio] = useState(null);
+  const [tons, setTons] = useState({});
+  const [aEditar, setAEditar] = useState(false);
+  const [enfase, setEnfase] = useState("");
+  const [cores, setCores] = useState([]);
+  const [dataEnsaio, setDataEnsaio] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [aGuardar, setAGuardar] = useState(false);
+
+  useEffect(() => ouvirRepertorio(evento.id, setRepertorio), [evento.id]);
+
+  const itensRep = repertorio?.itens ?? ITENS_VAZIOS_REP;
+  const blocos = agruparItensMedley(itensRep);
+  const musicaPorId = Object.fromEntries(musicas.map((m) => [m.id, m]));
+
+  // Leitura pontual (não onSnapshot) do tom de cada versão do
+  // repertório — um listener por música seria demais para algo que
+  // quase nunca muda depois de escolhido (ver obterTomVersao).
+  useEffect(() => {
+    let cancelado = false;
+    const itens = itensRep.filter((i) => i.tipo === "musica" && i.musicaId && i.versaoId);
+    if (!itens.length) { setTons({}); return; }
+    Promise.all(itens.map((i) => obterTomVersao(i.musicaId, i.versaoId).then((tom) => [i.id, tom])))
+      .then((pares) => { if (!cancelado) setTons(Object.fromEntries(pares)); });
+    return () => { cancelado = true; };
+  }, [itensRep]);
+
+  const coresAtuais = evento.escala.coresRoupa || [];
+  const temDetalhes = coresAtuais.length > 0 || !!evento.escala.dataEnsaio || !!evento.escala.observacaoLider;
+
+  function abrirEdicao() {
+    setEnfase(evento.escala.enfase || enfaseDefault(evento.data));
+    setCores(coresAtuais);
+    setDataEnsaio(evento.escala.dataEnsaio || "");
+    setObservacao(evento.escala.observacaoLider || "");
+    setAEditar(true);
+  }
+
+  function adicionarCor() {
+    setCores((v) => (v.length >= 3 ? v : [...v, "#0092D4"]));
+  }
+  function mudarCor(i, valor) {
+    setCores((v) => v.map((c, idx) => (idx === i ? valor : c)));
+  }
+  function removerCor(i) {
+    setCores((v) => v.filter((_, idx) => idx !== i));
+  }
+
+  async function guardar() {
+    setAGuardar(true);
+    try {
+      await definirDetalhesCultoLouvor(evento.id, {
+        enfase, coresRoupa: cores, dataEnsaio: dataEnsaio || null, observacao,
+      });
+      setAEditar(false);
+      torrada("Detalhes do culto atualizados");
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar.");
+    } finally {
+      setAGuardar(false);
+    }
+  }
+
+  return (
+    <>
+      {blocos.length > 0 && (
+        <div style={{ marginTop: 4, marginBottom: 4 }}>
+          <label className="rot">Repertório</label>
+          {blocos.map((b) => (
+            <div key={b.numero}>
+              {b.itens.map((it, i) => {
+                const m = musicaPorId[it.musicaId];
+                const medleyCauda = i > 0;
+                return (
+                  <p key={it.id} className="ds" style={{ margin: "3px 0" }}>
+                    {medleyCauda ? "+ " : `${b.numero}. `}
+                    {m?.titulo ?? "Música removida"}
+                    {m?.artista ? ` · ${m.artista}` : ""}
+                    {tons[it.id] ? ` · Tom ${tons[it.id]}` : ""}
+                  </p>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {aEditar ? (
+        <div className="caixa" style={{ marginTop: 10 }}>
+          <label className="rot">Ênfase do culto</label>
+          <div className="subtabs">
+            {ENFASES.map((e) => (
+              <button key={e.id} data-on={enfase === e.id ? 1 : 0} onClick={() => setEnfase(e.id)}>{e.nome}</button>
+            ))}
+          </div>
+          <label className="rot" style={{ marginTop: 12 }}>🧥 Cores da roupa</label>
+          {cores.map((c, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+              <input
+                type="color" value={c} onChange={(e) => mudarCor(i, e.target.value)}
+                style={{ width: 40, height: 40, border: 0, borderRadius: 8, padding: 0 }}
+              />
+              <input className="campo" style={{ flex: 1 }} value={c} onChange={(e) => mudarCor(i, e.target.value)} />
+              <button className="btn sec" onClick={() => removerCor(i)}>✕</button>
+            </div>
+          ))}
+          {cores.length < 3 && (
+            <button className="btn sec full" style={{ marginTop: 8 }} onClick={adicionarCor}>Adicionar cor</button>
+          )}
+          <label className="rot" style={{ marginTop: 12 }}>Data do ensaio</label>
+          <input className="campo" type="date" value={dataEnsaio} onChange={(e) => setDataEnsaio(e.target.value)} />
+          <label className="rot" style={{ marginTop: 12 }}>Observação</label>
+          <textarea
+            className="campo" rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)}
+            placeholder="Algum recado para a equipa deste culto"
+          />
+          <button className="btn full" style={{ marginTop: 14 }} disabled={aGuardar} onClick={guardar}>
+            {aGuardar ? "A guardar…" : "Guardar detalhes"}
+          </button>
+          <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setAEditar(false)}>Cancelar</button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 6 }}>
+          {temDetalhes && (
+            <div className="caixa">
+              {coresAtuais.length > 0 && (
+                <p className="ds" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  🧥{" "}
+                  {coresAtuais.map((c, i) => (
+                    <span
+                      key={i}
+                      style={{ width: 16, height: 16, borderRadius: "50%", background: c, display: "inline-block", border: "1px solid rgba(10,15,46,.12)" }}
+                    />
+                  ))}
+                </p>
+              )}
+              {evento.escala.dataEnsaio && (
+                <p className="ds" style={{ marginTop: coresAtuais.length ? 6 : 0 }}>Ensaio · {dataCurta(evento.escala.dataEnsaio)}</p>
+              )}
+              {evento.escala.observacaoLider && (
+                <p className="ds" style={{ marginTop: 6 }}>{evento.escala.observacaoLider}</p>
+              )}
+            </div>
+          )}
+          {podeEditar && (
+            <button className="btn sec full" style={{ marginTop: 8 }} onClick={abrirEdicao}>
+              {temDetalhes ? "Editar detalhes" : "+ Cores, ensaio e observação"}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
+  const [musicas, setMusicas] = useState([]);
   const [base, setBase] = useState(null);
   const [realcado, setRealcado] = useState(null);
   const [abertos, setAbertos] = useState({});
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [aba, setAba] = useState("minhas");
   const refsEventos = useRef({});
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirBase(setBase), []);
 
   useEffect(() => {
     if (!eventoIdFoco || !eventosMes.length) return;
+    setAba("geral");
     const el = refsEventos.current[eventoIdFoco];
     if (!el) return;
     setAbertos((v) => ({ ...v, [eventoIdFoco]: true }));
@@ -34,6 +209,7 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
   const hoje = hojeISO();
+  const eventosMeus = eventosMes.filter((ev) => (ev.escala.pessoas || []).includes(uid));
 
   useEffect(() => {
     if (!ativo) return;
@@ -47,113 +223,150 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
 
   const escaladosDoPapel = (ev, papelId) => (ev.escala.escalados || []).filter((e) => e.papel === papelId);
 
+  function etiquetaEnfase(ev) {
+    const id = ev.escala.enfase || enfaseDefault(ev.data);
+    return (
+      <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 8 }}>
+        {nomeEnfase(id)}
+      </span>
+    );
+  }
+
+  function CartaoDoCulto({ ev }) {
+    const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
+    const aberto = !!abertos[ev.id];
+    return (
+      <CartaoCulto
+        evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
+        realcado={realcado === ev.id}
+        etiqueta={etiquetaEnfase(ev)}
+        refCartao={(el) => { refsEventos.current[ev.id] = el; }}
+        onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+        resumo={souEuNoCulto ? "Serves" : `${(ev.escala.pessoas || []).length} pessoas`}
+      >
+        {ev.tipo && (
+          <p className="ds" style={{ padding: "6px 0 2px" }}>
+            {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
+          </p>
+        )}
+        {(ev.escala.escalados || []).length ? (
+          (ev.escala.escalados || []).map((e) => {
+            const p = pessoaPorId(e.pessoaId);
+            if (!p) return null;
+            return (
+              <LinhaPessoaContacto
+                key={`${ev.id}-${e.pessoaId}`} pessoa={p}
+                resumo={nomePapel(e.papel)}
+                tagExtra={ev.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
+                aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === e.pessoaId}
+                onToggle={() => setContactoAberto((a) =>
+                  a?.eventoId === ev.id && a?.pessoaId === e.pessoaId ? null : { eventoId: ev.id, pessoaId: e.pessoaId })}
+              />
+            );
+          })
+        ) : (
+          <div className="vaz">Ainda ninguém escalado.</div>
+        )}
+        <DetalhesCulto evento={ev} musicas={musicas} podeEditar={podeDistribuir(papel, uid, ev.escala)} />
+      </CartaoCulto>
+    );
+  }
+
   return (
     <>
-      <div className="sect">
-        <div className="cabecalho">
-          <h3>{MESES[mes]} {ano}</h3>
-          <span className="calnav">
-            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
-            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
-          </span>
-        </div>
-        {eventosMes.length === 0 ? (
-          <div className="semescala" style={{ marginTop: 16 }}>Sem cultos criados neste mês ainda.</div>
-        ) : (
-          <>
-            {/* A tabela fica sempre pronta, com as cinco linhas de sempre
-              * (Vocal/Teclado/Guitarra/Baixo/Bateria) — antes só aparecia
-              * depois de alguém já estar escalado, e até lá mostrava só
-              * um aviso. As células vêm direto de escalados, por isso já
-              * se atualizam sozinhas quando o líder junta ou tira alguém
-              * (nenhum estado próprio aqui, é sempre o que está gravado). */}
-            {!temEscala && (
-              <div className="semescala" style={{ marginTop: 16, marginBottom: 12 }}>
-                Os {eventosMes.length} cultos já existem, falta dizer quem serve.
-              </div>
-            )}
-            <div className="tabwrap">
-              <table className="tab">
-                <thead>
-                  <tr>
-                    <th>Papel</th>
-                    {eventosMes.map((ev) => (
-                      <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
-                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="lid">
-                    <td className="papel">Líder de escala</td>
-                    {eventosMes.map((ev) => {
-                      const p = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
-                      return <td key={ev.id} className={p?.id === uid ? "mim" : ""}>{p ? p.nome : "por definir"}</td>;
-                    })}
-                  </tr>
-                  {PAPEIS.map((papel) => (
-                    <tr key={papel.id}>
-                      <td className="papel"><span className="quadmin" style={{ background: papel.cor }} />{papel.nome}</td>
-                      {eventosMes.map((ev) => {
-                        const nomes = escaladosDoPapel(ev, papel.id).map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
-                        const souEu = nomes.some((p) => p.id === uid);
-                        return (
-                          <td key={ev.id} className={souEu ? "mim" : ""}>
-                            {nomes.length ? nomes.map((p) => p.nome).join(", ") : "—"}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. Desliza a tabela se não couber.</p>
-          </>
-        )}
+      <div className="subtabs">
+        <button data-on={aba === "minhas" ? 1 : 0} onClick={() => setAba("minhas")}>Minhas escalas</button>
+        <button data-on={aba === "geral" ? 1 : 0} onClick={() => setAba("geral")}>Escala geral</button>
       </div>
 
-      <div className="sect">
-        {eventosMes.map((ev) => {
-          const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
-          const aberto = !!abertos[ev.id];
-          return (
-            <CartaoCulto
-              key={ev.id}
-              evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
-              realcado={realcado === ev.id}
-              refCartao={(el) => { refsEventos.current[ev.id] = el; }}
-              onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
-              resumo={souEuNoCulto ? "Serves" : `${(ev.escala.pessoas || []).length} pessoas`}
-            >
-            {ev.tipo && (
-              <p className="ds" style={{ padding: "6px 0 2px" }}>
-                {ev.horaCulto} · chegada {ev.horaChegada || base?.horaChegada}
-              </p>
-            )}
-            {(ev.escala.escalados || []).length ? (
-              (ev.escala.escalados || []).map((e) => {
-                const p = pessoaPorId(e.pessoaId);
-                if (!p) return null;
-                return (
-                  <LinhaPessoaContacto
-                    key={`${ev.id}-${e.pessoaId}`} pessoa={p}
-                    resumo={nomePapel(e.papel)}
-                    tagExtra={ev.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
-                    aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === e.pessoaId}
-                    onToggle={() => setContactoAberto((a) =>
-                      a?.eventoId === ev.id && a?.pessoaId === e.pessoaId ? null : { eventoId: ev.id, pessoaId: e.pessoaId })}
-                  />
-                );
-              })
+      {aba === "minhas" ? (
+        <div className="sect" style={{ marginTop: 12 }}>
+          <div className="cabecalho">
+            <h3>{MESES[mes]} {ano}</h3>
+            <span className="calnav">
+              <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+              <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+            </span>
+          </div>
+          {eventosMeus.length === 0 ? (
+            <div className="vaz" style={{ marginTop: 12 }}>Não estás escalado em nenhum culto este mês.</div>
+          ) : (
+            eventosMeus.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} />)
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="sect" style={{ marginTop: 12 }}>
+            <div className="cabecalho">
+              <h3>{MESES[mes]} {ano}</h3>
+              <span className="calnav">
+                <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+                <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+              </span>
+            </div>
+            {eventosMes.length === 0 ? (
+              <div className="semescala" style={{ marginTop: 16 }}>Sem cultos criados neste mês ainda.</div>
             ) : (
-              <div className="vaz">Ainda ninguém escalado.</div>
+              <>
+                {/* A tabela fica sempre pronta, com uma linha por papel
+                  * (ver PAPEIS) — antes só aparecia depois de alguém já
+                  * estar escalado, e até lá mostrava só um aviso. As
+                  * células vêm direto de escalados, por isso já se
+                  * atualizam sozinhas quando o líder junta ou tira
+                  * alguém (nenhum estado próprio aqui, é sempre o que
+                  * está gravado). */}
+                {!temEscala && (
+                  <div className="semescala" style={{ marginTop: 16, marginBottom: 12 }}>
+                    Os {eventosMes.length} cultos já existem, falta dizer quem serve.
+                  </div>
+                )}
+                <div className="tabwrap">
+                  <table className="tab">
+                    <thead>
+                      <tr>
+                        <th>Papel</th>
+                        {eventosMes.map((ev) => (
+                          <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
+                            {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="lid">
+                        <td className="papel">Líder de escala</td>
+                        {eventosMes.map((ev) => {
+                          const p = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
+                          return <td key={ev.id} className={p?.id === uid ? "mim" : ""}>{p ? p.nome : "por definir"}</td>;
+                        })}
+                      </tr>
+                      {PAPEIS.map((papelLinha) => (
+                        <tr key={papelLinha.id}>
+                          <td className="papel"><span className="quadmin" style={{ background: papelLinha.cor }} />{papelLinha.nome}</td>
+                          {eventosMes.map((ev) => {
+                            const nomes = escaladosDoPapel(ev, papelLinha.id).map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
+                            const souEu = nomes.some((p) => p.id === uid);
+                            return (
+                              <td key={ev.id} className={souEu ? "mim" : ""}>
+                                {nomes.length ? nomes.map((p) => p.nome).join(", ") : "—"}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. Desliza a tabela se não couber.</p>
+              </>
             )}
-            </CartaoCulto>
-          );
-        })}
-      </div>
+          </div>
+
+          <div className="sect">
+            {eventosMes.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} />)}
+          </div>
+        </>
+      )}
       <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
     </>
   );

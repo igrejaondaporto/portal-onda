@@ -163,13 +163,13 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala} onIrCulto={irParaCulto}
-              onIrBiblioteca={() => irPara("biblioteca")} onIrRepertorio={() => irPara("repertorio")}
+              onIrBiblioteca={() => irPara("biblioteca")}
               onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
             />
@@ -190,7 +190,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "biblioteca" ? "" : "none" }}>
             <Biblioteca
-              uid={uid} papel={papel} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
+              uid={uid} papel={papel} pessoa={pessoa} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
               onIrRepertorio={() => irPara("repertorio")}
             />
           </div>

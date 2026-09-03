@@ -49,7 +49,7 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const souLiderBase = papel === "lider_base";
   const [equipamentos, setEquipamentos] = useState([]);
   const [melhorias, setMelhorias] = useState([]);
-  // "ministérios" aqui são os cinco papéis da escala (Vocal, Teclado…)
+  // "ministérios" aqui são os sete papéis da escala (Lead, Teclado…)
   // — lista fixa em código, sem catálogo no Firestore (ver lib/modelo.js).
   const ministerios = PAPEIS;
   const [voluntarios, setVoluntarios] = useState([]);
