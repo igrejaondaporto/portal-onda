@@ -1170,6 +1170,52 @@ export const registarHistoricoCantorLouvor = onCall(async (req) => {
   return { registado: true };
 });
 
+/* ── CONFIRMAÇÃO DE PRESENÇA (Base Louvor) ────────────────────
+ * Primeira base a sair do "sem confirmação de presença, quem não
+ * pode avisa pelo WhatsApp" (decisão registada no CLAUDE.md da
+ * Apoio) — pedido explícito do líder, 2026-09. Só depois de a escala
+ * estar `publicado` (Fase C) é que faz sentido pedir confirmação —
+ * antes disso a pessoa nem sabe que está escalada a sério. `pessoaId`
+ * é só do líder/auxiliar, mesmo padrão de responderEnquete: corrigir
+ * quem esqueceu, sem depender do telemóvel da pessoa. `confirmado:
+ * false` desfaz — a pessoa pode confirmar sem querer e voltar atrás,
+ * sem precisar de pedir ao líder (self-service; o líder continua a
+ * poder ajustar a escala manualmente se for o caso de "afinal não
+ * posso ir" chegar tarde demais). */
+export const confirmarPresencaLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId, pessoaId, confirmado = true } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  let alvo = uid;
+  if (pessoaId && pessoaId !== uid) {
+    if (!PAPEIS_LIDER.has(req.auth.token.papel)) {
+      throw new HttpsError("permission-denied", "Só o líder pode confirmar por outra pessoa.");
+    }
+    alvo = pessoaId;
+  }
+
+  const escalaRef = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const escalaSnap = await escalaRef.get();
+  if (!escalaSnap.exists || !escalaSnap.data().publicado) {
+    throw new HttpsError("failed-precondition", "Esta escala ainda não foi publicada.");
+  }
+  if (!(escalaSnap.data().pessoas || []).includes(alvo)) {
+    throw new HttpsError("failed-precondition", "Esta pessoa não está escalada neste culto.");
+  }
+
+  const ref = escalaRef.collection("confirmacoes").doc(alvo);
+  if (confirmado) {
+    const dados = { confirmado: true, confirmadoEm: admin.firestore.FieldValue.serverTimestamp() };
+    if (alvo !== uid) { dados.respondidoPeloLider = true; dados.respondidoPor = uid; }
+    await ref.set(dados);
+  } else {
+    await ref.delete();
+  }
+  return { ok: true };
+});
+
 const ENFASES_LOUVOR = new Set(["ceia", "contribua", "familia"]);
 const HEX_COR = /^#[0-9a-fA-F]{6}$/;
 
