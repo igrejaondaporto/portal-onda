@@ -23,15 +23,11 @@ Biblioteca já com resolução automática de tom/BPM/links na busca por
 nome (ver secção 5); cadastro manual continua possível a qualquer
 momento. "Solicitar BG" à Comunicação está ligado (item "A base" no
 Início, só para o líder — mesmo componente partilhado que Apoio/
-Técnica/Backstage já usavam).
-
-**Deliberadamente fora desta entrega** (mais simples do que o
-`CLAUDE.md` original da biblioteca previa, para caber num primeiro
-lançamento):
-- **Enquete de indisponibilidade + sugestor de escala** ("Montar") —
-  o schema/Cloud Functions já são genéricos (ver `CLAUDE.md` raiz,
-  "O que NÃO precisa de mudar"), só falta portar se vier a fazer
-  falta.
+Técnica/Backstage já usavam). Enquete de indisponibilidade, rascunho
+de escala e histórico de tons por cantor entraram em 2026-09 (ver
+"Enquete, rascunho e histórico de tons" abaixo) — o "Montar escala"
+automático (sugestor por titular/aprendiz) não veio junto, de
+propósito: não pediram, e não há titular/aprendiz aqui.
 
 Repertório reordena por arrasto (Pointer Events lavrados à mão, sem
 dependência nova — pega pelo ⠿ à esquerda de cada item) **e** pelas
@@ -137,6 +133,66 @@ Louvor neles:
 No cliente da Louvor, use sempre `souLiderOuAuxiliar(papel)`
 (`lib/modelo.js`) em vez de comparar `papel === "lider_base"` direto
 — é o que todas as telas desta base já fazem.
+
+## Enquete, rascunho e histórico de tons (2026-09)
+
+**Enquete de indisponibilidade** — portada da Backstage
+(`lib/enquetes.js`, `components/painel/SheetAbrirEnquete.jsx`,
+`components/SheetResponderEnquete.jsx`), backend 100% genérico
+(`abrirEnquete`/`fecharEnquete`/`reabrirEnquete`/`marcarEscalaPublicada`/
+`excluirEnquete`/`responderEnquete` em `functions/index.js`, nada
+novo). **Sem "Montar escala"** — o sugestor automático da Backstage/
+Técnica pressupõe um titular só por culto (ou titular+aprendiz); aqui
+o líder de escala escolhe livremente quantos por papel, não há
+"sugestão" que faça sentido do mesmo jeito. O campo de texto livre da
+resposta é rotulado **"Justificativa (opcional)"** (nas outras bases
+é "Nota") — o nome interno do campo continua `nota`, só o rótulo
+muda. Gestão completa (abrir/listar/responder por alguém/fechar/
+reabrir/excluir) dentro do Painel do líder
+(`components/painel/SecaoEnquetes.jsx`), não é aba própria.
+
+Popup automático e **bloqueante** ao entrar, quando há enquete aberta
+que a pessoa ainda não respondeu (`components/EnqueteAutoStart.jsx`,
+montado uma vez em `Sessao.jsx`) — inspirado no `TourAutoStart`
+partilhado, mas ao vivo (`onSnapshot`) em vez de checagem única: uma
+enquete aberta a meio da sessão aparece sem precisar sair e voltar a
+entrar. "Bloqueante" é o mesmo `SheetResponderEnquete` de sempre com
+o véu e o botão "Fechar" desligados (`prop bloqueante`) — não há UI
+paralela para isto.
+
+**Rascunho de escala** (`bases/louvor/rascunhosEscala/{id}`) — cobre
+vários domingos de uma vez, escondido dos voluntários até publicar
+(regra: só líder lê). `guardarRascunhoEscala` valida pouco (papel
+válido, sem duplicar pessoa no mesmo culto) — conflito entre bases só
+é checado a publicar. `publicarRascunhoEscala` publica **sempre todos
+os domingos do rascunho de uma vez** (decisão do líder, nunca
+parcial), reaproveitando a validação completa de
+`guardarEscalaLouvor` via `escreverEscalaLouvor`. O editor
+(`components/painel/SheetRascunho.jsx`) reaproveita a própria
+interação do `SheetEscala.jsx` ao vivo — tocar para escalar, estrela
+para líder de escala — através do prop `aoMudar`: quando presente,
+substitui a escrita direta na escala ao vivo por estado local do
+rascunho, só persistido a valer em "Guardar rascunho".
+
+**Publicar sem rascunho** — a tabela rápida de sempre
+(`SheetEscala.jsx`) ganhou `publicarEscalaLouvor({eventoId})` e um
+botão "Publicar esta escala" (só fora do modo rascunho, `!aoMudar`).
+`publicado` é sticky: editar quem serve depois de publicado não some
+com o selo — teria de haver um "despublicar" explícito, que não foi
+pedido.
+
+**Histórico de tons por cantor**
+(`bases/louvor/musicas/{musicaId}/historicoCantores/{pessoaId}`,
+`{nome, toms: [{tom, vezes, primeiraVez, ultimaVez}]}`) — só quem
+está como **Lead** no culto conta como "cantor" (Co-lead/Back
+acompanham, não escolhem o tom). `registarHistoricoCantorLouvor`
+(transação, evita corrida entre dois toques quase juntos no mesmo
+tom) é chamado do cliente em dois momentos: ao adicionar a música a
+um repertório (`lib/repertorio.js`) e ao trocar o tom de um item já
+lá dentro (`SheetEditarTom`, dentro de `Repertorio.jsx`). Sem Lead
+definido ainda para o culto, fica silencioso — não é erro, dá para
+montar repertório antes de escalar. Mostrado em "Cantores", dentro de
+`SheetMusicaDetalhe.jsx`, logo a seguir a "Histórico".
 
 ## Culto: Ordem, Feedbacks — Equipamentos é aba própria
 

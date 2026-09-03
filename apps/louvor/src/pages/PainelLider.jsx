@@ -12,6 +12,8 @@ import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
 import SheetAviso from "../components/painel/SheetAviso";
+import SecaoEnquetes from "../components/painel/SecaoEnquetes";
+import SecaoRascunhos from "../components/painel/SecaoRascunhos";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
@@ -141,6 +143,9 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
               Adicionar culto especial
             </button>
           </div>
+
+          <SecaoEnquetes voluntarios={voluntarios} />
+          <SecaoRascunhos voluntarios={voluntarios} />
 
           <div className="sect">
             <div className="cabecalho">

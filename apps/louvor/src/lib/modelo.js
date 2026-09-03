@@ -25,6 +25,10 @@ export const cReembolsos    = () => collection(db, `bases/${BASE_ID}/reembolsos`
 export const cMusicas       = () => collection(db, `bases/${BASE_ID}/musicas`);
 export const cVersoes       = (musicaId) => collection(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes`);
 export const cRepertorios   = () => collection(db, `bases/${BASE_ID}/repertorios`);
+export const cHistoricoCantores = (musicaId) => collection(db, `bases/${BASE_ID}/musicas/${musicaId}/historicoCantores`);
+export const cEnquetes       = () => collection(db, `bases/${BASE_ID}/enquetes`);
+export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
+export const cRascunhosEscala = () => collection(db, `bases/${BASE_ID}/rascunhosEscala`);
 export const cEventos       = () => collection(db, "eventos");
 export const cEscala        = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 

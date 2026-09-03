@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
+import { publicarEscala } from "../../lib/rascunho";
 import { PAPEIS, nomePapel } from "../../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -16,8 +17,16 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  * guardarEscalaLouvor). Quem ainda não tem instrumento no perfil cai
  * num bloco à parte, com o seletor de papel de sempre — para não
  * desaparecer da escala só por o perfil estar incompleto.
+ *
+ * `aoMudar(escalados, liderEscala)`, se vier, substitui a escrita
+ * direta na escala ao vivo (guardarEscala) — é o que SecaoRascunhos
+ * usa para reaproveitar esta mesma interação num item de rascunho,
+ * que só grava a valer quando o rascunho inteiro é guardado. Nesse
+ * caso `evento` é um objeto sintético (id do culto real + o
+ * escalados/liderEscala do item), sem `escopo`/`tipo` — "dispensar" e
+ * "excluir culto" não fazem sentido a meio de um rascunho.
  */
-export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
+export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir, aoMudar }) {
   const torrada = useTorrada();
   const [escalados, setEscalados] = useState(evento?.escala?.escalados ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
@@ -26,6 +35,8 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   const [aEscolherPapel, setAEscolherPapel] = useState(null); // pessoaId, a meio de juntar (só no bloco "sem instrumento")
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
+  const [publicado, setPublicado] = useState(!!evento?.escala?.publicado);
+  const [aPublicar, setAPublicar] = useState(false);
 
   useEffect(() => { obterEstatisticasEscala(90).then(setEstatisticas); }, []);
 
@@ -35,6 +46,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   // desfaz e avisa — nunca fica um estado no ecrã que não bateu certo
   // com o gravado.
   async function persistir(novosEscalados, novoLider, anterior) {
+    if (aoMudar) { aoMudar(novosEscalados, novoLider); return; }
     try {
       await guardarEscala(evento.id, { escalados: novosEscalados, liderEscala: novoLider });
     } catch (e) {
@@ -75,6 +87,19 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     const anterior = { escalados, liderEscala };
     setLiderEscala(id);
     persistir(escalados, id, anterior);
+  }
+
+  async function publicar() {
+    setAPublicar(true);
+    try {
+      await publicarEscala(evento.id);
+      setPublicado(true);
+      torrada("Escala publicada");
+    } catch (e) {
+      torrada(e.message || "Não foi possível publicar.");
+    } finally {
+      setAPublicar(false);
+    }
   }
 
   async function alternarDispensa() {
@@ -241,6 +266,18 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
             </p>
             {semInstrumento.map((p) => linhaSemInstrumento(p))}
           </div>
+        )}
+
+        {!aoMudar && (
+          publicado ? (
+            <p className="ds" style={{ textAlign: "center", marginTop: 18, color: "var(--verde)", fontWeight: 600 }}>
+              ✓ Publicada — os voluntários já veem esta escala
+            </p>
+          ) : (
+            <button className="btn full" style={{ marginTop: 18, background: "var(--verde)" }} disabled={aPublicar || !escalados.length} onClick={publicar}>
+              {aPublicar ? "A publicar…" : "Publicar esta escala"}
+            </button>
+          )
         )}
 
         <button className="btn full" style={{ marginTop: 20 }} onClick={() => onGuardado("Escala atualizada")}>
