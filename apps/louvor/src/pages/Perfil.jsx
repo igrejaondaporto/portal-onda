@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { guardarPerfil, enviarFotoPerfil, removerFotoPerfil } from "@portal/shared/lib/perfil.js";
 import { trocarPin } from "@portal/shared/lib/auth.js";
+import { guardarAniversario } from "../lib/perfil";
 import { obterMeusProximosDomingos } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { meusPapeisNoCulto, nomePapel } from "../lib/modelo";
@@ -17,6 +18,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
+  const [aniversario, setAniversario] = useState(pessoa?.aniversario ?? "");
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aGuardar, setAGuardar] = useState(false);
   const [c1, setC1] = useState("");
@@ -27,7 +29,11 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
   const [meusPedidos, setMeusPedidos] = useState([]);
   const [expandida, setExpandida] = useState(false);
 
-  useEffect(() => { setNome(pessoa?.nome ?? ""); setTelefone(pessoa?.telefone ?? ""); }, [pessoa]);
+  useEffect(() => {
+    setNome(pessoa?.nome ?? "");
+    setTelefone(pessoa?.telefone ?? "");
+    setAniversario(pessoa?.aniversario ?? "");
+  }, [pessoa]);
   useEffect(() => { obterMeusProximosDomingos(uid).then(setDomingos); }, [uid]);
   useEffect(() => ouvirReembolsos(false, uid, setMeusPedidos), [uid]);
 
@@ -72,8 +78,11 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
     if (!n) return torrada("O nome não pode ficar vazio");
     setAGuardar(true);
     try {
-      await guardarPerfil(uid, { nome: n, telefone: telefone.trim() });
-      onAtualizarPessoa({ ...pessoa, nome: n, telefone: telefone.trim() });
+      await Promise.all([
+        guardarPerfil(uid, { nome: n, telefone: telefone.trim() }),
+        guardarAniversario(uid, aniversario || null),
+      ]);
+      onAtualizarPessoa({ ...pessoa, nome: n, telefone: telefone.trim(), aniversario: aniversario || null });
       torrada("Dados guardados");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -81,6 +90,12 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
       setAGuardar(false);
     }
   }
+
+  // <input type="date"> não tem noção de "só mês e dia" — usa-se um
+  // ano fixo bissexto (cobre 29/fev) só como andaime da UI; o que se
+  // grava é sempre "MM-DD", nunca o ano.
+  const ANO_ANDAIME = "2000";
+  const valorDataAniversario = aniversario ? `${ANO_ANDAIME}-${aniversario}` : "";
 
   const digitos = souLiderBase ? 6 : 4;
   async function alterarCodigo() {
@@ -126,6 +141,12 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
             <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} />
             <label className="rot">Telemóvel</label>
             <input className="campo" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="9xx xxx xxx" />
+            <label className="rot">Aniversário</label>
+            <input
+              className="campo" type="date" value={valorDataAniversario}
+              onChange={(e) => setAniversario(e.target.value ? e.target.value.slice(5) : "")}
+            />
+            <p className="ds" style={{ marginTop: 4 }}>Só o dia e o mês contam — sem ano.</p>
             <button className="btn full" style={{ marginTop: 16 }} disabled={aGuardar} onClick={guardar}>Guardar</button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ouvirVoluntarios, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
+import { ouvirAvisos, ouvirAvisosModelos, excluirAviso } from "../lib/avisos";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -9,11 +10,12 @@ import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
+import SheetAviso from "../components/painel/SheetAviso";
 import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 
-export default function PainelLider({ definirCabecalho, aoVoltar }) {
+export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -21,6 +23,8 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const [base, setBase] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
+  const [avisos, setAvisos] = useState([]);
+  const [avisosModelos, setAvisosModelos] = useState([]);
   const [sheet, setSheet] = useState(null);
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
@@ -63,6 +67,17 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirAvisos(setAvisos), []);
+  useEffect(() => ouvirAvisosModelos(setAvisosModelos), []);
+
+  async function apagarAviso(id) {
+    try {
+      await excluirAviso(id);
+      torrada("Aviso removido");
+    } catch (e) {
+      torrada(e.message || "Não foi possível remover.");
+    }
+  }
 
   const recarregarMes = useCallback(() => {
     obterEventosDoMes(ano, mes).then(setEventosMes);
@@ -197,6 +212,36 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
               </button>
             </div>
           </div>
+
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>Avisos</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "aviso" })}>
+                Novo aviso
+              </button>
+            </div>
+            {avisos.length === 0 ? (
+              <div className="vaz">Nenhum aviso ativo.</div>
+            ) : (
+              avisos.map((a) => (
+                <div className="linha" key={a.id}>
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{a.texto}</p>
+                    <p className="ds">
+                      <span className={`tag ${a.urgencia === "urgente" ? "" : "cinz"}`} style={a.urgencia === "urgente" ? { background: "var(--magenta)", color: "#fff" } : {}}>
+                        {a.urgencia === "urgente" ? "urgente" : "normal"}
+                      </span>
+                      {" "}· {a.duracaoDias} {a.duracaoDias === 1 ? "dia" : "dias"}
+                    </p>
+                  </div>
+                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--magenta)" }} onClick={() => apagarAviso(a.id)}>
+                    Remover
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
           <p className="ds" style={{ padding: "0 4px" }}>
             Equipamento (instrumentos e som) gere-se na aba Equipamentos. Músicas e repertório vivem nas abas
             Biblioteca e Repertório.
@@ -258,6 +303,14 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
           onFechar={() => setSheet(null)}
           onVoltar={(pessoaId) => setSheet({ tipo: "pessoa", pessoaId })}
           onRemovido={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
+        />
+      )}
+      {sheet?.tipo === "aviso" && (
+        <SheetAviso
+          uid={uid}
+          modelos={avisosModelos}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />
       )}
       {sheet?.tipo === "definicoesBase" && (
