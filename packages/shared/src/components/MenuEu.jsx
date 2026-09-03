@@ -4,7 +4,10 @@ import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour }) {
-  const lider = papel === "lider_base";
+  // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
+  // da base (ver apps/louvor/src/lib/modelo.js) — nenhuma outra base
+  // consegue produzir esse papel no token, seguro tratar aqui.
+  const lider = papel === "lider_base" || papel === "auxiliar";
   const [expandida, setExpandida] = useState(false);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
 

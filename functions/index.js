@@ -252,7 +252,7 @@ export const entrar = onCall(async (req) => {
 
   const token = await admin.auth().createCustomToken(pessoaId, {
     baseId,
-    papel: pessoa.papel === "lider_base" ? "lider_base" : "voluntario",
+    papel: papelParaToken(pessoa.papel, baseId),
     ...(await claimsExtraDaBase(baseId)),
   });
   return { token, deveTrocarPin: !!s.provisorio };
@@ -328,7 +328,9 @@ export const trocarPin = onCall(async (req) => {
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
 
   const { pinAtual, pinNovo } = req.data || {};
-  const digitos = req.auth.token.papel === "lider_base" ? 6 : 4;
+  // "auxiliar" (só na Louvor) usa o mesmo tamanho de código do líder
+  // da base — ver PAPEIS_LIDER mais abaixo no ficheiro.
+  const digitos = PAPEIS_LIDER.has(req.auth.token.papel) ? 6 : 4;
   if (!new RegExp(`^\\d{${digitos}}$`).test(String(pinNovo || ""))) {
     throw new HttpsError("invalid-argument", `O código tem de ter ${digitos} dígitos.`);
   }
@@ -346,12 +348,30 @@ export const trocarPin = onCall(async (req) => {
 });
 
 /* ── LÍDER DA BASE ────────────────────────────────────────── */
+/** "auxiliar" (só existe na Louvor, ver PAPEIS_BASE no cliente e a
+ *  validação em criarVoluntario/editarVoluntario abaixo) tem as
+ *  mesmas funções do líder da base — pedido do líder, 2026-09.
+ *  Seguro tratar isto genericamente aqui (função partilhada por
+ *  todas as bases): nenhuma outra base consegue gravar
+ *  `papel:"auxiliar"` numa pessoa seguinte, e por isso nunca chega a
+ *  entrar no token de ninguém fora da Louvor. */
+const PAPEIS_LIDER = new Set(["lider_base", "auxiliar"]);
+
 function exigeLider(req) {
   const baseId = req.auth?.token?.baseId;
-  if (!baseId || req.auth.token.papel !== "lider_base") {
+  if (!baseId || !PAPEIS_LIDER.has(req.auth.token.papel)) {
     throw new HttpsError("permission-denied", "Só o líder da base pode fazer isto.");
   }
   return baseId;
+}
+
+/** Mesma regra usada para montar o custom token em `entrar` e
+ *  `trocarBase` — só a Louvor pode ter "auxiliar"; noutra base isso
+ *  colapsa para "voluntario", como qualquer papel desconhecido. */
+function papelParaToken(papelPessoa, baseId) {
+  if (papelPessoa === "lider_base") return "lider_base";
+  if (papelPessoa === "auxiliar" && baseId === "louvor") return "auxiliar";
+  return "voluntario";
 }
 
 /** Só a(s) base(s) com bases/{b}.culto.podePublicar podem publicar/
@@ -368,12 +388,25 @@ function exigePodePublicarCulto(req) {
 }
 // fixo e óbvio de propósito: ninguém decora código nenhum, e o
 // `provisorio:true` obriga a trocar logo no primeiro acesso.
-const PIN_PADRAO = { lider_base: "123456", voluntario: "1234" };
+const PIN_PADRAO = { lider_base: "123456", auxiliar: "123456", voluntario: "1234" };
 const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
+
+/** "auxiliar" só é um papel válido na Louvor (ver PAPEIS_LIDER acima
+ *  e PAPEIS_BASE no cliente) — noutra base é o mesmo erro que
+ *  qualquer papel desconhecido. */
+function validarPapelBase(papel, baseId) {
+  if (!["voluntario", "lider_base", "auxiliar"].includes(papel)) {
+    throw new HttpsError("invalid-argument", "Papel inválido.");
+  }
+  if (papel === "auxiliar" && baseId !== "louvor") {
+    throw new HttpsError("invalid-argument", "Este papel só existe na Louvor.");
+  }
+}
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null, auxiliarBiblioteca = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null } = req.data || {};
+  validarPapelBase(papel, baseId);
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
   // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
   // ministério onde pendurar, ao contrário do nivel por-ministério da
@@ -391,11 +424,6 @@ export const criarVoluntario = onCall(async (req) => {
   // nenhum associado, é só o que aparece a par do nome. Nas outras
   // bases o campo nunca aparece.
   const comCargo = cargo ? { cargo: String(cargo).trim() } : {};
-  // auxiliarBiblioteca: só a Louvor envia isto — dá permissão real
-  // (cadastrar música nova, ver firestore.rules) ao contrário de
-  // cargo, que é só etiqueta. Fica de fora do token de propósito (ver
-  // apps/louvor/CLAUDE.md) — a regra lê o próprio perfil ao vivo.
-  const comAuxiliar = typeof auxiliarBiblioteca === "boolean" ? { auxiliarBiblioteca } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
   if (pessoaExistenteId) {
@@ -445,7 +473,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAuxiliar,
+      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -461,7 +489,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAuxiliar,
+    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -527,12 +555,10 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos, auxiliarBiblioteca } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
-  if (!["voluntario", "lider_base"].includes(papel)) {
-    throw new HttpsError("invalid-argument", "Papel inválido.");
-  }
+  validarPapelBase(papel, baseId);
   const ref = refPessoa(baseId, pessoaId);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Voluntário não encontrado.");
@@ -552,7 +578,6 @@ export const editarVoluntario = onCall(async (req) => {
   if (nivel) dados.nivel = nivel;
   if (cargo !== undefined) dados.cargo = cargo ? String(cargo).trim() : null;
   if (Array.isArray(instrumentos)) dados.instrumentos = instrumentos.filter((x) => typeof x === "string");
-  if (typeof auxiliarBiblioteca === "boolean") dados.auxiliarBiblioteca = auxiliarBiblioteca;
   // o próprio já muda a sua foto por escrita direta (firestore.rules
   // permite ao dono); isto é só o líder a mudar a foto de outra
   // pessoa — o upload em si já passou pelo Storage antes de chegar
@@ -648,7 +673,7 @@ export const trocarBase = onCall(async (req) => {
 
   const token = await admin.auth().createCustomToken(uid, {
     baseId: novoBaseId,
-    papel: snap.data().papel === "lider_base" ? "lider_base" : "voluntario",
+    papel: papelParaToken(snap.data().papel, novoBaseId),
     ...(await claimsExtraDaBase(novoBaseId)),
   });
   return { token };
@@ -928,7 +953,7 @@ export const guardarEscalaLouvor = onCall(async (req) => {
 
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
   const snap = await ref.get();
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
   if (!souLiderBase && !souLiderAtual) {
     throw new HttpsError("permission-denied",
@@ -996,7 +1021,7 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
 
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
   const snap = await ref.get();
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   const souLiderEscala = snap.exists && snap.data().liderEscala === uid;
   if (!souLiderBase && !souLiderEscala) {
     throw new HttpsError("permission-denied",
