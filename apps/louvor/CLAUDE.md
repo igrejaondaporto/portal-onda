@@ -194,6 +194,44 @@ definido ainda para o culto, fica silencioso — não é erro, dá para
 montar repertório antes de escalar. Mostrado em "Cantores", dentro de
 `SheetMusicaDetalhe.jsx`, logo a seguir a "Histórico".
 
+## Confirmação de presença (2026-09)
+
+**A Louvor é a primeira base a ter confirmação de presença** — reverte
+uma decisão documentada no `CLAUDE.md` da Apoio ("Sem confirmação de
+presença. Quem não pode avisa pelo WhatsApp."), que continua a valer
+só para a Apoio. Pedido explícito do líder da Louvor.
+
+Só faz sentido pedir confirmação depois de a escala do culto estar
+`publicado` (Fase C) — antes disso a pessoa nem sabe que está
+escalada a sério. `eventos/{e}/escalas/louvor/confirmacoes/{pessoaId}`
+(`{confirmado, confirmadoEm, respondidoPeloLider?, respondidoPor?}`),
+sempre por `confirmarPresencaLouvor` (`lib/confirmacao.js`), que
+recusa se a escala não estiver publicada ou se a pessoa não estiver
+escalada. O desvio "líder confirma por outra pessoa" copia o mesmo
+padrão de `responderEnquete`.
+
+**Decisão de produto que tomei sozinho, sem confirmar antes — vale a
+pena reveres**: existe um "Afinal não posso ir" que desfaz a
+confirmação (`confirmado: false` apaga o documento) — self-service,
+sem precisar pedir ao líder para uma troca de ideias simples. Se
+preferires que confirmar seja definitivo (só o líder desfaz, ajustando
+a escala manualmente por WhatsApp como já era antes desta fase), é só
+tirar o botão "Afinal não posso ir" em `Inicio.jsx` e a chamada
+`desfazerConfirmacao` — a Cloud Function já aceita `confirmado:false`
+de qualquer forma, não precisa mudar.
+
+No Início: balão verde "Confirma que vais?" enquanto a pessoa está
+escalada num culto publicado e ainda não confirmou (aparece antes dos
+Avisos, mesma posição de prioridade da chamada para votar — ver Fase
+C). Depois de confirmar, o balão dá lugar a uma linha discreta dentro
+de "O teu papel" (✓ Presença confirmada · Afinal não posso ir). O
+Calendário (`components/Calendario.jsx`) ganhou um 4º estado —
+vermelho (`.cald.naoconfirmado`, só em `styles/louvor.css`: as outras
+bases não têm confirmação de presença, por isso o `.cald` partilhado
+em `global.css` continua só com sirvo/culto/hoje) — escalado +
+publicado + por confirmar, um listener por culto do mês
+(`ouvirConfirmacoesDoMes`).
+
 ## Culto: Ordem, Feedbacks — Equipamentos é aba própria
 
 Duas sub-abas dentro de Culto (`src/pages/Culto.jsx`), ecrã genérico

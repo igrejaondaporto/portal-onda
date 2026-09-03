@@ -465,3 +465,27 @@
   align-items: center;
   justify-content: center;
 }
+
+/* 4º estado do Calendário (Fase D, 2026-09) — escalado + escala
+ * publicada + ainda por confirmar presença. Só a Louvor tem
+ * confirmação de presença, por isso vive aqui e não no .cald
+ * partilhado (global.css) — sirvo/culto/hoje continuam lá. */
+.cald.naoconfirmado {
+  background: var(--magenta);
+  color: #fff;
+  font-weight: 800;
+}
+
+/* linha de estado dentro de "O teu papel", depois de confirmar —
+ * discreta de propósito, o pedido de confirmação em si é o .destaque
+ * grande logo acima; isto é só o "desfazer" para quem confirmou sem
+ * querer ou mudou de ideias. */
+.confirmado-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fio);
+}
