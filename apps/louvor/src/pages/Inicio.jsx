@@ -5,6 +5,8 @@ import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
+import { ouvirAvisos } from "../lib/avisos";
+import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
@@ -13,6 +15,7 @@ import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.j
 import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
+import SheetAniversarios from "../components/painel/SheetAniversarios";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -29,6 +32,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [contactoAberto, setContactoAberto] = useState(null);
   const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
   const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
+  const [avisos, setAvisos] = useState([]);
+  const [sheetAniversarios, setSheetAniversarios] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -36,6 +41,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
   useEffect(() => ouvirMusicas(setMusicas), []);
+  useEffect(() => ouvirAvisos(setAvisos), []);
   useEffect(() => {
     if (!souLider) return;
     return ouvirMinhasSolicitacoes(setMinhasSolicitacoes);
@@ -62,6 +68,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "07:00";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
   const emCurso = minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length;
+  const proximoAniversario = voluntarios
+    .filter((p) => p.aniversario)
+    .map((p) => ({ pessoa: p, dias: diasAte(p.aniversario) }))
+    .sort((a, b) => a.dias - b.dias)[0] ?? null;
 
   function fecharAvisoReembolso() {
     marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
@@ -101,10 +111,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     }
   }
 
-  if (!meuEvento) return null;
-
   return (
     <>
+      {avisos.map((a) => (
+        <div
+          key={a.id} className="destaque"
+          style={{ background: a.urgencia === "urgente" ? "var(--magenta)" : "var(--azul)", marginBottom: 10 }}
+        >
+          <p style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.4 }}>{a.texto}</p>
+        </div>
+      ))}
+      {!meuEvento ? null : (
+      <>
       {reembolsoIndeferido && (
         <div className="destaque" style={{ background: "var(--magenta)" }} onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}>
           <div>
@@ -209,6 +227,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           {[
             ["biblioteca", "Biblioteca", `${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`, () => onIrBiblioteca?.()],
             ["culto", "Culto", "Ordem e feedback", () => onIrCulto?.("ordem")],
+            ...(souLider
+              ? [["aniversarios", "Aniversários", proximoAniversario
+                    ? `${proximoAniversario.pessoa.nome} · ${fraseDiasAte(proximoAniversario.dias)}`
+                    : "Sem datas registadas ainda", () => setSheetAniversarios(true)]]
+              : []),
           ].map(([k, t, d, ir]) => (
             <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
               <div style={{ flex: 1 }}>
@@ -247,6 +270,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
       </div>
     </div>
+      </>
+      )}
     {sheetComunicacao?.tipo === "lista" && (
       <SheetSolicitacoesBase
         solicitacoes={minhasSolicitacoes}
@@ -268,6 +293,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         onFechar={() => setSheetComunicacao({ tipo: "lista" })}
         onExcluido={() => setSheetComunicacao({ tipo: "lista" })}
       />
+    )}
+    {sheetAniversarios && (
+      <SheetAniversarios voluntarios={voluntarios} onFechar={() => setSheetAniversarios(false)} />
     )}
     </>
   );
