@@ -373,7 +373,7 @@ const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null, auxiliarBiblioteca = null } = req.data || {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
   // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
   // ministério onde pendurar, ao contrário do nivel por-ministério da
@@ -391,6 +391,11 @@ export const criarVoluntario = onCall(async (req) => {
   // nenhum associado, é só o que aparece a par do nome. Nas outras
   // bases o campo nunca aparece.
   const comCargo = cargo ? { cargo: String(cargo).trim() } : {};
+  // auxiliarBiblioteca: só a Louvor envia isto — dá permissão real
+  // (cadastrar música nova, ver firestore.rules) ao contrário de
+  // cargo, que é só etiqueta. Fica de fora do token de propósito (ver
+  // apps/louvor/CLAUDE.md) — a regra lê o próprio perfil ao vivo.
+  const comAuxiliar = typeof auxiliarBiblioteca === "boolean" ? { auxiliarBiblioteca } : {};
 
   // pessoa que já existe noutra base: só a liga a esta, PIN não muda
   if (pessoaExistenteId) {
@@ -440,7 +445,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
+      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAuxiliar,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -456,7 +461,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
+    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAuxiliar,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -522,7 +527,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos, auxiliarBiblioteca } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!["voluntario", "lider_base"].includes(papel)) {
@@ -547,6 +552,7 @@ export const editarVoluntario = onCall(async (req) => {
   if (nivel) dados.nivel = nivel;
   if (cargo !== undefined) dados.cargo = cargo ? String(cargo).trim() : null;
   if (Array.isArray(instrumentos)) dados.instrumentos = instrumentos.filter((x) => typeof x === "string");
+  if (typeof auxiliarBiblioteca === "boolean") dados.auxiliarBiblioteca = auxiliarBiblioteca;
   // o próprio já muda a sua foto por escrita direta (firestore.rules
   // permite ao dono); isto é só o líder a mudar a foto de outra
   // pessoa — o upload em si já passou pelo Storage antes de chegar
@@ -903,11 +909,14 @@ async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atuali
 
 /* ── ESCALA (Base Louvor) ────────────────────────────────────
  * Sem titular/aprendiz e sem lugar fixo por papel: o líder de escala
- * escolhe livremente quantos vocais/guitarras/etc. entram, cada
+ * escolhe livremente quantos lead/guitarras/etc. entram, cada
  * pessoa com um papel (ver PAPEIS em apps/louvor/src/lib/modelo.js —
  * lista replicada aqui porque o cliente não pode ser a única
- * validação). Uma pessoa não pode ocupar dois papéis no mesmo culto. */
-const PAPEIS_LOUVOR = new Set(["vocal", "teclado", "guitarra", "baixo", "bateria"]);
+ * validação). Uma pessoa não pode ocupar dois papéis no mesmo culto.
+ * "vocal" saiu do Set (2026-09, virou lead/colead/back) — só afeta
+ * escritas novas; escalados antigos com esse papel, já gravados,
+ * continuam no Firestore sem revalidação (nada se apaga). */
+const PAPEIS_LOUVOR = new Set(["lead", "colead", "back", "teclado", "guitarra", "baixo", "bateria"]);
 
 export const guardarEscalaLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
@@ -961,6 +970,55 @@ export const guardarEscalaLouvor = onCall(async (req) => {
   for (const id of removidas) {
     if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
+  return { ok: true };
+});
+
+const ENFASES_LOUVOR = new Set(["ceia", "contribua", "familia"]);
+const HEX_COR = /^#[0-9a-fA-F]{6}$/;
+
+/** Detalhes do culto que não são "quem serve" — ênfase, cores da
+ * roupa, data do ensaio, observação do líder. Fica em
+ * eventos/{e}/escalas/louvor (não no eventos/{e} global — regra 7 do
+ * CLAUDE.md raiz: isto é da base, não da igreja) para o líder poder
+ * definir a ênfase de um culto ANTES de existir escalados (por isso
+ * o gate replica o de guardarEscalaLouvor, tolerante ao documento
+ * ainda não existir, em vez de reusar exigeLiderDoCulto — essa exige
+ * que a escala já exista, o que bloquearia exatamente o caso mais
+ * comum: pôr "Ceia" no primeiro domingo do mês antes de escalar
+ * ninguém). Cada campo só é escrito se vier no pedido (`!==
+ * undefined`), para dar para mudar só a ênfase sem reenviar tudo. */
+export const definirDetalhesCultoLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+
+  const { eventoId, enfase, coresRoupa, dataEnsaio, observacao } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderEscala = snap.exists && snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderEscala) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+
+  if (enfase !== undefined && !ENFASES_LOUVOR.has(enfase)) {
+    throw new HttpsError("invalid-argument", "Ênfase inválida.");
+  }
+  if (coresRoupa !== undefined) {
+    if (!Array.isArray(coresRoupa) || coresRoupa.length > 3 || coresRoupa.some((c) => !HEX_COR.test(c))) {
+      throw new HttpsError("invalid-argument", "Cores inválidas — até 3 hexadecimais.");
+    }
+  }
+
+  const dados = { baseId };
+  if (enfase !== undefined) dados.enfase = enfase;
+  if (coresRoupa !== undefined) dados.coresRoupa = coresRoupa;
+  if (dataEnsaio !== undefined) dados.dataEnsaio = dataEnsaio || null;
+  if (observacao !== undefined) dados.observacaoLider = String(observacao ?? "").trim() || null;
+
+  await ref.set(dados, { merge: true });
   return { ok: true };
 });
 

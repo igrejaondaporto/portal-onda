@@ -23,9 +23,12 @@ import { dataPorExtenso } from "../lib/data";
  * @param aberto     controlado por quem usa, para o foco do calendário
  *                   poder abrir o cartão certo
  * @param realcado   pisca ao chegar vindo do calendário
+ * @param etiqueta   nó opcional ao lado do título (ex.: ênfase do
+ *                   culto na Louvor) — nenhuma outra base passa isto,
+ *                   sem prop fica exatamente como sempre foi.
  */
 export default function CartaoCulto({
-  evento, hoje, sirvo, resumo, aberto, onAlternar, realcado, refCartao, children,
+  evento, hoje, sirvo, resumo, aberto, onAlternar, realcado, refCartao, etiqueta, children,
 }) {
   const passou = evento.data < hoje;
   const eHoje = evento.data === hoje;
@@ -49,6 +52,7 @@ export default function CartaoCulto({
         <span className="cartaoculto-txt">
           <span className="nome">
             {evento.tipo || dataPorExtenso(evento.data)}
+            {etiqueta}
             {eHoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
             {passou && " ✅"}
           </span>
