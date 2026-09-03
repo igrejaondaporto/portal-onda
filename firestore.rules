@@ -355,6 +355,14 @@ service cloud.firestore {
       match /escalas/{base} {
         allow read:  if minhaBase(base) || vejoTodasEscalas();
         allow write: if false;
+
+        // confirmação de presença (Base Louvor, 2026-09) — cada
+        // pessoa só lê a própria, o líder vê todas. Sempre por
+        // confirmarPresencaLouvor (confirmar E desfazer).
+        match /confirmacoes/{pessoa} {
+          allow read:  if minhaBase(base) && (souLiderBase(base) || euSou(pessoa));
+          allow write: if false;
+        }
       }
 
       // pessoa+culto, não de uma base — só quem serve em mais do que
