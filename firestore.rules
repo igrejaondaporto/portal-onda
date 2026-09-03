@@ -59,10 +59,13 @@ service cloud.firestore {
       match /pessoas/{pessoa} {
         // toda a base se vê (é a grelha de login e as escalas)
         allow read: if minhaBase(base);
-        // cada um edita o seu perfil, menos o papel
+        // cada um edita o seu perfil, menos o papel. `aniversario`
+        // (só a Louvor usa, "MM-DD" sem ano — CLAUDE.md dessa base)
+        // entra na mesma lista partilhada por todas as bases; as
+        // outras nunca mandam esse campo, não têm UI para isso.
         allow update: if euSou(pessoa)
                       && request.resource.data.diff(resource.data)
-                          .affectedKeys().hasOnly(['nome','foto','telefone','atualizadoEm']);
+                          .affectedKeys().hasOnly(['nome','foto','telefone','aniversario','atualizadoEm']);
         allow create, delete: if false;            // só por função
         // o segredo
         match /privado/{doc} { allow read, write: if false; }
@@ -80,6 +83,21 @@ service cloud.firestore {
       match /gds/{gd} {
         allow read:  if minhaBase(base);
         allow write: if souLiderBase(base);
+      }
+
+      // ── avisos (Base Louvor): mensagens do líder para a equipa,
+      // mostradas no Início. Escrita direta do cliente, sem Cloud
+      // Function — mesmo padrão de funcoes/gds acima (só o líder
+      // escreve, sem autoria mista, sem campo que precise de ser
+      // calculado no servidor). "Excluir" é só ativo:false (regra 5
+      // do CLAUDE.md raiz — nada se apaga a sério), o mesmo vale para
+      // os modelos reutilizáveis. ──
+      match /avisos/{aviso} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+      match /avisosModelos/{modelo} {
+        allow read, write: if souLiderBase(base);
       }
 
       // ── config (Base Técnica): tabela de correspondência de nomes
