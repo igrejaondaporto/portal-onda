@@ -262,6 +262,15 @@ service cloud.firestore {
           allow create, update: if minhaBase(base);
           allow delete:        if false;
         }
+        // ── histórico de tons por cantor (Base Louvor) — quem já
+        // cantou cada música e em que tom(ns), só o Lead do culto
+        // conta. Escrito só pela Cloud Function
+        // registarHistoricoCantorLouvor (transação, evita corrida
+        // entre dois toques quase juntos) — o cliente só lê. ──
+        match /historicoCantores/{cantor} {
+          allow read:  if minhaBase(base);
+          allow write: if false;                   // só por função
+        }
       }
 
       // ── repertório do domingo (Base Louvor) — um por culto, sem
@@ -272,6 +281,16 @@ service cloud.firestore {
         allow read:            if minhaBase(base) || minhaBase('tecnica');
         allow create, update: if minhaBase(base);
         allow delete:          if false;
+      }
+
+      // ── rascunho de escala (Base Louvor) — cobre vários domingos
+      // de uma vez, escondido dos voluntários por desenho (só existe
+      // "escala" de verdade quando publicado). Sempre por Cloud
+      // Function: guardarRascunhoEscala/publicarRascunhoEscala/
+      // excluirRascunhoEscala. ──
+      match /rascunhosEscala/{rascunho} {
+        allow read:  if souLiderBase(base);
+        allow write: if false;                     // só por função
       }
 
       // ── Acomodação (Base Pessoal) — planta do auditório + arquivo ──
