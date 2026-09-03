@@ -42,9 +42,10 @@ setas ↑/↓, os dois lado a lado (`src/pages/Repertorio.jsx`).
 | Termo | O que é |
 |---|---|
 | **Líder da base** | Fixo (Adriel). Vê e edita tudo, em qualquer data |
+| **Auxiliar** | Papel na base (`pessoas/{id}.papel`), não da escala — mesmas funções do líder da base, ver "Auxiliar" abaixo |
 | **Líder de escala** | Rotativo, um por culto |
 | **Escala** | Quem serve em cada culto, e em que papel |
-| **Papel** | Vocal, Teclado, Guitarra, Baixo ou Bateria — não há titular/aprendiz, o líder de escala escolhe livremente quantos por papel |
+| **Papel** (da escala) | Lead, Co-lead, Back, Teclado, Guitarra, Baixo ou Bateria — não há titular/aprendiz, o líder de escala escolhe livremente quantos por papel |
 | **Música** | Título + artista — um cover de outro artista é música separada, nunca uma versão |
 | **Versão** | Um arranjo da música (tom, BPM, duração, observação) — só o Adriel marca a "versão padrão da Onda" |
 | **Repertório** | A lista de músicas e momentos de um domingo |
@@ -60,20 +61,42 @@ ministérios, tem papéis) nem "faixa" (é "música") na interface.
 eventos/{e}/escalas/louvor
   liderEscala: "adriel-louvor"
   escalados: [
-    { papel: "vocal", pessoaId: "..." },
-    { papel: "vocal", pessoaId: "..." },       // pode haver 2 vocais
+    { papel: "lead", pessoaId: "..." },
+    { papel: "back", pessoaId: "..." },
     { papel: "guitarra", pessoaId: "..." },
   ]
   pessoas: [...]                                // união plana, recalculada no servidor
+  enfase: "ceia" | "contribua" | "familia"       // ver ENFASES em lib/modelo.js
+  coresRoupa: ["#0092D4", "#D8F24B"]             // 1 a 3 hex
+  dataEnsaio: "2026-09-10" | null
+  observacaoLider: "texto livre" | null
 ```
 
-Os cinco papéis são uma lista fixa em código
-(`src/lib/modelo.js`, `PAPEIS`) — sem catálogo no Firestore, sem CRUD.
-Mudar a lista é editar ali (e a cópia server-side em
-`functions/index.js`, `PAPEIS_LOUVOR`, usada por `guardarEscalaLouvor`
-para validar). Uma pessoa não pode ocupar dois papéis no mesmo culto.
-Sem níveis: qualquer voluntário serve em qualquer papel que o líder
-lhe atribuir.
+Os sete papéis são uma lista fixa em código (`src/lib/modelo.js`,
+`PAPEIS`, cada um com emoji — 🎤 para os três de vocal, 🎹/🎸/🎸/🥁
+para os instrumentos) — sem catálogo no Firestore, sem CRUD. Mudar a
+lista é editar ali (e a cópia server-side em `functions/index.js`,
+`PAPEIS_LOUVOR`, usada por `guardarEscalaLouvor` para validar). Uma
+pessoa não pode ocupar dois papéis no mesmo culto. Sem níveis:
+qualquer voluntário serve em qualquer papel que o líder lhe atribuir.
+"Vocal" virou três papéis em 2026-09 (Lead/Co-lead/Back, pedido do
+líder) — escalados antigos com `papel:"vocal"` continuam gravados,
+só perdem o nome bonito.
+
+`enfase`/`coresRoupa`/`dataEnsaio`/`observacaoLider` são gravados
+pela Cloud Function `definirDetalhesCultoLouvor` (`lib/culto.js`),
+separada de `guardarEscalaLouvor` — editar "quem serve" e editar
+"detalhes do culto" são gestos distintos. `enfase` tem um default
+calculado no cliente quando ainda não foi definida (`enfaseDefault`
+em `lib/modelo.js`): primeiro domingo do mês é sempre Ceia, os outros
+começam em Culto da Família — o líder troca livremente depois.
+
+O cartão de cada culto em Escala (`Escala.jsx`, `DetalhesCulto`)
+mostra tudo isto em caixinhas separadas, cada uma com uma cor leve de
+fundo — Escala (quem serve), Repertório (resumo com tom), Roupa (🧥
++ cores), Ensaio (🏋️ em negrito) e Observação — todas dentro do
+mesmo cartão grande do culto (`packages/shared/CartaoCulto.jsx`, que
+só é a casca; o conteúdo é todo desta base, via `children`).
 
 Cada pessoa tem também `instrumentos: string[]` no perfil (os mesmos
 ids de `PAPEIS`, pode ter mais do que um — ver `SheetPessoa.jsx`),
@@ -86,6 +109,34 @@ seletor de papel manual de sempre. Campo aceite por `criarVoluntario`/
 `editarVoluntario` (genéricas, `functions/index.js`) sem validação de
 enum — mesmo tratamento que `ministerios`/`nivel`/`cargo` já têm nas
 outras bases.
+
+## Auxiliar — papel na base, não papel de escala
+
+`pessoas/{id}.papel` passou a ter três valores nesta base (as outras
+continuam com dois): `"voluntario"`, `"auxiliar"`, `"lider_base"` —
+ver `PAPEIS_BASE` em `lib/modelo.js`, escolhido no mesmo seletor de
+sempre em `SheetPessoa.jsx`. **Auxiliar tem exatamente as mesmas
+funções do líder da base** (pedido do líder, 2026-09) — acede ao
+Painel do líder, edita voluntários, publica avisos, tudo. A única
+diferença é o nome.
+
+Implementado sem tocar no formato do token para as outras bases:
+`papel:"auxiliar"` só é aceite pelas Cloud Functions quando
+`baseId === "louvor"` (`validarPapelBase`, `functions/index.js`) —
+noutra base cai no mesmo erro de "papel inválido" que qualquer valor
+desconhecido. Como nenhuma outra base consegue produzir esse valor,
+é seguro tratar "auxiliar" de forma genérica em três sítios
+partilhados por todas as bases, sem criar um caso especial só da
+Louvor neles:
+- `exigeLider`/`PAPEIS_LIDER` (`functions/index.js`) — líder-only em
+  qualquer Cloud Function genérica.
+- `souLiderBase(b)` (`firestore.rules`) — líder-only em qualquer
+  regra genérica (ex.: `avisos`, `musicas`).
+- `MenuEu.jsx` (`packages/shared`) — mostra "Painel do líder" no menu.
+
+No cliente da Louvor, use sempre `souLiderOuAuxiliar(papel)`
+(`lib/modelo.js`) em vez de comparar `papel === "lider_base"` direto
+— é o que todas as telas desta base já fazem.
 
 ## Culto: Ordem, Feedbacks — Equipamentos é aba própria
 
@@ -149,7 +200,7 @@ pontual e manual (ver "Importação do LouveApp" abaixo).
 | # | Decisão |
 |---|---|
 | 1 | Identidade da música = título + artista. Cover de outro artista é **música separada**, não versão. |
-| 2 | Qualquer membro da base Louvor cadastra música e adiciona versão. |
+| 2 | Cadastrar música nova é só líder/auxiliar (2026-09, era qualquer membro — ver §6). Adicionar versão a uma música já existente continua aberto a todos. |
 | 3 | Só o **Adriel** (líder) marca a versão padrão da Onda. |
 | 4 | Repertório: um por domingo. Qualquer membro monta. |
 | 5 | Sem estado rascunho. O repertório fica compartilhado com a projeção assim que existe, com selo de "atualizado há X". |
@@ -273,15 +324,27 @@ objetivo. Não usar de novo para isto sem confirmar antes que mudou
 | Ação | Quem |
 |---|---|
 | Ler biblioteca | membros da base Louvor |
-| Criar música / versão | membros da base Louvor |
-| Definir `versaoPadraoId` | só o líder — `souLiderBase('louvor')` no `firestore.rules` |
+| Criar música nova | só líder ou auxiliar — `souLiderBase('louvor')` (2026-09, era qualquer membro) |
+| Adicionar versão a uma música existente | membros da base Louvor |
+| Definir `versaoPadraoId` | só o líder/auxiliar — `souLiderBase('louvor')` no `firestore.rules` |
+| Editar o tom de uma versão | membros da base Louvor — pela Biblioteca ou tocando na música dentro do Repertório (ver abaixo) |
 | Criar/editar repertório | membros da base Louvor |
 | Ler repertório | base Louvor + base Técnica |
 | Escrever repertório | só base Louvor |
 
 Escrita direta do cliente (sem Cloud Function) para música/versão/
-repertório — o único campo restrito (`versaoPadraoId`) é gate por
-`diff().affectedKeys()` na regra, não por função.
+repertório — os campos restritos (`versaoPadraoId`, criar música)
+são gate na própria regra (`diff().affectedKeys()` ou
+`souLiderBase`), nunca por função.
+
+**Tom por grade de 12 notas** (`components/biblioteca/GradeTom.jsx`):
+substitui o campo de texto livre — bemol/sustenido juntos no mesmo
+botão (`C#/Db`, `D#/Eb`…), com um alternador "menor" à parte. Usado
+em três sítios: cadastro/edição de versão na Biblioteca, e um popup
+rápido (`components/repertorio/SheetEditarTom.jsx`) ao tocar no selo
+de tom de uma música dentro do Repertório — grava direto na versão
+(`guardarVersao`), por isso vale para qualquer repertório futuro que
+reuse essa versão, não só o culto aberto na hora.
 
 ## 7. Riscos e débito técnico
 

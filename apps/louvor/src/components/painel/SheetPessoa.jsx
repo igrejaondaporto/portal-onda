@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { criarVoluntario, editarVoluntario, enviarFotoVoluntario, reporPin } from "../../lib/painel";
-import { PAPEIS } from "../../lib/modelo";
+import { PAPEIS, PAPEIS_BASE } from "../../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
@@ -18,7 +18,6 @@ export default function SheetPessoa({
   // instrumentos é só desta base (não vem de pessoaExistente — quem já
   // é voluntário noutra base ainda não tem isto definido para a Louvor).
   const [instrumentos, setInstrumentos] = useState(pessoa?.instrumentos ?? []);
-  const [auxiliarBiblioteca, setAuxiliarBiblioteca] = useState(pessoa?.auxiliarBiblioteca ?? false);
   const [foto, setFoto] = useState(pessoa?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -50,10 +49,10 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos, auxiliarBiblioteca });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos, auxiliarBiblioteca };
+        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -120,24 +119,24 @@ export default function SheetPessoa({
         <input className="campo" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="9xx xxx xxx" />
         <label className="rot">Papel na base</label>
         <div className="subtabs">
-          <button data-on={papel === "voluntario" ? 1 : 0} onClick={() => setPapel("voluntario")}>Voluntário</button>
-          <button data-on={papel === "lider_base" ? 1 : 0} onClick={() => setPapel("lider_base")}>Líder da base</button>
+          {PAPEIS_BASE.map((p) => (
+            <button key={p.id} data-on={papel === p.id ? 1 : 0} onClick={() => setPapel(p.id)}>{p.nome}</button>
+          ))}
         </div>
-        <p className="ds" style={{ marginTop: 8 }}>O líder da base tem código de 6 dígitos e acesso a tudo.</p>
+        <p className="ds" style={{ marginTop: 8 }}>
+          {papel === "voluntario" && "Código de 4 dígitos."}
+          {papel === "auxiliar" && "Código de 6 dígitos e as mesmas funções do líder da base."}
+          {papel === "lider_base" && "Código de 6 dígitos e acesso a tudo."}
+        </p>
         <label className="rot" style={{ marginTop: 14 }}>Instrumentos</label>
         <div className="subtabs">
           {PAPEIS.map((p) => (
             <button key={p.id} data-on={instrumentos.includes(p.id) ? 1 : 0} onClick={() => alternarInstrumento(p.id)}>
-              {p.nome}
+              {p.emoji} {p.nome}
             </button>
           ))}
         </div>
         <p className="ds" style={{ marginTop: 8 }}>Pode escolher mais do que um. Usado para agrupar a escala por instrumento.</p>
-        <label className="opcao" style={{ marginTop: 14 }} onClick={() => setAuxiliarBiblioteca((v) => !v)}>
-          <span style={{ flex: 1 }}>Auxiliar da Biblioteca</span>
-          <span className={`chk${auxiliarBiblioteca ? " on" : ""}`}>✓</span>
-        </label>
-        <p className="ds" style={{ marginTop: 4 }}>Pode cadastrar música nova, além do líder.</p>
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>

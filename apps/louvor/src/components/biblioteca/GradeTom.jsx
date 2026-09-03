@@ -1,22 +1,26 @@
-const NOTAS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTAS = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"];
+// primeiro nome de cada opção ("C#/Db" → "C#") é o que se grava —
+// mesmo formato de sempre nas versões, só a forma de escolher mudou.
+const notaBase = (rotulo) => rotulo.split("/")[0];
 
 /**
- * Grade de 12 notas + alternador "menor" — substitui o campo de tom
- * livre (decisão do líder: toque em vez de digitar). `valor` é a
- * string gravada na versão ("A", "F#m"…), continua o mesmo formato
- * de sempre, só a forma de escolher mudou.
+ * Grade de 12 notas (bemol/sustenido juntos, como o líder pediu) +
+ * alternador "menor" — substitui o campo de tom livre. `valor` é a
+ * string gravada na versão ("A", "F#m"…), continua o mesmo formato.
  */
 export default function GradeTom({ valor, onEscolher }) {
   const menor = (valor || "").endsWith("m");
-  const notaBase = menor ? valor.slice(0, -1) : valor || "";
+  const semMenor = menor ? valor.slice(0, -1) : valor || "";
+  const selecionada = NOTAS.find((n) => notaBase(n) === semMenor) ?? null;
 
-  function escolherNota(nota) {
-    onEscolher(menor ? `${nota}m` : nota);
+  function escolherNota(rotulo) {
+    const base = notaBase(rotulo);
+    onEscolher(menor ? `${base}m` : base);
   }
 
   function alternarMenor() {
-    if (!notaBase) return;
-    onEscolher(menor ? notaBase : `${notaBase}m`);
+    if (!semMenor) return;
+    onEscolher(menor ? semMenor : `${semMenor}m`);
   }
 
   return (
@@ -25,7 +29,7 @@ export default function GradeTom({ valor, onEscolher }) {
         {NOTAS.map((n) => (
           <button
             key={n} type="button"
-            data-on={notaBase === n ? 1 : 0}
+            data-on={selecionada === n ? 1 : 0}
             onClick={() => escolherNota(n)}
           >
             {n}
@@ -34,7 +38,7 @@ export default function GradeTom({ valor, onEscolher }) {
       </div>
       <button
         type="button" className="grade-tom-menor"
-        data-on={menor ? 1 : 0} disabled={!notaBase}
+        data-on={menor ? 1 : 0} disabled={!semMenor}
         onClick={alternarMenor}
       >
         menor (m)

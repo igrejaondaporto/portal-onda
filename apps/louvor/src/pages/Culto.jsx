@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { podeDistribuir } from "../lib/modelo";
+import { podeDistribuir, souLiderOuAuxiliar } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
@@ -12,7 +12,7 @@ import OrdemCultoCard from "../components/culto/OrdemCultoCard";
  *  desde 2026-09 (era subaba daqui, mas era o único sítio "escondido"
  *  dentro doutra coisa — as outras bases já tinham como aba de base). */
 export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
-  const souLiderBase = papel === "lider_base";
+  const souLiderBase = souLiderOuAuxiliar(papel);
   const podePublicar = souLiderBase && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "ordem");
   const [eventosMes, setEventosMes] = useState([]);

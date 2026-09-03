@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ouvirVoluntarios, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
 import { ouvirAvisos, ouvirAvisosModelos, excluirAviso } from "../lib/avisos";
+import { nomePapelBase } from "../lib/modelo";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -153,7 +154,7 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
                 <Avatar pessoa={p} tamanho={38} fonte={15} />
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{p.nome}</p>
-                  <p className="ds">{p.papel === "lider_base" ? "Líder da base · 6 dígitos" : "Voluntário · 4 dígitos"}</p>
+                  <p className="ds">{nomePapelBase(p.papel)} · {p.papel === "voluntario" ? "4" : "6"} dígitos</p>
                 </div>
                 <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
                   Editar

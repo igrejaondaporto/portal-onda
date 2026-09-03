@@ -12,7 +12,7 @@ const fraco = (pin) => /^(\d)\1+$/.test(pin) || "0123456789".includes(pin);
  * código próprio.
  */
 export default function TrocarPin({ papel, codigoAtual, onConcluido }) {
-  const dig = papel === "lider_base" ? 6 : 4;
+  const dig = papel === "lider_base" || papel === "auxiliar" ? 6 : 4;
 
   const [etapa, setEtapa] = useState("novo"); // "novo" | "confirmar"
   const [novo, setNovo] = useState("");

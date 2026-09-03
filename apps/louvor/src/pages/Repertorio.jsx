@@ -4,10 +4,11 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
-import { ouvirMusicas } from "../lib/biblioteca";
+import { ouvirMusicas, obterTonsDosItens, guardarVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
+import SheetEditarTom from "../components/repertorio/SheetEditarTom";
 
 // Referência estável para "sem itens" — `repertorio?.itens ?? []`
 // parecia inofensivo, mas cria um array NOVO a cada render sempre que
@@ -45,9 +46,9 @@ function haQuanto(ts) {
  * a observação do medley).
  */
 function ItemRepertorio({
-  item, i, total, m, esteEhMedley, proximoEhMedley, numero,
+  item, i, total, m, tom, esteEhMedley, proximoEhMedley, numero,
   podeAlternar, mostrarObs, aEditarObs, obsEditando, setObsEditando,
-  onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover,
+  onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover, onEditarTom,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const estilo = {
@@ -89,6 +90,12 @@ function ItemRepertorio({
           </p>
           <p className="ds">{m?.artista ?? ""}</p>
         </div>
+        <button
+          className="rep-tom" onClick={(e) => { e.stopPropagation(); onEditarTom(item, m); }}
+          aria-label="Trocar o tom"
+        >
+          {tom || "Tom"}
+        </button>
         <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>↑</button>
         <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === total - 1} onClick={(e) => { e.stopPropagation(); onMover(item.id, 1); }}>↓</button>
         <button className="rep-remover" onClick={(e) => { e.stopPropagation(); onRemover(item.id); }}>✕</button>
@@ -141,6 +148,8 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   // o próprio eco do snapshot da nossa escrita interrompia o gesto).
   const [itensLocais, setItensLocais] = useState([]);
   const [aArrastar, setAArrastar] = useState(false);
+  const [tons, setTons] = useState({});
+  const [itemTomAEditar, setItemTomAEditar] = useState(null); // { item, m } | null
 
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -166,6 +175,23 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     if (!aArrastar) setItensLocais(itens);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itens, eventoId]);
+
+  // Leitura pontual (não onSnapshot) do tom de cada versão — um
+  // listener por música seria demais para algo que quase nunca muda
+  // depois de escolhido (ver obterTonsDosItens).
+  useEffect(() => {
+    let cancelado = false;
+    obterTonsDosItens(itensLocais).then((mapa) => { if (!cancelado) setTons(mapa); });
+    return () => { cancelado = true; };
+  }, [itensLocais]);
+
+  async function confirmarNovoTom(novoTom) {
+    const { item } = itemTomAEditar;
+    await guardarVersao(item.musicaId, item.versaoId, { tom: novoTom });
+    setTons((atual) => ({ ...atual, [item.id]: novoTom }));
+    setItemTomAEditar(null);
+    torrada("Tom atualizado");
+  }
 
   const nMusicas = itensLocais.filter((i) => i.tipo === "musica").length;
   const autor = repertorio?.atualizadoPor ? voluntarios.find((p) => p.id === repertorio.atualizadoPor)?.nome : null;
@@ -339,6 +365,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
               return (
                 <ItemRepertorio
                   key={item.id} item={item} i={i} total={itensLocais.length} m={m}
+                  tom={tons[item.id]}
                   esteEhMedley={esteEhMedley} proximoEhMedley={proximoEhMedley}
                   numero={numerosOrdinais[item.id]}
                   podeAlternar={podeAlternar}
@@ -350,6 +377,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                   onGuardarObs={() => guardarObsMedley(item.id)}
                   onCancelarObs={() => setMedleyAEditar(null)}
                   onMover={mover} onRemover={remover}
+                  onEditarTom={(it, musica) => setItemTomAEditar({ item: it, m: musica })}
                 />
               );
             })}
@@ -394,6 +422,14 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
           comoMedley={aEscolherMusica === "medley"}
           onFechar={() => setAEscolherMusica(null)}
           onEscolhida={adicionarMusica}
+        />
+      )}
+      {itemTomAEditar && (
+        <SheetEditarTom
+          titulo={itemTomAEditar.m?.titulo}
+          tomAtual={tons[itemTomAEditar.item.id]}
+          onFechar={() => setItemTomAEditar(null)}
+          onConfirmar={confirmarNovoTom}
         />
       )}
     </>

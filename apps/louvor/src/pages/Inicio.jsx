@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, meusPapeisNoCulto, nomePapel } from "../lib/modelo";
+import { cEscala, meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
@@ -19,7 +19,7 @@ import SheetAniversarios from "../components/painel/SheetAniversarios";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
-  const souLider = papel === "lider_base";
+  const souLider = souLiderOuAuxiliar(papel);
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -61,7 +61,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
-  const meusPapeis = meuEvento ? meusPapeisNoCulto(meuEvento.escala, uid).map(nomePapel) : [];
+  const meusPapeis = meuEvento
+    ? meusPapeisNoCulto(meuEvento.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`)
+    : [];
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
@@ -211,7 +213,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               return (
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
-                  resumo={nomePapel(e.papel)}
+                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
                   tagExtra={meuEvento.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
                   aberta={contactoAberto === e.pessoaId}
                   onToggle={() => setContactoAberto((a) => (a === e.pessoaId ? null : e.pessoaId))}

@@ -54,6 +54,18 @@ export async function obterTomVersao(musicaId, versaoId) {
   return snap.exists() ? snap.data().tom || null : null;
 }
 
+/** Mesma leitura pontual acima, mas para uma lista de itens de
+ *  repertório de uma vez — devolve { [itemId]: tom }. Usado tanto no
+ *  cartão de Escala (prévia) quanto no Repertório (badge tocável por
+ *  música, ver Repertorio.jsx). */
+export async function obterTonsDosItens(itens) {
+  const musicais = (itens || []).filter((i) => i.tipo === "musica" && i.musicaId && i.versaoId);
+  const pares = await Promise.all(
+    musicais.map((i) => obterTomVersao(i.musicaId, i.versaoId).then((tom) => [i.id, tom]))
+  );
+  return Object.fromEntries(pares);
+}
+
 export const novaMusicaId = () => doc(cMusicas()).id;
 
 /** Nunca bloqueia — só avisa "é uma versão nova?" e mostra a existente

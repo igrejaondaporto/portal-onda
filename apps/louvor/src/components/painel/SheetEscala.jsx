@@ -223,7 +223,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
           return (
             <div key={papel.id} style={{ marginTop: 18 }}>
               <div className="cabecalho" style={{ paddingTop: 0, marginBottom: 2 }}>
-                <h3>{papel.nome}</h3>
+                <h3>{papel.emoji} {papel.nome}</h3>
                 <span className="cap">{nEscalados ? `${nEscalados} escalado${nEscalados === 1 ? "" : "s"}` : "ninguém ainda"}</span>
               </div>
               {pessoasDoPapel.map((p) => linhaNoBloco(p, papel.id))}
