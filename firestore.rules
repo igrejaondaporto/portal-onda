@@ -13,7 +13,14 @@ service cloud.firestore {
 
     function autenticado()      { return request.auth != null; }
     function minhaBase(b)       { return autenticado() && request.auth.token.baseId == b; }
-    function souLiderBase(b)    { return minhaBase(b) && request.auth.token.papel == 'lider_base'; }
+    // "auxiliar" só existe na Louvor (tem as mesmas funções do líder
+    // da base, pedido do líder 2026-09) — seguro tratar aqui de forma
+    // genérica: as Cloud Functions recusam esse papel para qualquer
+    // outra base, então nunca chega a entrar no token de mais ninguém.
+    function souLiderBase(b) {
+      return minhaBase(b)
+        && (request.auth.token.papel == 'lider_base' || request.auth.token.papel == 'auxiliar');
+    }
     function euSou(p)           { return autenticado() && request.auth.uid == p; }
     // capacidade de base (Backstage e o que vier a seguir) — carregada
     // no token por entrar/trocarBase a partir de bases/{b}.veEscalas,
@@ -237,20 +244,15 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // ── biblioteca de músicas (Base Louvor) — só o líder ou quem
-      // tem auxiliarBiblioteca:true no próprio perfil cadastra música
-      // nova (2026-09, antes era qualquer voluntário); adicionar
-      // versão continua aberto a todos. Só o líder marca a versão
-      // padrão da Onda (decisão 3 do CLAUDE.md desta base). Nada é
-      // apagado a sério, por isso não há allow delete. auxiliarBiblioteca
-      // fica fora do token de propósito (só uma permissão, não vale a
-      // pena mexer nos claims por isto) — lido ao vivo do próprio
-      // perfil, mesmo padrão de checklist/acomodacao/mapa abaixo. ──
+      // ── biblioteca de músicas (Base Louvor) — só o líder (ou
+      // auxiliar, já coberto por souLiderBase) cadastra música nova
+      // (2026-09, antes era qualquer voluntário); adicionar versão
+      // continua aberto a todos. Só o líder marca a versão padrão da
+      // Onda (decisão 3 do CLAUDE.md desta base). Nada é apagado a
+      // sério, por isso não há allow delete. ──
       match /musicas/{musica} {
         allow read:   if minhaBase(base);
-        allow create: if minhaBase(base)
-                      && (souLiderBase(base)
-                          || get(/databases/$(database)/documents/bases/$(base)/pessoas/$(request.auth.uid)).data.auxiliarBiblioteca == true);
+        allow create: if souLiderBase(base);
         allow update: if minhaBase(base)
                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['versaoPadraoId'])
                           || souLiderBase(base));
