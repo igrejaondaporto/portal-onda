@@ -41,15 +41,16 @@ export const cEscala        = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`
  *  existir (nada se apaga) e continuam a aparecer nos cultos
  *  passados — só perdem o nome bonito, `nomePapel` cai no id cru. */
 export const PAPEIS = [
-  { id: "lead",     nome: "Lead",     cor: "#D62069" },
-  { id: "colead",   nome: "Co-lead",  cor: "#E85D8F" },
-  { id: "back",     nome: "Back",     cor: "#B565D8" },
-  { id: "teclado",  nome: "Teclado",  cor: "#7B5CFF" },
-  { id: "guitarra", nome: "Guitarra", cor: "#0092D4" },
-  { id: "baixo",    nome: "Baixo",    cor: "#F5A300" },
-  { id: "bateria",  nome: "Bateria",  cor: "#00A88F" },
+  { id: "lead",     nome: "Lead",     cor: "#D62069", emoji: "🎤" },
+  { id: "colead",   nome: "Co-lead",  cor: "#E85D8F", emoji: "🎤" },
+  { id: "back",     nome: "Back",     cor: "#B565D8", emoji: "🎤" },
+  { id: "teclado",  nome: "Teclado",  cor: "#7B5CFF", emoji: "🎹" },
+  { id: "guitarra", nome: "Guitarra", cor: "#0092D4", emoji: "🎸" },
+  { id: "baixo",    nome: "Baixo",    cor: "#F5A300", emoji: "🎸" },
+  { id: "bateria",  nome: "Bateria",  cor: "#00A88F", emoji: "🥁" },
 ];
 export const nomePapel = (id) => PAPEIS.find((p) => p.id === id)?.nome ?? id;
+export const emojiPapel = (id) => PAPEIS.find((p) => p.id === id)?.emoji ?? "🎵";
 
 /** Ênfase do culto (tema do domingo) — três opções fixas, o líder
  *  troca livremente por culto (ver Escala.jsx). Sem valor gravado
@@ -63,10 +64,28 @@ export const ENFASES = [
 export const nomeEnfase = (id) => ENFASES.find((e) => e.id === id)?.nome ?? id;
 export const enfaseDefault = (dataISO) => (Number(dataISO.slice(8, 10)) <= 7 ? "ceia" : "familia");
 
+/** Papéis na BASE (não confundir com PAPEIS da escala acima) — quem
+ *  a pessoa é dentro da Louvor. "Auxiliar" tem todas as funções do
+ *  líder da base (pedido do líder, 2026-09) exceto o nome — por isso
+ *  aparece como mais uma opção de papel, não como um toggle à parte.
+ *  Só existe na Louvor: a Cloud Function recusa este valor para
+ *  qualquer outra base (ver functions/index.js). */
+export const PAPEIS_BASE = [
+  { id: "voluntario", nome: "Voluntário" },
+  { id: "auxiliar", nome: "Auxiliar" },
+  { id: "lider_base", nome: "Líder da base" },
+];
+export const nomePapelBase = (id) => PAPEIS_BASE.find((p) => p.id === id)?.nome ?? id;
+
+/** "Auxiliar" tem todas as funções do líder da base — usar isto em
+ *  vez de comparar `papel === "lider_base"` direto em qualquer sítio
+ *  que hoje gate algo "só para o líder". */
+export const souLiderOuAuxiliar = (papel) => papel === "lider_base" || papel === "auxiliar";
+
 /** A regra do líder de escala, replicada no cliente só para esconder botões.
  *  A que conta é a da Cloud Function guardarEscalaLouvor. */
 export const podeDistribuir = (papel, uid, escala) =>
-  papel === "lider_base" || escala?.liderEscala === uid;
+  souLiderOuAuxiliar(papel) || escala?.liderEscala === uid;
 
 /** O(s) papel(is) em que a pessoa serve naquele culto — normalmente
  *  um só, mas nada impede alguém de cantar e tocar no mesmo domingo. */

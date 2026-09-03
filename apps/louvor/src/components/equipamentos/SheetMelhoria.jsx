@@ -5,6 +5,7 @@ import {
   definirResponsaveisMelhoria,
   enviarFotoResolucaoMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO,
 } from "../../lib/melhorias";
+import { souLiderOuAuxiliar } from "../../lib/modelo";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
@@ -31,7 +32,7 @@ const TAMANHO_MAX = 6 * 1024 * 1024;
  *  dentro, editar é sempre pelo lápis. */
 export default function SheetMelhoria({ melhoriaId, uid, papel, voluntarios, equipamentos, editarInicial = false, resolverInicial = false, onFechar, onGuardado }) {
   const torrada = useTorrada();
-  const souLiderBase = papel === "lider_base";
+  const souLiderBase = souLiderOuAuxiliar(papel);
   const [melhoria, setMelhoria] = useState(null);
   const [eventos, setEventos] = useState([]);
   const aEditar = editarInicial;

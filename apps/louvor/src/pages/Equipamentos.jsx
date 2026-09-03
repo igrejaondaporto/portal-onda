@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirMelhorias, desativarMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO } from "../lib/melhorias";
 import { ouvirVoluntarios } from "../lib/painel";
-import { PAPEIS } from "../lib/modelo";
+import { PAPEIS, souLiderOuAuxiliar } from "../lib/modelo";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
@@ -46,7 +46,7 @@ function ordenarMelhorias(lista, ordem) {
 
 export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
-  const souLiderBase = papel === "lider_base";
+  const souLiderBase = souLiderOuAuxiliar(papel);
   const [equipamentos, setEquipamentos] = useState([]);
   const [melhorias, setMelhorias] = useState([]);
   // "ministérios" aqui são os sete papéis da escala (Lead, Teclado…)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
+import { nomePapelBase } from "../lib/modelo";
 import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
@@ -84,8 +85,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     });
   }, [uid]);
 
-  const lider = papel === "lider_base";
-
   function irPara(p) {
     setPagina(p);
     setMenuAberto(false);
@@ -129,7 +128,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             <div className="eu">
               <div style={{ textAlign: "right" }}>
                 <b>{pessoa?.nome ?? "…"}</b>
-                <p>{lider ? "Líder da base" : "Voluntário"}</p>
+                <p>{nomePapelBase(papel)}</p>
               </div>
               <BotaoTrocarBase baseIdAtual={baseId} basesDisponiveis={basesDisponiveis} />
               <span
@@ -190,7 +189,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "biblioteca" ? "" : "none" }}>
             <Biblioteca
-              uid={uid} papel={papel} pessoa={pessoa} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
+              uid={uid} papel={papel} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
               onIrRepertorio={() => irPara("repertorio")}
             />
           </div>

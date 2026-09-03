@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer } from "../lib/biblioteca";
 import { obterEventosDoMes } from "../lib/painel";
+import { souLiderOuAuxiliar } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
@@ -48,9 +49,9 @@ function useVersoesDe(musicaId) {
   return versoes;
 }
 
-export default function Biblioteca({ uid, papel, pessoa, ativo, definirCabecalho }) {
-  const souLider = papel === "lider_base";
-  const podeCadastrar = souLider || pessoa?.auxiliarBiblioteca === true;
+export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
+  const souLider = souLiderOuAuxiliar(papel);
+  const podeCadastrar = souLider;
   const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
   const [busca, setBusca] = useState("");

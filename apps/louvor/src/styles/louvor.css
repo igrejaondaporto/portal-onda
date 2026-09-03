@@ -259,28 +259,51 @@
 }
 .bib-capa-opcao[data-on="1"] { border-color: var(--lima); }
 
+/* ── Caixinhas dentro do cartão de culto (Escala.jsx) — cada
+ * assunto (escala, repertório, roupa, ensaio, observação) em cima de
+ * uma cor leve própria, todas dentro do mesmo cartão grande do
+ * culto. Pedido do líder, 2026-09. ── */
+.caixinha {
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.caixinha-titulo {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cinza);
+  margin: 0 0 6px;
+}
+.caixinha.escala    { background: #EFF3FF; }
+.caixinha.repertorio { background: #F2F9DC; }
+.caixinha.roupa      { background: #FBEFF7; }
+.caixinha.ensaio     { background: #FFF1E0; }
+.caixinha.obs         { background: #F3F1FA; }
+
 /* ── Tom (grade de 12 notas) ────────────────────────────────── */
 .grade-tom-wrap {
   margin-top: 4px;
 }
 .grade-tom {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 .grade-tom button {
-  padding: 10px 0;
-  border-radius: 10px;
-  border: 1.5px solid var(--fio);
-  background: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--cinza);
+  padding: 16px 4px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--agua);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta);
   cursor: pointer;
 }
 .grade-tom button[data-on="1"] {
   background: var(--tinta);
-  border-color: var(--tinta);
+  font-weight: 800;
   color: #fff;
 }
 .grade-tom-menor {
@@ -394,6 +417,17 @@
   font-size: 11px;
   font-weight: 800;
   color: var(--cinza);
+}
+.rep-tom {
+  flex: none;
+  border: 0;
+  background: #fff;
+  color: var(--tinta);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 100px;
+  cursor: pointer;
 }
 .rep-remover {
   border: 0;

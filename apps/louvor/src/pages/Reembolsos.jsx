@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirReembolsos, criarReembolso, aprovarReembolso, indeferirReembolso } from "../lib/reembolsos";
 import { ouvirVoluntarios } from "../lib/painel";
+import { souLiderOuAuxiliar } from "../lib/modelo";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -16,7 +17,7 @@ const ROTULOS = {
 
 export default function Reembolsos({ uid, papel, definirCabecalho }) {
   const torrada = useTorrada();
-  const souLiderBase = papel === "lider_base";
+  const souLiderBase = souLiderOuAuxiliar(papel);
   const inputRef = useRef(null);
   const [reembolsos, setReembolsos] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);

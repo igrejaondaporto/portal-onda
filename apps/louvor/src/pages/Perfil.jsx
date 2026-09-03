@@ -4,7 +4,7 @@ import { trocarPin } from "@portal/shared/lib/auth.js";
 import { guardarAniversario } from "../lib/perfil";
 import { obterMeusProximosDomingos } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
-import { meusPapeisNoCulto, nomePapel } from "../lib/modelo";
+import { meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar, nomePapelBase } from "../lib/modelo";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
@@ -14,7 +14,7 @@ const TAMANHO_MAX = 6 * 1024 * 1024;
 
 export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualizarPessoa, onIrReembolsos, onIrPainel }) {
   const torrada = useTorrada();
-  const souLiderBase = papel === "lider_base";
+  const souLiderBase = souLiderOuAuxiliar(papel);
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
@@ -41,7 +41,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
     definirCabecalho({
       titulo: <em>Perfil</em>,
       subtitulo: "As tuas informações",
-      chips: [souLiderBase ? "Líder da base" : "Voluntário", `${domingos.length} domingo${domingos.length === 1 ? "" : "s"}`],
+      chips: [nomePapelBase(papel), `${domingos.length} domingo${domingos.length === 1 ? "" : "s"}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [souLiderBase, domingos.length]);
@@ -97,7 +97,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
   const ANO_ANDAIME = "2000";
   const valorDataAniversario = aniversario ? `${ANO_ANDAIME}-${aniversario}` : "";
 
-  const digitos = souLiderBase ? 6 : 4;
+  const digitos = souLiderBase ? 6 : 4; // "auxiliar" já entra em souLiderBase acima
   async function alterarCodigo() {
     if (c2.length !== digitos) return torrada(`O novo código tem de ter ${digitos} dígitos`);
     if (c2 !== c3) return torrada("Os códigos novos não coincidem");
@@ -125,7 +125,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
           </div>
           {expandida && <ImagemExpandida src={pessoa.foto} alt={pessoa.nome} onFechar={() => setExpandida(false)} />}
           <p style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.03em", marginTop: 14 }}>{pessoa?.nome ?? "…"}</p>
-          <p className="ds">{souLiderBase ? "Líder da base de Louvor" : "Voluntário da base de Louvor"}</p>
+          <p className="ds">{nomePapelBase(papel)} da base de Louvor</p>
           <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={escolherFoto} />
           <button className="btn sec" style={{ marginTop: 14 }} disabled={aEnviarFoto} onClick={() => inputFotoRef.current.click()}>
             {aEnviarFoto ? "A enviar…" : pessoa?.foto ? "Trocar foto" : "Juntar foto"}
@@ -169,7 +169,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
           <div className="cabecalho"><h3>Os teus domingos</h3></div>
           {domingos.length ? (
             domingos.map((ev) => {
-              const meusPapeis = meusPapeisNoCulto(ev.escala, uid).map(nomePapel);
+              const meusPapeis = meusPapeisNoCulto(ev.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`);
               return (
                 <div className="linha" key={ev.id}>
                   <div style={{ flex: 1 }}>
