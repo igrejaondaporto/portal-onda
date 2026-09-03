@@ -7,6 +7,7 @@
  */
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
+import { registarHistoricoCantor } from "./biblioteca";
 
 const refRepertorio = (eventoId) => doc(db, `bases/${BASE_ID}/repertorios/${eventoId}`);
 
@@ -82,4 +83,5 @@ export async function adicionarMusicaAoRepertorio(eventoId, musica, versaoId, ui
     atualizadoEm: serverTimestamp(),
     atualizadoPor: uid,
   }, { merge: true });
+  registarHistoricoCantor({ eventoId, musicaId: musica.id, versaoId });
 }

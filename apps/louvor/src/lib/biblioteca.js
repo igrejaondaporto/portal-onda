@@ -14,7 +14,7 @@
  */
 import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { cMusicas, cVersoes } from "./modelo";
+import { cMusicas, cVersoes, cHistoricoCantores } from "./modelo";
 
 export const CLASSIFICACOES = [
   { id: "adoracao", nome: "Adoração", ajuda: "Cânticos cujas letras expressam reconhecimento a Deus por aquilo que Ele é." },
@@ -65,6 +65,23 @@ export async function obterTonsDosItens(itens) {
   );
   return Object.fromEntries(pares);
 }
+
+/** Quem já cantou esta música e em que tom(ns) — só o Lead do culto
+ *  conta como "cantor" (ver registarHistoricoCantor). Poucos
+ *  documentos por música, onSnapshot é barato. */
+export function ouvirHistoricoCantores(musicaId, cb) {
+  return onSnapshot(cHistoricoCantores(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+/** Chamado nos dois momentos em que "este tom passou a ser o que se
+ *  canta neste domingo": ao adicionar a música a um repertório
+ *  (repertorio.js), e ao trocar o tom de um item já lá dentro
+ *  (SheetEditarTom, dentro de Repertorio.jsx). Silencioso por
+ *  natureza — sem Lead definido pro culto ainda, a função não regista
+ *  nada, não é erro (o líder pode montar repertório antes de
+ *  escalar); falhar aqui nunca deve travar o fluxo principal. */
+export const registarHistoricoCantor = (dados) =>
+  chamar("registarHistoricoCantorLouvor")(dados).then((r) => r.data).catch(() => null);
 
 export const novaMusicaId = () => doc(cMusicas()).id;
 

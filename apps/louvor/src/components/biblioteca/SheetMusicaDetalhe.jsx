@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES } from "../../lib/biblioteca";
+import { useEffect, useState } from "react";
+import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES, ouvirHistoricoCantores } from "../../lib/biblioteca";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
@@ -52,6 +52,9 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
   const [aEditarLinks, setAEditarLinks] = useState(false);
   const [linksForm, setLinksForm] = useState({ letra: "", cifra: "", audio: "", video: "" });
   const [aGuardarLinks, setAGuardarLinks] = useState(false);
+  const [cantores, setCantores] = useState([]);
+
+  useEffect(() => ouvirHistoricoCantores(musica.id, setCantores), [musica.id]);
 
   function abrirEdicaoLinks() {
     setLinksForm({
@@ -90,6 +93,8 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
 
   const nomesClassif = (musica.classificacoes || []).map((id) => CLASSIFICACOES.find((c) => c.id === id)?.nome).filter(Boolean);
   const versoesOrdenadas = [...versoes].sort((a, b) => (a.id === musica.versaoPadraoId ? -1 : b.id === musica.versaoPadraoId ? 1 : 0));
+  const ultimaVezDoCantor = (c) => (c.toms || []).reduce((max, t) => (t.ultimaVez > max ? t.ultimaVez : max), "");
+  const cantoresOrdenados = [...cantores].sort((a, b) => ultimaVezDoCantor(b).localeCompare(ultimaVezDoCantor(a)));
 
   return (
     <>
@@ -145,6 +150,27 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
             </div>
             <span className="tag cinz">{musica.vezes90d ?? 0}× em 90 dias</span>
           </div>
+        </div>
+
+        <div className="sect">
+          <div className="cabecalho"><h3>Cantores</h3></div>
+          {cantoresOrdenados.length === 0 && (
+            <div className="vaz">Ainda ninguém cantou esta música com Lead definido.</div>
+          )}
+          {cantoresOrdenados.map((c) => (
+            <div className="linha" key={c.id} style={{ alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <p className="nmt">{c.nome}</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  {(c.toms || []).map((t) => (
+                    <span key={t.tom} className="tag cinz">
+                      {t.tom} · {t.vezes}×
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="sect">

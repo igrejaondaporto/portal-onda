@@ -10,6 +10,7 @@ import MenuEu from "@portal/shared/components/MenuEu.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
+import EnqueteAutoStart from "../components/EnqueteAutoStart.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -116,6 +117,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     <TorradaProvider>
     <TourProvider>
       <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
+      <EnqueteAutoStart uid={uid} />
       <Tour />
       <div className="app">
         <AvisoOffline />
