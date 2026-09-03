@@ -219,13 +219,20 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // ── biblioteca de músicas (Base Louvor) — qualquer voluntário
-      // cadastra música e adiciona versão; só o líder marca a versão
+      // ── biblioteca de músicas (Base Louvor) — só o líder ou quem
+      // tem auxiliarBiblioteca:true no próprio perfil cadastra música
+      // nova (2026-09, antes era qualquer voluntário); adicionar
+      // versão continua aberto a todos. Só o líder marca a versão
       // padrão da Onda (decisão 3 do CLAUDE.md desta base). Nada é
-      // apagado a sério, por isso não há allow delete. ──
+      // apagado a sério, por isso não há allow delete. auxiliarBiblioteca
+      // fica fora do token de propósito (só uma permissão, não vale a
+      // pena mexer nos claims por isto) — lido ao vivo do próprio
+      // perfil, mesmo padrão de checklist/acomodacao/mapa abaixo. ──
       match /musicas/{musica} {
         allow read:   if minhaBase(base);
-        allow create: if minhaBase(base);
+        allow create: if minhaBase(base)
+                      && (souLiderBase(base)
+                          || get(/databases/$(database)/documents/bases/$(base)/pessoas/$(request.auth.uid)).data.auxiliarBiblioteca == true);
         allow update: if minhaBase(base)
                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['versaoPadraoId'])
                           || souLiderBase(base));
