@@ -960,6 +960,19 @@ export const guardarEscalaLouvor = onCall(async (req) => {
       "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
   }
 
+  await escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala);
+  return { ok: true };
+});
+
+/** O corpo de guardarEscalaLouvor, sem a checagem de permissão — é a
+ *  parte que publicarRascunhoEscala também precisa (já validado no
+ *  seu próprio exigeLider, um domingo de cada vez). Faz sempre a
+ *  validação completa (papel válido, sem duplicar pessoa, conflito
+ *  entre bases) — nunca a versão leve de guardarRascunhoEscala. */
+async function escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala) {
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+
   const usados = new Set();
   const escaladosLimpos = escalados.map((e) => {
     if (!e?.pessoaId || !PAPEIS_LOUVOR.has(e.papel)) {
@@ -995,7 +1008,166 @@ export const guardarEscalaLouvor = onCall(async (req) => {
   for (const id of removidas) {
     if (multiBase.has(id)) await desmarcarIndisponivel(eventoId, baseId, id);
   }
+}
+
+/** Publica a escala já gravada pela tabela rápida de sempre
+ *  (SheetEscala.jsx), sem passar por rascunho — marca `publicado`,
+ *  o sinal que a confirmação de presença (próxima fase) vai exigir.
+ *  Mesmo gate de guardarEscalaLouvor: líder da base, auxiliar, ou o
+ *  líder de escala deste culto. */
+export const publicarEscalaLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Este culto ainda não tem escala.");
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
+  const souLiderAtual = snap.data().liderEscala === uid;
+  if (!souLiderBase && !souLiderAtual) {
+    throw new HttpsError("permission-denied",
+      "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
+  }
+  await ref.set({
+    publicado: true,
+    publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    publicadoPor: uid,
+  }, { merge: true });
   return { ok: true };
+});
+
+/* ── RASCUNHO DE ESCALA (Base Louvor) ─────────────────────────
+ * Só líder/auxiliar mexe em rascunhos (exigeLider) — ao contrário da
+ * escala ao vivo, um rascunho cobre vários domingos de uma vez, não
+ * faz sentido o líder de escala de um culto só editar isto. Guardar
+ * valida pouco (papel válido, sem duplicar pessoa no mesmo culto) —
+ * sem checar conflito entre bases: um rascunho pode estar "errado"
+ * enquanto é trabalhado, sem gente presa por causa disso. A
+ * validação completa (a mesma de guardarEscalaLouvor) só corre ao
+ * publicar, via escreverEscalaLouvor. Publicar é sempre tudo de uma
+ * vez — todos os domingos do rascunho, decisão do líder. */
+export const guardarRascunhoEscala = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { rascunhoId, nome, itens } = req.data || {};
+  if (!Array.isArray(itens) || !itens.length) {
+    throw new HttpsError("invalid-argument", "Faltam os domingos do rascunho.");
+  }
+
+  const itensLimpos = itens.map((it) => {
+    if (!it?.eventoId) throw new HttpsError("invalid-argument", "Item do rascunho sem culto.");
+    const usados = new Set();
+    const escalados = (it.escalados || []).map((e) => {
+      if (!e?.pessoaId || !PAPEIS_LOUVOR.has(e.papel)) {
+        throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
+      }
+      if (usados.has(e.pessoaId)) {
+        throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois papéis no mesmo culto.");
+      }
+      usados.add(e.pessoaId);
+      return { pessoaId: e.pessoaId, papel: e.papel };
+    });
+    return { eventoId: it.eventoId, liderEscala: it.liderEscala || null, escalados };
+  });
+
+  const ref = rascunhoId
+    ? db.doc(`bases/${baseId}/rascunhosEscala/${rascunhoId}`)
+    : db.collection(`bases/${baseId}/rascunhosEscala`).doc();
+  const dados = {
+    itens: itensLimpos, ativo: true, publicado: false,
+    atualizadoPor: req.auth.uid, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (typeof nome === "string" && nome.trim()) dados.nome = nome.trim();
+  if (!rascunhoId) {
+    dados.criadoPor = req.auth.uid;
+    dados.criadoEm = admin.firestore.FieldValue.serverTimestamp();
+    if (!dados.nome) dados.nome = "Rascunho sem nome";
+  }
+  await ref.set(dados, { merge: true });
+  return { rascunhoId: ref.id };
+});
+
+export const publicarRascunhoEscala = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { rascunhoId } = req.data || {};
+  if (!rascunhoId) throw new HttpsError("invalid-argument", "Falta o rascunho.");
+
+  const ref = db.doc(`bases/${baseId}/rascunhosEscala/${rascunhoId}`);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data().ativo === false) throw new HttpsError("not-found", "Rascunho não encontrado.");
+  const { itens = [] } = snap.data();
+  if (!itens.length) throw new HttpsError("failed-precondition", "Este rascunho não tem domingos.");
+
+  for (const item of itens) {
+    await escreverEscalaLouvor(item.eventoId, baseId, item.escalados, item.liderEscala);
+    await db.doc(`eventos/${item.eventoId}/escalas/${baseId}`).set({
+      publicado: true,
+      publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      publicadoPor: req.auth.uid,
+    }, { merge: true });
+  }
+
+  await ref.set({
+    publicado: true,
+    publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    publicadoPor: req.auth.uid,
+  }, { merge: true });
+  return { ok: true, domingos: itens.length };
+});
+
+/** "Excluir" é sempre ativo:false — regra 5 do CLAUDE.md raiz. */
+export const excluirRascunhoEscala = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  const { rascunhoId } = req.data || {};
+  if (!rascunhoId) throw new HttpsError("invalid-argument", "Falta o rascunho.");
+  await db.doc(`bases/${baseId}/rascunhosEscala/${rascunhoId}`).set({ ativo: false }, { merge: true });
+  return { ok: true };
+});
+
+/* ── HISTÓRICO DE TONS POR CANTOR (Base Louvor) ───────────────
+ * Para cada música, quem já cantou e em que tom(ns) — pedido do
+ * líder, 2026-09. Chamado do cliente nos dois momentos em que "este
+ * tom passou a ser o que se canta neste domingo": ao adicionar a
+ * música a um repertório (lib/repertorio.js), e ao trocar o tom de
+ * um item já lá dentro (SheetEditarTom.jsx). O "cantor" é sempre
+ * quem está como Lead nesse culto — Co-lead/Back acompanham, não
+ * escolhem o tom. Sem Lead definido ainda para o culto, não regista
+ * nada (silencioso, não é erro: dá para montar repertório antes de
+ * escalar). Transação no servidor de propósito — dois toques quase
+ * juntos não podem incrementar o mesmo tom em corrida. */
+export const registarHistoricoCantorLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId, musicaId, versaoId } = req.data || {};
+  if (!eventoId || !musicaId || !versaoId) throw new HttpsError("invalid-argument", "Faltam dados.");
+
+  const [escalaSnap, versaoSnap] = await Promise.all([
+    db.doc(`eventos/${eventoId}/escalas/${baseId}`).get(),
+    db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).get(),
+  ]);
+  if (!escalaSnap.exists) return { registado: false };
+  const lead = (escalaSnap.data().escalados || []).find((e) => e.papel === "lead");
+  if (!lead) return { registado: false };
+  const tom = versaoSnap.exists ? versaoSnap.data().tom : null;
+  if (!tom) return { registado: false };
+
+  const pessoaSnap = await db.doc(`bases/${baseId}/pessoas/${lead.pessoaId}`).get();
+  const nome = pessoaSnap.exists ? pessoaSnap.data().nome : "—";
+
+  const ref = db.doc(`bases/${baseId}/musicas/${musicaId}/historicoCantores/${lead.pessoaId}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const toms = snap.exists ? [...(snap.data().toms || [])] : [];
+    const i = toms.findIndex((t) => t.tom === tom);
+    if (i === -1) {
+      toms.push({ tom, vezes: 1, primeiraVez: eventoId, ultimaVez: eventoId });
+    } else {
+      toms[i] = { ...toms[i], vezes: (toms[i].vezes || 0) + 1, ultimaVez: eventoId };
+    }
+    tx.set(ref, { nome, toms }, { merge: true });
+  });
+  return { registado: true };
 });
 
 const ENFASES_LOUVOR = new Set(["ceia", "contribua", "familia"]);
@@ -1059,7 +1231,7 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
 export const guardarEscalaComunicacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  if (req.auth.token.papel !== "lider_base") {
+  if (!PAPEIS_LIDER.has(req.auth.token.papel)) {
     throw new HttpsError("permission-denied", "Só o líder da base pode fazer isto.");
   }
 
@@ -1314,7 +1486,7 @@ export const fecharAcomodacao = onCall(async (req) => {
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   if (!souLiderBase) {
     const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
     const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
@@ -1361,7 +1533,7 @@ export const reabrirAcomodacao = onCall(async (req) => {
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   if (!souLiderBase) {
     const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
     const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
@@ -1395,7 +1567,7 @@ export const arquivarResumoAcomodacao = onCall(async (req) => {
   const { eventoId } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   if (!souLiderBase) {
     const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
     const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
@@ -1627,7 +1799,7 @@ export const definirBase = onCall(async (req) => {
 async function exigeGestorInventario(req) {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  if (req.auth.token.papel === "lider_base") return baseId;
+  if (PAPEIS_LIDER.has(req.auth.token.papel)) return baseId;
 
   const hoje = new Date().toISOString().slice(0, 10);
   const escala = await db.doc(`eventos/${hoje}/escalas/${baseId}`).get();
@@ -2354,7 +2526,7 @@ export const mudarStatusSolicitacao = onCall(async (req) => {
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
   const s = snap.data();
-  const souLider = req.auth.token.papel === "lider_base";
+  const souLider = PAPEIS_LIDER.has(req.auth.token.papel);
 
   if (novoStatus === "recusada") {
     if (s.responsavelId !== uid) throw new HttpsError("permission-denied", "Só quem está a produzir pode recusar.");
@@ -2484,7 +2656,7 @@ export const recusarTransferencia = onCall(async (req) => {
 export const excluirSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || baseId !== "comunicacao") throw new HttpsError("permission-denied", "Só a Comunicação exclui solicitações.");
-  if (req.auth.token.papel !== "lider_base") throw new HttpsError("permission-denied", "Só o líder exclui solicitações.");
+  if (!PAPEIS_LIDER.has(req.auth.token.papel)) throw new HttpsError("permission-denied", "Só o líder exclui solicitações.");
   const { id } = req.data || {};
   if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
   const ref = refSolicitacao(id);
@@ -2503,7 +2675,7 @@ export const excluirSolicitacao = onCall(async (req) => {
 export const excluirMinhaSolicitacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId, papel = req.auth?.token?.papel;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  if (papel !== "lider_base") throw new HttpsError("permission-denied", "Só o líder da base exclui um pedido.");
+  if (!PAPEIS_LIDER.has(papel)) throw new HttpsError("permission-denied", "Só o líder da base exclui um pedido.");
   const { id } = req.data || {};
   if (!id) throw new HttpsError("invalid-argument", "Falta a solicitação.");
   const ref = refSolicitacao(id);
@@ -2612,10 +2784,10 @@ export const definirEstadoMelhoria = onCall(async (req) => {
   const { melhoriaId, estado } = req.data || {};
   if (!["aberta", "em_curso"].includes(estado)) throw new HttpsError("invalid-argument", "Estado inválido.");
   const m = await obterMelhoria(baseId, melhoriaId);
-  if (estado === "aberta" && req.auth.token.papel !== "lider_base") {
+  if (estado === "aberta" && !PAPEIS_LIDER.has(req.auth.token.papel)) {
     throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria.");
   }
-  if (m.estado === "resolvida" && req.auth.token.papel !== "lider_base") {
+  if (m.estado === "resolvida" && !PAPEIS_LIDER.has(req.auth.token.papel)) {
     throw new HttpsError("permission-denied", "Só o líder da base reabre uma melhoria resolvida.");
   }
   const ref = refMelhoria(baseId, melhoriaId);
@@ -2745,7 +2917,7 @@ export const desativarMelhoria = onCall(async (req) => {
   // fica como histórico. A interface já só mostra o botão ao líder;
   // isto fecha a mesma regra do lado do servidor, que é onde o
   // `CLAUDE.md` manda o papel ser verificado.
-  if (req.auth.token.papel !== "lider_base") {
+  if (!PAPEIS_LIDER.has(req.auth.token.papel)) {
     throw new HttpsError("permission-denied", "Só o líder da base pode excluir uma avaria.");
   }
   const m = await obterMelhoria(baseId, melhoriaId);
@@ -2881,7 +3053,7 @@ export const responderEnquete = onCall(async (req) => {
 
   let alvo = uid;
   if (pessoaId && pessoaId !== uid) {
-    if (req.auth.token.papel !== "lider_base") {
+    if (!PAPEIS_LIDER.has(req.auth.token.papel)) {
       throw new HttpsError("permission-denied", "Só o líder pode responder por outra pessoa.");
     }
     alvo = pessoaId;
