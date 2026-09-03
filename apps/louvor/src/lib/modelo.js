@@ -28,22 +28,40 @@ export const cRepertorios   = () => collection(db, `bases/${BASE_ID}/repertorios
 export const cEventos       = () => collection(db, "eventos");
 export const cEscala        = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
 
-/** Os cinco papéis da escala da Louvor. Lista fixa — sem catálogo no
+/** Os sete papéis da escala da Louvor. Lista fixa — sem catálogo no
  *  Firestore, sem CRUD: mudar a lista é editar aqui (ver CLAUDE.md
  *  desta base). Cada culto pode ter qualquer número de pessoas por
- *  papel (2 vocais, 2 guitarras…), ao contrário do "titular +
+ *  papel (2 lead, 2 guitarras…), ao contrário do "titular +
  *  aprendiz" por ministério que a Técnica usa — aqui não há níveis,
  *  o líder de escala escolhe livremente quem entra em cada papel.
  *  As cores servem só para os cartões de Equipamentos (agrupamento
- *  por papel, mesmo componente que a Técnica usa para ministérios). */
+ *  por papel, mesmo componente que a Técnica usa para ministérios).
+ *  "Vocal" virou três papéis (2026-09, pedido do líder): Lead,
+ *  Co-lead e Back. Escalados antigos com `papel:"vocal"` continuam a
+ *  existir (nada se apaga) e continuam a aparecer nos cultos
+ *  passados — só perdem o nome bonito, `nomePapel` cai no id cru. */
 export const PAPEIS = [
-  { id: "vocal",    nome: "Vocal",    cor: "#D62069" },
+  { id: "lead",     nome: "Lead",     cor: "#D62069" },
+  { id: "colead",   nome: "Co-lead",  cor: "#E85D8F" },
+  { id: "back",     nome: "Back",     cor: "#B565D8" },
   { id: "teclado",  nome: "Teclado",  cor: "#7B5CFF" },
   { id: "guitarra", nome: "Guitarra", cor: "#0092D4" },
   { id: "baixo",    nome: "Baixo",    cor: "#F5A300" },
   { id: "bateria",  nome: "Bateria",  cor: "#00A88F" },
 ];
 export const nomePapel = (id) => PAPEIS.find((p) => p.id === id)?.nome ?? id;
+
+/** Ênfase do culto (tema do domingo) — três opções fixas, o líder
+ *  troca livremente por culto (ver Escala.jsx). Sem valor gravado
+ *  ainda, `enfaseDefault` decide: primeiro domingo do mês é sempre
+ *  Ceia, os outros começam em Culto da Família. */
+export const ENFASES = [
+  { id: "ceia", nome: "Ceia" },
+  { id: "contribua", nome: "Contribua" },
+  { id: "familia", nome: "Culto da Família" },
+];
+export const nomeEnfase = (id) => ENFASES.find((e) => e.id === id)?.nome ?? id;
+export const enfaseDefault = (dataISO) => (Number(dataISO.slice(8, 10)) <= 7 ? "ceia" : "familia");
 
 /** A regra do líder de escala, replicada no cliente só para esconder botões.
  *  A que conta é a da Cloud Function guardarEscalaLouvor. */

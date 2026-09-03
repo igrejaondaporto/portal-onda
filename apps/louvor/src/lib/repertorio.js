@@ -30,6 +30,24 @@ export const itemMusica = (musicaId, versaoId, medley) => ({
 });
 export const itemMomento = (nome) => ({ tipo: "momento", id: novoItemId(), nome });
 
+/** Agrupa os itens de música em blocos por medley — uma continuação
+ *  (`medley:true` logo depois de outra música) entra no mesmo bloco
+ *  em vez de abrir um número novo. Mesma regra usada para numerar em
+ *  Repertorio.jsx; aqui serve as prévias resumidas (Escala.jsx). */
+export function agruparItensMedley(itens) {
+  const blocos = [];
+  (itens || []).forEach((item, i) => {
+    if (item.tipo !== "musica") return;
+    const continuaMedley = item.medley === true && itens[i - 1]?.tipo === "musica";
+    if (continuaMedley && blocos.length) {
+      blocos.at(-1).itens.push(item);
+    } else {
+      blocos.push({ numero: blocos.length + 1, itens: [item] });
+    }
+  });
+  return blocos;
+}
+
 /** Grava a lista inteira de uma vez (~20 itens, uma escrita só) —
  *  é assim que a reordenação por arrasto funciona sem N escritas. */
 export async function guardarRepertorio(eventoId, itens, uid) {

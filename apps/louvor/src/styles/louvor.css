@@ -259,6 +259,52 @@
 }
 .bib-capa-opcao[data-on="1"] { border-color: var(--lima); }
 
+/* ── Tom (grade de 12 notas) ────────────────────────────────── */
+.grade-tom-wrap {
+  margin-top: 4px;
+}
+.grade-tom {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.grade-tom button {
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cinza);
+  cursor: pointer;
+}
+.grade-tom button[data-on="1"] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+.grade-tom-menor {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cinza);
+  cursor: pointer;
+}
+.grade-tom-menor[data-on="1"] {
+  background: var(--lima);
+  border-color: var(--lima);
+  color: var(--tinta);
+}
+.grade-tom-menor:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ── Repertório ─────────────────────────────────────────────── */
 .rep-item {
   display: flex;
@@ -362,28 +408,6 @@
   color: var(--cinza);
   text-align: center;
   margin-top: 4px;
-}
-
-/* Início — prévia do repertório dentro do .blococor azul do bloco:
- * mesmo desenho do .rep-item da Repertório, só que branco — contra o
- * mesmo tom do cartão, os itens desapareciam. */
-.rep-mini-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: #fff;
-  margin-bottom: 8px;
-}
-.rep-mini-item .bib-capa { width: 34px; height: 34px; font-size: 12px; border-radius: 8px; }
-.rep-mini-item.medley-topo {
-  margin-bottom: 2px;
-  border-radius: 12px 12px 4px 4px;
-}
-.rep-mini-item.medley-cauda {
-  border-radius: 4px 4px 12px 12px;
-  border-left: 3px solid var(--lima);
 }
 
 /* Fechar explícito no sheet de adicionar música — os três passos

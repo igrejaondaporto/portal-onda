@@ -18,6 +18,7 @@ export default function SheetPessoa({
   // instrumentos é só desta base (não vem de pessoaExistente — quem já
   // é voluntário noutra base ainda não tem isto definido para a Louvor).
   const [instrumentos, setInstrumentos] = useState(pessoa?.instrumentos ?? []);
+  const [auxiliarBiblioteca, setAuxiliarBiblioteca] = useState(pessoa?.auxiliarBiblioteca ?? false);
   const [foto, setFoto] = useState(pessoa?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -49,10 +50,10 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos, auxiliarBiblioteca });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos };
+        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos, auxiliarBiblioteca };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -132,6 +133,11 @@ export default function SheetPessoa({
           ))}
         </div>
         <p className="ds" style={{ marginTop: 8 }}>Pode escolher mais do que um. Usado para agrupar a escala por instrumento.</p>
+        <label className="opcao" style={{ marginTop: 14 }} onClick={() => setAuxiliarBiblioteca((v) => !v)}>
+          <span style={{ flex: 1 }}>Auxiliar da Biblioteca</span>
+          <span className={`chk${auxiliarBiblioteca ? " on" : ""}`}>✓</span>
+        </label>
+        <p className="ds" style={{ marginTop: 4 }}>Pode cadastrar música nova, além do líder.</p>
         <button className="btn full" style={{ marginTop: 18 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         {pessoa && (
           <>

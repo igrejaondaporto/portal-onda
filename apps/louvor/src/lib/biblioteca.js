@@ -12,7 +12,7 @@
  * onSnapshot uma vez; busca e filtros correm no cliente contra essa
  * cache, nunca uma leitura por tecla digitada.
  */
-import { doc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cMusicas, cVersoes } from "./modelo";
 
@@ -41,6 +41,17 @@ export function ouvirMusicas(cb) {
 
 export function ouvirVersoes(musicaId, cb) {
   return onSnapshot(cVersoes(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+/** Leitura pontual do tom de uma versão — para a prévia de repertório
+ *  dentro do cartão de Escala (ver Escala.jsx). Não é onSnapshot: o
+ *  tom quase nunca muda depois de escolhido, e um card de culto pode
+ *  ter várias músicas — um listener por música seria demais para algo
+ *  que raramente atualiza. */
+export async function obterTomVersao(musicaId, versaoId) {
+  if (!musicaId || !versaoId) return null;
+  const snap = await getDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`));
+  return snap.exists() ? snap.data().tom || null : null;
 }
 
 export const novaMusicaId = () => doc(cMusicas()).id;

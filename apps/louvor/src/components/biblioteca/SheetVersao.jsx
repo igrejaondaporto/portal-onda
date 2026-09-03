@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { criarVersao, guardarVersao, novaVersaoId } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import GradeTom from "./GradeTom";
 
 export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardado }) {
   const torrada = useTorrada();
@@ -38,7 +39,7 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
         <label className="rot" style={{ marginTop: 12 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Onda, Original, Acústico…" autoFocus />
         <label className="rot">Tom</label>
-        <input className="campo" value={tom} onChange={(e) => setTom(e.target.value)} placeholder="A" />
+        <GradeTom valor={tom} onEscolher={setTom} />
         <label className="rot">BPM</label>
         <input className="campo" inputMode="numeric" value={bpm} onChange={(e) => setBpm(e.target.value)} placeholder="70" />
         <label className="rot">Duração (segundos)</label>
