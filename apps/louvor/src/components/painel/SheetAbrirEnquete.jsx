@@ -33,7 +33,7 @@ function useCultosDoMes(mes) {
   const [aCarregar, setACarregar] = useState(false);
   const [aAdicionarEspecial, setAAdicionarEspecial] = useState(false);
   const [nomeEspecial, setNomeEspecial] = useState("");
-  const [diaEspecial, setDiaEspecial] = useState("");
+  const [dataEspecial, setDataEspecial] = useState("");
   const [aCriarEspecial, setACriarEspecial] = useState(false);
   const [ensaios, setEnsaios] = useState({}); // eventoId -> "AAAA-MM-DD" | null
   const [ensaioAberto, setEnsaioAberto] = useState(null); // eventoId | null
@@ -66,23 +66,23 @@ function useCultosDoMes(mes) {
     }
   }
 
+  const [ano, m] = (mes || "0-0").split("-").map(Number);
+  const dataMin = mes ? `${ano}-${pad2(m)}-01` : "";
+  const dataMax = mes ? `${ano}-${pad2(m)}-${pad2(new Date(ano, m, 0).getDate())}` : "";
+
   async function adicionarEspecial() {
     const nome = nomeEspecial.trim();
-    const dia = parseInt(diaEspecial, 10);
-    const [ano, m] = mes.split("-").map(Number);
-    const maxDia = new Date(ano, m, 0).getDate();
     if (!nome) return torrada("Falta o nome do culto especial.");
-    if (!dia || dia < 1 || dia > maxDia) return torrada(`O dia tem de estar entre 1 e ${maxDia}`);
+    if (!dataEspecial || dataEspecial < dataMin || dataEspecial > dataMax) return torrada("Escolhe um dia dentro do mês.");
 
-    const data = `${ano}-${pad2(m)}-${pad2(dia)}`;
-    if (eventos.some((e) => e.id === data)) return torrada("Já há um culto nesse dia.");
+    if (eventos.some((e) => e.id === dataEspecial)) return torrada("Já há um culto nesse dia.");
     setACriarEspecial(true);
     try {
-      await criarCultoEspecial({ data, tipo: nome, escopo: "base", horaCulto: "10:30", horaChegada: "07:00" });
-      const novo = { id: data, data, tipo: nome };
+      await criarCultoEspecial({ data: dataEspecial, tipo: nome, escopo: "base", horaCulto: "10:30", horaChegada: "07:00" });
+      const novo = { id: dataEspecial, data: dataEspecial, tipo: nome };
       setEventos((evs) => [...evs, novo].sort((a, b) => a.data.localeCompare(b.data)));
-      setSelecionados((s) => ({ ...s, [data]: true }));
-      setNomeEspecial(""); setDiaEspecial(""); setAAdicionarEspecial(false);
+      setSelecionados((s) => ({ ...s, [dataEspecial]: true }));
+      setNomeEspecial(""); setDataEspecial(""); setAAdicionarEspecial(false);
       torrada(`${nome} criado`);
     } catch (e) {
       torrada(e.message || "Não foi possível criar o culto especial.");
@@ -96,7 +96,7 @@ function useCultosDoMes(mes) {
   return {
     eventos, selecionados, alternar, aCarregar, domingos,
     aAdicionarEspecial, setAAdicionarEspecial, nomeEspecial, setNomeEspecial,
-    diaEspecial, setDiaEspecial, aCriarEspecial, adicionarEspecial,
+    dataEspecial, setDataEspecial, dataMin, dataMax, aCriarEspecial, adicionarEspecial,
     ensaios, ensaioAberto, setEnsaioAberto, definirEnsaio,
   };
 }
@@ -120,7 +120,7 @@ function BlocoCultos({ titulo, c }) {
             className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, padding: "9px" }}
             onClick={() => c.setEnsaioAberto((a) => (a === ev.id ? null : ev.id))}
           >
-            🏋️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
+            🎙️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
           </button>
           {c.ensaioAberto === ev.id && (
             <CalendarioSemanal domingoISO={ev.id} ensaioISO={c.ensaios[ev.id]} onSelecionar={(iso) => c.definirEnsaio(ev.id, iso)} />
@@ -137,7 +137,7 @@ function BlocoCultos({ titulo, c }) {
           <label className="rot">Nome do culto</label>
           <input className="campo" value={c.nomeEspecial} onChange={(e) => c.setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
           <label className="rot" style={{ marginTop: 8 }}>Dia do mês</label>
-          <input className="campo" type="number" min="1" max="31" value={c.diaEspecial} onChange={(e) => c.setDiaEspecial(e.target.value)} placeholder="14" />
+          <input className="campo" type="date" min={c.dataMin} max={c.dataMax} value={c.dataEspecial} onChange={(e) => c.setDataEspecial(e.target.value)} />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={() => c.setAAdicionarEspecial(false)}>Cancelar</button>
             <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={c.adicionarEspecial}>

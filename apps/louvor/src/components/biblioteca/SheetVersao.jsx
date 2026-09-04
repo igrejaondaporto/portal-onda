@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { criarVersao, guardarVersao, novaVersaoId, registarUsoVersao } from "../../lib/biblioteca";
+import { guardarOuFundirVersao, registarUsoVersao, desativarVersao } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import GradeTom from "./GradeTom";
 
@@ -14,6 +14,8 @@ export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFech
   const [observacao, setObservacao] = useState(versao?.observacao ?? "");
   const [linkReferencia, setLinkReferencia] = useState(versao?.linkReferencia ?? "");
   const [aGuardar, setAGuardar] = useState(false);
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
 
   // Quem canta (pedido do líder: "não é sugestor, é lista fixa") —
   // Nome deixou de ser texto livre: só dá para escolher um voluntário
@@ -33,23 +35,31 @@ export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFech
     setAGuardar(true);
     try {
       const dados = { nome, tom, bpm: bpm ? Number(bpm) : null, duracao: duracao ? Number(duracao) : null, observacao, linkReferencia };
-      let versaoId = versao?.id;
-      if (versao) {
-        await guardarVersao(musicaId, versao.id, dados);
-      } else {
-        versaoId = novaVersaoId(musicaId);
-        await criarVersao(musicaId, versaoId, { ...dados, criadoPor: uid });
-      }
+      // funde automaticamente se já existir outra versão ativa com o
+      // mesmo nome nesta música (ver guardarOuFundirVersao) — nunca
+      // duas versões do mesmo cantor na mesma música.
+      const versaoId = await guardarOuFundirVersao(musicaId, versao?.id ?? null, dados, uid);
       // sem eventoId: só sincroniza nome/tom no índice por cantor, não
       // conta como "usada num culto" — é o que faz uma versão nova
       // (ou renomeada) já aparecer no Histórico por cantor na hora,
       // mesmo antes de qualquer repertório a usar (ver lib/biblioteca.js).
       registarUsoVersao({ musicaId, versaoId });
-      onGuardado(versao ? "Versão atualizada" : "Versão adicionada");
+      onGuardado(versaoId !== versao?.id ? "Versões agrupadas" : versao ? "Versão atualizada" : "Versão adicionada");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar a versão.");
     } finally {
       setAGuardar(false);
+    }
+  }
+
+  async function excluir() {
+    setAExcluir(true);
+    try {
+      await desativarVersao(musicaId, versao.id);
+      onGuardado("Versão excluída");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir a versão.");
+      setAExcluir(false);
     }
   }
 
@@ -92,6 +102,28 @@ export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFech
           {aGuardar ? "A guardar…" : "Guardar"}
         </button>
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
+
+        {versao && !aConfirmarExcluir && (
+          <button className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }} onClick={() => setAConfirmarExcluir(true)}>
+            Excluir versão
+          </button>
+        )}
+        {versao && aConfirmarExcluir && (
+          <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
+            <p style={{ fontSize: 13, fontWeight: 600 }}>Excluir esta versão?</p>
+            <p className="ds" style={{ marginTop: 4 }}>
+              Some das listas — o histórico fica guardado, mas deixa de aparecer para escolher.
+            </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aExcluir} onClick={excluir}>
+                {aExcluir ? "A excluir…" : "Excluir"}
+              </button>
+              <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aExcluir} onClick={() => setAConfirmarExcluir(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

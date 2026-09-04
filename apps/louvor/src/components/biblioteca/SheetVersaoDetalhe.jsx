@@ -40,6 +40,14 @@ export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista
 
   useEffect(() => ouvirVersao(musicaId, versaoId, setVersao), [musicaId, versaoId]);
 
+  // Excluir o último tom desativa a própria versão sozinha (ver
+  // removerTomVersao) — sem tom nenhum, esta folha deixou de fazer
+  // sentido aberta, fecha-se como se "Fechar" tivesse sido tocado.
+  useEffect(() => {
+    if (versao?.ativo === false) onFechar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versao?.ativo]);
+
   const linhas = tonsParaMostrar(agruparUsoPorCulto(versao?.usoPorCulto), versao?.tom, versao?.tonsConhecidos)
     .sort((a, b) => (b.datas?.length || 0) - (a.datas?.length || 0));
 
