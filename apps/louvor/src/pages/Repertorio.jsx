@@ -64,8 +64,10 @@ function ItemRepertorio({
       <div ref={setNodeRef} style={estilo} className="rep-item momento">
         <span className="rep-alca" {...attributes} {...listeners}>⠿</span>
         <div style={{ flex: 1 }}><p className="nmt">{item.nome}</p><p className="ds">Momento</p></div>
-        <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={() => onMover(item.id, -1)}>↑</button>
-        <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === total - 1} onClick={() => onMover(item.id, 1)}>↓</button>
+        <span className="rep-steppers">
+          <button aria-label="Mover para cima" disabled={i === 0} onClick={() => onMover(item.id, -1)}>▲</button>
+          <button aria-label="Mover para baixo" disabled={i === total - 1} onClick={() => onMover(item.id, 1)}>▼</button>
+        </span>
         <button className="rep-remover" onClick={() => onRemover(item.id)}>✕</button>
       </div>
     );
@@ -79,26 +81,29 @@ function ItemRepertorio({
         onClick={podeAlternar ? onAlternar : undefined}
       >
         <span className="rep-alca" {...attributes} {...listeners}>⠿</span>
-        <span className="rep-num">{numero}ª</span>
         <div className="bib-capa" style={m?.capaUrl ? { backgroundImage: `url(${m.capaUrl})` } : {}}>
           {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="rep-item-corpo">
           <p className="nmt">
-            {m?.titulo ?? "Música removida"}
+            {numero}ª · {m?.titulo ?? "Música removida"}
             {esteEhMedley && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
           </p>
           <p className="ds">{m?.artista ?? ""}</p>
+          <div className="rep-item-acoes">
+            <button
+              className="rep-tom" onClick={(e) => { e.stopPropagation(); onEditarTom(item, m); }}
+              aria-label="Trocar o tom"
+            >
+              {tom || "Tom"}
+            </button>
+            <span className="rep-steppers">
+              <button aria-label="Mover para cima" disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>▲</button>
+              <button aria-label="Mover para baixo" disabled={i === total - 1} onClick={(e) => { e.stopPropagation(); onMover(item.id, 1); }}>▼</button>
+            </span>
+            <button className="rep-remover" onClick={(e) => { e.stopPropagation(); onRemover(item.id); }}>✕</button>
+          </div>
         </div>
-        <button
-          className="rep-tom" onClick={(e) => { e.stopPropagation(); onEditarTom(item, m); }}
-          aria-label="Trocar o tom"
-        >
-          {tom || "Tom"}
-        </button>
-        <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>↑</button>
-        <button className="btn sec" style={{ padding: "6px 8px", fontSize: 11 }} disabled={i === total - 1} onClick={(e) => { e.stopPropagation(); onMover(item.id, 1); }}>↓</button>
-        <button className="rep-remover" onClick={(e) => { e.stopPropagation(); onRemover(item.id); }}>✕</button>
       </div>
       {esteEhMedley && aEditarObs ? (
         <div className="rep-medley-obs">

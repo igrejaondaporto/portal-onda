@@ -8,13 +8,17 @@ import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import Equipamentos from "./Equipamentos";
 
-/** Ordem do culto + Feedbacks + Equipamentos. Equipamentos chegou a
- *  ter menu próprio na barra de baixo (2026-09), mas voltou para cá
- *  como sub-aba (pedido do líder) — `ativo={false}` sempre, para não
- *  disputar o cabeçalho com o de Culto (mesmo padrão que a Pessoal já
- *  usa para embrulhar um ecrã que também existe como aba própria
- *  noutra base, ver MELHORIAS-ENTRE-BASES.md). Melhorias continua
- *  dentro de Equipamentos, como já era (a sub-aba própria dela). */
+/** Ordem do culto + Feedbacks + Equipamentos + Melhorias. Equipamentos
+ *  chegou a ter menu próprio na barra de baixo (2026-09), mas voltou
+ *  para cá como sub-aba (pedido do líder) — `ativo={false}` sempre,
+ *  para não disputar o cabeçalho com o de Culto (mesmo padrão que a
+ *  Pessoal já usa para embrulhar um ecrã que também existe como aba
+ *  própria noutra base, ver MELHORIAS-ENTRE-BASES.md). Melhorias
+ *  também já foi sub-aba PRÓPRIA de Equipamentos (um nível mais
+ *  fundo) — subiu para o mesmo nível aqui (2026-09, pedido do líder):
+ *  quatro sub-abas em vez de três com uma delas escondendo outra lá
+ *  dentro. `abaControlada`/`semSubtabs` em Equipamentos.jsx é o que
+ *  permite isto sem duplicar o ecrã. */
 export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = souLiderOuAuxiliar(papel);
   const podePublicar = souLiderBase && podePublicarCulto;
@@ -25,6 +29,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
   const [ordens, setOrdens] = useState({});
   const [sheetFeedback, setSheetFeedback] = useState(null);
   const [cardAberto, setCardAberto] = useState(null);
+  const [contagemEquip, setContagemEquip] = useState({ comProblema: 0, abertas: 0 });
 
   useEffect(() => { setAba(abaInicial ?? "ordem"); }, [abaInicial]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
@@ -58,15 +63,19 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
         ? "A ordem do culto que o pastor envia"
         : aba === "feedbacks"
         ? "O que ficou registado de cada domingo"
-        : "Instrumentos, equipamento de palco e avarias",
+        : aba === "equipamentos"
+        ? "Instrumentos e equipamento de palco"
+        : "Avarias e melhorias reportadas",
       chips: aba === "ordem"
         ? [MESES[mes]]
         : aba === "feedbacks"
         ? [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`]
-        : [],
+        : aba === "equipamentos"
+        ? [contagemEquip.comProblema ? `${contagemEquip.comProblema} com problema` : "Tudo ok"]
+        : [contagemEquip.abertas ? `${contagemEquip.abertas} em aberto` : "Nada em aberto"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, aba, mes, eventosMes.length, comFeedback]);
+  }, [ativo, aba, mes, eventosMes.length, comFeedback, contagemEquip]);
 
   const hoje = hojeISO();
 
@@ -79,9 +88,13 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
         </button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
         <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
+        <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>
+          Melhorias
+          {contagemEquip.abertas > 0 && <span className="oc-subtab-alerta" />}
+        </button>
       </div>
 
-      {aba !== "equipamentos" && (
+      {aba !== "equipamentos" && aba !== "melhorias" && (
         <div className="cabecalho" style={{ marginTop: 16 }}>
           <h3>{MESES[mes]} {ano}</h3>
           <span className="calnav">
@@ -91,9 +104,12 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
         </div>
       )}
 
-      {aba === "equipamentos" && (
+      {(aba === "equipamentos" || aba === "melhorias") && (
         <div style={{ marginTop: 16 }}>
-          <Equipamentos uid={uid} papel={papel} ativo={false} definirCabecalho={() => {}} />
+          <Equipamentos
+            uid={uid} papel={papel} ativo={false} definirCabecalho={() => {}}
+            abaControlada={aba} semSubtabs onContagem={setContagemEquip}
+          />
         </div>
       )}
 

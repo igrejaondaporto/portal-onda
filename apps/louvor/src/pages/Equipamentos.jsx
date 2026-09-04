@@ -44,7 +44,16 @@ function ordenarMelhorias(lista, ordem) {
   });
 }
 
-export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
+/** `abaControlada` + `semSubtabs`: quando Culto.jsx embrulha este
+ *  ecrã com Melhorias como sub-aba própria dela (ao lado de
+ *  Equipamentos, pedido do líder, 2026-09), a aba passa a vir de fora
+ *  e a barra de sub-abas própria daqui esconde-se — não faz sentido
+ *  ter duas barras de abas iguais, uma dentro da outra. Sem
+ *  `abaControlada` (uso direto, se algum dia voltar a ter menu
+ *  próprio), continua a decidir sozinho, como sempre. `onContagem`
+ *  reporta `{comProblema, abertas}` para Culto.jsx poder pintar o
+ *  alerta na sua própria aba "Melhorias" (ver oc-subtab-alerta). */
+export default function Equipamentos({ uid, papel, ativo, definirCabecalho, abaControlada, semSubtabs, onContagem }) {
   const torrada = useTorrada();
   const souLiderBase = souLiderOuAuxiliar(papel);
   const [equipamentos, setEquipamentos] = useState([]);
@@ -54,7 +63,8 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
   const ministerios = PAPEIS;
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
-  const [aba, setAba] = useState("equipamentos"); // "equipamentos" | "melhorias"
+  const [abaInterna, setAbaInterna] = useState("equipamentos"); // "equipamentos" | "melhorias"
+  const aba = abaControlada ?? abaInterna;
   // Que cartões estão abertos. `undefined` = por decidir, e aí o
   // padrão é: avarias abertas (é o que precisa de ação), ministérios
   // fechados (é catálogo, consulta-se quando se procura alguma coisa).
@@ -84,6 +94,11 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, equipamentos.length, comProblema, abertas, melhoriasResolvidas.length]);
+
+  useEffect(() => {
+    onContagem?.({ comProblema, abertas });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comProblema, abertas]);
 
   const nomeMinisterio = (id) => ministerios.find((m) => m.id === id)?.nome;
   const equipamentoAtual = sheet?.equipamentoId ? equipamentos.find((e) => e.id === sheet.equipamentoId) : null;
@@ -156,13 +171,15 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho }) {
         * o histórico de melhorias ligado — a "visão completa de um
         * item" não depende mais de estarem as duas listas na mesma
         * página. */}
-      <div className="subtabs">
-        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
-        <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAba("melhorias")}>
-          Melhorias
-          {abertas > 0 && <span className="oc-subtab-alerta" />}
-        </button>
-      </div>
+      {!semSubtabs && (
+        <div className="subtabs">
+          <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAbaInterna("equipamentos")}>Equipamentos</button>
+          <button data-on={aba === "melhorias" ? 1 : 0} onClick={() => setAbaInterna("melhorias")}>
+            Melhorias
+            {abertas > 0 && <span className="oc-subtab-alerta" />}
+          </button>
+        </div>
+      )}
 
       <div className="sect">
         <div style={{ display: "flex", gap: 8 }}>

@@ -331,7 +331,7 @@
 /* ── Repertório ─────────────────────────────────────────────── */
 .rep-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
@@ -410,24 +410,17 @@
   margin: -10px -8px;
 }
 .rep-item .bib-capa { width: 38px; height: 38px; font-size: 13px; border-radius: 8px; }
-.rep-num {
-  flex: none;
-  width: 20px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--cinza);
-}
 .rep-tom {
   flex: none;
   border: 0;
   background: #fff;
   color: var(--tinta);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 7px 13px;
   border-radius: 100px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .rep-remover {
   border: 0;
@@ -530,4 +523,64 @@
 .cal-sem-dia.culto .cal-sem-dow, .cal-sem-dia.culto .cal-sem-num,
 .cal-sem-dia.ensaio .cal-sem-dow, .cal-sem-dia.ensaio .cal-sem-num {
   color: #fff;
+}
+
+/* ── barra de progresso dentro de um .destaque (Início) — tempo até
+ * expirar um aviso ou fechar uma enquete. .barra do global.css é
+ * clara (pensada para fundo branco); aqui o fundo é sempre uma cor
+ * cheia (violeta/verde/magenta/azul), por isso é sempre translúcida
+ * sobre branco em vez de var(--agua)/var(--verde). ── */
+.destaque-progresso {
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+  margin-top: 9px;
+}
+.destaque-progresso i {
+  display: block;
+  height: 100%;
+  background: #fff;
+  border-radius: 4px;
+  transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* ── Repertório: item de música em duas linhas — título com espaço
+ * de sobra na primeira, tom+setas+remover na segunda. Antes era tudo
+ * numa linha só (⠿+nº+capa+título+tom+↑+↓+✕, sete elementos de
+ * largura fixa a competir com o título) — títulos grandes ficavam
+ * espremidos a poucos caracteres, e um tom com mais letras (ex.
+ * "C#m/Dbm") cortava contra a borda do ecrã. ── */
+.rep-item-corpo {
+  flex: 1;
+  min-width: 0;
+}
+.rep-item-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.rep-steppers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rep-steppers button {
+  display: block;
+  width: 28px;
+  height: 16px;
+  line-height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--tinta);
+  font-size: 9px;
+  text-align: center;
+  cursor: pointer;
+}
+.rep-steppers button:disabled {
+  opacity: 0.35;
 }

@@ -5,9 +5,9 @@ import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
-import { ouvirAvisos, tempoRestante } from "../lib/avisos";
+import { ouvirAvisos, tempoRestante, percentagemRestante } from "../lib/avisos";
 import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
-import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto } from "../lib/enquetes";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemRestanteVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -160,7 +160,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         const respondeu = !!minhasRespostasEnquete[e.id];
         return (
           <div
-            key={e.id} className="destaque" style={{ background: "var(--violeta)", marginBottom: 10 }}
+            key={e.id} className="destaque" style={{ background: "var(--violeta)", marginBottom: 10, flexWrap: "wrap" }}
             onClick={() => setSheetEnquete(true)}
           >
             <div>
@@ -175,6 +175,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               )}
             </div>
             <span style={{ fontSize: 24 }}>🗳️</span>
+            {percentagemRestanteVoto(e.abertaEm, e.prazo) !== null && (
+              <div className="destaque-progresso"><i style={{ width: `${percentagemRestanteVoto(e.abertaEm, e.prazo)}%` }} /></div>
+            )}
           </div>
         );
       })}
@@ -195,7 +198,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       {avisos.map((a) => (
         <div
           key={a.id} className="destaque"
-          style={{ background: a.urgencia === "urgente" ? "var(--magenta)" : "var(--azul)", marginBottom: 10, alignItems: "flex-start" }}
+          style={{ background: a.urgencia === "urgente" ? "var(--magenta)" : "var(--azul)", marginBottom: 10, alignItems: "flex-start", flexWrap: "wrap" }}
         >
           <div>
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", background: "rgba(255,255,255,.25)", padding: "3px 9px", borderRadius: 100 }}>
@@ -207,6 +210,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, whiteSpace: "nowrap", marginTop: 2 }}>
               ⏱️ {tempoRestante(a.expiraEm)}
             </span>
+          )}
+          {percentagemRestante(a.expiraEm, a.duracaoDias) !== null && (
+            <div className="destaque-progresso"><i style={{ width: `${percentagemRestante(a.expiraEm, a.duracaoDias)}%` }} /></div>
           )}
         </div>
       ))}
