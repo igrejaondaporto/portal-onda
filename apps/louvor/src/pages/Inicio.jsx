@@ -6,7 +6,7 @@ import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { ouvirAvisos, tempoRestante } from "../lib/avisos";
-import { ouvirConfirmacao, ouvirConfirmacoesDoMes, confirmarPresenca, desfazerConfirmacao } from "../lib/confirmacao";
+import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -17,6 +17,7 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import SheetAniversarios from "../components/painel/SheetAniversarios";
+import SheetConfirmarPresenca from "../components/SheetConfirmarPresenca";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -35,9 +36,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
   const [avisos, setAvisos] = useState([]);
   const [sheetAniversarios, setSheetAniversarios] = useState(false);
-  const [confirmado, setConfirmado] = useState(false);
-  const [confirmadosMes, setConfirmadosMes] = useState(() => new Set());
-  const [aConfirmar, setAConfirmar] = useState(false);
+  const [minhaResposta, setMinhaResposta] = useState(null); // {resposta, justificativa?} | null
+  const [confirmadosMes, setConfirmadosMes] = useState(() => new Map());
+  const [sheetConfirmar, setSheetConfirmar] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -69,39 +70,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // confirmação de presença — só depois de a escala do próprio culto
   // estar publicada é que faz sentido perguntar (ver lib/confirmacao.js)
   useEffect(() => {
-    if (!sirvo || !meuEvento?.escala.publicado) { setConfirmado(false); return; }
-    return ouvirConfirmacao(meuEvento.id, uid, setConfirmado);
+    if (!sirvo || !meuEvento?.escala.publicado) { setMinhaResposta(null); return; }
+    return ouvirConfirmacao(meuEvento.id, uid, setMinhaResposta);
   }, [sirvo, meuEvento?.id, meuEvento?.escala.publicado, uid]);
 
   // o mesmo, mas para todos os cultos do mês visível no Calendário —
   // um listener por culto onde a pessoa está escalada e publicado
   useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setConfirmadosMes), [eventosMes, uid]);
 
-  async function confirmarMinhaPresenca() {
-    if (!meuEvento) return;
-    setAConfirmar(true);
-    try {
-      await confirmarPresenca(meuEvento.id);
-      torrada("Presença confirmada");
-    } catch (e) {
-      torrada(e.message || "Não foi possível confirmar.");
-    } finally {
-      setAConfirmar(false);
-    }
-  }
-
-  async function desfazerMinhaPresenca() {
-    if (!meuEvento) return;
-    setAConfirmar(true);
-    try {
-      await desfazerConfirmacao(meuEvento.id);
-      torrada("Confirmação desfeita");
-    } catch (e) {
-      torrada(e.message || "Não foi possível desfazer.");
-    } finally {
-      setAConfirmar(false);
-    }
-  }
   const meusPapeis = meuEvento
     ? meusPapeisNoCulto(meuEvento.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`)
     : [];
@@ -156,18 +132,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
-      {sirvo && meuEvento.escala.publicado && !confirmado && (
+      {sirvo && meuEvento.escala.publicado && !minhaResposta && (
         <div
           className="destaque" style={{ background: "var(--verde)", marginBottom: 10 }}
-          onClick={aConfirmar ? undefined : confirmarMinhaPresenca}
+          onClick={() => setSheetConfirmar(true)}
         >
           <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma que vais</p>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma a tua presença</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
               Vais servir {dataPorExtenso(meuEvento.data)}?
             </p>
           </div>
-          <span style={{ fontSize: 24 }}>{aConfirmar ? "…" : "✓"}</span>
+          <span style={{ fontSize: 24 }}>✓</span>
         </div>
       )}
       {avisos.map((a) => (
@@ -256,14 +232,13 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 {liderNome ? `${liderNome} ainda não definiu o teu papel.` : "O líder de escala ainda não foi definido."}
               </div>
             )}
-            {meuEvento.escala.publicado && confirmado && (
+            {meuEvento.escala.publicado && minhaResposta && (
               <div className="confirmado-linha">
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--verde)" }}>✓ Presença confirmada</span>
-                <button
-                  className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5 }}
-                  disabled={aConfirmar} onClick={desfazerMinhaPresenca}
-                >
-                  Afinal não posso ir
+                <span style={{ fontSize: 13, fontWeight: 600, color: minhaResposta.resposta === "vai" ? "var(--verde)" : "var(--magenta)" }}>
+                  {minhaResposta.resposta === "vai" ? "✓ Vais" : `✗ Avisaste que não vais${minhaResposta.justificativa ? ` — ${minhaResposta.justificativa}` : ""}`}
+                </span>
+                <button className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5 }} onClick={() => setSheetConfirmar(true)}>
+                  Mudar resposta
                 </button>
               </div>
             )}
@@ -375,6 +350,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     )}
     {sheetAniversarios && (
       <SheetAniversarios voluntarios={voluntarios} onFechar={() => setSheetAniversarios(false)} />
+    )}
+    {sheetConfirmar && meuEvento && (
+      <SheetConfirmarPresenca
+        cultos={[meuEvento]}
+        minhasRespostas={minhaResposta ? { [meuEvento.id]: minhaResposta } : {}}
+        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
+        onFechar={() => setSheetConfirmar(false)}
+        onGuardado={(msg) => { setSheetConfirmar(false); torrada(msg); }}
+      />
     )}
     </>
   );
