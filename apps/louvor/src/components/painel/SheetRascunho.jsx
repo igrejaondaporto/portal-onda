@@ -39,7 +39,7 @@ function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, onEsca
         <span className="seta">›</span>
       </div>
       <button className="btn sec full" style={{ marginTop: 10, fontSize: 12.5, padding: "9px" }} onClick={onToggleEnsaio}>
-        🏋️ {ensaio ? `Ensaio: ${dataPorExtenso(ensaio)}` : "Adicionar ensaio"}
+        🎙️ {ensaio ? `Ensaio: ${dataPorExtenso(ensaio)}` : "Adicionar ensaio"}
       </button>
       {ensaioAberto && (
         <CalendarioSemanal domingoISO={item.eventoId} ensaioISO={ensaio} onSelecionar={onDefinirEnsaio} />

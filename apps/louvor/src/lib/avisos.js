@@ -31,13 +31,22 @@ export function ouvirAvisosModelos(cb) {
   });
 }
 
-/** expiraEm calculado no cliente (relógio do líder) — baixo risco de
- *  desvio de relógio para um banner que se auto-esconde, não vale uma
- *  Cloud Function só por isto. */
-export async function criarAviso(uid, { texto, urgencia, duracaoDias }) {
+/** "até que data" (pedido do líder, 2026-09 — trocou a Duração em
+ *  dias por uma data direta, mais fácil de bater o olho) — expiraEm
+ *  é o FIM desse dia (23:59:59, inclusivo: o dia escolhido conta
+ *  todo). duracaoDias continua gravado, derivado daqui, só para a
+ *  barra de progresso (percentagemDecorrida) não precisar de saber
+ *  nada sobre datas — ela só soma milissegundos. */
+function expiraEmDeAteData(ateData) {
+  const expiraEm = Timestamp.fromDate(new Date(`${ateData}T23:59:59`));
+  const duracaoDias = Math.max(1, Math.ceil((expiraEm.toMillis() - Date.now()) / 86400000));
+  return { expiraEm, duracaoDias };
+}
+
+export async function criarAviso(uid, { texto, urgencia, ateData }) {
+  const { expiraEm, duracaoDias } = expiraEmDeAteData(ateData);
   await addDoc(cAvisos(), {
-    texto, urgencia, duracaoDias,
-    expiraEm: Timestamp.fromMillis(Date.now() + duracaoDias * 86400000),
+    texto, urgencia, duracaoDias, expiraEm,
     criadoPor: uid,
     criadoEm: serverTimestamp(),
     ativo: true,
@@ -48,15 +57,11 @@ export const excluirAviso = (id) =>
   updateDoc(doc(db, `bases/${BASE_ID}/avisos/${id}`), { ativo: false });
 
 /** Editar texto/urgência/prazo de um aviso já publicado (pedido do
- *  líder). expiraEm recalculado a partir de AGORA + a nova duração —
- *  mesma conta que criarAviso, para "mudei de 3 para 5 dias" se
- *  comportar como esperado (mais 5 dias a partir de agora, não do
- *  criadoEm original). */
-export const editarAviso = (id, { texto, urgencia, duracaoDias }) =>
-  updateDoc(doc(db, `bases/${BASE_ID}/avisos/${id}`), {
-    texto, urgencia, duracaoDias,
-    expiraEm: Timestamp.fromMillis(Date.now() + duracaoDias * 86400000),
-  });
+ *  líder). */
+export const editarAviso = (id, { texto, urgencia, ateData }) => {
+  const { expiraEm, duracaoDias } = expiraEmDeAteData(ateData);
+  return updateDoc(doc(db, `bases/${BASE_ID}/avisos/${id}`), { texto, urgencia, duracaoDias, expiraEm });
+};
 
 export async function criarModelo(uid, { nome, texto, urgencia, duracaoDias }) {
   await addDoc(cAvisosModelos(), {

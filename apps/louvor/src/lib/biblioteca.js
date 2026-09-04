@@ -40,7 +40,9 @@ export function ouvirMusicas(cb) {
 }
 
 export function ouvirVersoes(musicaId, cb) {
-  return onSnapshot(cVersoes(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  return onSnapshot(cVersoes(musicaId), (snap) => cb(
+    snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((v) => v.ativo !== false)
+  ));
 }
 
 /** Uma versão só, ao vivo — usado por SheetVersaoDetalhe.jsx para
@@ -179,12 +181,38 @@ export async function removerTomVersao(musicaId, versaoId, tom) {
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const dados = snap.data();
-  const atualizacao = {
-    tonsConhecidos: (dados.tonsConhecidos || []).filter((t) => t !== tom),
-    usoPorCulto: Object.fromEntries(Object.entries(dados.usoPorCulto || {}).filter(([, t]) => t !== tom)),
-  };
+  const tonsConhecidos = (dados.tonsConhecidos || []).filter((t) => t !== tom);
+  const usoPorCulto = Object.fromEntries(Object.entries(dados.usoPorCulto || {}).filter(([, t]) => t !== tom));
+  const atualizacao = { tonsConhecidos, usoPorCulto };
+  const tomFinal = dados.tom === tom ? "" : dados.tom;
   if (dados.tom === tom) atualizacao.tom = "";
+  // sem tom nenhum sobrando (nem atual, nem conhecido, nem uso real)
+  // — a versão fica sem sentido, some sozinha (pedido do líder,
+  // 2026-09: "quando exclui um tom e só existia aquele, a versão
+  // também deve sumir"). Nunca apagada a sério, ver desativarVersao.
+  if (!tomFinal && !tonsConhecidos.length && !Object.keys(usoPorCulto).length) {
+    atualizacao.ativo = false;
+  }
   await updateDoc(ref, atualizacao);
+}
+
+/** "Excluir versão" — Editar versão (SheetVersao.jsx) e quando o
+ *  último tom dela é excluído (ver removerTomVersao acima). Nunca
+ *  apagada a sério (regra 5 do CLAUDE.md raiz) — as regras do
+ *  Firestore já recusam delete em versões; ativo:false é o que some
+ *  das listas (ouvirVersoes já filtra), sem perder o histórico.
+ *
+ *  Gap conhecido, por resolver: indiceCantores/{pessoaId}.musicas[]
+ *  (cópia por cantor, ver registarUsoVersaoLouvor em
+ *  functions/index.js) não é limpo daqui — essa coleção só aceita
+ *  escrita por Cloud Function (`allow write: if false` no cliente,
+ *  ver firestore.rules), por isso uma versão desativada continua a
+ *  aparecer no Histórico por cantor com dados antigos até essa
+ *  pessoa ganhar/perder outra versão que atualize o índice por
+ *  inteiro. Precisa de uma Cloud Function própria para limpar
+ *  a sério — fica para uma próxima vez (PR à parte, toca functions/). */
+export async function desativarVersao(musicaId, versaoId) {
+  await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { ativo: false });
 }
 
 export const novaMusicaId = () => doc(cMusicas()).id;
@@ -254,6 +282,46 @@ export async function criarVersao(musicaId, id, dados) {
 export const guardarVersao = (musicaId, versaoId, dados) =>
   updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), dados);
 
+/** Criar ou editar uma versão (SheetVersao.jsx) — se o nome escolhido
+ *  já for de OUTRA versão ativa da mesma música, funde nela em vez de
+ *  duplicar: "Em Versões só pode existir uma por cantor" (pedido do
+ *  líder, 2026-09 — reportou "Amanda" e "Amanda 2" na mesma música,
+ *  sobra de quando o Nome ainda era texto livre). A versão fundida
+ *  (a que estava a ser editada, se havia) fica ativo:false — o
+ *  histórico dela (usoPorCulto/tonsConhecidos) passa todo para a que
+ *  sobrevive, nunca se perde. Devolve o id onde os dados ficaram —
+ *  pode ser diferente do que entrou, se fundiu. */
+export async function guardarOuFundirVersao(musicaId, versaoId, dados, uid) {
+  const norm = (s) => (s || "").trim().toLowerCase();
+  const versoesSnap = await getDocs(cVersoes(musicaId));
+  const outra = versoesSnap.docs.find((d) => d.id !== versaoId && d.data().ativo !== false && norm(d.data().nome) === norm(dados.nome));
+
+  if (!outra) {
+    if (versaoId) {
+      await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), dados);
+      return versaoId;
+    }
+    const novoId = novaVersaoId(musicaId);
+    await criarVersao(musicaId, novoId, { ...dados, criadoPor: uid });
+    return novoId;
+  }
+
+  const atualSnap = versaoId ? await getDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`)) : null;
+  const atualDados = atualSnap?.exists() ? atualSnap.data() : null;
+  const outraDados = outra.data();
+  const usoPorCulto = { ...(outraDados.usoPorCulto || {}), ...(atualDados?.usoPorCulto || {}) };
+  const tonsConhecidos = [...new Set([...(outraDados.tonsConhecidos || []), ...(atualDados?.tonsConhecidos || [])])];
+  const tom = dados.tom || outraDados.tom || atualDados?.tom || "";
+
+  await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${outra.id}`), {
+    ...dados, tom, usoPorCulto, tonsConhecidos,
+  });
+  if (versaoId && versaoId !== outra.id) {
+    await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { ativo: false });
+  }
+  return outra.id;
+}
+
 /** Ao trocar o tom de uma música já no repertório (SheetEditarTom,
  *  Repertorio.jsx), pedido do líder 2026-09: uma versão IMPESSOAL
  *  (nome que não bate com nenhum voluntário ativo — "Original",
@@ -280,15 +348,26 @@ export async function definirTomComRedirecionamento(musicaId, versaoId, novoTom,
     return versaoId;
   }
 
+  return versaoDoLeadComTom(musicaId, novoTom, lead, uid);
+}
+
+/** Versão do Lead com este tom — reaproveitada se já existir (só
+ *  troca o tom), criada agora se não (mesma lógica de "a versão É o
+ *  cantor" usada em definirTomComRedirecionamento acima). Usado
+ *  também em "+ Adicionar Tom" ao escolher a versão para o
+ *  Repertório (SheetVersaoParaRepertorio.jsx, pedido do líder,
+ *  2026-09) — declarar um tom novo na hora já cria/atualiza a versão
+ *  certa, sem precisar de ir à Biblioteca depois. */
+export async function versaoDoLeadComTom(musicaId, tom, lead, uid) {
+  const norm = (s) => (s || "").trim().toLowerCase();
   const versoesSnap = await getDocs(cVersoes(musicaId));
-  const existente = versoesSnap.docs.find((d) => norm(d.data().nome) === norm(lead.nome));
+  const existente = versoesSnap.docs.find((d) => d.data().ativo !== false && norm(d.data().nome) === norm(lead.nome));
   if (existente) {
-    await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${existente.id}`), { tom: novoTom });
+    await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${existente.id}`), { tom });
     return existente.id;
   }
-
   const novoId = novaVersaoId(musicaId);
-  await criarVersao(musicaId, novoId, { nome: lead.nome, tom: novoTom, criadoPor: uid });
+  await criarVersao(musicaId, novoId, { nome: lead.nome, tom, criadoPor: uid });
   return novoId;
 }
 

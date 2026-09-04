@@ -71,6 +71,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [aCarregarPreview, setACarregarPreview] = useState(null);
   const [paraRepertorio, setParaRepertorio] = useState(null); // música escolhida para o atalho "+ repertório"
   const [proximoEventoId, setProximoEventoId] = useState(null);
+  const [proximoEventoLeadId, setProximoEventoLeadId] = useState(null);
   const audioRef = useRef(null);
   const paginaAtivaRef = useRef(null);
 
@@ -94,7 +95,9 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
     obterEventosDoMes(hoje.getFullYear(), hoje.getMonth()).then((eventos) => {
       if (!eventos.length) return;
       const hojeStr = hoje.toISOString().slice(0, 10);
-      setProximoEventoId((eventos.find((e) => e.data >= hojeStr) ?? eventos.at(-1)).id);
+      const ev = eventos.find((e) => e.data >= hojeStr) ?? eventos.at(-1);
+      setProximoEventoId(ev.id);
+      setProximoEventoLeadId(ev.escala?.escalados?.find((e) => e.papel === "lead")?.pessoaId ?? null);
     });
   }, []);
 
@@ -309,6 +312,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       {paraRepertorio && (
         <SheetVersaoParaRepertorio
           uid={uid} musica={paraRepertorio} eventoId={proximoEventoId}
+          lead={voluntarios.find((p) => p.id === proximoEventoLeadId) ?? null}
           onFechar={() => setParaRepertorio(null)}
           onAdicionada={() => setParaRepertorio(null)}
         />

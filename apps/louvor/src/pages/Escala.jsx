@@ -169,7 +169,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
       {(evento.escala.dataEnsaio || podeEditar) && (
         <div className="caixinha ensaio">
           <p className="caixinha-titulo">
-            🏋️ <b>Ensaio</b>
+            🎙️ <b>Ensaio</b>
             {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
             {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
           </p>
@@ -208,7 +208,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
           {cores.length < 3 && (
             <button className="btn sec full" style={{ marginTop: 8 }} onClick={adicionarCor}>Adicionar cor</button>
           )}
-          <label className="rot" style={{ marginTop: 12 }}>🏋️ Data do ensaio — semana de {dataPorExtenso(evento.data)}</label>
+          <label className="rot" style={{ marginTop: 12 }}>🎙️ Data do ensaio — semana de {dataPorExtenso(evento.data)}</label>
           <CalendarioSemanal
             domingoISO={evento.data} ensaioISO={dataEnsaio}
             onSelecionar={(iso) => setDataEnsaio((atual) => (atual === iso ? "" : iso))}
