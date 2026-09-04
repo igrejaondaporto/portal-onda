@@ -95,3 +95,31 @@ export const podeDistribuir = (papel, uid, escala) =>
  *  um só, mas nada impede alguém de cantar e tocar no mesmo domingo. */
 export const meusPapeisNoCulto = (escala, uid) =>
   (escala?.escalados || []).filter((e) => e.pessoaId === uid).map((e) => e.papel);
+
+/** Nome genérico da cor mais próxima (distância euclidiana em RGB) —
+ *  "escolheu um azul forte" mostra só "Azul", não o hex exato (pedido
+ *  do líder para a caixinha de roupa em Escala.jsx). Paleta curta de
+ *  propósito: é para o voluntário reconhecer a cor de relance, não
+ *  para precisão de designer. */
+const CORES_NOMEADAS = [
+  ["#FFFFFF", "Branco"], ["#000000", "Preto"], ["#808080", "Cinza"],
+  ["#FF0000", "Vermelho"], ["#FFA500", "Laranja"], ["#FFFF00", "Amarelo"],
+  ["#008000", "Verde"], ["#00FFFF", "Ciano"], ["#0000FF", "Azul"],
+  ["#800080", "Roxo"], ["#FFC0CB", "Rosa"], ["#A52A2A", "Castanho"],
+  ["#F5F5DC", "Bege"], ["#FFD700", "Dourado"], ["#C0C0C0", "Prateado"],
+];
+function hexParaRgb(hex) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+export function nomeCor(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  const [r, g, b] = hexParaRgb(hex);
+  let melhor = null, menorDist = Infinity;
+  for (const [candidatoHex, nome] of CORES_NOMEADAS) {
+    const [cr, cg, cb] = hexParaRgb(candidatoHex);
+    const dist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (dist < menorDist) { menorDist = dist; melhor = nome; }
+  }
+  return melhor;
+}

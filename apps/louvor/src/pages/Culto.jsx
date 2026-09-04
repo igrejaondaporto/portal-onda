@@ -6,11 +6,15 @@ import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
+import Equipamentos from "./Equipamentos";
 
-/** Ordem do culto + Feedbacks — as duas coisas que já existiam noutra
- *  base (Apoio/Técnica) juntam-se aqui. Equipamentos tem menu próprio
- *  desde 2026-09 (era subaba daqui, mas era o único sítio "escondido"
- *  dentro doutra coisa — as outras bases já tinham como aba de base). */
+/** Ordem do culto + Feedbacks + Equipamentos. Equipamentos chegou a
+ *  ter menu próprio na barra de baixo (2026-09), mas voltou para cá
+ *  como sub-aba (pedido do líder) — `ativo={false}` sempre, para não
+ *  disputar o cabeçalho com o de Culto (mesmo padrão que a Pessoal já
+ *  usa para embrulhar um ecrã que também existe como aba própria
+ *  noutra base, ver MELHORIAS-ENTRE-BASES.md). Melhorias continua
+ *  dentro de Equipamentos, como já era (a sub-aba própria dela). */
 export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
   const souLiderBase = souLiderOuAuxiliar(papel);
   const podePublicar = souLiderBase && podePublicarCulto;
@@ -50,8 +54,16 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Culto</em>,
-      subtitulo: aba === "ordem" ? "A ordem do culto que o pastor envia" : "O que ficou registado de cada domingo",
-      chips: aba === "ordem" ? [MESES[mes]] : [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`],
+      subtitulo: aba === "ordem"
+        ? "A ordem do culto que o pastor envia"
+        : aba === "feedbacks"
+        ? "O que ficou registado de cada domingo"
+        : "Instrumentos, equipamento de palco e avarias",
+      chips: aba === "ordem"
+        ? [MESES[mes]]
+        : aba === "feedbacks"
+        ? [MESES[mes], `${comFeedback} de ${eventosMes.length} com feedback`]
+        : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes, eventosMes.length, comFeedback]);
@@ -66,15 +78,24 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
           {aoVivoGravando && <span className="oc-subtab-alerta" />}
         </button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
+        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
       </div>
 
-      <div className="cabecalho" style={{ marginTop: 16 }}>
-        <h3>{MESES[mes]} {ano}</h3>
-        <span className="calnav">
-          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
-          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
-        </span>
-      </div>
+      {aba !== "equipamentos" && (
+        <div className="cabecalho" style={{ marginTop: 16 }}>
+          <h3>{MESES[mes]} {ano}</h3>
+          <span className="calnav">
+            <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+            <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+          </span>
+        </div>
+      )}
+
+      {aba === "equipamentos" && (
+        <div style={{ marginTop: 16 }}>
+          <Equipamentos uid={uid} papel={papel} ativo={false} definirCabecalho={() => {}} />
+        </div>
+      )}
 
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
