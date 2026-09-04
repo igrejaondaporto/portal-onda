@@ -15,18 +15,21 @@ export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFech
   const [linkReferencia, setLinkReferencia] = useState(versao?.linkReferencia ?? "");
   const [aGuardar, setAGuardar] = useState(false);
 
-  // Quem canta (pedido do líder: "já coloca sempre a lista de todos
-  // os que cantam") — atalho para preencher o Nome, nunca substitui
-  // o campo livre (versões sem nome de pessoa, tipo "Original" ou
-  // "Acústico", continuam válidas). instrumentos é opcional e só
+  // Quem canta (pedido do líder: "não é sugestor, é lista fixa") —
+  // Nome deixou de ser texto livre: só dá para escolher um voluntário
+  // com papel Lead, Co-lead ou Back. instrumentos é opcional e só
   // informativo (ver CLAUDE.md desta base), por isso quem não o
-  // preencheu simplesmente não aparece aqui — nada trava.
+  // preencheu simplesmente não aparece aqui — nada trava. Uma versão
+  // já existente com um nome fora da lista (ex.: "Onda", de antes
+  // desta mudança) continua a aparecer como opção própria, para editar
+  // sem ser forçado a trocar de nome.
   const cantores = (voluntarios || [])
     .filter((p) => (p.instrumentos || []).some((i) => PAPEIS_VOCAL.includes(i)))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt"));
+  const nomeAtualForaDaLista = versao?.nome && !cantores.some((p) => p.nome === versao.nome) ? versao.nome : null;
 
   async function guardar() {
-    if (!nome.trim()) return torrada("Dá um nome à versão (ex.: Onda, Original).");
+    if (!nome.trim()) return torrada("Escolhe quem canta esta versão.");
     setAGuardar(true);
     try {
       const dados = { nome, tom, bpm: bpm ? Number(bpm) : null, duracao: duracao ? Number(duracao) : null, observacao, linkReferencia };
@@ -56,17 +59,22 @@ export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFech
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{versao ? "Editar versão" : "Nova versão"}</h2>
-        <label className="rot" style={{ marginTop: 12 }}>Nome</label>
-        <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Onda, Original, Acústico…" autoFocus />
-        {cantores.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
-            {cantores.map((p) => (
-              <button key={p.id} type="button" className="bib-chip" data-on={nome === p.nome ? 1 : 0} onClick={() => setNome(p.nome)}>
-                {p.nome}
-              </button>
-            ))}
-          </div>
+        <label className="rot" style={{ marginTop: 12 }}>Nome (quem canta)</label>
+        {!cantores.length && !nomeAtualForaDaLista && (
+          <div className="vaz">Ainda ninguém marcado como Lead, Co-lead ou Back no perfil.</div>
         )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+          {nomeAtualForaDaLista && (
+            <button type="button" className="bib-chip" data-on={nome === nomeAtualForaDaLista ? 1 : 0} onClick={() => setNome(nomeAtualForaDaLista)}>
+              {nomeAtualForaDaLista}
+            </button>
+          )}
+          {cantores.map((p) => (
+            <button key={p.id} type="button" className="bib-chip" data-on={nome === p.nome ? 1 : 0} onClick={() => setNome(p.nome)}>
+              {p.nome}
+            </button>
+          ))}
+        </div>
         <label className="rot">Tom</label>
         <GradeTom valor={tom} onEscolher={setTom} />
         <label className="rot">BPM</label>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
-import { ouvirConfirmacoesDoMes } from "../lib/confirmacao";
+import { ouvirConfirmacoesDoMes, confirmacaoDispensada, dispensarConfirmacao } from "../lib/confirmacao";
 import SheetConfirmarPresenca from "./SheetConfirmarPresenca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
@@ -33,8 +33,14 @@ export default function ConfirmacaoAutoStart({ uid }) {
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setRespostas), [eventosMes, uid]);
 
+  // localStorage não é reativo — este "forceUpdate" força reavaliar
+  // `pendentes` (que lê confirmacaoDispensada a cada render) assim que
+  // "Ainda não sei" grava uma dispensa nova (mesmo padrão de
+  // EnqueteAutoStart). Valor em si nunca lido — só o `set` importa.
+  const [, forcarAtualizacao] = useState(0);
+
   const pendentes = eventosMes.filter(
-    (ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostas.has(ev.id)
+    (ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostas.has(ev.id) && !confirmacaoDispensada(ev.id)
   );
   if (!pendentes.length) return null;
 
@@ -49,6 +55,10 @@ export default function ConfirmacaoAutoStart({ uid }) {
       minhasRespostas={minhasRespostas}
       pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
       onGuardado={(msg) => torrada(msg)}
+      onNaoSeiAinda={() => {
+        pendentes.forEach((ev) => dispensarConfirmacao(ev.id));
+        forcarAtualizacao((v) => v + 1);
+      }}
     />
   );
 }

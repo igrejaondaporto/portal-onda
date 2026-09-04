@@ -47,6 +47,17 @@ export async function criarAviso(uid, { texto, urgencia, duracaoDias }) {
 export const excluirAviso = (id) =>
   updateDoc(doc(db, `bases/${BASE_ID}/avisos/${id}`), { ativo: false });
 
+/** Editar texto/urgência/prazo de um aviso já publicado (pedido do
+ *  líder). expiraEm recalculado a partir de AGORA + a nova duração —
+ *  mesma conta que criarAviso, para "mudei de 3 para 5 dias" se
+ *  comportar como esperado (mais 5 dias a partir de agora, não do
+ *  criadoEm original). */
+export const editarAviso = (id, { texto, urgencia, duracaoDias }) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/avisos/${id}`), {
+    texto, urgencia, duracaoDias,
+    expiraEm: Timestamp.fromMillis(Date.now() + duracaoDias * 86400000),
+  });
+
 export async function criarModelo(uid, { nome, texto, urgencia, duracaoDias }) {
   await addDoc(cAvisosModelos(), {
     nome, texto, urgencia, duracaoDias,

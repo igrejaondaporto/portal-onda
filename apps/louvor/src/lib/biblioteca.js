@@ -12,7 +12,7 @@
  * onSnapshot uma vez; busca e filtros correm no cliente contra essa
  * cache, nunca uma leitura por tecla digitada.
  */
-import { arrayUnion, doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { arrayUnion, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cMusicas, cVersoes, dIndiceCantor, cIndiceCantores } from "./modelo";
 
@@ -253,6 +253,44 @@ export async function criarVersao(musicaId, id, dados) {
 
 export const guardarVersao = (musicaId, versaoId, dados) =>
   updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), dados);
+
+/** Ao trocar o tom de uma música já no repertório (SheetEditarTom,
+ *  Repertorio.jsx), pedido do líder 2026-09: uma versão IMPESSOAL
+ *  (nome que não bate com nenhum voluntário ativo — "Original",
+ *  "Onda"…) só pode ter UM tom. Se o tom novo for diferente do que
+ *  já lá está, não fica na versão impessoal — vai para a versão do
+ *  Lead deste culto (reaproveitada se já existir, criada agora se
+ *  não), a mesma lógica de "a versão É o cantor" que o Histórico já
+ *  usa (ver pessoasParaAtribuir em functions/index.js). Se a versão
+ *  em uso já É a de alguém (nome bate com um voluntário — mesmo que
+ *  não seja o Lead, ex.: um back vocal), ou se este culto ainda não
+ *  tem Lead definido, troca o tom nela mesma, como sempre foi — sem
+ *  Lead pra atribuir, fica silencioso, não é erro (mesmo espírito de
+ *  pessoasParaAtribuir). Devolve o versaoId onde o tom ficou —
+ *  pode ser o mesmo que entrou, ou o (novo/existente) do Lead. */
+export async function definirTomComRedirecionamento(musicaId, versaoId, novoTom, voluntarios, lead, uid) {
+  const norm = (s) => (s || "").trim().toLowerCase();
+  const ref = doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`);
+  const snap = await getDoc(ref);
+  const nomeAtual = (snap.data()?.nome || "").trim();
+  const ehPessoal = (voluntarios || []).some((p) => norm(p.nome) === norm(nomeAtual));
+
+  if (ehPessoal || !lead) {
+    await updateDoc(ref, { tom: novoTom });
+    return versaoId;
+  }
+
+  const versoesSnap = await getDocs(cVersoes(musicaId));
+  const existente = versoesSnap.docs.find((d) => norm(d.data().nome) === norm(lead.nome));
+  if (existente) {
+    await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${existente.id}`), { tom: novoTom });
+    return existente.id;
+  }
+
+  const novoId = novaVersaoId(musicaId);
+  await criarVersao(musicaId, novoId, { nome: lead.nome, tom: novoTom, criadoPor: uid });
+  return novoId;
+}
 
 /* ── Deezer (Fase 1 — só a capa é automática) ──────────────── */
 export const buscarCapaDeezer = (titulo, artista) =>

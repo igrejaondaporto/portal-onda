@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { abrirEnquete } from "../../lib/enquetes";
 import { obterEventosDoMes, criarCultoEspecial } from "../../lib/painel";
+import { definirDetalhesCultoLouvor } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import CalendarioSemanal from "../CalendarioSemanal";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -33,21 +35,35 @@ function useCultosDoMes(mes) {
   const [nomeEspecial, setNomeEspecial] = useState("");
   const [diaEspecial, setDiaEspecial] = useState("");
   const [aCriarEspecial, setACriarEspecial] = useState(false);
+  const [ensaios, setEnsaios] = useState({}); // eventoId -> "AAAA-MM-DD" | null
+  const [ensaioAberto, setEnsaioAberto] = useState(null); // eventoId | null
 
   useEffect(() => {
-    if (!mes) { setEventos([]); setSelecionados({}); return; }
+    if (!mes) { setEventos([]); setSelecionados({}); setEnsaios({}); return; }
     const [ano, m] = mes.split("-").map(Number);
     setACarregar(true);
     obterEventosDoMes(ano, m - 1)
       .then((evs) => {
         setEventos(evs);
         setSelecionados(Object.fromEntries(evs.map((e) => [e.id, true])));
+        setEnsaios(Object.fromEntries(evs.map((e) => [e.id, e.escala?.dataEnsaio || null])));
       })
       .finally(() => setACarregar(false));
   }, [mes]);
 
   function alternar(id) {
     setSelecionados((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  async function definirEnsaio(eventoId, iso) {
+    const novaData = ensaios[eventoId] === iso ? null : iso;
+    setEnsaios((s) => ({ ...s, [eventoId]: novaData }));
+    try {
+      await definirDetalhesCultoLouvor(eventoId, { dataEnsaio: novaData });
+    } catch (e) {
+      torrada(e.message || "Não foi possível guardar o ensaio.");
+      setEnsaios((s) => ({ ...s, [eventoId]: ensaios[eventoId] ?? null }));
+    }
   }
 
   async function adicionarEspecial() {
@@ -81,6 +97,7 @@ function useCultosDoMes(mes) {
     eventos, selecionados, alternar, aCarregar, domingos,
     aAdicionarEspecial, setAAdicionarEspecial, nomeEspecial, setNomeEspecial,
     diaEspecial, setDiaEspecial, aCriarEspecial, adicionarEspecial,
+    ensaios, ensaioAberto, setEnsaioAberto, definirEnsaio,
   };
 }
 
@@ -91,12 +108,23 @@ function BlocoCultos({ titulo, c }) {
       {c.aCarregar && <div className="vaz">A carregar…</div>}
       {!c.aCarregar && !c.eventos.length && <div className="vaz">Sem cultos criados para este mês ainda.</div>}
       {c.eventos.map((ev) => (
-        <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => c.alternar(ev.id)}>
-          <button className={`chk${c.selecionados[ev.id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); c.alternar(ev.id); }}>✓</button>
-          <div style={{ flex: 1 }}>
-            <p className="nmt">{ev.tipo || dataPorExtenso(ev.data)}</p>
-            {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
+        <div className="caixa" style={{ marginTop: 6 }} key={ev.id}>
+          <div className="linha" style={{ border: 0, padding: 0, cursor: "pointer" }} onClick={() => c.alternar(ev.id)}>
+            <button className={`chk${c.selecionados[ev.id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); c.alternar(ev.id); }}>✓</button>
+            <div style={{ flex: 1 }}>
+              <p className="nmt">{ev.tipo || dataPorExtenso(ev.data)}</p>
+              {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
+            </div>
           </div>
+          <button
+            className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, padding: "9px" }}
+            onClick={() => c.setEnsaioAberto((a) => (a === ev.id ? null : ev.id))}
+          >
+            🏋️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
+          </button>
+          {c.ensaioAberto === ev.id && (
+            <CalendarioSemanal domingoISO={ev.id} ensaioISO={c.ensaios[ev.id]} onSelecionar={(iso) => c.definirEnsaio(ev.id, iso)} />
+          )}
         </div>
       ))}
 

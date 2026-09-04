@@ -479,6 +479,26 @@
   color: #fff;
   font-weight: 800;
 }
+/* Dia de ensaio no calendário do Início — cor própria (violeta),
+ * separada de culto/sirvo/por confirmar (pedido do líder: mesma
+ * lógica de cor que o culto já tem, mas outra cor). */
+.cald.ensaio {
+  background: var(--violeta);
+  color: #fff;
+  font-weight: 700;
+}
+/* "O teu nome" na tabela de Escala geral — de texto azul (herdado do
+ * .tab td.mim partilhado, global.css) para um box a sério: fundo
+ * azul, nome branco (pedido do líder). Sobrepõe aqui, nunca no
+ * partilhado (CLAUDE.md raiz) — as outras bases continuam só com o
+ * texto a cor. Aplica-se também à linha do líder de escala, para o
+ * mesmo "isto és tu" ficar consistente em toda a tabela. */
+.tab td.mim,
+.tab tr.lid td.mim {
+  background: var(--azul);
+  color: #fff;
+  border-radius: 8px;
+}
 
 /* linha de estado dentro de "O teu papel", depois de confirmar —
  * discreta de propósito, o pedido de confirmação em si é o .destaque

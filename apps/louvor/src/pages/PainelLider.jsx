@@ -170,6 +170,7 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
                       {" "}· {a.duracaoDias} {a.duracaoDias === 1 ? "dia" : "dias"}
                     </p>
                   </div>
+                  <button className="lapis" onClick={() => setSheet({ tipo: "aviso", aviso: a })} aria-label="Editar aviso">✎</button>
                   <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--magenta)" }} onClick={() => apagarAviso(a.id)}>
                     Remover
                   </button>
@@ -328,7 +329,7 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
       )}
       {sheet?.tipo === "aviso" && (
         <SheetAviso
-          uid={uid}
+          uid={uid} aviso={sheet.aviso}
           modelos={avisosModelos}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
