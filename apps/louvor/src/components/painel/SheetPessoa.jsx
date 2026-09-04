@@ -5,6 +5,10 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
 const TAMANHO_MAX_FOTO = 6 * 1024 * 1024;
+// <input type="date"> não tem noção de "só mês e dia" — ano fixo
+// bissexto (cobre 29/fev) só como andaime da UI, nunca gravado (ver
+// Perfil.jsx, mesmo padrão).
+const ANO_ANDAIME = "2000";
 
 export default function SheetPessoa({
   pessoa, onFechar, onGuardado, onRemover,
@@ -14,6 +18,9 @@ export default function SheetPessoa({
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
+  // aniversario é só desta base ("MM-DD", sem ano) — não vem de
+  // pessoaExistente (a pessoa preenche o dela, no próprio Perfil).
+  const [aniversario, setAniversario] = useState(pessoa?.aniversario ?? "");
   const [papel, setPapel] = useState(pessoa?.papel ?? "voluntario");
   // instrumentos é só desta base (não vem de pessoaExistente — quem já
   // é voluntário noutra base ainda não tem isto definido para a Louvor).
@@ -49,10 +56,10 @@ export default function SheetPessoa({
     setAEnviar(true);
     try {
       if (pessoa) {
-        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos });
+        await editarVoluntario({ pessoaId: pessoa.id, nome: n, telefone: telefone.trim(), papel, foto, instrumentos, aniversario: aniversario || null });
         onGuardado("Voluntário atualizado");
       } else {
-        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos };
+        const dados = { nome: n, telefone: telefone.trim(), papel, instrumentos, aniversario: aniversario || null };
         if (pessoaExistente) dados.pessoaExistenteId = pessoaExistente.pessoaExistenteId;
         await criarVoluntario(dados);
         onGuardado(pessoaExistente ? `${n} ligado — já é multi-base` : "Voluntário adicionado");
@@ -117,7 +124,13 @@ export default function SheetPessoa({
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome como aparece na escala" />
         <label className="rot">Telemóvel</label>
         <input className="campo" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="9xx xxx xxx" />
-        <label className="rot">Papel na base</label>
+        <label className="rot">Aniversário</label>
+        <input
+          className="campo" type="date" value={aniversario ? `${ANO_ANDAIME}-${aniversario}` : ""}
+          onChange={(e) => setAniversario(e.target.value ? e.target.value.slice(5) : "")}
+        />
+        <p className="ds" style={{ marginTop: 4 }}>Só o dia e o mês contam — sem ano.</p>
+        <label className="rot" style={{ marginTop: 14 }}>Papel na base</label>
         <div className="subtabs">
           {PAPEIS_BASE.map((p) => (
             <button key={p.id} data-on={papel === p.id ? 1 : 0} onClick={() => setPapel(p.id)}>{p.nome}</button>

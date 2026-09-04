@@ -12,7 +12,7 @@ import SheetNovoCulto from "./SheetNovoCulto";
 /** Um domingo (ou culto especial) dentro do rascunho — cartão próprio
  *  em vez de uma linha só, porque agora carrega três ações (escalar,
  *  ensaio, remover) e as miniaturas de quem já está posto. */
-function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, onEscalar, onRemover, onToggleEnsaio, onDefinirEnsaio }) {
+function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, esconderEnsaio, onEscalar, onRemover, onToggleEnsaio, onDefinirEnsaio }) {
   const pessoas = item.escalados.map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
   return (
     <div className="caixa" style={{ marginTop: 8 }}>
@@ -38,11 +38,15 @@ function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, onEsca
         </button>
         <span className="seta">›</span>
       </div>
-      <button className="btn sec full" style={{ marginTop: 10, fontSize: 12.5, padding: "9px" }} onClick={onToggleEnsaio}>
-        🎙️ {ensaio ? `Ensaio: ${dataPorExtenso(ensaio)}` : "Adicionar ensaio"}
-      </button>
-      {ensaioAberto && (
-        <CalendarioSemanal domingoISO={item.eventoId} ensaioISO={ensaio} onSelecionar={onDefinirEnsaio} />
+      {!esconderEnsaio && (
+        <>
+          <button className="btn sec full" style={{ marginTop: 10, fontSize: 12.5, padding: "9px" }} onClick={onToggleEnsaio}>
+            🎙️ {ensaio ? `Ensaio: ${dataPorExtenso(ensaio)}` : "Adicionar ensaio"}
+          </button>
+          {ensaioAberto && (
+            <CalendarioSemanal domingoISO={item.eventoId} ensaioISO={ensaio} onSelecionar={onDefinirEnsaio} />
+          )}
+        </>
       )}
     </div>
   );
@@ -76,12 +80,13 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
   const [ensaioAberto, setEnsaioAberto] = useState(null); // eventoId | null
   const [mesSeguinteIncluido, setMesSeguinteIncluido] = useState(false);
   const [aIncluirMesSeguinte, setAIncluirMesSeguinte] = useState(false);
-
-  const [outroMesAberto, setOutroMesAberto] = useState(false);
-  const [anoNav, setAnoNav] = useState(anoAtual);
-  const [mesNav, setMesNav] = useState(mesAtual + 2 > 11 ? mesAtual - 10 : mesAtual + 2);
-  const [eventosMesNav, setEventosMesNav] = useState([]);
-  const [aCarregarMesNav, setACarregarMesNav] = useState(false);
+  // "Não quero agendar os ensaios agora" — pedido do líder: só esconde
+  // o botão/calendário de ensaio de cada domingo nesta folha, para
+  // montar a escala sem parar em cada culto a pensar no ensaio. Nada
+  // se perde — quem já tinha ensaio marcado continua gravado, só a
+  // AÇÃO de marcar um novo fica escondida; agenda-se depois em Escala
+  // → detalhes do culto, sem precisar voltar aqui.
+  const [naoAgendarEnsaios, setNaoAgendarEnsaios] = useState(false);
 
   const [eventoAEscalar, setEventoAEscalar] = useState(null);
   const [sheetNovoCulto, setSheetNovoCulto] = useState(false);
@@ -114,21 +119,6 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!outroMesAberto) return;
-    setACarregarMesNav(true);
-    obterEventosDoMes(anoNav, mesNav).then((evs) => { setEventosMesNav(evs); setACarregarMesNav(false); });
-  }, [outroMesAberto, anoNav, mesNav]);
-
-  function mudarMesNav(delta) {
-    setMesNav((atual) => {
-      let novo = atual + delta;
-      if (novo < 0) { novo = 11; setAnoNav((a) => a - 1); }
-      else if (novo > 11) { novo = 0; setAnoNav((a) => a + 1); }
-      return novo;
-    });
-  }
-
   async function incluirMesSeguinte() {
     setAIncluirMesSeguinte(true);
     try {
@@ -142,15 +132,6 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
     } finally {
       setAIncluirMesSeguinte(false);
     }
-  }
-
-  function alternarNoRascunho(ev) {
-    registarEventos([ev]);
-    setItens((atual) =>
-      atual.some((it) => it.eventoId === ev.id)
-        ? atual.filter((it) => it.eventoId !== ev.id)
-        : [...atual, { eventoId: ev.id, liderEscala: null, escalados: [] }]
-    );
   }
 
   function removerDoRascunho(id) {
@@ -215,6 +196,11 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
         <label className="rot">Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Escala de Outubro" />
 
+        <label className="opcao" style={{ marginTop: 10 }} onClick={() => setNaoAgendarEnsaios((v) => !v)}>
+          <span style={{ flex: 1 }}>Não quero agendar os ensaios agora</span>
+          <span className={`chk${naoAgendarEnsaios ? " on" : ""}`}>✓</span>
+        </label>
+
         <label className="rot" style={{ marginTop: 14 }}>Domingos no rascunho ({ordenados.length})</label>
         {!ordenados.length && <div className="vaz">Nenhum ainda.</div>}
         {ordenados.map((it) => (
@@ -222,6 +208,7 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
             key={it.eventoId} item={it} evento={eventosPorId[it.eventoId]} ensaio={ensaios[it.eventoId]}
             pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
             ensaioAberto={ensaioAberto === it.eventoId}
+            esconderEnsaio={naoAgendarEnsaios}
             onEscalar={() => setEventoAEscalar(it.eventoId)}
             onRemover={() => removerDoRascunho(it.eventoId)}
             onToggleEnsaio={() => setEnsaioAberto((a) => (a === it.eventoId ? null : it.eventoId))}
@@ -238,35 +225,15 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
           + Adicionar evento especial
         </button>
 
-        <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => setOutroMesAberto((v) => !v)}>
-          {outroMesAberto ? "Ocultar" : "+ Adicionar domingos de outro mês"}
-        </button>
-        {outroMesAberto && (
-          <div className="caixa" style={{ marginTop: 8 }}>
-            <div className="cabecalho" style={{ paddingTop: 0 }}>
-              <h3>{MESES[mesNav]} {anoNav}</h3>
-              <span className="calnav">
-                <button className="calbt" onClick={() => mudarMesNav(-1)}>‹</button>
-                <button className="calbt" onClick={() => mudarMesNav(1)}>›</button>
-              </span>
-            </div>
-            {aCarregarMesNav && <div className="vaz">A carregar…</div>}
-            {!aCarregarMesNav && !eventosMesNav.length && <div className="vaz">Sem cultos criados para este mês ainda.</div>}
-            {!aCarregarMesNav && eventosMesNav.map((ev) => (
-              <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => alternarNoRascunho(ev)}>
-                <button className={`chk${itens.some((it) => it.eventoId === ev.id) ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarNoRascunho(ev); }}>✓</button>
-                <div style={{ flex: 1 }}><p className="nmt">{nomeEvento(ev)}</p></div>
-              </div>
-            ))}
-          </div>
-        )}
-
         <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar || aPublicar} onClick={() => guardar(true)}>
           {aGuardar ? "A guardar…" : "Guardar rascunho"}
         </button>
 
         {!aConfirmarPublicar ? (
-          <button className="btn sec full" style={{ marginTop: 9 }} disabled={aGuardar || aPublicar || !ordenados.length} onClick={() => setAConfirmarPublicar(true)}>
+          <button
+            className="btn full" style={{ marginTop: 9, background: "var(--magenta)" }}
+            disabled={aGuardar || aPublicar || !ordenados.length} onClick={() => setAConfirmarPublicar(true)}
+          >
             Publicar
           </button>
         ) : (
