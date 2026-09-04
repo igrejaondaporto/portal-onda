@@ -5,7 +5,7 @@ import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
-import { ouvirAvisos } from "../lib/avisos";
+import { ouvirAvisos, tempoRestante } from "../lib/avisos";
 import { ouvirConfirmacao, ouvirConfirmacoesDoMes, confirmarPresenca, desfazerConfirmacao } from "../lib/confirmacao";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
@@ -173,9 +173,19 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       {avisos.map((a) => (
         <div
           key={a.id} className="destaque"
-          style={{ background: a.urgencia === "urgente" ? "var(--magenta)" : "var(--azul)", marginBottom: 10 }}
+          style={{ background: a.urgencia === "urgente" ? "var(--magenta)" : "var(--azul)", marginBottom: 10, alignItems: "flex-start" }}
         >
-          <p style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.4 }}>{a.texto}</p>
+          <div>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", background: "rgba(255,255,255,.25)", padding: "3px 9px", borderRadius: 100 }}>
+              {a.urgencia === "urgente" ? "Urgente" : "Aviso"}
+            </span>
+            <p style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.4, marginTop: 8 }}>{a.texto}</p>
+          </div>
+          {tempoRestante(a.expiraEm) && (
+            <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, whiteSpace: "nowrap", marginTop: 2 }}>
+              ⏱️ {tempoRestante(a.expiraEm)}
+            </span>
+          )}
         </div>
       ))}
       {!meuEvento ? null : (

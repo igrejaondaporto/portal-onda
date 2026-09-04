@@ -489,3 +489,63 @@
   padding-top: 12px;
   border-top: 1px solid var(--fio);
 }
+
+/* Mini calendário semanal (Segunda-Domingo) — reaproveitado em três
+ * sítios: a caixinha de Ensaio em Escala.jsx (só leitura), o seletor
+ * de data do ensaio em "Editar informações" (clicável) e "Adicionar
+ * ensaio" dentro do rascunho (ver CalendarioSemanal.jsx). */
+.cal-semanal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.cal-sem-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 2px;
+  border-radius: 10px;
+  background: var(--agua);
+}
+.cal-sem-dow {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cinza);
+}
+.cal-sem-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tinta);
+}
+.cal-sem-dia.culto {
+  background: var(--magenta);
+}
+.cal-sem-dia.ensaio {
+  background: var(--azul);
+}
+.cal-sem-dia.culto .cal-sem-dow, .cal-sem-dia.culto .cal-sem-num,
+.cal-sem-dia.ensaio .cal-sem-dow, .cal-sem-dia.ensaio .cal-sem-num {
+  color: #fff;
+}
+
+/* Miniatura de foto ao lado do nome, dentro do rascunho — pedido do
+ * líder para reconhecer quem já está posto num culto sem abrir o
+ * SheetEscala. Mesmo tamanho pequeno usado noutras miniaturas da app. */
+.rascunho-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}

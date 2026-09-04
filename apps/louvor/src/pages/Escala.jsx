@@ -1,13 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, ENFASES, nomeEnfase, enfaseDefault, podeDistribuir } from "../lib/modelo";
+import { PAPEIS, nomePapel, emojiPapel, nomeCor, ENFASES, nomeEnfase, enfaseDefault, podeDistribuir } from "../lib/modelo";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
 import { ouvirRepertorio, agruparItensMedley } from "../lib/repertorio";
 import { ouvirMusicas, obterTonsDosItens } from "../lib/biblioteca";
-import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, dataPorExtenso, diaSemanaAbrev, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
+import CalendarioSemanal from "../components/CalendarioSemanal";
+
+/** Cabide — não existe emoji universal para isto, por isso é um ícone
+ *  próprio (mesmo padrão de IconeLinkExterno em SheetMusicaDetalhe.jsx). */
+function IconeCabide() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a1.5 1.5 0 1 0-1.5 1.5" />
+      <path d="M12 4.5V7" />
+      <path d="M12 7 3.5 13.5A2 2 0 0 0 3 15a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1 2 2 0 0 0-.5-1.5L12 7Z" />
+      <path d="M6 15h12" />
+    </svg>
+  );
+}
 
 // Referência estável para "sem itens" — mesmo cuidado documentado em
 // Repertorio.jsx/Inicio.jsx: um `?? []` novo a cada render quebraria
@@ -131,14 +145,14 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
 
       {(coresAtuais.length > 0 || podeEditar) && (
         <div className="caixinha roupa">
-          <p className="caixinha-titulo">🧥 <span className="seta" style={{ fontSize: 14 }}>›</span></p>
+          <p className="caixinha-titulo"><IconeCabide /> Paleta de Cores:</p>
           {coresAtuais.length > 0 ? (
-            <p style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {coresAtuais.map((c, i) => (
-                <span
-                  key={i}
-                  style={{ width: 18, height: 18, borderRadius: "50%", background: c, display: "inline-block", border: "1px solid rgba(10,15,46,.12)" }}
-                />
+                <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: c, display: "inline-block", border: "1px solid rgba(10,15,46,.12)" }} />
+                  <span className="ds" style={{ fontWeight: 600 }}>{nomeCor(c)}</span>
+                </span>
               ))}
             </p>
           ) : (
@@ -150,7 +164,8 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
       {(evento.escala.dataEnsaio || podeEditar) && (
         <div className="caixinha ensaio">
           <p className="caixinha-titulo">🏋️ <b>Ensaio</b></p>
-          <p className="ds">{evento.escala.dataEnsaio ? dataCurta(evento.escala.dataEnsaio) : "Ainda não marcado"}</p>
+          <p className="ds">{evento.escala.dataEnsaio ? dataPorExtenso(evento.escala.dataEnsaio) : "Ainda não marcado"}</p>
+          <CalendarioSemanal domingoISO={evento.data} ensaioISO={evento.escala.dataEnsaio} />
         </div>
       )}
 
@@ -175,7 +190,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
               <button key={e.id} data-on={enfase === e.id ? 1 : 0} onClick={() => setEnfase(e.id)}>{e.nome}</button>
             ))}
           </div>
-          <label className="rot" style={{ marginTop: 12 }}>🧥 Cores da roupa</label>
+          <label className="rot" style={{ marginTop: 12 }}><IconeCabide /> Cores da roupa</label>
           {cores.map((c, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
               <input
@@ -189,8 +204,11 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
           {cores.length < 3 && (
             <button className="btn sec full" style={{ marginTop: 8 }} onClick={adicionarCor}>Adicionar cor</button>
           )}
-          <label className="rot" style={{ marginTop: 12 }}>Data do ensaio</label>
-          <input className="campo" type="date" value={dataEnsaio} onChange={(e) => setDataEnsaio(e.target.value)} />
+          <label className="rot" style={{ marginTop: 12 }}>🏋️ Data do ensaio — semana de {dataPorExtenso(evento.data)}</label>
+          <CalendarioSemanal
+            domingoISO={evento.data} ensaioISO={dataEnsaio}
+            onSelecionar={(iso) => setDataEnsaio((atual) => (atual === iso ? "" : iso))}
+          />
           <label className="rot" style={{ marginTop: 12 }}>Observação</label>
           <textarea
             className="campo" rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)}
@@ -256,9 +274,14 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   function etiquetaEnfase(ev) {
     const id = ev.escala.enfase || enfaseDefault(ev.data);
     return (
-      <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 8 }}>
-        {nomeEnfase(id)}
-      </span>
+      <>
+        <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 8 }}>
+          {diaSemanaAbrev(ev.data)}
+        </span>
+        <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 6 }}>
+          {nomeEnfase(id)}
+        </span>
+      </>
     );
   }
 
@@ -345,6 +368,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
                         <th>Papel</th>
                         {eventosMes.map((ev) => (
                           <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
+                            <span className="tag cinz" style={{ fontSize: 9.5, padding: "1px 6px", marginRight: 4 }}>{diaSemanaAbrev(ev.data)}</span>
                             {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
                           </th>
                         ))}
@@ -360,7 +384,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
                       </tr>
                       {PAPEIS.map((papelLinha) => (
                         <tr key={papelLinha.id}>
-                          <td className="papel"><span className="quadmin" style={{ background: papelLinha.cor }} />{papelLinha.nome}</td>
+                          <td className="papel"><span className="quadmin" style={{ background: papelLinha.cor }} />{papelLinha.emoji} {papelLinha.nome}</td>
                           {eventosMes.map((ev) => {
                             const nomes = escaladosDoPapel(ev, papelLinha.id).map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
                             const souEu = nomes.some((p) => p.id === uid);

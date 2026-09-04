@@ -58,3 +58,16 @@ export async function criarModelo(uid, { nome, texto, urgencia, duracaoDias }) {
 
 export const excluirModelo = (id) =>
   updateDoc(doc(db, `bases/${BASE_ID}/avisosModelos/${id}`), { ativo: false });
+
+/** "Faltam 3 dias"/"Faltam 5h" — calculado no cliente, mesmo relógio
+ *  usado para filtrar avisos expirados em ouvirAvisos. Null se o
+ *  aviso não tiver prazo (não devia acontecer, todos têm duracaoDias). */
+export function tempoRestante(expiraEm) {
+  if (!expiraEm?.toMillis) return null;
+  const ms = expiraEm.toMillis() - Date.now();
+  if (ms <= 0) return null;
+  const h = Math.ceil(ms / 3600000);
+  if (h < 24) return `${h}h restantes`;
+  const d = Math.ceil(ms / 86400000);
+  return `${d} ${d === 1 ? "dia" : "dias"} restante${d === 1 ? "" : "s"}`;
+}

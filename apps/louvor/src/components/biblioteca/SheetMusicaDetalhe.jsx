@@ -114,6 +114,27 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
         )}
 
         <div className="sect">
+          <div className="cabecalho"><h3>Cantores</h3></div>
+          {cantoresOrdenados.length === 0 && (
+            <div className="vaz">Ainda ninguém cantou esta música com Lead definido.</div>
+          )}
+          {cantoresOrdenados.map((c) => (
+            <div className="linha" key={c.id} style={{ alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <p className="nmt">{c.nome}</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  {(c.toms || []).map((t) => (
+                    <span key={t.tom} className="tag cinz">
+                      {t.tom} · {t.vezes}×
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="sect">
           <div className="cabecalho"><h3>Versões</h3></div>
           {versoesOrdenadas.map((v) => (
             <div className="linha" key={v.id}>
@@ -150,27 +171,6 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
             </div>
             <span className="tag cinz">{musica.vezes90d ?? 0}× em 90 dias</span>
           </div>
-        </div>
-
-        <div className="sect">
-          <div className="cabecalho"><h3>Cantores</h3></div>
-          {cantoresOrdenados.length === 0 && (
-            <div className="vaz">Ainda ninguém cantou esta música com Lead definido.</div>
-          )}
-          {cantoresOrdenados.map((c) => (
-            <div className="linha" key={c.id} style={{ alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <p className="nmt">{c.nome}</p>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                  {(c.toms || []).map((t) => (
-                    <span key={t.tom} className="tag cinz">
-                      {t.tom} · {t.vezes}×
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
 
         <div className="sect">
