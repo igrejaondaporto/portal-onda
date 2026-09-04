@@ -28,34 +28,43 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
   const [justificativa, setJustificativa] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
-  const culto = cultos[passo];
-  const ultimoPasso = passo === cultos.length - 1;
-  const escalados = culto.escala?.escalados || [];
+  // `cultos` vem do chamador recalculado ao vivo (confirmações são
+  // onSnapshot) — confirmar o passo atual pode fazer a lista ENCOLHER
+  // a meio (o culto respondido sai de "por confirmar") antes do
+  // `passo` local acompanhar, o que apontava para fora do array.
+  // Grudar no último culto que sobrar em vez de rebentar.
+  const passoSeguro = Math.min(passo, Math.max(cultos.length - 1, 0));
+  const culto = cultos[passoSeguro];
+  const ultimoPasso = passoSeguro === cultos.length - 1;
+  const escalados = culto?.escala?.escalados || [];
 
   useEffect(() => {
+    if (!culto) return;
     const r = minhasRespostas?.[culto.id];
     setResposta(r?.resposta ?? null);
     setJustificativa(r?.justificativa || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [culto.id]);
+  }, [culto?.id]);
 
   async function guardar() {
-    if (!resposta) return torrada("Toca em \"Vou\" ou \"Não vou\".");
+    if (!culto || !resposta) return torrada("Toca em \"Vou\" ou \"Não vou\".");
     setAEnviar(true);
     try {
       await confirmarPresenca(culto.id, pessoaAlvo?.id, resposta, justificativa);
       if (ultimoPasso) {
         onGuardado("Resposta guardada");
       } else {
-        setPasso((p) => p + 1);
+        setPasso(passoSeguro + 1);
         setAEnviar(false);
-        torrada(`Guardado — falta ${dataPorExtenso(cultos[passo + 1].data)}`);
+        torrada(`Guardado — falta ${dataPorExtenso(cultos[passoSeguro + 1].data)}`);
       }
     } catch (e) {
       torrada(e.message || "Não foi possível guardar a resposta.");
       setAEnviar(false);
     }
   }
+
+  if (!culto) return null;
 
   return (
     <>
@@ -64,7 +73,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         <div className="pux" />
         {cultos.length > 1 && (
           <p className="sb2" style={{ marginBottom: 4 }}>
-            {cultos.length} cultos por confirmar — passo {passo + 1}/{cultos.length}
+            {cultos.length} cultos por confirmar — passo {passoSeguro + 1}/{cultos.length}
           </p>
         )}
         <h2>
@@ -118,7 +127,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         )}
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || !resposta} onClick={guardar}>
-          {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${dataPorExtenso(cultos[passo + 1]?.data)} (${passo + 2}/${cultos.length})`}
+          {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${dataPorExtenso(cultos[passoSeguro + 1]?.data)} (${passoSeguro + 2}/${cultos.length})`}
         </button>
         {bloqueante
           ? <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={onNaoSeiAinda}>Ainda não sei</button>

@@ -104,9 +104,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
   useEffect(() => ouvirConfirmacoesDoMes(eventosMesAtual, uid, setRespostasMesAtual), [eventosMesAtual, uid]);
-  const cultoPorConfirmar = eventosMesAtual
+  // Todos os cultos por confirmar de uma vez (não só o mais próximo) —
+  // o balão abre o mesmo passo a passo "1/2, 2/2…" que o popup
+  // automático já tem (SheetConfirmarPresenca, `cultos.length > 1`),
+  // em vez de só perguntar por um e deixar o resto pendente sem aviso
+  // nenhum (pedido do líder).
+  const cultosPorConfirmar = eventosMesAtual
     .filter((ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostasMesAtual.has(ev.id))
-    .sort((a, b) => a.data.localeCompare(b.data))[0] ?? null;
+    .sort((a, b) => a.data.localeCompare(b.data));
+  const cultoPorConfirmar = cultosPorConfirmar[0] ?? null;
 
   // enquete de indisponibilidade — o popup obrigatório (EnqueteAutoStart,
   // ver Sessao.jsx) já força a primeira resposta; este balão fica fixo
@@ -436,7 +442,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     )}
     {sheetConfirmar && cultoPorConfirmar && (
       <SheetConfirmarPresenca
-        cultos={[cultoPorConfirmar]}
+        cultos={cultosPorConfirmar}
         minhasRespostas={{}}
         pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
         onFechar={() => setSheetConfirmar(false)}
