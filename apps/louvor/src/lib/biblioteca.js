@@ -14,7 +14,7 @@
  */
 import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { cMusicas, cVersoes, cHistoricoCantores } from "./modelo";
+import { cMusicas, cVersoes, cHistoricoCantores, dIndiceCantor } from "./modelo";
 
 export const CLASSIFICACOES = [
   { id: "adoracao", nome: "Adoração", ajuda: "Cânticos cujas letras expressam reconhecimento a Deus por aquilo que Ele é." },
@@ -71,6 +71,16 @@ export async function obterTonsDosItens(itens) {
  *  documentos por música, onSnapshot é barato. */
 export function ouvirHistoricoCantores(musicaId, cb) {
   return onSnapshot(cHistoricoCantores(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+/** O mesmo histórico, mas invertido: todas as músicas que ESTA
+ *  pessoa já cantou (com Lead), em que tom(ns) — um documento só,
+ *  sem query nenhuma (ver functions/index.js,
+ *  registarHistoricoCantorLouvor, `indiceCantores`). null enquanto
+ *  ainda não cantou nada com Lead definido. */
+export function ouvirIndiceCantor(pessoaId, cb) {
+  if (!pessoaId) { cb(null); return () => {}; }
+  return onSnapshot(dIndiceCantor(pessoaId), (s) => cb(s.exists() ? s.data() : null));
 }
 
 /** Chamado nos dois momentos em que "este tom passou a ser o que se
