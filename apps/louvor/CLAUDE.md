@@ -98,13 +98,14 @@ Cada pessoa tem também `instrumentos: string[]` no perfil (os mesmos
 ids de `PAPEIS`, pode ter mais do que um — ver `SheetPessoa.jsx`),
 opcional e só informativo: ao montar a escala (`SheetEscala.jsx`), os
 voluntários aparecem agrupados por instrumento, um bloco por papel,
-"como se fosse um ministério" — mas isso é só filtro de exibição,
-**não** trava quem o líder pode escalar em quê. Quem ainda não tem
-instrumento no perfil cai num bloco "Sem instrumento definido", com o
-seletor de papel manual de sempre. Campo aceite por `criarVoluntario`/
-`editarVoluntario` (genéricas, `functions/index.js`) sem validação de
-enum — mesmo tratamento que `ministerios`/`nivel`/`cargo` já têm nas
-outras bases.
+"como se fosse um ministério". **Decisão confirmada com o líder,
+2026-09**: quem ainda não tem instrumento definido simplesmente não
+aparece em nenhum bloco (fica "apenas voluntário", sem entrar na
+escala por este ecrã) — não é bug nem falta um fallback "Sem
+instrumento definido", é o comportamento pretendido. Campo aceite por
+`criarVoluntario`/`editarVoluntario` (genéricas, `functions/index.js`)
+sem validação de enum — mesmo tratamento que `ministerios`/`nivel`/
+`cargo` já têm nas outras bases.
 
 ## Auxiliar — papel na base, não papel de escala
 

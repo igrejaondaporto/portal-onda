@@ -15,6 +15,18 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
+- **Lembrete de confirmação de presença perto do culto** (pedido do
+  líder da Louvor, 2026-09). Hoje a confirmação de presença
+  (`eventos/{e}/escalas/louvor/confirmacoes/{pessoaId}`, ver
+  `apps/louvor/CLAUDE.md`) depende só de a pessoa abrir a app e ver o
+  balão/popup — não há nenhum empurrão de fora. A ideia é notificar
+  (push/email, quando essa infraestrutura existir — hoje não existe
+  nenhuma, nem push nem email, em nenhuma base) quem ainda não
+  confirmou, 1-2 dias antes do culto. **Combinado explicitamente para
+  ficar parado até todas as bases estarem prontas** — não é para
+  construir isto isolado só para a Louvor; espera o resto do produto
+  amadurecer (e a confirmação de presença em si só existe na Louvor
+  por agora, ver decisão da Apoio de não a ter).
 - **O logo leva ao Início** (`apps/tecnica/src/pages/Sessao.jsx` e
   `apps/kinder/src/App.jsx`, classes `.tec-logo-botao`/`.kin-logo-botao`).
   O canto superior esquerdo é onde a mão vai por hábito, e não custa
