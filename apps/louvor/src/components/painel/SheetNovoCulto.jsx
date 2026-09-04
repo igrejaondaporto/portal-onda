@@ -29,7 +29,10 @@ export default function SheetNovoCulto({ ano, mes, onFechar, onGuardado }) {
         horaCulto: horaCulto.trim() || "10:30",
         horaChegada: horaChegada.trim() || "08:00",
       });
-      onGuardado(`${n} criado a ${d} de ${MESES[mes].toLowerCase()}`);
+      // segundo argumento opcional — quem só lê msg (ex.: PainelLider)
+      // continua igual; SheetRascunho usa isto para já adicionar o
+      // culto especial recém-criado ao rascunho, sem reconsultar o mês.
+      onGuardado(`${n} criado a ${d} de ${MESES[mes].toLowerCase()}`, { id: data, data, tipo: n });
     } catch (e) {
       torrada(e.message || "Não foi possível criar o culto.");
       setAEnviar(false);
