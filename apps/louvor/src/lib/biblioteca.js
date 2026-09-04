@@ -120,6 +120,16 @@ export const registarUsoVersao = (dados) =>
 export const desfazerUsoVersao = (dados) =>
   chamar("desfazerUsoVersaoLouvor")(dados).then((r) => r.data).catch(() => null);
 
+/** Chamada por desativarVersao e por removerTomVersao (quando esta
+ *  desativa sozinha a versão sem tom nenhum sobrando) — tira a
+ *  entrada dessa versão de indiceCantores/{pessoaId}.musicas[], que
+ *  só uma Cloud Function pode escrever (ver firestore.rules).
+ *  Fire-and-forget como registarUsoVersao/desfazerUsoVersao: falhar
+ *  aqui nunca deve travar o "Excluir versão" que já aconteceu de
+ *  facto na própria versão. */
+export const limparIndiceParaVersao = (musicaId, versaoId) =>
+  chamar("limparIndiceParaVersaoLouvor")({ musicaId, versaoId }).then((r) => r.data).catch(() => null);
+
 /** usoPorCulto ({eventoId: tom}, ver functions/index.js) → a mesma
  *  forma agrupada por tom que a UI do Histórico usa
  *  ([{tom, datas: [eventoId,...]}], mais recente primeiro dentro de
@@ -199,6 +209,7 @@ export async function removerTomVersao(musicaId, versaoId, tom) {
     atualizacao.ativo = false;
   }
   await updateDoc(ref, atualizacao);
+  if (atualizacao.ativo === false) limparIndiceParaVersao(musicaId, versaoId);
 }
 
 /** "Excluir versão" — Editar versão (SheetVersao.jsx) e quando o
@@ -206,18 +217,13 @@ export async function removerTomVersao(musicaId, versaoId, tom) {
  *  apagada a sério (regra 5 do CLAUDE.md raiz) — as regras do
  *  Firestore já recusam delete em versões; ativo:false é o que some
  *  das listas (ouvirVersoes já filtra), sem perder o histórico.
- *
- *  Gap conhecido, por resolver: indiceCantores/{pessoaId}.musicas[]
- *  (cópia por cantor, ver registarUsoVersaoLouvor em
- *  functions/index.js) não é limpo daqui — essa coleção só aceita
- *  escrita por Cloud Function (`allow write: if false` no cliente,
- *  ver firestore.rules), por isso uma versão desativada continua a
- *  aparecer no Histórico por cantor com dados antigos até essa
- *  pessoa ganhar/perder outra versão que atualize o índice por
- *  inteiro. Precisa de uma Cloud Function própria para limpar
- *  a sério — fica para uma próxima vez (PR à parte, toca functions/). */
+ *  limparIndiceParaVersao (acima) tira a entrada dela do Histórico
+ *  por cantor — antes ficava para trás com dados antigos até essa
+ *  pessoa ganhar/perder outra versão que atualizasse o índice por
+ *  inteiro. */
 export async function desativarVersao(musicaId, versaoId) {
   await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { ativo: false });
+  limparIndiceParaVersao(musicaId, versaoId);
 }
 
 export const novaMusicaId = () => doc(cMusicas()).id;
