@@ -1126,28 +1126,62 @@ export const excluirRascunhoEscala = onCall(async (req) => {
 });
 
 /* ── HISTÓRICO DE TONS POR VERSÃO (Base Louvor) ───────────────
- * Cada versão É o cantor: o nome da versão é o nome da pessoa (ex.:
- * "Tai"), não um arranjo genérico — pedido do líder, 2026-09,
- * substituiu a tentativa anterior (histórico por Lead da escala, uma
- * subcoleção `historicoCantores` à parte — removida). Esta função
- * (a) grava, na própria versão, todo culto em que ela foi usada e
- * com que tom (`historico: [{tom, datas: [eventoId,...]}]` — um
- * tom pode voltar a aparecer em datas diferentes, "a pasta da versão
- * do Tai" vai acumulando), e (b) quando o nome da versão bate com
- * uma pessoa ativa da base, mantém um índice invertido por pessoa
- * (`indiceCantores/{pessoaId}`) — "todas as músicas que este cantor
- * já cantou" sem collectionGroup query nenhuma (ver Biblioteca.jsx).
+ * Duas formas de saber quem é "o cantor" de uma música num culto,
+ * sempre as duas quando fazem sentido (pedido do líder, 2026-09):
+ * (a) o nome da própria versão bate com uma pessoa ativa da base
+ * (ex.: versão "Tai" → Tai Trindade) — vale para qualquer culto que
+ * use essa versão; (b) quem está escalado como Lead nesse culto
+ * específico — vale só para esse culto, mesmo que a versão usada
+ * seja "Original" (é quem vai cantar de facto, independente do nome
+ * da versão). As duas podem apontar para a mesma pessoa (conta uma
+ * vez só) ou para pessoas diferentes (as duas ganham a entrada).
+ *
+ * `versoes/{id}.usoPorCulto: { [eventoId]: tom }` — um mapa, não uma
+ * lista que só cresce: sobrescrever a chave de um eventoId é como se
+ * resolve sozinho "mudei o tom deste culto" (chamada de novo com o
+ * mesmo eventoId), e apagar a chave é como desfazerUsoVersaoLouvor
+ * (abaixo) resolve "esta música saiu do repertório". `vezes`/
+ * `datas por tom` são deriváveis no cliente agrupando o mapa, não
+ * precisam de campo próprio. `indiceCantores/{pessoaId}.musicas[]`
+ * guarda uma cópia de usoPorCulto por pessoa — índice invertido para
+ * "todas as músicas que este cantor já cantou" sem collectionGroup
+ * query (ver Biblioteca.jsx), atualizado na MESMA transação que a
+ * versão, nunca desalinha.
+ *
  * Chamada do cliente em três momentos: ao adicionar a música a um
  * repertório (lib/repertorio.js) e ao trocar o tom de um item já lá
  * dentro (SheetEditarTom.jsx) — as duas COM eventoId, contam como
- * "uso" num culto — e ao criar/editar a própria versão
- * (SheetVersao.jsx), SEM eventoId: só sincroniza nome/tom atual no
- * índice, sem contar como uso — é assim que "criar uma versão nova
- * já cria um cantor novo na biblioteca" (pedido do líder) acontece
- * sem esperar por um culto. Sem versão com nome ainda, sem tom
- * definido, ou sem pessoa correspondente na base, fica silencioso —
- * não é erro. Transação de propósito: dois toques quase juntos não
- * podem perder-se um ao outro. */
+ * "uso" nesse culto — e ao criar/editar a própria versão
+ * (SheetVersao.jsx), SEM eventoId: só sincroniza nome/tom no índice
+ * (só o sinal do nome-da-versão, o Lead não entra sem um culto), sem
+ * contar como uso — é assim que "criar uma versão nova já cria um
+ * cantor novo na biblioteca" acontece sem esperar por um culto. Sem
+ * tom definido, ou sem nenhuma das duas pessoas encontrada, fica
+ * silencioso — não é erro. Transação de propósito: dois toques quase
+ * juntos não podem perder-se um ao outro. */
+async function pessoasParaAtribuir(baseId, nomeVersao, eventoId) {
+  const pessoasSnap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
+  const norm = (s) => (s || "").trim().toLowerCase();
+  const primeiroNome = (s) => norm(s).split(" ")[0];
+
+  const encontrados = new Map(); // pessoaId -> nome
+  const porNome = pessoasSnap.docs.find((d) => {
+    const nomePessoa = d.data().nome || "";
+    return !!nomeVersao && (norm(nomePessoa) === norm(nomeVersao) || primeiroNome(nomePessoa) === norm(nomeVersao));
+  });
+  if (porNome) encontrados.set(porNome.id, porNome.data().nome);
+
+  if (eventoId) {
+    const escalaSnap = await db.doc(`eventos/${eventoId}/escalas/${baseId}`).get();
+    const lead = escalaSnap.exists ? (escalaSnap.data().escalados || []).find((e) => e.papel === "lead") : null;
+    if (lead && !encontrados.has(lead.pessoaId)) {
+      const pessoaLead = pessoasSnap.docs.find((d) => d.id === lead.pessoaId);
+      if (pessoaLead) encontrados.set(pessoaLead.id, pessoaLead.data().nome);
+    }
+  }
+  return encontrados;
+}
+
 export const registarUsoVersaoLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1161,55 +1195,81 @@ export const registarUsoVersaoLouvor = onCall(async (req) => {
   if (!versaoSnap.exists) return { registado: false };
   const nomeVersao = (versaoSnap.data().nome || "").trim();
   const tom = versaoSnap.data().tom || null;
-  if (!nomeVersao || !tom) return { registado: false };
+  if (!tom) return { registado: false };
 
-  // Nome da versão bate com uma pessoa ativa da base — nome completo
-  // ou só o primeiro nome (é assim que o líder costuma nomear a
-  // versão, ex. "Tai" para "Taiane Silva"). Sem correspondência,
-  // fica sem cantor — decisão do líder, não é erro.
-  const pessoasSnap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
-  const norm = (s) => (s || "").trim().toLowerCase();
-  const primeiroNome = (s) => norm(s).split(" ")[0];
-  const pessoa = pessoasSnap.docs.find((d) => {
-    const nomePessoa = d.data().nome || "";
-    return norm(nomePessoa) === norm(nomeVersao) || primeiroNome(nomePessoa) === norm(nomeVersao);
-  });
-  if (!pessoa) return { registado: false };
+  const pessoas = await pessoasParaAtribuir(baseId, nomeVersao, eventoId);
+  if (!pessoas.size) return { registado: false };
 
   const tituloMusica = musicaSnap.exists ? musicaSnap.data().titulo : "—";
   const artistaMusica = musicaSnap.exists ? musicaSnap.data().artista || "" : "";
-
-  function historicoAtualizado(historicoAntigo) {
-    const historico = [...(historicoAntigo || [])];
-    const i = historico.findIndex((h) => h.tom === tom);
-    if (i === -1) historico.push({ tom, datas: eventoId ? [eventoId] : [] });
-    else if (eventoId && !historico[i].datas.includes(eventoId)) {
-      historico[i] = { ...historico[i], datas: [...historico[i].datas, eventoId] };
-    }
-    return historico;
-  }
-
   const refVersao = db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`);
-  // índice invertido (por cantor, todas as versões/músicas) — evita
-  // uma collectionGroup query só para "tudo o que este cantor já
-  // cantou" (pedido do líder, ver Biblioteca.jsx). Atualizado na
-  // MESMA transação que a versão, nunca desalinha.
-  const refIndice = db.doc(`bases/${baseId}/indiceCantores/${pessoa.id}`);
+  const idsPessoas = [...pessoas.keys()];
+  const refsIndice = idsPessoas.map((id) => db.doc(`bases/${baseId}/indiceCantores/${id}`));
 
   await db.runTransaction(async (tx) => {
-    const [versaoAtualSnap, indiceSnap] = await Promise.all([tx.get(refVersao), tx.get(refIndice)]);
+    const [versaoAtualSnap, ...indiceSnaps] = await Promise.all([tx.get(refVersao), ...refsIndice.map((r) => tx.get(r))]);
 
-    const historico = historicoAtualizado(versaoAtualSnap.exists ? versaoAtualSnap.data().historico : null);
-    tx.set(refVersao, { historico }, { merge: true });
+    const usoPorCulto = { ...(versaoAtualSnap.data()?.usoPorCulto || {}) };
+    if (eventoId) usoPorCulto[eventoId] = tom;
+    tx.set(refVersao, { usoPorCulto }, { merge: true });
 
-    const musicasIndice = indiceSnap.exists ? [...(indiceSnap.data().musicas || [])] : [];
-    const j = musicasIndice.findIndex((m) => m.musicaId === musicaId && m.versaoId === versaoId);
-    const entrada = { musicaId, versaoId, titulo: tituloMusica, artista: artistaMusica, nomeVersao, tom, historico };
-    if (j === -1) musicasIndice.push(entrada);
-    else musicasIndice[j] = entrada;
-    tx.set(refIndice, { nome: pessoa.data().nome, musicas: musicasIndice }, { merge: true });
+    idsPessoas.forEach((pessoaId, i) => {
+      const indiceSnap = indiceSnaps[i];
+      const musicasIndice = indiceSnap.exists ? [...(indiceSnap.data().musicas || [])] : [];
+      const j = musicasIndice.findIndex((m) => m.musicaId === musicaId && m.versaoId === versaoId);
+      const entrada = { musicaId, versaoId, titulo: tituloMusica, artista: artistaMusica, nomeVersao, tom, usoPorCulto };
+      if (j === -1) musicasIndice.push(entrada);
+      else musicasIndice[j] = entrada;
+      tx.set(refsIndice[i], { nome: pessoas.get(pessoaId), musicas: musicasIndice }, { merge: true });
+    });
   });
   return { registado: true };
+});
+
+/** Espelho de registarUsoVersaoLouvor, para quando uma música SAI do
+ *  repertório de um culto — sem isto, o Histórico continuava a
+ *  mostrar um uso que já não existe (pedido do líder). Mesmos
+ *  candidatos (nome da versão + Lead do culto), mas apaga a chave
+ *  deste eventoId em vez de gravar o tom — nunca apaga a entrada da
+ *  versão inteira do índice, mesmo que fique sem nenhum uso: se o
+ *  nome bate por ser mesmo o nome da pessoa, continua a fazer
+ *  sentido ela aparecer lá (com "sem uso ainda"), só o uso NESTE
+ *  culto é que deixou de valer. */
+export const desfazerUsoVersaoLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId, musicaId, versaoId } = req.data || {};
+  if (!eventoId || !musicaId || !versaoId) return { desfeito: false };
+
+  const versaoSnap = await db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).get();
+  if (!versaoSnap.exists) return { desfeito: false };
+  const nomeVersao = (versaoSnap.data().nome || "").trim();
+
+  const pessoas = await pessoasParaAtribuir(baseId, nomeVersao, eventoId);
+  const refVersao = db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`);
+  const idsPessoas = [...pessoas.keys()];
+  const refsIndice = idsPessoas.map((id) => db.doc(`bases/${baseId}/indiceCantores/${id}`));
+
+  await db.runTransaction(async (tx) => {
+    const [versaoAtualSnap, ...indiceSnaps] = await Promise.all([tx.get(refVersao), ...refsIndice.map((r) => tx.get(r))]);
+
+    const usoPorCulto = { ...(versaoAtualSnap.data()?.usoPorCulto || {}) };
+    delete usoPorCulto[eventoId];
+    tx.set(refVersao, { usoPorCulto }, { merge: true });
+
+    idsPessoas.forEach((pessoaId, i) => {
+      const indiceSnap = indiceSnaps[i];
+      if (!indiceSnap.exists) return;
+      const musicasIndice = [...(indiceSnap.data().musicas || [])];
+      const j = musicasIndice.findIndex((m) => m.musicaId === musicaId && m.versaoId === versaoId);
+      if (j === -1) return;
+      const usoAtualizado = { ...(musicasIndice[j].usoPorCulto || {}) };
+      delete usoAtualizado[eventoId];
+      musicasIndice[j] = { ...musicasIndice[j], usoPorCulto: usoAtualizado };
+      tx.set(refsIndice[i], { musicas: musicasIndice }, { merge: true });
+    });
+  });
+  return { desfeito: true };
 });
 
 /* ── CONFIRMAÇÃO DE PRESENÇA (Base Louvor) ────────────────────
