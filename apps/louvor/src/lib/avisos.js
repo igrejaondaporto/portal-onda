@@ -72,15 +72,18 @@ export function tempoRestante(expiraEm) {
   return `${d} ${d === 1 ? "dia" : "dias"} restante${d === 1 ? "" : "s"}`;
 }
 
-/** 0–100, quanto falta até expirar (100 = acabou de ser criado, 0 =
- *  está prestes a acabar) — mesma matemática de tempoRestante, para a
- *  barrinha de progresso no Início (pedido do líder). Só precisa de
- *  expiraEm+duracaoDias, não de criadoEm — o intervalo total já é
- *  duracaoDias em milissegundos. */
-export function percentagemRestante(expiraEm, duracaoDias) {
+/** 0–100, quanto JÁ PASSOU do prazo (0 = acabou de ser criado, 100 =
+ *  está prestes a acabar) — barra que ENCHE conforme o prazo se
+ *  aproxima, para a barrinha de progresso no Início (pedido do
+ *  líder — a primeira versão, com o sentido trocado — "tempo que
+ *  falta" cheio até ao fim — lia-se ao contrário: um aviso quase a
+ *  expirar parecia "mais cheio de tempo" do que um que tinha acabado
+ *  de nascer). Só precisa de expiraEm+duracaoDias, não de criadoEm —
+ *  o intervalo total já é duracaoDias em milissegundos. */
+export function percentagemDecorrida(expiraEm, duracaoDias) {
   if (!expiraEm?.toMillis || !duracaoDias) return null;
   const totalMs = duracaoDias * 86400000;
   const restanteMs = expiraEm.toMillis() - Date.now();
-  if (restanteMs <= 0) return 0;
-  return Math.min(100, Math.round((restanteMs / totalMs) * 100));
+  if (restanteMs <= 0) return 100;
+  return Math.max(0, Math.min(100, Math.round(100 - (restanteMs / totalMs) * 100)));
 }

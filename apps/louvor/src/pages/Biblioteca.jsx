@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer } from "../lib/biblioteca";
+import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer, ouvirCantoresComVersao } from "../lib/biblioteca";
 import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { souLiderOuAuxiliar } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -7,6 +7,7 @@ import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica"
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
 import SheetVersaoParaRepertorio from "../components/biblioteca/SheetVersaoParaRepertorio";
 import VistaHistoricoCantor from "../components/biblioteca/VistaHistoricoCantor";
+import SheetVersaoDetalhe from "../components/biblioteca/SheetVersaoDetalhe";
 import IconePlay from "../components/biblioteca/IconePlay";
 
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -57,6 +58,8 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [musicas, setMusicas] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [vistaHistorico, setVistaHistorico] = useState(false);
+  const [cantoresComVersao, setCantoresComVersao] = useState(() => new Set());
+  const [versaoDetalheHistorico, setVersaoDetalheHistorico] = useState(null); // entrada do índice, ou null
   const [busca, setBusca] = useState("");
   const [modoOrdem, setModoOrdem] = useState("recentes");
   const [direcao, setDirecao] = useState("desc");
@@ -73,6 +76,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
 
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirCantoresComVersao(setCantoresComVersao), []);
   useEffect(() => () => audioRef.current?.pause(), []);
 
   // Mantém o número da página atual visível na fileira — sem isto,
@@ -157,12 +161,30 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const musicaAberta = musicas.find((m) => m.id === abertaId) ?? null;
 
   if (vistaHistorico) {
+    // só quem já tem pelo menos uma versão no nome — o resto da base
+    // (baixista, baterista…) nunca vai ter uma "pasta" aqui (pedido do líder)
+    const cantores = voluntarios.filter((p) => cantoresComVersao.has(p.id));
     return (
-      <VistaHistoricoCantor
-        voluntarios={voluntarios}
-        onVoltar={() => setVistaHistorico(false)}
-        onAbrirMusica={(musicaId) => { setVistaHistorico(false); setAbertaId(musicaId); }}
-      />
+      <>
+        <VistaHistoricoCantor
+          voluntarios={cantores}
+          onVoltar={() => setVistaHistorico(false)}
+          onAbrirMusica={(entrada) => setVersaoDetalheHistorico(entrada)}
+        />
+        {versaoDetalheHistorico && (
+          <SheetVersaoDetalhe
+            titulo={versaoDetalheHistorico.titulo} artista={versaoDetalheHistorico.artista}
+            nomeVersao={versaoDetalheHistorico.nomeVersao} tom={versaoDetalheHistorico.tom}
+            historico={versaoDetalheHistorico.historico}
+            onFechar={() => setVersaoDetalheHistorico(null)}
+            onVerMusicaCompleta={() => {
+              setAbertaId(versaoDetalheHistorico.musicaId);
+              setVersaoDetalheHistorico(null);
+              setVistaHistorico(false);
+            }}
+          />
+        )}
+      </>
     );
   }
 

@@ -3,6 +3,7 @@ import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES } from "../../lib/bi
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
+import SheetVersaoDetalhe from "./SheetVersaoDetalhe";
 
 const LINKS = [
   ["letra", "Letra"],
@@ -48,6 +49,7 @@ function IconeLinkExterno() {
 export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar, onAdicionarRepertorio }) {
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
+  const [versaoDetalhe, setVersaoDetalhe] = useState(null); // versão inteira, ou null
   const [aDefinir, setADefinir] = useState(null);
   const [aEditarLinks, setAEditarLinks] = useState(false);
   const [linksForm, setLinksForm] = useState({ letra: "", cifra: "", audio: "", video: "" });
@@ -111,7 +113,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
         <div className="sect">
           <div className="cabecalho"><h3>Versões</h3></div>
           {versoesOrdenadas.map((v) => (
-            <div className="linha" key={v.id}>
+            <div className="linha" key={v.id} style={{ cursor: "pointer" }} onClick={() => setVersaoDetalhe(v)}>
               <div style={{ flex: 1 }}>
                 <p className="nmt">
                   {v.nome}
@@ -130,7 +132,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
                 )}
               </div>
               {souLider && v.id !== musica.versaoPadraoId && (
-                <button className="btn sec" style={{ padding: "8px 12px", fontSize: 12 }} disabled={aDefinir === v.id} onClick={() => marcarPadrao(v.id)}>
+                <button className="btn sec" style={{ padding: "8px 12px", fontSize: 12 }} disabled={aDefinir === v.id} onClick={(e) => { e.stopPropagation(); marcarPadrao(v.id); }}>
                   Marcar padrão
                 </button>
               )}
@@ -142,7 +144,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
                   🔗
                 </a>
               )}
-              <button className="lapis" onClick={() => setSheetVersao({ versaoId: v.id })}>✎</button>
+              <button className="lapis" onClick={(e) => { e.stopPropagation(); setSheetVersao({ versaoId: v.id }); }}>✎</button>
             </div>
           ))}
           {versoes.length === 0 && <div className="vaz">Sem versões ainda.</div>}
@@ -220,6 +222,13 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
           versao={sheetVersao.versaoId ? versoes.find((v) => v.id === sheetVersao.versaoId) : null}
           onFechar={() => setSheetVersao(null)}
           onGuardado={(msg) => { setSheetVersao(null); torrada(msg); }}
+        />
+      )}
+      {versaoDetalhe && (
+        <SheetVersaoDetalhe
+          titulo={musica.titulo} artista={musica.artista}
+          nomeVersao={versaoDetalhe.nome} tom={versaoDetalhe.tom} historico={versaoDetalhe.historico}
+          onFechar={() => setVersaoDetalhe(null)}
         />
       )}
     </>

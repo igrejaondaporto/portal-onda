@@ -5,9 +5,9 @@ import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
-import { ouvirAvisos, tempoRestante, percentagemRestante } from "../lib/avisos";
+import { ouvirAvisos, tempoRestante, percentagemDecorrida } from "../lib/avisos";
 import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
-import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemRestanteVoto } from "../lib/enquetes";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -175,8 +175,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               )}
             </div>
             <span style={{ fontSize: 24 }}>🗳️</span>
-            {percentagemRestanteVoto(e.abertaEm, e.prazo) !== null && (
-              <div className="destaque-progresso"><i style={{ width: `${percentagemRestanteVoto(e.abertaEm, e.prazo)}%` }} /></div>
+            {percentagemDecorridaVoto(e.abertaEm, e.prazo) !== null && (
+              <div className="destaque-progresso">
+                <i style={{ width: `${percentagemDecorridaVoto(e.abertaEm, e.prazo)}%` }} />
+                <span className="destaque-progresso-marcador" style={{ left: `${percentagemDecorridaVoto(e.abertaEm, e.prazo)}%` }}>🏃</span>
+              </div>
             )}
           </div>
         );
@@ -211,8 +214,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               ⏱️ {tempoRestante(a.expiraEm)}
             </span>
           )}
-          {percentagemRestante(a.expiraEm, a.duracaoDias) !== null && (
-            <div className="destaque-progresso"><i style={{ width: `${percentagemRestante(a.expiraEm, a.duracaoDias)}%` }} /></div>
+          {percentagemDecorrida(a.expiraEm, a.duracaoDias) !== null && (
+            <div className="destaque-progresso">
+              <i style={{ width: `${percentagemDecorrida(a.expiraEm, a.duracaoDias)}%` }} />
+              <span className="destaque-progresso-marcador" style={{ left: `${percentagemDecorrida(a.expiraEm, a.duracaoDias)}%` }}>🏃</span>
+            </div>
           )}
         </div>
       ))}

@@ -22,6 +22,11 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
  * que alguma das versões dela foi tocada, com o tom de cada uma) —
  * o eventoId de um domingo já É a data ISO, por isso dataPorExtenso
  * aplica-se direto, sem precisar de ir buscar o evento.
+ *
+ * onAbrirMusica recebe a entrada do índice INTEIRA (não só o id) —
+ * {musicaId, versaoId, titulo, artista, nomeVersao, tom, historico} —
+ * para quem a usa (Biblioteca.jsx) abrir direto a versão do cantor
+ * em SheetVersaoDetalhe, sem precisar de ir buscar nada de novo.
  */
 export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMusica }) {
   const [cantor, setCantor] = useState(null);
@@ -36,12 +41,16 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
 
   const musicas = [...(indice?.musicas || [])].sort((a, b) => a.titulo.localeCompare(b.titulo, "pt"));
 
+  // Cada entrada carrega tudo o que SheetVersaoDetalhe precisa
+  // (titulo/artista/nomeVersao/tom/historico) — abrir uma música por
+  // aqui vai direto à versão do cantor, sem precisar de ir buscar
+  // nada de novo (ver onAbrirMusica, Biblioteca.jsx).
   const porCulto = (() => {
     const porData = {};
     musicas.forEach((m) => {
       (m.historico || []).forEach((h) => {
         (h.datas || []).forEach((eventoId) => {
-          (porData[eventoId] ??= []).push({ musicaId: m.musicaId, titulo: m.titulo, tom: h.tom });
+          (porData[eventoId] ??= []).push({ ...m, tom: h.tom });
         });
       });
     });
@@ -88,7 +97,7 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
                 <div className="vaz">Ainda não há nenhuma versão com o nome de {cantor.nome.split(" ")[0]}.</div>
               )}
               {musicas.map((m) => (
-                <div className="linha" style={{ cursor: "pointer" }} key={`${m.musicaId}-${m.versaoId}`} onClick={() => onAbrirMusica(m.musicaId)}>
+                <div className="linha" style={{ cursor: "pointer" }} key={`${m.musicaId}-${m.versaoId}`} onClick={() => onAbrirMusica(m)}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p className="nmt">{m.titulo}</p>
                     <p className="ds">{m.artista}{m.nomeVersao ? ` · versão "${m.nomeVersao}"` : ""}</p>
@@ -114,7 +123,7 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
                   <div style={{ flex: 1 }}>
                     <p className="nmt">{dataPorExtenso(eventoId)}</p>
                     {itens.map((it, i) => (
-                      <p key={i} className="ds" style={{ cursor: "pointer" }} onClick={() => onAbrirMusica(it.musicaId)}>
+                      <p key={i} className="ds" style={{ cursor: "pointer" }} onClick={() => onAbrirMusica(it)}>
                         {it.titulo} · tom {it.tom}
                       </p>
                     ))}

@@ -14,7 +14,7 @@
  */
 import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { cMusicas, cVersoes, dIndiceCantor } from "./modelo";
+import { cMusicas, cVersoes, dIndiceCantor, cIndiceCantores } from "./modelo";
 
 export const CLASSIFICACOES = [
   { id: "adoracao", nome: "Adoração", ajuda: "Cânticos cujas letras expressam reconhecimento a Deus por aquilo que Ele é." },
@@ -73,6 +73,15 @@ export async function obterTonsDosItens(itens) {
 export function ouvirIndiceCantor(pessoaId, cb) {
   if (!pessoaId) { cb(null); return () => {}; }
   return onSnapshot(dIndiceCantor(pessoaId), (s) => cb(s.exists() ? s.data() : null));
+}
+
+/** Só os ids de quem já tem pelo menos uma versão no índice — para o
+ *  seletor de cantor em VistaHistoricoCantor.jsx não listar toda a
+ *  base (baixista, baterista… ninguém que não tenha versão nenhuma
+ *  no nome nunca vai aparecer aqui, pedido do líder). Um `Set`
+ *  porque só interessa "está lá ou não", nunca o conteúdo. */
+export function ouvirCantoresComVersao(cb) {
+  return onSnapshot(cIndiceCantores(), (snap) => cb(new Set(snap.docs.map((d) => d.id))));
 }
 
 /** Chamado em três momentos: ao adicionar a música a um repertório

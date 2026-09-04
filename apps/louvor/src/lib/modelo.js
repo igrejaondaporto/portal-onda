@@ -26,6 +26,7 @@ export const cMusicas       = () => collection(db, `bases/${BASE_ID}/musicas`);
 export const cVersoes       = (musicaId) => collection(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes`);
 export const cRepertorios   = () => collection(db, `bases/${BASE_ID}/repertorios`);
 export const dIndiceCantor = (pessoaId) => doc(db, `bases/${BASE_ID}/indiceCantores/${pessoaId}`);
+export const cIndiceCantores = () => collection(db, `bases/${BASE_ID}/indiceCantores`);
 export const cEnquetes       = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
 export const cRascunhosEscala = () => collection(db, `bases/${BASE_ID}/rascunhosEscala`);
