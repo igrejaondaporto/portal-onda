@@ -403,10 +403,17 @@ function validarPapelBase(papel, baseId) {
   }
 }
 
+// "MM-DD", sem ano (minimização de dados — Base Louvor, ver
+// lib/aniversarios.js/CLAUDE.md dessa base). Só ela envia isto; nas
+// outras bases o campo nunca aparece.
+const ANIVERSARIO_RE = /^\d{2}-\d{2}$/;
+
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null, aniversario = null } = req.data || {};
   validarPapelBase(papel, baseId);
+  if (aniversario && !ANIVERSARIO_RE.test(aniversario)) throw new HttpsError("invalid-argument", "Aniversário inválido.");
+  const comAniversario = aniversario ? { aniversario } : {};
   const comMinisterios = ministerios && typeof ministerios === "object" ? { ministerios } : {};
   // nivel: "titular"|"aprendiz" — flat, só a Backstage envia isto (sem
   // ministério onde pendurar, ao contrário do nivel por-ministério da
@@ -473,7 +480,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
+      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -489,7 +496,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos,
+    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -555,9 +562,10 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos, aniversario } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  if (aniversario && !ANIVERSARIO_RE.test(aniversario)) throw new HttpsError("invalid-argument", "Aniversário inválido.");
   validarPapelBase(papel, baseId);
   const ref = refPessoa(baseId, pessoaId);
   const snap = await ref.get();
@@ -585,6 +593,9 @@ export const editarVoluntario = onCall(async (req) => {
   // qualquer pessoa da base). `null` remove a foto de propósito;
   // `undefined` (campo nem enviado) é que significa "não mexer".
   if (foto !== undefined) dados.foto = foto;
+  // undefined (campo nem enviado) = não mexer; null ou "" = apagar —
+  // mesmo tratamento de foto acima. Só a Louvor envia isto.
+  if (aniversario !== undefined) dados.aniversario = aniversario || null;
   await ref.set(dados, { merge: true });
   return { ok: true };
 });
