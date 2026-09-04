@@ -6,7 +6,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
 import SheetVersaoParaRepertorio from "../components/biblioteca/SheetVersaoParaRepertorio";
-import SheetHistoricoCantor from "../components/biblioteca/SheetHistoricoCantor";
+import VistaHistoricoCantor from "../components/biblioteca/VistaHistoricoCantor";
 import IconePlay from "../components/biblioteca/IconePlay";
 
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -56,7 +56,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
-  const [sheetHistorico, setSheetHistorico] = useState(false);
+  const [vistaHistorico, setVistaHistorico] = useState(false);
   const [busca, setBusca] = useState("");
   const [modoOrdem, setModoOrdem] = useState("recentes");
   const [direcao, setDirecao] = useState("desc");
@@ -141,6 +141,10 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
 
   useEffect(() => {
     if (!ativo) return;
+    if (vistaHistorico) {
+      definirCabecalho({ titulo: <em>Biblioteca</em>, subtitulo: "Histórico por cantor", chips: [] });
+      return;
+    }
     const nomes = { recentes: "Tocadas recentemente", az: "A-Z", maisTocadas: "Mais tocadas" };
     definirCabecalho({
       titulo: <em>Biblioteca</em>,
@@ -148,13 +152,23 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       chips: [`${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, musicas.length, modoOrdem]);
+  }, [ativo, musicas.length, modoOrdem, vistaHistorico]);
 
   const musicaAberta = musicas.find((m) => m.id === abertaId) ?? null;
 
+  if (vistaHistorico) {
+    return (
+      <VistaHistoricoCantor
+        voluntarios={voluntarios}
+        onVoltar={() => setVistaHistorico(false)}
+        onAbrirMusica={(musicaId) => { setVistaHistorico(false); setAbertaId(musicaId); }}
+      />
+    );
+  }
+
   return (
     <>
-      <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setSheetHistorico(true)}>
+      <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setVistaHistorico(true)}>
         🕓 Histórico por cantor
       </button>
       <div className="bib-busca">
@@ -272,13 +286,6 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           uid={uid} musica={paraRepertorio} eventoId={proximoEventoId}
           onFechar={() => setParaRepertorio(null)}
           onAdicionada={() => setParaRepertorio(null)}
-        />
-      )}
-      {sheetHistorico && (
-        <SheetHistoricoCantor
-          voluntarios={voluntarios}
-          onFechar={() => setSheetHistorico(false)}
-          onAbrirMusica={(musicaId) => { setSheetHistorico(false); setAbertaId(musicaId); }}
         />
       )}
       <audio ref={audioRef} onEnded={() => setATocarId(null)} style={{ display: "none" }} />

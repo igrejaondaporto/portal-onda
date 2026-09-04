@@ -181,18 +181,60 @@ botão "Publicar esta escala" (só fora do modo rascunho, `!aoMudar`).
 com o selo — teria de haver um "despublicar" explícito, que não foi
 pedido.
 
-**Histórico de tons por cantor**
-(`bases/louvor/musicas/{musicaId}/historicoCantores/{pessoaId}`,
-`{nome, toms: [{tom, vezes, primeiraVez, ultimaVez}]}`) — só quem
-está como **Lead** no culto conta como "cantor" (Co-lead/Back
-acompanham, não escolhem o tom). `registarHistoricoCantorLouvor`
-(transação, evita corrida entre dois toques quase juntos no mesmo
-tom) é chamado do cliente em dois momentos: ao adicionar a música a
-um repertório (`lib/repertorio.js`) e ao trocar o tom de um item já
-lá dentro (`SheetEditarTom`, dentro de `Repertorio.jsx`). Sem Lead
-definido ainda para o culto, fica silencioso — não é erro, dá para
-montar repertório antes de escalar. Mostrado em "Cantores", dentro de
-`SheetMusicaDetalhe.jsx`, logo a seguir a "Histórico".
+**Histórico de tons por cantor** — a **versão é o cantor**: uma versão
+chamada "Tai" (nome completo ou só o primeiro nome de alguém ativo na
+base) representa o arranjo dessa pessoa, não um arranjo genérico como
+"Original"/"Acústico". Foi reformulado em 2026-09 a partir de uma
+primeira tentativa (subcoleção `historicoCantores`, cantor = Lead da
+escala do culto) que o líder pediu para desfazer — "era para ser
+dentro do campo de Versões que já existe mesmo, pois nas versões já
+aparecem os nomes dos cantores".
+
+```
+bases/louvor/musicas/{musicaId}/versoes/{versaoId}
+  ...campos de sempre (nome, tom, bpm, duracao, observacao)...
+  historico: [{ tom, datas: [eventoId, ...] }]   ← acumula por tom
+```
+`historico` vive DENTRO da própria versão (não numa coleção à parte):
+cada vez que essa versão é usada num culto, se o TOM já usado é o
+mesmo de sempre, só acrescenta a data à lista; se o líder mudou de
+tom desde a última vez, abre uma entrada nova — "a pasta da versão do
+Tai" vai juntando os toms ao longo do tempo, cada um com as datas em
+que foi usado (`vezes`/`primeiraVez`/`ultimaVez` são deriváveis de
+`datas`, não precisam de campo próprio).
+
+`registarUsoVersaoLouvor` (`functions/index.js`, transação — evita
+corrida entre dois toques quase juntos) é chamada do cliente em três
+momentos: ao adicionar a música a um repertório (`lib/repertorio.js`)
+e ao trocar o tom de um item já lá dentro (`SheetEditarTom`, dentro de
+`Repertorio.jsx`) — as duas COM `eventoId`, contam como uso num
+culto; e ao criar ou editar a própria versão (`SheetVersao.jsx`) —
+SEM `eventoId`, só sincroniza nome/tom no índice, sem contar como
+uso. É assim que "criar uma versão nova já cria um cantor novo na
+Biblioteca" acontece sozinho, sem esperar por um culto: a função
+procura, entre as pessoas ativas da base, alguém cujo nome (completo
+ou só o primeiro nome) bate com o nome da versão; sem correspondência,
+fica silencioso — não é erro, nem toda versão precisa de representar
+um cantor (`"Original"` continua válido).
+
+Índice invertido por pessoa, atualizado na mesma transação:
+```
+bases/louvor/indiceCantores/{pessoaId}
+  nome
+  musicas: [{ musicaId, versaoId, titulo, artista, nomeVersao, tom, historico }]
+```
+Mostrado em **Biblioteca** como vista cheia, não sheet — "🕓 Histórico
+por cantor" troca todo o conteúdo da página (`VistaHistoricoCantor.jsx`,
+`Biblioteca.jsx` guarda só um booleano `vistaHistorico`), porque o
+líder achou o sheet pequeno demais para tudo o que há para mostrar.
+Duas formas de consultar: **por música** (cada versão + os toms que já
+usou, com quantas vezes cada um) e **por culto** (todo `historico` de
+todas as versões dessa pessoa achatado e agrupado por `eventoId` — que
+já É a data ISO do domingo, dá para `dataPorExtenso` direto, sem ir
+buscar `eventos/{id}`). O mesmo histórico por-versão também aparece
+direto na ficha da música (`SheetMusicaDetalhe.jsx`, secção
+"Versões"), como pequenas etiquetas de tom — não há mais secção
+"Cantores" separada ali.
 
 ## Confirmação de presença (2026-09)
 

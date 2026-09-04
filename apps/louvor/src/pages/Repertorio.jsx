@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
-import { ouvirMusicas, obterTonsDosItens, guardarVersao, registarHistoricoCantor } from "../lib/biblioteca";
+import { ouvirMusicas, obterTonsDosItens, guardarVersao, registarUsoVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
@@ -191,7 +191,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     setTons((atual) => ({ ...atual, [item.id]: novoTom }));
     setItemTomAEditar(null);
     torrada("Tom atualizado");
-    if (eventoId) registarHistoricoCantor({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
+    if (eventoId) registarUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
   }
 
   const nMusicas = itensLocais.filter((i) => i.tipo === "musica").length;
@@ -246,7 +246,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   function adicionarMusica(musicaId, versaoId, medley) {
     persistir([...itensLocais, itemMusica(musicaId, versaoId, medley)]);
     setAEscolherMusica(null);
-    if (eventoId) registarHistoricoCantor({ eventoId, musicaId, versaoId });
+    if (eventoId) registarUsoVersao({ eventoId, musicaId, versaoId });
   }
 
   function confirmarMomento() {

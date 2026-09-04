@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { criarVersao, guardarVersao, novaVersaoId } from "../../lib/biblioteca";
+import { criarVersao, guardarVersao, novaVersaoId, registarUsoVersao } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import GradeTom from "./GradeTom";
 
@@ -18,11 +18,18 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
     setAGuardar(true);
     try {
       const dados = { nome, tom, bpm: bpm ? Number(bpm) : null, duracao: duracao ? Number(duracao) : null, observacao, linkReferencia };
+      let versaoId = versao?.id;
       if (versao) {
         await guardarVersao(musicaId, versao.id, dados);
       } else {
-        await criarVersao(musicaId, novaVersaoId(musicaId), { ...dados, criadoPor: uid });
+        versaoId = novaVersaoId(musicaId);
+        await criarVersao(musicaId, versaoId, { ...dados, criadoPor: uid });
       }
+      // sem eventoId: só sincroniza nome/tom no índice por cantor, não
+      // conta como "usada num culto" — é o que faz uma versão nova
+      // (ou renomeada) já aparecer no Histórico por cantor na hora,
+      // mesmo antes de qualquer repertório a usar (ver lib/biblioteca.js).
+      registarUsoVersao({ musicaId, versaoId });
       onGuardado(versao ? "Versão atualizada" : "Versão adicionada");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar a versão.");
