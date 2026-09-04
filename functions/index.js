@@ -1276,6 +1276,41 @@ export const desfazerUsoVersaoLouvor = onCall(async (req) => {
   return { desfeito: true };
 });
 
+/** Limpa `indiceCantores/{pessoaId}.musicas[]` de uma versão excluída
+ *  (desativarVersao) ou esvaziada de tom (removerTomVersao, quando o
+ *  último tom sai e a versão fica `ativo:false` — ver lib/biblioteca.js
+ *  em cada caso) — gap documentado desde a criação do índice: essa
+ *  coleção só aceita escrita de Cloud Function (`allow write: if
+ *  false` no cliente, ver firestore.rules), então uma tentativa
+ *  anterior direto do cliente falhava sempre, silenciosamente. Varre
+ *  `indiceCantores` inteiro (a base fica bem abaixo de 500 músicas,
+ *  o número de cantores é uma fração disso — mesmo raciocínio de
+ *  `pessoasParaAtribuir` acima) em vez de tentar adivinhar quem tem a
+ *  entrada: mais simples e sempre correto, mesmo que o nome da
+ *  versão já não bata com ninguém (ex.: versão renomeada antes de
+ *  excluída). Nunca apaga o documento do cantor inteiro, só a
+ *  entrada dessa música — o resto do histórico continua válido. */
+export const limparIndiceParaVersaoLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { musicaId, versaoId } = req.data || {};
+  if (!musicaId || !versaoId) throw new HttpsError("invalid-argument", "Faltam dados.");
+
+  const indiceSnap = await db.collection(`bases/${baseId}/indiceCantores`).get();
+  const lote = db.batch();
+  let limpos = 0;
+  indiceSnap.forEach((doc) => {
+    const musicas = doc.data().musicas || [];
+    const filtradas = musicas.filter((m) => !(m.musicaId === musicaId && m.versaoId === versaoId));
+    if (filtradas.length !== musicas.length) {
+      lote.set(doc.ref, { musicas: filtradas }, { merge: true });
+      limpos++;
+    }
+  });
+  if (limpos) await lote.commit();
+  return { limpos };
+});
+
 /* ── CONFIRMAÇÃO DE PRESENÇA (Base Louvor) ────────────────────
  * Primeira base a sair do "sem confirmação de presença, quem não
  * pode avisa pelo WhatsApp" (decisão registada no CLAUDE.md da
