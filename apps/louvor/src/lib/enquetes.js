@@ -119,6 +119,22 @@ export function tempoRestanteVoto(prazoISO) {
   return dias <= 1 ? "último dia para votar" : `${dias} dias para votar`;
 }
 
+/** 0–100, quanto falta até ao prazo de voto — mesma base de
+ *  tempoRestanteVoto, em percentagem, para a barrinha de progresso no
+ *  Início (pedido do líder). Precisa de abertaEm (quando a enquete
+ *  foi aberta) para saber o intervalo TOTAL, não só o que falta. */
+export function percentagemRestanteVoto(abertaEm, prazoISO) {
+  if (!abertaEm?.toMillis || !prazoISO) return null;
+  const [a, m, d] = prazoISO.split("-").map(Number);
+  const fimMs = new Date(a, m - 1, d, 23, 59, 59).getTime();
+  const inicioMs = abertaEm.toMillis();
+  const totalMs = fimMs - inicioMs;
+  if (totalMs <= 0) return 0;
+  const restanteMs = fimMs - Date.now();
+  if (restanteMs <= 0) return 0;
+  return Math.min(100, Math.round((restanteMs / totalMs) * 100));
+}
+
 /** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre
  *  já com a mensagem escrita, só falta escolher o grupo. Recebe uma
  *  ou duas enquetes ({mes, prazo}) — quando são duas (líder abriu os
@@ -135,3 +151,18 @@ export function textoWhatsApp(enquetes) {
 }
 
 export const linkWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(texto)}`;
+
+/** "Não sei ainda" no popup obrigatório — dispensa sem contar como
+ *  resposta (a pessoa continua a ver o balão fixo no Início até ao
+ *  prazo, ver Inicio.jsx). Guardado no localStorage, por dispositivo:
+ *  não é um voto, não teria sentido sincronizar entre aparelhos, e
+ *  fica a sobreviver a recarregar a página — o que um `useState`
+ *  local em EnqueteAutoStart não fazia. */
+const chaveDispensada = (enqueteId) => `louvor-enquete-dispensada-${enqueteId}`;
+export function enqueteDispensada(enqueteId) {
+  try { return localStorage.getItem(chaveDispensada(enqueteId)) === "1"; }
+  catch { return false; }
+}
+export function dispensarEnquete(enqueteId) {
+  try { localStorage.setItem(chaveDispensada(enqueteId), "1"); } catch { /* privado/bloqueado — tudo bem, só perde o "lembrete" */ }
+}

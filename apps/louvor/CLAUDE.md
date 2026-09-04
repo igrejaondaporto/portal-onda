@@ -232,30 +232,45 @@ em `global.css` continua só com sirvo/culto/hoje) — escalado +
 publicado + por confirmar, um listener por culto do mês
 (`ouvirConfirmacoesDoMes`).
 
-## Culto: Ordem, Feedbacks — Equipamentos é aba própria
+## Culto: Ordem, Feedbacks, Equipamentos, Melhorias
 
-Duas sub-abas dentro de Culto (`src/pages/Culto.jsx`), ecrã genérico
-partilhado com Apoio/Técnica (nada de especial aqui). **Equipamentos**
-já foi uma terceira sub-aba aqui, mas ganhou aba própria na barra de
-baixo (2026-09) — é o "Inventário em modo património" da Técnica
-(`bases/louvor/inventario/{item}`, Cloud Functions `criarEquipamento`/
-`guardarEquipamento`/`desativarEquipamento`, genéricas por `baseId` —
-nenhuma função nova precisou de ser escrita) com o agrupamento por
-ministério trocado pelos cinco papéis da escala (ver `PAPEIS` acima)
-em vez de uma coleção `ministerios` — um amplificador ou um microfone
-tem um papel, não um ministério.
+Quatro sub-abas dentro de Culto (`src/pages/Culto.jsx`) — **Ordem do
+culto** e **Feedbacks** são o ecrã genérico partilhado com Apoio/
+Técnica (nada de especial aqui). **Equipamentos** e **Melhorias** são
+as duas metades de `src/pages/Equipamentos.jsx` (é o "Inventário em
+modo património" da Técnica, `bases/louvor/inventario/{item}`, Cloud
+Functions `criarEquipamento`/`guardarEquipamento`/
+`desativarEquipamento`, genéricas por `baseId` — nenhuma função nova
+precisou de ser escrita, com o agrupamento por ministério trocado
+pelos sete papéis da escala, ver `PAPEIS` acima, em vez de uma coleção
+`ministerios` — um amplificador ou um microfone tem um papel, não um
+ministério).
 
-Dentro de Equipamentos (`src/pages/Equipamentos.jsx`), duas sub-abas
-próprias: **Equipamentos** (o catálogo, agrupado por papel — o botão
-"Reportar avaria"/"Reportar melhoria" fica visível nas duas) e
-**Melhorias** (tudo o que os dois botões de reportar criam —
+Equipamentos já foi aba própria na barra de baixo, e Melhorias já foi
+sub-aba própria DENTRO de Equipamentos (um nível mais fundo) — as duas
+mudanças voltaram atrás a pedido do líder: hoje as quatro (Ordem,
+Feedbacks, Equipamentos, Melhorias) vivem lado a lado, no mesmo nível,
+dentro de Culto. `Equipamentos.jsx` continua a ser o mesmo componente
+de sempre (`Equipamentos` = o catálogo agrupado por papel — o botão
+"Reportar avaria"/"Reportar melhoria" fica visível nas duas;
+`Melhorias` = tudo o que os dois botões de reportar criam,
 `bases/louvor/melhorias/{id}`, mesma coleção para avaria e melhoria,
 só `gravidade` muda —, com "A precisar de atenção" primeiro e "Já
-resolvidas" fechado no fim). Já foi um ecrã só (ver comentário no
-código) — voltou a separar-se a pedido do líder; o que evita perder a
-"visão completa de um equipamento" é o estado de avaria continuar
-inline no catálogo e a ficha do equipamento (`SheetEquipamentoDetalhe`)
-continuar a mostrar o histórico de melhorias ligado a ele.
+resolvidas" fechado no fim); o que mudou foi só **quem decide qual das
+duas está visível** — as props `abaControlada`/`semSubtabs` deixam
+Culto.jsx impor a aba de fora e esconder a barra de sub-abas própria
+do componente, para não duplicar (ver comentário em `Equipamentos.jsx`
+e em `Culto.jsx`). `onContagem` reporta `{comProblema, abertas}` para
+Culto.jsx pintar o alerta na sua própria aba "Melhorias" — como
+Equipamentos só existe montado enquanto uma das duas abas está ativa,
+essa contagem fica com o último valor visto até se voltar a abrir
+qualquer uma das duas (não é ao vivo enquanto se está em Ordem/
+Feedbacks — aceitável para um alerta, não seria para um número que
+precisasse de estar sempre certo). O que evita perder a "visão
+completa de um equipamento" ao separar as duas é o estado de avaria
+continuar inline no catálogo, e a ficha do equipamento
+(`SheetEquipamentoDetalhe`) continuar a mostrar o histórico de
+melhorias ligado a ele.
 
 ## Biblioteca e Repertório
 
