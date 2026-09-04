@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { acabouDeAtualizar } from "./pwa.js";
 
 const Ctx = createContext(() => {});
 
@@ -17,6 +18,13 @@ export function TorradaProvider({ children }) {
     setAberta(true);
     clearTimeout(temporizador.current);
     temporizador.current = setTimeout(() => setAberta(false), 2400);
+  }, []);
+
+  // Aviso de "acabou de atualizar sozinho" (ver pwa.js) — fica aqui,
+  // não em cada app, porque toda base já monta um TorradaProvider só.
+  useEffect(() => {
+    if (acabouDeAtualizar()) mostrar("Atualizámos a app para a versão mais recente");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
