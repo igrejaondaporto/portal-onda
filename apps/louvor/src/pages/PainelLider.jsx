@@ -32,6 +32,11 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
   const [aRepor, setARepor] = useState(false);
   const [aGerarDomingos, setAGerarDomingos] = useState(false);
+  // Voluntários abria sempre, com uma linha por pessoa — o painel é
+  // para administrar de vez em quando, não para ler de cima a baixo
+  // (mesmo cartão expansível da Técnica, pedido do líder, 2026-09).
+  const [abertos, setAbertos] = useState({});
+  const alternar = (k) => setAbertos((v) => ({ ...v, [k]: !v[k] }));
 
   function mudarMes(delta) {
     setMes((atual) => {
@@ -144,49 +149,88 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
             </button>
           </div>
 
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>Avisos</h3>
+              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "aviso" })}>
+                Novo aviso
+              </button>
+            </div>
+            {avisos.length === 0 ? (
+              <div className="vaz">Nenhum aviso ativo.</div>
+            ) : (
+              avisos.map((a) => (
+                <div className="linha" key={a.id}>
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{a.texto}</p>
+                    <p className="ds">
+                      <span className={`tag ${a.urgencia === "urgente" ? "" : "cinz"}`} style={a.urgencia === "urgente" ? { background: "var(--magenta)", color: "#fff" } : {}}>
+                        {a.urgencia === "urgente" ? "urgente" : "normal"}
+                      </span>
+                      {" "}· {a.duracaoDias} {a.duracaoDias === 1 ? "dia" : "dias"}
+                    </p>
+                  </div>
+                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--magenta)" }} onClick={() => apagarAviso(a.id)}>
+                    Remover
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
           <SecaoEnquetes voluntarios={voluntarios} />
           <SecaoRascunhos voluntarios={voluntarios} />
 
-          <div className="sect">
-            <div className="cabecalho">
-              <h3>Voluntários</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>
-                Adicionar
-              </button>
-            </div>
-            {voluntarios.map((p) => (
-              <div className="linha" key={p.id}>
-                <Avatar pessoa={p} tamanho={38} fonte={15} />
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{p.nome}</p>
-                  <p className="ds">{nomePapelBase(p.papel)} · {p.papel === "voluntario" ? "4" : "6"} dígitos</p>
-                </div>
-                <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
-                  Editar
+          <div className="mincartao lv-cartao">
+            <div className="mincartao-barra" />
+            <button
+              className="mincartao-cab cabtoque" data-aberto={abertos.voluntarios ? 1 : 0}
+              aria-expanded={!!abertos.voluntarios} onClick={() => alternar("voluntarios")}
+            >
+              <span className="nome">Voluntários</span>
+              <span className="conta">{voluntarios.length}</span>
+              <span className="cabtoque-seta" aria-hidden="true">›</span>
+            </button>
+            {abertos.voluntarios && (
+              <div className="lv-cartao-corpo">
+                <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>
+                  Adicionar voluntário
                 </button>
-              </div>
-            ))}
-            {!aConfirmarRepor ? (
-              <button
-                className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }}
-                onClick={() => setAConfirmarRepor(true)}
-              >
-                Repor todos os códigos
-              </button>
-            ) : (
-              <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 14 }}>
-                <p style={{ fontSize: 13, fontWeight: 600 }}>Repor o código de toda a gente?</p>
-                <p className="ds" style={{ marginTop: 4 }}>
-                  Volta a 1234 para voluntários e 123456 para líder da base. Ninguém entra até usar o código novo.
-                </p>
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aRepor} onClick={reporTodosOsCodigos}>
-                    {aRepor ? "A repor…" : "Repor tudo"}
+                {voluntarios.map((p) => (
+                  <div className="linha" key={p.id}>
+                    <Avatar pessoa={p} tamanho={38} fonte={15} />
+                    <div style={{ flex: 1 }}>
+                      <p className="nmt">{p.nome}</p>
+                      <p className="ds">{nomePapelBase(p.papel)} · {p.papel === "voluntario" ? "4" : "6"} dígitos</p>
+                    </div>
+                    <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => setSheet({ tipo: "pessoa", pessoaId: p.id })}>
+                      Editar
+                    </button>
+                  </div>
+                ))}
+                {!aConfirmarRepor ? (
+                  <button
+                    className="btn sec full" style={{ marginTop: 14, color: "var(--magenta)" }}
+                    onClick={() => setAConfirmarRepor(true)}
+                  >
+                    Repor todos os códigos
                   </button>
-                  <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aRepor} onClick={() => setAConfirmarRepor(false)}>
-                    Cancelar
-                  </button>
-                </div>
+                ) : (
+                  <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 14 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600 }}>Repor o código de toda a gente?</p>
+                    <p className="ds" style={{ marginTop: 4 }}>
+                      Volta a 1234 para voluntários e 123456 para líder da base. Ninguém entra até usar o código novo.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} disabled={aRepor} onClick={reporTodosOsCodigos}>
+                        {aRepor ? "A repor…" : "Repor tudo"}
+                      </button>
+                      <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aRepor} onClick={() => setAConfirmarRepor(false)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -217,35 +261,6 @@ export default function PainelLider({ uid, definirCabecalho, aoVoltar }) {
                 {aGerarDomingos ? "A criar…" : "Gerar"}
               </button>
             </div>
-          </div>
-
-          <div className="sect">
-            <div className="cabecalho">
-              <h3>Avisos</h3>
-              <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "aviso" })}>
-                Novo aviso
-              </button>
-            </div>
-            {avisos.length === 0 ? (
-              <div className="vaz">Nenhum aviso ativo.</div>
-            ) : (
-              avisos.map((a) => (
-                <div className="linha" key={a.id}>
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt">{a.texto}</p>
-                    <p className="ds">
-                      <span className={`tag ${a.urgencia === "urgente" ? "" : "cinz"}`} style={a.urgencia === "urgente" ? { background: "var(--magenta)", color: "#fff" } : {}}>
-                        {a.urgencia === "urgente" ? "urgente" : "normal"}
-                      </span>
-                      {" "}· {a.duracaoDias} {a.duracaoDias === 1 ? "dia" : "dias"}
-                    </p>
-                  </div>
-                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--magenta)" }} onClick={() => apagarAviso(a.id)}>
-                    Remover
-                  </button>
-                </div>
-              ))
-            )}
           </div>
 
           <p className="ds" style={{ padding: "0 4px" }}>

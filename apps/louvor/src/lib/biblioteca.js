@@ -121,6 +121,26 @@ export function agruparUsoPorCulto(usoPorCulto) {
   return Object.entries(porTom).map(([tom, datas]) => ({ tom, datas: datas.sort().reverse() }));
 }
 
+/** Junta o historico (já agrupado por agruparUsoPorCulto) com o tom
+ *  ATUAL da versão e com tonsConhecidos — sem isto, uma versão que
+ *  nunca foi usada num culto nem teve tom nenhum adicionado à mão
+ *  ficava "sem uso ainda" mesmo já tendo um tom definido (pedido do
+ *  líder: "quero que o tom atual seja também um dos tons já
+ *  usados"). Cada tom entra uma vez só, mesmo que apareça nos três
+ *  sítios. */
+export function tonsParaMostrar(historico, tomAtual, tonsConhecidos) {
+  const linhas = [...(historico || [])];
+  const jaTem = new Set(linhas.map((h) => h.tom));
+  function adicionar(tom) {
+    if (!tom || jaTem.has(tom)) return;
+    linhas.push({ tom, datas: [] });
+    jaTem.add(tom);
+  }
+  adicionar(tomAtual);
+  (tonsConhecidos || []).forEach(adicionar);
+  return linhas;
+}
+
 /** "+ Adicionar tom" em SheetVersaoDetalhe.jsx — declarar que este
  *  cantor também já cantou nesta versão em tal tom, sem estar ligado
  *  a nenhum culto real (pedido do líder). Escrita direta do cliente

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import { adicionarTomManual } from "../../lib/biblioteca";
+import { adicionarTomManual, tonsParaMostrar } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import GradeTom from "./GradeTom";
 
@@ -26,12 +26,8 @@ export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista
   const [novoTom, setNovoTom] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
 
-  const tonsComUso = new Set((historico || []).map((h) => h.tom));
-  const tonsSoDeclarados = (tonsConhecidos || []).filter((t) => !tonsComUso.has(t));
-  const linhas = [
-    ...[...(historico || [])].sort((a, b) => (b.datas?.length || 0) - (a.datas?.length || 0)),
-    ...tonsSoDeclarados.map((t) => ({ tom: t, datas: [] })),
-  ];
+  const linhas = tonsParaMostrar(historico, tom, tonsConhecidos)
+    .sort((a, b) => (b.datas?.length || 0) - (a.datas?.length || 0));
 
   async function guardarNovoTom() {
     if (!novoTom) return;
