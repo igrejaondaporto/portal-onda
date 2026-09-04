@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES } from "../../lib/biblioteca";
+import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES, agruparUsoPorCulto } from "../../lib/biblioteca";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
@@ -49,7 +49,7 @@ function IconeLinkExterno() {
 export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar, onAdicionarRepertorio }) {
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
-  const [versaoDetalhe, setVersaoDetalhe] = useState(null); // versão inteira, ou null
+  const [versaoDetalheId, setVersaoDetalheId] = useState(null); // id, nunca a versão em si — ver versoesOrdenadas.find abaixo
   const [aDefinir, setADefinir] = useState(null);
   const [aEditarLinks, setAEditarLinks] = useState(false);
   const [linksForm, setLinksForm] = useState({ letra: "", cifra: "", audio: "", video: "" });
@@ -92,6 +92,11 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
 
   const nomesClassif = (musica.classificacoes || []).map((id) => CLASSIFICACOES.find((c) => c.id === id)?.nome).filter(Boolean);
   const versoesOrdenadas = [...versoes].sort((a, b) => (a.id === musica.versaoPadraoId ? -1 : b.id === musica.versaoPadraoId ? 1 : 0));
+  // sempre a versão AO VIVO de `versoes` (mesmo padrão de `sheetVersao`
+  // abaixo) — nunca uma cópia parada no momento do clique, senão
+  // "+ Adicionar tom" gravava certo no Firestore mas a folha continuava
+  // a mostrar a lista de antes de adicionar.
+  const versaoDetalhe = versaoDetalheId ? versoesOrdenadas.find((v) => v.id === versaoDetalheId) : null;
 
   return (
     <>
@@ -112,8 +117,10 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
 
         <div className="sect">
           <div className="cabecalho"><h3>Versões</h3></div>
-          {versoesOrdenadas.map((v) => (
-            <div className="linha" key={v.id} style={{ cursor: "pointer" }} onClick={() => setVersaoDetalhe(v)}>
+          {versoesOrdenadas.map((v) => {
+            const historicoV = agruparUsoPorCulto(v.usoPorCulto);
+            return (
+            <div className="linha" key={v.id} style={{ cursor: "pointer" }} onClick={() => setVersaoDetalheId(v.id)}>
               <div style={{ flex: 1 }}>
                 <p className="nmt">
                   {v.nome}
@@ -123,9 +130,9 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
                   {[v.tom && `Tom ${v.tom}`, v.bpm && `${v.bpm} BPM`, v.duracao && `${Math.round(v.duracao / 60)} min`].filter(Boolean).join(" · ") || "Sem dados"}
                   {v.observacao ? ` · ${v.observacao}` : ""}
                 </p>
-                {v.historico?.length > 0 && (
+                {historicoV.length > 0 && (
                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
-                    {v.historico.map((h) => (
+                    {historicoV.map((h) => (
                       <span key={h.tom} className="tag cinz">{h.tom} · {(h.datas || []).length}×</span>
                     ))}
                   </div>
@@ -146,7 +153,8 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
               )}
               <button className="lapis" onClick={(e) => { e.stopPropagation(); setSheetVersao({ versaoId: v.id }); }}>✎</button>
             </div>
-          ))}
+            );
+          })}
           {versoes.length === 0 && <div className="vaz">Sem versões ainda.</div>}
           <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setSheetVersao({ novo: true })}>
             Nova versão
@@ -226,9 +234,12 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
       )}
       {versaoDetalhe && (
         <SheetVersaoDetalhe
+          musicaId={musica.id} versaoId={versaoDetalhe.id}
           titulo={musica.titulo} artista={musica.artista}
-          nomeVersao={versaoDetalhe.nome} tom={versaoDetalhe.tom} historico={versaoDetalhe.historico}
-          onFechar={() => setVersaoDetalhe(null)}
+          nomeVersao={versaoDetalhe.nome} tom={versaoDetalhe.tom}
+          historico={agruparUsoPorCulto(versaoDetalhe.usoPorCulto)}
+          tonsConhecidos={versaoDetalhe.tonsConhecidos}
+          onFechar={() => setVersaoDetalheId(null)}
         />
       )}
     </>

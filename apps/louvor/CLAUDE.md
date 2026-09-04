@@ -181,60 +181,90 @@ botão "Publicar esta escala" (só fora do modo rascunho, `!aoMudar`).
 com o selo — teria de haver um "despublicar" explícito, que não foi
 pedido.
 
-**Histórico de tons por cantor** — a **versão é o cantor**: uma versão
-chamada "Tai" (nome completo ou só o primeiro nome de alguém ativo na
-base) representa o arranjo dessa pessoa, não um arranjo genérico como
-"Original"/"Acústico". Foi reformulado em 2026-09 a partir de uma
-primeira tentativa (subcoleção `historicoCantores`, cantor = Lead da
-escala do culto) que o líder pediu para desfazer — "era para ser
-dentro do campo de Versões que já existe mesmo, pois nas versões já
-aparecem os nomes dos cantores".
+**Histórico de tons por cantor** — duas formas de saber quem é "o
+cantor" de uma música num culto, sempre as duas quando fazem sentido
+(reformulado em 2026-09, mais de uma vez — ver git log da secção se
+for mexer aqui de novo):
+1. **A versão é o cantor** — uma versão chamada "Tai" (nome completo
+   ou só o primeiro nome de alguém ativo na base) representa o
+   arranjo dessa pessoa. Vale para qualquer culto que use essa versão.
+2. **O Lead do culto** — quem está escalado como Lead nesse culto
+   específico, seja qual for o nome da versão usada (`"Original"`
+   incluído) — é quem vai cantar de facto. Vale só para esse culto.
+
+As duas podem apontar para a mesma pessoa (conta uma vez) ou para
+pessoas diferentes (as duas ganham a entrada) — `pessoasParaAtribuir`
+em `functions/index.js` calcula os candidatos das duas formas juntas,
+usado tanto por quem regista como por quem desfaz um uso.
 
 ```
 bases/louvor/musicas/{musicaId}/versoes/{versaoId}
   ...campos de sempre (nome, tom, bpm, duracao, observacao)...
-  historico: [{ tom, datas: [eventoId, ...] }]   ← acumula por tom
+  usoPorCulto: { [eventoId]: tom }   ← mapa, não lista — ver abaixo
+  tonsConhecidos: [tom, ...]          ← declarados à mão, sem culto
 ```
-`historico` vive DENTRO da própria versão (não numa coleção à parte):
-cada vez que essa versão é usada num culto, se o TOM já usado é o
-mesmo de sempre, só acrescenta a data à lista; se o líder mudou de
-tom desde a última vez, abre uma entrada nova — "a pasta da versão do
-Tai" vai juntando os toms ao longo do tempo, cada um com as datas em
-que foi usado (`vezes`/`primeiraVez`/`ultimaVez` são deriváveis de
-`datas`, não precisam de campo próprio).
+`usoPorCulto` é um MAPA (eventoId → tom), não uma lista que só
+cresce — sobrescrever a chave de um eventoId é como "mudei o tom
+deste culto" se resolve sozinho (chamar de novo com o mesmo eventoId
+troca o valor), e apagar a chave é como "esta música saiu do
+repertório" se resolve (`desfazerUsoVersaoLouvor`). A vista "quantas
+vezes"/"em que datas" por tom é derivada no cliente agrupando o mapa
+(`agruparUsoPorCulto`, `lib/biblioteca.js`), nunca gravada à parte —
+não há como desalinhar. `tonsConhecidos` é diferente: um tom que o
+líder declarou à mão em "+ Adicionar tom" (`SheetVersaoDetalhe.jsx`),
+sem culto nenhum ligado — escrita direta do cliente (`arrayUnion`,
+sem Cloud Function), mostrado junto com os tons de `usoPorCulto` na
+mesma lista, com "sem culto ainda" para os que só estão aqui.
 
 `registarUsoVersaoLouvor` (`functions/index.js`, transação — evita
 corrida entre dois toques quase juntos) é chamada do cliente em três
-momentos: ao adicionar a música a um repertório (`lib/repertorio.js`)
-e ao trocar o tom de um item já lá dentro (`SheetEditarTom`, dentro de
-`Repertorio.jsx`) — as duas COM `eventoId`, contam como uso num
-culto; e ao criar ou editar a própria versão (`SheetVersao.jsx`) —
-SEM `eventoId`, só sincroniza nome/tom no índice, sem contar como
-uso. É assim que "criar uma versão nova já cria um cantor novo na
-Biblioteca" acontece sozinho, sem esperar por um culto: a função
-procura, entre as pessoas ativas da base, alguém cujo nome (completo
-ou só o primeiro nome) bate com o nome da versão; sem correspondência,
-fica silencioso — não é erro, nem toda versão precisa de representar
-um cantor (`"Original"` continua válido).
+momentos, sempre COM `eventoId` menos o terceiro: ao adicionar a
+música a um repertório (`lib/repertorio.js`, `Repertorio.jsx`) e ao
+trocar o tom de um item já lá dentro (`SheetEditarTom`) — as duas
+contam como uso nesse culto (Lead incluído, olhando a escala do
+`eventoId`); e ao criar ou editar a própria versão (`SheetVersao.jsx`)
+— SEM `eventoId`, só sincroniza nome/tom no índice pelo sinal do
+nome (sem culto, não há Lead para consultar) — é assim que "criar uma
+versão nova já cria um cantor novo na Biblioteca" acontece sem
+esperar por um culto. `desfazerUsoVersaoLouvor` é o espelho, chamada
+ao excluir uma música do repertório (`Repertorio.jsx`, `remover`) —
+apaga a chave do eventoId em vez de gravar o tom, mas NUNCA apaga a
+entrada da versão inteira do índice (mesmo sem nenhum uso, continua
+a fazer sentido aparecer lá se o nome bate). Sem correspondência
+nenhuma (nem nome, nem Lead), fica silencioso — não é erro.
 
-Índice invertido por pessoa, atualizado na mesma transação:
+Índice invertido por pessoa, atualizado na mesma transação (cópia de
+`usoPorCulto`, não de `tonsConhecidos` — esse fica só na versão):
 ```
 bases/louvor/indiceCantores/{pessoaId}
   nome
-  musicas: [{ musicaId, versaoId, titulo, artista, nomeVersao, tom, historico }]
+  musicas: [{ musicaId, versaoId, titulo, artista, nomeVersao, tom, usoPorCulto }]
 ```
-Mostrado em **Biblioteca** como vista cheia, não sheet — "🕓 Histórico
-por cantor" troca todo o conteúdo da página (`VistaHistoricoCantor.jsx`,
+Mostrado em **Biblioteca** como vista cheia, não sheet — "🕓
+Histórico" troca todo o conteúdo da página (`VistaHistoricoCantor.jsx`,
 `Biblioteca.jsx` guarda só um booleano `vistaHistorico`), porque o
-líder achou o sheet pequeno demais para tudo o que há para mostrar.
-Duas formas de consultar: **por música** (cada versão + os toms que já
-usou, com quantas vezes cada um) e **por culto** (todo `historico` de
-todas as versões dessa pessoa achatado e agrupado por `eventoId` — que
-já É a data ISO do domingo, dá para `dataPorExtenso` direto, sem ir
-buscar `eventos/{id}`). O mesmo histórico por-versão também aparece
-direto na ficha da música (`SheetMusicaDetalhe.jsx`, secção
-"Versões"), como pequenas etiquetas de tom — não há mais secção
-"Cantores" separada ali.
+líder achou o sheet pequeno demais para tudo o que há para mostrar. O
+seletor de cantor só lista quem já tem pelo menos uma entrada no
+índice (`ouvirCantoresComVersao`, um `Set` dos ids de
+`indiceCantores` — o resto da base nunca aparece). Duas formas de
+consultar: **por música** (cada versão + os toms que já usou, com
+quantas vezes cada um) e **por culto** (todo `usoPorCulto` de todas
+as versões dessa pessoa achatado e agrupado por `eventoId` — que já É
+a data ISO do domingo, dá para `dataPorExtenso` direto, sem ir buscar
+`eventos/{id}`). Tocar numa música em qualquer uma das duas vistas
+abre direto `SheetVersaoDetalhe.jsx` (nome da versão como título,
+tons e datas) — não a ficha completa da música com todas as versões
+— com "Ver música completa" como saída para quem quiser lá chegar. O
+mesmo `SheetVersaoDetalhe` abre também ao tocar numa linha de versão
+dentro de `SheetMusicaDetalhe.jsx` (aí sem "Ver música completa" — já
+se está lá); a ficha da música em si só mostra etiquetas pequenas de
+tom por versão, não há mais secção "Cantores" separada.
+
+Backfill único já corrido em produção (2026-09,
+`scripts/backfillIndiceCantoresLouvor.mjs`): liga por nome (com um
+mapa de apelidos conferido à mão, tipo "Mari" → Mariana Turbuk) todas
+as versões que já existiam antes deste modelo existir. Não tenta
+adivinhar Lead de cultos passados — só o sinal do nome, sem `eventoId`.
 
 ## Confirmação de presença (2026-09)
 

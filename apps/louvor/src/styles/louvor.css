@@ -529,39 +529,44 @@
  * expirar um aviso ou fechar uma enquete. .barra do global.css é
  * clara (pensada para fundo branco); aqui o fundo é sempre uma cor
  * cheia (violeta/verde/magenta/azul), por isso é sempre translúcida
- * sobre branco em vez de var(--agua)/var(--verde). ── */
+ * sobre branco em vez de var(--agua)/var(--verde). O preenchimento
+ * tem listras a andar (pedido do líder, em vez do emoji a acompanhar
+ * a ponta que estava antes) — mesma linguagem de "coisa em curso" de
+ * barras de loading/upload, sem precisar de nenhum elemento extra. */
 .destaque-progresso {
-  position: relative;
   width: 100%;
-  height: 4px;
+  height: 6px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.28);
   margin-top: 9px;
-  /* visível de propósito (não escondido): o marcador em .destaque-
-   * progresso-marcador é mais alto que a barra e tem de sobressair,
-   * não ficar cortado nas bordas. */
-  overflow: visible;
+  overflow: hidden;
 }
 .destaque-progresso i {
   display: block;
   height: 100%;
-  background: #fff;
   border-radius: 4px;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(10, 15, 46, 0.16) 0, rgba(10, 15, 46, 0.16) 7px,
+    transparent 7px, transparent 14px
+  );
+  background-size: 20px 20px;
+  animation: destaque-progresso-andar 0.9s linear infinite;
   transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
-/* Emoji que anda em cima da ponta da barra, conforme o prazo se
- * aproxima — pedido do líder: sem isto, uma barra a encher lia-se
- * só como "progresso genérico", sem deixar claro que é *tempo a
- * esgotar-se* (mais perto do fim = mais perto da direita). */
-.destaque-progresso-marcador {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 13px;
-  line-height: 1;
-  transition: left 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
-  pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgba(10, 15, 46, 0.4));
+@keyframes destaque-progresso-andar {
+  from { background-position: 0 0; }
+  to { background-position: 20px 0; }
+}
+/* Data final, pequena, encostada à direita — logo abaixo da barra. */
+.destaque-progresso-data {
+  width: 100%;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 4px;
 }
 
 /* ── Repertório: item de música em duas linhas — título com espaço
@@ -578,7 +583,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  /* mais perto do título/artista de cima do que antes, sem chegar a
+   * encostar (pedido do líder) */
+  margin-top: 4px;
 }
 /* Setas + excluir sempre encostados ao canto direito, separados do
  * tom (pedido do líder) — o gap entre os dois grupos vem do
@@ -588,22 +595,23 @@
   align-items: center;
   gap: 10px;
 }
+/* Lado a lado (▲▼), não empilhadas — pedido do líder. */
 .rep-steppers {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 4px;
 }
 .rep-steppers button {
   display: block;
-  width: 28px;
-  height: 16px;
-  line-height: 16px;
+  width: 24px;
+  height: 22px;
+  line-height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: #fff;
   color: var(--tinta);
-  font-size: 9px;
+  font-size: 10.5px;
   text-align: center;
   cursor: pointer;
 }

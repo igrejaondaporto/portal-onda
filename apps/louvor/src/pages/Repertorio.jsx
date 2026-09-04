@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
-import { ouvirMusicas, obterTonsDosItens, guardarVersao, registarUsoVersao } from "../lib/biblioteca";
+import { ouvirMusicas, obterTonsDosItens, guardarVersao, registarUsoVersao, desfazerUsoVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
@@ -176,6 +176,10 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   useEffect(() => ouvirRepertorio(eventoId, setRepertorio), [eventoId]);
 
   const eventoAtual = eventosMes.find((e) => e.id === eventoId) ?? null;
+  // "Versão do Lead" no topo do repertório — só o primeiro nome, é
+  // um rótulo, não uma etiqueta de contacto (pedido do líder).
+  const leadId = eventoAtual?.escala?.escalados?.find((e) => e.papel === "lead")?.pessoaId;
+  const leadNome = leadId ? voluntarios.find((p) => p.id === leadId)?.nome?.split(" ")[0] : null;
   const itens = repertorio?.itens ?? ITENS_VAZIOS;
 
   useEffect(() => {
@@ -247,7 +251,11 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   }
 
   function remover(id) {
+    const item = itensLocais.find((it) => it.id === id);
     persistir(itensLocais.filter((it) => it.id !== id));
+    if (eventoId && item?.tipo === "musica") {
+      desfazerUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
+    }
   }
 
   function adicionarMusica(musicaId, versaoId, medley) {
@@ -346,6 +354,9 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
         <p className="rep-selo">
           {repertorio ? `Atualizado ${haQuanto(repertorio.atualizadoEm)}${autor ? ` por ${autor}` : ""} · já visível para a projeção` : "Ainda ninguém montou este repertório — assim que guardares o primeiro item, fica visível."}
         </p>
+      )}
+      {leadNome && (
+        <p className="rep-selo" style={{ marginTop: 4, fontWeight: 700 }}>Versão "{leadNome}"</p>
       )}
 
       <div style={{ marginTop: 14 }}>

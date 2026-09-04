@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirIndiceCantor } from "../../lib/biblioteca";
+import { ouvirIndiceCantor, agruparUsoPorCulto } from "../../lib/biblioteca";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
@@ -10,11 +10,12 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
  * {pessoaId}, um documento só (ver lib/biblioteca.js e
  * functions/index.js, registarUsoVersaoLouvor) — sem query nenhuma.
  *
- * O cantor É a versão: cada entrada em indice.musicas é uma versão
- * cujo nome bate com uma pessoa da base (nome completo ou só o
- * primeiro nome) — quem cria ou edita uma versão com o nome de
- * alguém já a faz aparecer aqui, mesmo antes de essa versão ser
- * usada num culto (nesse caso o historico vem com datas:[] — tom
+ * O cantor É a versão (ou o Lead do culto — ver registarUsoVersaoLouvor
+ * em functions/index.js): cada entrada em indice.musicas é uma versão
+ * cujo nome bate com uma pessoa da base, OU que essa pessoa cantou
+ * como Lead nalgum culto — quem cria ou edita uma versão com o nome
+ * de alguém já a faz aparecer aqui, mesmo antes de essa versão ser
+ * usada num culto (nesse caso usoPorCulto vem vazio — tom
  * sincronizado, ainda sem uso registado).
  *
  * Duas formas de consultar a "pasta" do cantor: por música (todos os
@@ -24,9 +25,11 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
  * aplica-se direto, sem precisar de ir buscar o evento.
  *
  * onAbrirMusica recebe a entrada do índice INTEIRA (não só o id) —
- * {musicaId, versaoId, titulo, artista, nomeVersao, tom, historico} —
- * para quem a usa (Biblioteca.jsx) abrir direto a versão do cantor
- * em SheetVersaoDetalhe, sem precisar de ir buscar nada de novo.
+ * {musicaId, versaoId, titulo, artista, nomeVersao, tom, historico}
+ * (historico já vem agrupado por tom aqui, derivado de usoPorCulto —
+ * ver agruparUsoPorCulto) — para quem a usa (Biblioteca.jsx) abrir
+ * direto a versão do cantor em SheetVersaoDetalhe, sem precisar de ir
+ * buscar nada de novo.
  */
 export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMusica }) {
   const [cantor, setCantor] = useState(null);
@@ -39,7 +42,9 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cantor?.id]);
 
-  const musicas = [...(indice?.musicas || [])].sort((a, b) => a.titulo.localeCompare(b.titulo, "pt"));
+  const musicas = [...(indice?.musicas || [])]
+    .map((m) => ({ ...m, historico: agruparUsoPorCulto(m.usoPorCulto) }))
+    .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt"));
 
   // Cada entrada carrega tudo o que SheetVersaoDetalhe precisa
   // (titulo/artista/nomeVersao/tom/historico) — abrir uma música por
@@ -91,10 +96,10 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
           {vista === "musica" ? (
             <>
               <label className="rot" style={{ marginTop: 12 }}>
-                {musicas.length ? `${musicas.length} versão${musicas.length === 1 ? "" : "ões"}` : "Ainda nenhuma versão"}
+                {musicas.length ? `${musicas.length} ${musicas.length === 1 ? "versão" : "versões"}` : "Ainda nenhuma versão"}
               </label>
               {!musicas.length && (
-                <div className="vaz">Ainda não há nenhuma versão com o nome de {cantor.nome.split(" ")[0]}.</div>
+                <div className="vaz">Ainda não há nada no histórico de {cantor.nome.split(" ")[0]}.</div>
               )}
               {musicas.map((m) => (
                 <div className="linha" style={{ cursor: "pointer" }} key={`${m.musicaId}-${m.versaoId}`} onClick={() => onAbrirMusica(m)}>
