@@ -41,7 +41,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [sheetAniversarios, setSheetAniversarios] = useState(false);
   const [minhaResposta, setMinhaResposta] = useState(null); // {resposta, justificativa?} | null
   const [confirmadosMes, setConfirmadosMes] = useState(() => new Map());
+  const [eventosMesAtual, setEventosMesAtual] = useState([]);
+  const [respostasMesAtual, setRespostasMesAtual] = useState(() => new Map());
   const [sheetConfirmar, setSheetConfirmar] = useState(false);
+  const [sheetMudarResposta, setSheetMudarResposta] = useState(false);
   const [enquetesAbertas, setEnquetesAbertas] = useState([]);
   const [minhasRespostasEnquete, setMinhasRespostasEnquete] = useState({});
   const [eventosEnquetePorId, setEventosEnquetePorId] = useState({});
@@ -84,6 +87,26 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // o mesmo, mas para todos os cultos do mês visível no Calendário —
   // um listener por culto onde a pessoa está escalada e publicado
   useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setConfirmadosMes), [eventosMes, uid]);
+
+  // balão de confirmação (abaixo) — tem de olhar para QUALQUER culto
+  // por confirmar este mês, não só `meuEvento` (o culto mais próximo
+  // em que serves, escolhido por obterMeuEvento sem olhar a
+  // confirmação). Sem isto, alguém escalado em dois domingos deste
+  // mês — o mais próximo já confirmado, um mais à frente publicado
+  // depois e ainda por responder — nunca via balão nenhum: o mais
+  // próximo já não tinha `!minhaResposta`, e o outro nem entrava na
+  // conta, porque `meuEvento` só aponta para um. Mesmo cálculo do
+  // popup automático (ConfirmacaoAutoStart), sempre no mês REAL de
+  // hoje — de propósito independente do mês que o Calendário abaixo
+  // está a mostrar (`mes`/`ano`, que o próprio voluntário navega).
+  const hoje = new Date();
+  useEffect(() => ouvirEventosDoMes(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []);
+  useEffect(() => ouvirConfirmacoesDoMes(eventosMesAtual, uid, setRespostasMesAtual), [eventosMesAtual, uid]);
+  const cultoPorConfirmar = eventosMesAtual
+    .filter((ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostasMesAtual.has(ev.id))
+    .sort((a, b) => a.data.localeCompare(b.data))[0] ?? null;
 
   // enquete de indisponibilidade — o popup obrigatório (EnqueteAutoStart,
   // ver Sessao.jsx) já força a primeira resposta; este balão fica fixo
@@ -186,7 +209,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         );
       })}
-      {sirvo && meuEvento.escala.publicado && !minhaResposta && (
+      {cultoPorConfirmar && (
         <div
           className="destaque" style={{ background: "var(--verde)", marginBottom: 10 }}
           onClick={() => setSheetConfirmar(true)}
@@ -194,7 +217,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma a tua presença</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              Vais servir {dataPorExtenso(meuEvento.data)}?
+              Vais servir {dataPorExtenso(cultoPorConfirmar.data)}?
             </p>
           </div>
           <span style={{ fontSize: 24 }}>✓</span>
@@ -297,7 +320,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 <span style={{ fontSize: 13, fontWeight: 600, color: minhaResposta.resposta === "vai" ? "var(--verde)" : "var(--magenta)" }}>
                   {minhaResposta.resposta === "vai" ? "✓ Vais" : `✗ Avisaste que não vais${minhaResposta.justificativa ? ` — ${minhaResposta.justificativa}` : ""}`}
                 </span>
-                <button className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5 }} onClick={() => setSheetConfirmar(true)}>
+                <button className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5 }} onClick={() => setSheetMudarResposta(true)}>
                   Mudar resposta
                 </button>
               </div>
@@ -411,13 +434,22 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     {sheetAniversarios && (
       <SheetAniversarios voluntarios={voluntarios} onFechar={() => setSheetAniversarios(false)} />
     )}
-    {sheetConfirmar && meuEvento && (
+    {sheetConfirmar && cultoPorConfirmar && (
+      <SheetConfirmarPresenca
+        cultos={[cultoPorConfirmar]}
+        minhasRespostas={{}}
+        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
+        onFechar={() => setSheetConfirmar(false)}
+        onGuardado={(msg) => { setSheetConfirmar(false); torrada(msg); }}
+      />
+    )}
+    {sheetMudarResposta && meuEvento && (
       <SheetConfirmarPresenca
         cultos={[meuEvento]}
         minhasRespostas={minhaResposta ? { [meuEvento.id]: minhaResposta } : {}}
         pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
-        onFechar={() => setSheetConfirmar(false)}
-        onGuardado={(msg) => { setSheetConfirmar(false); torrada(msg); }}
+        onFechar={() => setSheetMudarResposta(false)}
+        onGuardado={(msg) => { setSheetMudarResposta(false); torrada(msg); }}
       />
     )}
     {sheetEnquete && enquetesAbertas.length > 0 && (

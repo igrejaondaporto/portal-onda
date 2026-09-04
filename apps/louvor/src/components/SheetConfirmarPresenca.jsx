@@ -69,8 +69,8 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         )}
         <h2>
           {pessoaAlvo
-            ? `${pessoaAlvo.nome.split(" ")[0]} vai servir ${dataPorExtenso(culto.data)}?`
-            : `Vais servir ${dataPorExtenso(culto.data)}?`}
+            ? `${pessoaAlvo.nome.split(" ")[0]} confirma que vai servir ${dataPorExtenso(culto.data)}?`
+            : `Confirmas que vais servir ${dataPorExtenso(culto.data)}?`}
         </h2>
         {pessoaAlvo && (
           <p className="ds" style={{ color: "var(--magenta)", fontWeight: 600, marginTop: 2 }}>

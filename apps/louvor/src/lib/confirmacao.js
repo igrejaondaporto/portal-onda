@@ -42,24 +42,27 @@ export function ouvirConfirmacoesDoMes(eventos, pessoaId, cb) {
   return () => paragens.forEach((p) => p());
 }
 
-/** Contagem de "vai" por culto, para o líder (Escala geral, ver
+/** Quem já confirmou "vai", por culto, para o líder (Escala geral, ver
  *  Escala.jsx) — ao contrário de ouvirConfirmacoesDoMes (uma pessoa,
  *  vários cultos), aqui é o inverso: todas as pessoas de um culto só.
- *  Um listener por culto publicado (a regra só deixa o líder ler
- *  confirmações de outra pessoa, ver CLAUDE.md desta base — para um
+ *  Devolve `Map<eventoId, Set<pessoaId>>` — a contagem (👍 + número,
+ *  junto ao Tipo de Culto) é só `.size`; o Set em si dá para marcar
+ *  quem confirmou dentro da caixinha "Escala" de cada culto (pedido
+ *  do líder). Um listener por culto publicado (a regra só deixa o
+ *  líder ler confirmação alheia, ver CLAUDE.md desta base — para um
  *  voluntário comum a subcoleção vem vazia, sem erro). Cultos sem
  *  escala publicada nem entram — sem confirmação pedida ainda, "0
  *  confirmados" seria enganoso. */
-export function ouvirContagemConfirmados(eventos, cb) {
+export function ouvirConfirmacoesPorCulto(eventos, cb) {
   const alvos = (eventos || []).filter((ev) => ev.escala?.publicado);
   if (!alvos.length) { cb(new Map()); return () => {}; }
 
-  const contagens = new Map();
+  const porCulto = new Map();
   const paragens = alvos.map((ev) =>
     onSnapshot(cConfirmacoes(ev.id), (snap) => {
-      const vao = snap.docs.filter((d) => d.data().resposta === "vai").length;
-      contagens.set(ev.id, vao);
-      cb(new Map(contagens));
+      const confirmados = new Set(snap.docs.filter((d) => d.data().resposta === "vai").map((d) => d.id));
+      porCulto.set(ev.id, confirmados);
+      cb(new Map(porCulto));
     })
   );
   return () => paragens.forEach((p) => p());
