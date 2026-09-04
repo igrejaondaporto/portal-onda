@@ -9,7 +9,7 @@ import { ouvirAvisos, tempoRestante, percentagemDecorrida } from "../lib/avisos"
 import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
-import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Calendario from "../components/Calendario";
@@ -176,10 +176,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </div>
             <span style={{ fontSize: 24 }}>🗳️</span>
             {percentagemDecorridaVoto(e.abertaEm, e.prazo) !== null && (
-              <div className="destaque-progresso">
-                <i style={{ width: `${percentagemDecorridaVoto(e.abertaEm, e.prazo)}%` }} />
-                <span className="destaque-progresso-marcador" style={{ left: `${percentagemDecorridaVoto(e.abertaEm, e.prazo)}%` }}>🏃</span>
-              </div>
+              <>
+                <div className="destaque-progresso"><i style={{ width: `${percentagemDecorridaVoto(e.abertaEm, e.prazo)}%` }} /></div>
+                <p className="destaque-progresso-data">até {dataCurta(e.prazo)}</p>
+              </>
             )}
           </div>
         );
@@ -215,10 +215,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </span>
           )}
           {percentagemDecorrida(a.expiraEm, a.duracaoDias) !== null && (
-            <div className="destaque-progresso">
-              <i style={{ width: `${percentagemDecorrida(a.expiraEm, a.duracaoDias)}%` }} />
-              <span className="destaque-progresso-marcador" style={{ left: `${percentagemDecorrida(a.expiraEm, a.duracaoDias)}%` }}>🏃</span>
-            </div>
+            <>
+              <div className="destaque-progresso"><i style={{ width: `${percentagemDecorrida(a.expiraEm, a.duracaoDias)}%` }} /></div>
+              <p className="destaque-progresso-data">até {dataCurta(a.expiraEm.toDate().toISOString().slice(0, 10))}</p>
+            </>
           )}
         </div>
       ))}

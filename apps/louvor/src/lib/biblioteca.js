@@ -12,7 +12,7 @@
  * onSnapshot uma vez; busca e filtros correm no cliente contra essa
  * cache, nunca uma leitura por tecla digitada.
  */
-import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { arrayUnion, doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cMusicas, cVersoes, dIndiceCantor, cIndiceCantores } from "./modelo";
 
@@ -96,6 +96,43 @@ export function ouvirCantoresComVersao(cb) {
  *  nada, não é erro; falhar aqui nunca deve travar o fluxo principal. */
 export const registarUsoVersao = (dados) =>
   chamar("registarUsoVersaoLouvor")(dados).then((r) => r.data).catch(() => null);
+
+/** Espelho de registarUsoVersao — chamado quando uma música SAI do
+ *  repertório de um culto (Repertorio.jsx, remover), para o Histórico
+ *  não continuar a mostrar um uso que já não existe. Precisa sempre
+ *  de eventoId (ao contrário de registarUsoVersao, que também serve
+ *  para sincronizar sem culto nenhum). */
+export const desfazerUsoVersao = (dados) =>
+  chamar("desfazerUsoVersaoLouvor")(dados).then((r) => r.data).catch(() => null);
+
+/** usoPorCulto ({eventoId: tom}, ver functions/index.js) → a mesma
+ *  forma agrupada por tom que a UI do Histórico usa
+ *  ([{tom, datas: [eventoId,...]}], mais recente primeiro dentro de
+ *  cada tom) — "vezes" é só `datas.length`, não precisa de campo
+ *  próprio. Um mapa plano por eventoId é o que dá para SOBRESCREVER
+ *  (tom mudou) ou APAGAR (música saiu do repertório) uma única
+ *  entrada sem procurar dentro de arrays — a forma agrupada é só
+ *  para mostrar, nunca é o que se grava. */
+export function agruparUsoPorCulto(usoPorCulto) {
+  const porTom = {};
+  Object.entries(usoPorCulto || {}).forEach(([eventoId, tom]) => {
+    (porTom[tom] ??= []).push(eventoId);
+  });
+  return Object.entries(porTom).map(([tom, datas]) => ({ tom, datas: datas.sort().reverse() }));
+}
+
+/** "+ Adicionar tom" em SheetVersaoDetalhe.jsx — declarar que este
+ *  cantor também já cantou nesta versão em tal tom, sem estar ligado
+ *  a nenhum culto real (pedido do líder). Escrita direta do cliente
+ *  (mesma regra de sempre em versões, allow update: if minhaBase),
+ *  sem Cloud Function — arrayUnion evita duplicar se o tom já lá
+ *  estiver. Guardado à parte de usoPorCulto de propósito: aquele é
+ *  só o que aconteceu de facto num culto, isto é uma declaração
+ *  manual sem data — a UI mostra os dois juntos (ver
+ *  SheetVersaoDetalhe.jsx), "sem culto ainda" para os que só estão
+ *  aqui. */
+export const adicionarTomManual = (musicaId, versaoId, tom) =>
+  updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { tonsConhecidos: arrayUnion(tom) });
 
 export const novaMusicaId = () => doc(cMusicas()).id;
 

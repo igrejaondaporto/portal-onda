@@ -150,11 +150,10 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       return;
     }
     const nomes = { recentes: "Tocadas recentemente", az: "A-Z", maisTocadas: "Mais tocadas" };
-    definirCabecalho({
-      titulo: <em>Biblioteca</em>,
-      subtitulo: nomes[modoOrdem],
-      chips: [`${musicas.length} ${musicas.length === 1 ? "música" : "músicas"}`],
-    });
+    // sem chip de contagem aqui de propósito — mudou para junto do
+    // seletor de modo, dentro do corpo (pedido do líder: cabeçalho
+    // fica do mesmo tamanho, esteja ou não na vista de Histórico)
+    definirCabecalho({ titulo: <em>Biblioteca</em>, subtitulo: nomes[modoOrdem], chips: [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, musicas.length, modoOrdem, vistaHistorico]);
 
@@ -173,6 +172,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
         />
         {versaoDetalheHistorico && (
           <SheetVersaoDetalhe
+            musicaId={versaoDetalheHistorico.musicaId} versaoId={versaoDetalheHistorico.versaoId}
             titulo={versaoDetalheHistorico.titulo} artista={versaoDetalheHistorico.artista}
             nomeVersao={versaoDetalheHistorico.nomeVersao} tom={versaoDetalheHistorico.tom}
             historico={versaoDetalheHistorico.historico}
@@ -191,7 +191,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   return (
     <>
       <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setVistaHistorico(true)}>
-        🕓 Histórico por cantor
+        🕓 Histórico
       </button>
       <div className="bib-busca">
         <span aria-hidden="true">🔎</span>
@@ -203,14 +203,18 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       {/* Mais tocadas é um modo à parte, não mais uma opção de ordenar —
         * por isso vive no seu próprio menu, não ao lado dos chips de
         * Ordenar (pedido do líder: aqueles são "como ordenar a lista
-        * toda", isto é "ver só o ranking"). */}
-      <div className="subtabs">
-        <button data-on={modoOrdem === "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("maisTocadas"); setPagina(0); }}>
-          Mais tocadas
-        </button>
-        <button data-on={modoOrdem !== "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("recentes"); setDirecao("desc"); setPagina(0); }}>
-          Todas
-        </button>
+        * toda", isto é "ver só o ranking"). A contagem total mora aqui
+        * ao lado, não no cabeçalho (pedido do líder). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="subtabs" style={{ flex: 1 }}>
+          <button data-on={modoOrdem === "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("maisTocadas"); setPagina(0); }}>
+            Mais tocadas
+          </button>
+          <button data-on={modoOrdem !== "maisTocadas" ? 1 : 0} onClick={() => { setModoOrdem("recentes"); setDirecao("desc"); setPagina(0); }}>
+            Todas
+          </button>
+        </div>
+        <span className="ds" style={{ whiteSpace: "nowrap" }}>{musicas.length} {musicas.length === 1 ? "música" : "músicas"}</span>
       </div>
       {modoOrdem !== "maisTocadas" && (
         <div className="bib-chips">
