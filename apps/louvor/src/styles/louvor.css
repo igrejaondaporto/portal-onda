@@ -531,12 +531,16 @@
  * cheia (violeta/verde/magenta/azul), por isso é sempre translúcida
  * sobre branco em vez de var(--agua)/var(--verde). ── */
 .destaque-progresso {
+  position: relative;
   width: 100%;
   height: 4px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.28);
-  overflow: hidden;
   margin-top: 9px;
+  /* visível de propósito (não escondido): o marcador em .destaque-
+   * progresso-marcador é mais alto que a barra e tem de sobressair,
+   * não ficar cortado nas bordas. */
+  overflow: visible;
 }
 .destaque-progresso i {
   display: block;
@@ -544,6 +548,20 @@
   background: #fff;
   border-radius: 4px;
   transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+/* Emoji que anda em cima da ponta da barra, conforme o prazo se
+ * aproxima — pedido do líder: sem isto, uma barra a encher lia-se
+ * só como "progresso genérico", sem deixar claro que é *tempo a
+ * esgotar-se* (mais perto do fim = mais perto da direita). */
+.destaque-progresso-marcador {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  line-height: 1;
+  transition: left 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(10, 15, 46, 0.4));
 }
 
 /* ── Repertório: item de música em duas linhas — título com espaço
@@ -559,8 +577,16 @@
 .rep-item-acoes {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   margin-top: 8px;
+}
+/* Setas + excluir sempre encostados ao canto direito, separados do
+ * tom (pedido do líder) — o gap entre os dois grupos vem do
+ * space-between do pai, não de margin fixa. */
+.rep-acoes-direita {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .rep-steppers {
   display: flex;

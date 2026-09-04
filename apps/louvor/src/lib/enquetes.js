@@ -119,20 +119,24 @@ export function tempoRestanteVoto(prazoISO) {
   return dias <= 1 ? "último dia para votar" : `${dias} dias para votar`;
 }
 
-/** 0–100, quanto falta até ao prazo de voto — mesma base de
- *  tempoRestanteVoto, em percentagem, para a barrinha de progresso no
- *  Início (pedido do líder). Precisa de abertaEm (quando a enquete
- *  foi aberta) para saber o intervalo TOTAL, não só o que falta. */
-export function percentagemRestanteVoto(abertaEm, prazoISO) {
+/** 0–100, quanto JÁ PASSOU do prazo de voto — mesma base de
+ *  tempoRestanteVoto, em percentagem, mas ENCHENDO conforme o prazo
+ *  se aproxima (0 = enquete acabada de abrir, 100 = último instante)
+ *  — para a barrinha de progresso no Início (pedido do líder: a
+ *  primeira versão, "tempo que falta", lia-se ao contrário — uma
+ *  enquete com semanas pela frente parecia mais urgente que uma a
+ *  horas do fim). Precisa de abertaEm (quando a enquete foi aberta)
+ *  para saber o intervalo TOTAL, não só o que falta. */
+export function percentagemDecorridaVoto(abertaEm, prazoISO) {
   if (!abertaEm?.toMillis || !prazoISO) return null;
   const [a, m, d] = prazoISO.split("-").map(Number);
   const fimMs = new Date(a, m - 1, d, 23, 59, 59).getTime();
   const inicioMs = abertaEm.toMillis();
   const totalMs = fimMs - inicioMs;
-  if (totalMs <= 0) return 0;
+  if (totalMs <= 0) return 100;
   const restanteMs = fimMs - Date.now();
-  if (restanteMs <= 0) return 0;
-  return Math.min(100, Math.round((restanteMs / totalMs) * 100));
+  if (restanteMs <= 0) return 100;
+  return Math.max(0, Math.min(100, Math.round(100 - (restanteMs / totalMs) * 100)));
 }
 
 /** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre

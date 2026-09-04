@@ -97,11 +97,13 @@ function ItemRepertorio({
             >
               {tom || "Tom"}
             </button>
-            <span className="rep-steppers">
-              <button aria-label="Mover para cima" disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>▲</button>
-              <button aria-label="Mover para baixo" disabled={i === total - 1} onClick={(e) => { e.stopPropagation(); onMover(item.id, 1); }}>▼</button>
+            <span className="rep-acoes-direita">
+              <span className="rep-steppers">
+                <button aria-label="Mover para cima" disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>▲</button>
+                <button aria-label="Mover para baixo" disabled={i === total - 1} onClick={(e) => { e.stopPropagation(); onMover(item.id, 1); }}>▼</button>
+              </span>
+              <button className="rep-remover" onClick={(e) => { e.stopPropagation(); onRemover(item.id); }}>✕</button>
             </span>
-            <button className="rep-remover" onClick={(e) => { e.stopPropagation(); onRemover(item.id); }}>✕</button>
           </div>
         </div>
       </div>
