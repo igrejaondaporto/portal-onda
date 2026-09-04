@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { publicarOrdemCulto } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 
 let contador = 0;
 const chave = () => `l${Date.now()}_${contador++}`;
@@ -20,6 +21,13 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
   const [avisos, setAvisos] = useState(
     () => inicial.avisos.map((a) => ({ _k: chave(), criarCulto: false, ...a }))
   );
+  // Tipo de culto (Ceia/Contribua/Culto da Família) — obrigatório,
+  // pedido do líder da Louvor: é a Backstage que decide, ao publicar,
+  // não cada base por si (ver publicarOrdemCulto, functions/index.js).
+  // Pré-escolhido com o mesmo default que a Louvor já usava (1º
+  // domingo do mês = Ceia), ou o que já estiver gravado se for uma
+  // republicação.
+  const [tipoCulto, setTipoCulto] = useState(evento.tipoCulto || tipoCultoDefault(evento.data));
   const [aEnviar, setAEnviar] = useState(false);
 
   const { inicio, fim, portasAbertas } = useMemo(() => {
@@ -77,6 +85,7 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
       const r = await publicarOrdemCulto({
         eventoId: evento.id, momentos: momentosLimpos, avisos: avisosLimpos,
         inicio, fim, portasAbertas, pdfUrl: inicial.pdfUrl ?? null, origem: inicial.falhou ? "manual" : "auto",
+        tipoCulto,
       });
       torrada(
         r.cultosEspeciaisCriados?.length
@@ -98,6 +107,13 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
         <div className="pux" />
         <h2>Rever a ordem do culto</h2>
         <p className="sb2">{dataPorExtenso(evento.data)}</p>
+
+        <label className="rot" style={{ marginTop: 12 }}>Tipo de culto</label>
+        <div className="subtabs">
+          {TIPOS_CULTO.map((t) => (
+            <button key={t.id} data-on={tipoCulto === t.id ? 1 : 0} onClick={() => setTipoCulto(t.id)}>{t.nome}</button>
+          ))}
+        </div>
 
         {inicial.falhou && (
           <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 12 }}>

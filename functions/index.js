@@ -1322,25 +1322,35 @@ export const confirmarPresencaLouvor = onCall(async (req) => {
   return { ok: true };
 });
 
-const ENFASES_LOUVOR = new Set(["ceia", "contribua", "familia"]);
+/** Tipo do culto (Ceia/Contribua/Culto da Família) — era só da Louvor
+ *  (eventos/{e}/escalas/louvor.enfase), passou a global em 2026-09
+ *  (pedido do líder da Louvor): a Backstage escolhe obrigatoriamente
+ *  ao publicar a Ordem do Culto (ver publicarOrdemCulto), qualquer
+ *  base lê em eventos/{e}.tipoCulto — um dono só, sem duas fontes de
+ *  verdade. Louvor deixou de ter editor próprio (definirDetalhesCultoLouvor
+ *  já não aceita `enfase`); o default automático (1º domingo do mês =
+ *  Ceia) continua calculado no cliente enquanto a Backstage não
+ *  publicou nada para esse culto — ver tipoCultoDefault em
+ *  packages/shared/src/lib/tipoCulto.js. */
+const TIPOS_CULTO = new Set(["ceia", "contribua", "familia"]);
 const HEX_COR = /^#[0-9a-fA-F]{6}$/;
 
-/** Detalhes do culto que não são "quem serve" — ênfase, cores da
- * roupa, data do ensaio, observação do líder. Fica em
+/** Detalhes do culto que não são "quem serve" — cores da roupa, data/
+ * hora/local do ensaio, observação do líder. Fica em
  * eventos/{e}/escalas/louvor (não no eventos/{e} global — regra 7 do
- * CLAUDE.md raiz: isto é da base, não da igreja) para o líder poder
- * definir a ênfase de um culto ANTES de existir escalados (por isso
- * o gate replica o de guardarEscalaLouvor, tolerante ao documento
- * ainda não existir, em vez de reusar exigeLiderDoCulto — essa exige
- * que a escala já exista, o que bloquearia exatamente o caso mais
- * comum: pôr "Ceia" no primeiro domingo do mês antes de escalar
- * ninguém). Cada campo só é escrito se vier no pedido (`!==
- * undefined`), para dar para mudar só a ênfase sem reenviar tudo. */
+ * CLAUDE.md raiz: isto é da base, não da igreja). O gate replica o de
+ * guardarEscalaLouvor, tolerante ao documento ainda não existir, em
+ * vez de reusar exigeLiderDoCulto — essa exige que a escala já
+ * exista, o que bloquearia definir o ensaio antes de escalar
+ * ninguém. Cada campo só é escrito se vier no pedido (`!==
+ * undefined`), para dar para mudar só um campo sem reenviar tudo.
+ * `enfase` já não é aceite aqui — virou `tipoCulto`, global, só a
+ * Backstage escreve (ver publicarOrdemCulto). */
 export const definirDetalhesCultoLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
 
-  const { eventoId, enfase, coresRoupa, dataEnsaio, horaEnsaio, localEnsaio, observacao } = req.data || {};
+  const { eventoId, coresRoupa, dataEnsaio, horaEnsaio, localEnsaio, observacao } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
@@ -1352,9 +1362,6 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
       "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
   }
 
-  if (enfase !== undefined && !ENFASES_LOUVOR.has(enfase)) {
-    throw new HttpsError("invalid-argument", "Ênfase inválida.");
-  }
   if (coresRoupa !== undefined) {
     if (!Array.isArray(coresRoupa) || coresRoupa.length > 3 || coresRoupa.some((c) => !HEX_COR.test(c))) {
       throw new HttpsError("invalid-argument", "Cores inválidas — até 3 hexadecimais.");
@@ -1362,7 +1369,6 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
   }
 
   const dados = { baseId };
-  if (enfase !== undefined) dados.enfase = enfase;
   if (coresRoupa !== undefined) dados.coresRoupa = coresRoupa;
   if (dataEnsaio !== undefined) dados.dataEnsaio = dataEnsaio || null;
   if (horaEnsaio !== undefined) dados.horaEnsaio = horaEnsaio || null;
@@ -1860,9 +1866,12 @@ export const lerOrdemCulto = onCall(async (req) => {
  * depois do líder confirmar no ecrã de revisão; nada é automático. */
 export const publicarOrdemCulto = onCall(async (req) => {
   exigePodePublicarCulto(req);
-  const { eventoId, momentos, avisos, inicio, fim, portasAbertas, pdfUrl, origem } = req.data || {};
+  const { eventoId, momentos, avisos, inicio, fim, portasAbertas, pdfUrl, origem, tipoCulto } = req.data || {};
   if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  if (!TIPOS_CULTO.has(tipoCulto)) {
+    throw new HttpsError("invalid-argument", "Falta escolher o tipo de culto (Ceia, Contribua ou Culto da Família).");
   }
   const evento = await db.doc(`eventos/${eventoId}`).get();
   if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
@@ -1885,6 +1894,7 @@ export const publicarOrdemCulto = onCall(async (req) => {
 
   const avisosLimpos = avisos.map(({ nome, data, info }) => ({ nome, data, info }));
   await db.doc(`eventos/${eventoId}`).set({
+    tipoCulto,
     ordem: {
       momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
       portasAbertas: portasAbertas ?? inicio ?? null,

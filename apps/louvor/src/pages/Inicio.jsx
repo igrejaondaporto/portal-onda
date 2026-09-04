@@ -10,6 +10,7 @@ import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
+import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Calendario from "../components/Calendario";
@@ -126,11 +127,12 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       definirCabecalho({ titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>, subtitulo: "", chips: [] });
       return;
     }
+    const tipoCulto = nomeTipoCulto(meuEvento.tipoCulto || tipoCultoDefault(meuEvento.data));
     definirCabecalho({
       titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>,
       subtitulo: sirvo
-        ? `Serves no domingo, ${dataPorExtenso(meuEvento.data)}`
-        : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
+        ? `Serves no domingo, ${dataPorExtenso(meuEvento.data)} · ${tipoCulto}`
+        : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)} · ${tipoCulto}`,
       chips: sirvo
         ? [`Chegada ${chegada}`, `Líder de escala · ${liderNome ?? "por definir"}`, ...meusPapeis]
         : [],

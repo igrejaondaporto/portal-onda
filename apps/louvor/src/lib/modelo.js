@@ -57,17 +57,6 @@ export const PAPEIS = [
 export const nomePapel = (id) => PAPEIS.find((p) => p.id === id)?.nome ?? id;
 export const emojiPapel = (id) => PAPEIS.find((p) => p.id === id)?.emoji ?? "🎵";
 
-/** Ênfase do culto (tema do domingo) — três opções fixas, o líder
- *  troca livremente por culto (ver Escala.jsx). Sem valor gravado
- *  ainda, `enfaseDefault` decide: primeiro domingo do mês é sempre
- *  Ceia, os outros começam em Culto da Família. */
-export const ENFASES = [
-  { id: "ceia", nome: "Ceia" },
-  { id: "contribua", nome: "Contribua" },
-  { id: "familia", nome: "Culto da Família" },
-];
-export const nomeEnfase = (id) => ENFASES.find((e) => e.id === id)?.nome ?? id;
-export const enfaseDefault = (dataISO) => (Number(dataISO.slice(8, 10)) <= 7 ? "ceia" : "familia");
 
 /** Papéis na BASE (não confundir com PAPEIS da escala acima) — quem
  *  a pessoa é dentro da Louvor. "Auxiliar" tem todas as funções do
