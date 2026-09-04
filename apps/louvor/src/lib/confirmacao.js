@@ -5,11 +5,13 @@
  * `resposta: "vai" | "nao_vai"` — quem não pode já deixa a
  * justificativa no mesmo gesto, não é só um confirmar/desfazer.
  */
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 
 const refConfirmacao = (eventoId, pessoaId) =>
   doc(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoes/${pessoaId}`);
+const cConfirmacoes = (eventoId) =>
+  collection(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoes`);
 
 /** null enquanto não respondeu; senão {resposta, justificativa, ...}. */
 export function ouvirConfirmacao(eventoId, pessoaId, cb) {
@@ -35,6 +37,29 @@ export function ouvirConfirmacoesDoMes(eventos, pessoaId, cb) {
       if (s.exists()) respostas.set(ev.id, s.data());
       else respostas.delete(ev.id);
       cb(new Map(respostas));
+    })
+  );
+  return () => paragens.forEach((p) => p());
+}
+
+/** Contagem de "vai" por culto, para o líder (Escala geral, ver
+ *  Escala.jsx) — ao contrário de ouvirConfirmacoesDoMes (uma pessoa,
+ *  vários cultos), aqui é o inverso: todas as pessoas de um culto só.
+ *  Um listener por culto publicado (a regra só deixa o líder ler
+ *  confirmações de outra pessoa, ver CLAUDE.md desta base — para um
+ *  voluntário comum a subcoleção vem vazia, sem erro). Cultos sem
+ *  escala publicada nem entram — sem confirmação pedida ainda, "0
+ *  confirmados" seria enganoso. */
+export function ouvirContagemConfirmados(eventos, cb) {
+  const alvos = (eventos || []).filter((ev) => ev.escala?.publicado);
+  if (!alvos.length) { cb(new Map()); return () => {}; }
+
+  const contagens = new Map();
+  const paragens = alvos.map((ev) =>
+    onSnapshot(cConfirmacoes(ev.id), (snap) => {
+      const vao = snap.docs.filter((d) => d.data().resposta === "vai").length;
+      contagens.set(ev.id, vao);
+      cb(new Map(contagens));
     })
   );
   return () => paragens.forEach((p) => p());
