@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar } from "../lib/modelo";
-import { ouvirContagemConfirmados } from "../lib/confirmacao";
+import { ouvirConfirmacoesPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
@@ -36,7 +36,7 @@ const ITENS_VAZIOS_REP = [];
  *  está aberto (é `children` do CartaoCulto). `podeEditar` já vem
  *  calculado (líder da base, auxiliar, ou líder de escala deste
  *  culto, ver podeDistribuir). */
-function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAberto, onToggleContacto }) {
+function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, contactoAberto, onToggleContacto }) {
   const torrada = useTorrada();
   const [repertorio, setRepertorio] = useState(null);
   const [tons, setTons] = useState({});
@@ -116,7 +116,12 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
               <LinhaPessoaContacto
                 key={e.pessoaId} pessoa={p}
                 resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
-                tagExtra={evento.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
+                tagExtra={(
+                  <>
+                    {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
+                    {confirmados?.has(e.pessoaId) && <span title="Confirmou presença">👍</span>}
+                  </>
+                )}
                 aberta={contactoAberto === e.pessoaId}
                 onToggle={() => onToggleContacto(e.pessoaId)}
               />
@@ -258,7 +263,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   // ver firestore.rules; nem vale a pena montar o listener sem ser.
   useEffect(() => {
     if (!souLider) { setConfirmados(new Map()); return; }
-    return ouvirContagemConfirmados(eventosMes, setConfirmados);
+    return ouvirConfirmacoesPorCulto(eventosMes, setConfirmados);
   }, [souLider, eventosMes]);
 
   useEffect(() => {
@@ -303,7 +308,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         </span>
         {mostrarConfirmados && ev.escala?.publicado && (
           <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 6 }}>
-            👍 {confirmados.get(ev.id) ?? 0}
+            👍 {confirmados.get(ev.id)?.size ?? 0}
           </span>
         )}
       </>
@@ -330,6 +335,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         <DetalhesCulto
           evento={ev} musicas={musicas} podeEditar={podeDistribuir(papel, uid, ev.escala)}
           pessoaPorId={pessoaPorId}
+          confirmados={mostrarConfirmados ? confirmados.get(ev.id) : null}
           contactoAberto={contactoAberto?.eventoId === ev.id ? contactoAberto.pessoaId : null}
           onToggleContacto={(pessoaId) => setContactoAberto((a) =>
             a?.eventoId === ev.id && a?.pessoaId === pessoaId ? null : { eventoId: ev.id, pessoaId })}
