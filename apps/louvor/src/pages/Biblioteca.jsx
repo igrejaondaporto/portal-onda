@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer } from "../lib/biblioteca";
-import { obterEventosDoMes } from "../lib/painel";
+import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { souLiderOuAuxiliar } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
 import SheetVersaoParaRepertorio from "../components/biblioteca/SheetVersaoParaRepertorio";
+import SheetHistoricoCantor from "../components/biblioteca/SheetHistoricoCantor";
 import IconePlay from "../components/biblioteca/IconePlay";
 
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -54,6 +55,8 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const podeCadastrar = souLider;
   const torrada = useTorrada();
   const [musicas, setMusicas] = useState([]);
+  const [voluntarios, setVoluntarios] = useState([]);
+  const [sheetHistorico, setSheetHistorico] = useState(false);
   const [busca, setBusca] = useState("");
   const [modoOrdem, setModoOrdem] = useState("recentes");
   const [direcao, setDirecao] = useState("desc");
@@ -69,6 +72,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const paginaAtivaRef = useRef(null);
 
   useEffect(() => ouvirMusicas(setMusicas), []);
+  useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => () => audioRef.current?.pause(), []);
 
   // Mantém o número da página atual visível na fileira — sem isto,
@@ -150,6 +154,9 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
 
   return (
     <>
+      <button className="btn sec full" style={{ marginBottom: 10 }} onClick={() => setSheetHistorico(true)}>
+        🕓 Histórico por cantor
+      </button>
       <div className="bib-busca">
         <span aria-hidden="true">🔎</span>
         <input
@@ -265,6 +272,13 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           uid={uid} musica={paraRepertorio} eventoId={proximoEventoId}
           onFechar={() => setParaRepertorio(null)}
           onAdicionada={() => setParaRepertorio(null)}
+        />
+      )}
+      {sheetHistorico && (
+        <SheetHistoricoCantor
+          voluntarios={voluntarios}
+          onFechar={() => setSheetHistorico(false)}
+          onAbrirMusica={(musicaId) => { setSheetHistorico(false); setAbertaId(musicaId); }}
         />
       )}
       <audio ref={audioRef} onEnded={() => setATocarId(null)} style={{ display: "none" }} />
