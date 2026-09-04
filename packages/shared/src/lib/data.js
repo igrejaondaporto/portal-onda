@@ -21,6 +21,16 @@ export function dataCurta(iso) {
   return `${d} ${MESES[Number(m) - 1].slice(0, 3).toLowerCase()}`;
 }
 
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+/** "2026-09-06" → "Dom" — sempre `new Date(ano, mes, dia)` local, nunca
+ *  `new Date(iso)` direto (isso interpreta a string como UTC meia-noite
+ *  e pode devolver o dia de semana errado em fusos negativos). */
+export function diaSemanaAbrev(iso) {
+  const [a, m, d] = iso.split("-").map(Number);
+  return DIAS_SEMANA[new Date(a, m - 1, d).getDay()];
+}
+
 export const hojeISO = () => new Date().toISOString().slice(0, 10);
 
 /** Líder de escala primeiro, depois o resto — sem repetir ninguém. */

@@ -51,6 +51,14 @@
       ]
     },
     {
+      "collectionGroup": "rascunhosEscala",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "atualizadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "eventos",
       "queryScope": "COLLECTION",
       "fields": [
