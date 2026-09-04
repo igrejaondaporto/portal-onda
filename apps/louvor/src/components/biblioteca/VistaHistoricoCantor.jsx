@@ -29,9 +29,13 @@ const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
  * onAbrirMusica recebe a entrada do índice INTEIRA (não só o id) —
  * {musicaId, versaoId, titulo, artista, nomeVersao, tom, historico}
  * (historico já vem agrupado por tom aqui, derivado de usoPorCulto —
- * ver agruparUsoPorCulto) — para quem a usa (Biblioteca.jsx) abrir
- * direto a versão do cantor em SheetVersaoDetalhe, sem precisar de ir
- * buscar nada de novo.
+ * ver agruparUsoPorCulto) — quem a usa (Biblioteca.jsx) só aproveita
+ * musicaId/versaoId/titulo/artista/nomeVersao para abrir direto a
+ * versão do cantor em SheetVersaoDetalhe; tom/historico ficam sem uso
+ * aí, porque SheetVersaoDetalhe já lê a versão ao vivo sozinho (ver
+ * ouvirVersao em lib/biblioteca.js) — copiar esses dois campos aqui
+ * dentro é o que causava "adicionei um tom e ele não aparece na
+ * lista" quando se abria pelo Histórico (bug real, corrigido).
  */
 export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMusica }) {
   const [cantor, setCantor] = useState(null);

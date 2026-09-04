@@ -43,6 +43,19 @@ export function ouvirVersoes(musicaId, cb) {
   return onSnapshot(cVersoes(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+/** Uma versão só, ao vivo — usado por SheetVersaoDetalhe.jsx para
+ *  nunca depender de uma cópia parada passada pelo componente que o
+ *  abriu (a versão dentro de SheetMusicaDetalhe já tinha esse
+ *  problema resolvido lendo de `versoesOrdenadas`; abrir pelo
+ *  Histórico por cantor, em Biblioteca.jsx, não tinha — "+ Adicionar
+ *  tom" gravava certo mas a lista não atualizava). Com isto,
+ *  SheetVersaoDetalhe fica autossuficiente com só musicaId/versaoId,
+ *  ao vivo nos dois sítios de uma vez. */
+export function ouvirVersao(musicaId, versaoId, cb) {
+  if (!musicaId || !versaoId) { cb(null); return () => {}; }
+  return onSnapshot(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), (s) => cb(s.exists() ? { id: s.id, ...s.data() } : null));
+}
+
 /** Leitura pontual do tom de uma versão — para a prévia de repertório
  *  dentro do cartão de Escala (ver Escala.jsx). Não é onSnapshot: o
  *  tom quase nunca muda depois de escolhido, e um card de culto pode
@@ -153,6 +166,26 @@ export function tonsParaMostrar(historico, tomAtual, tonsConhecidos) {
  *  aqui. */
 export const adicionarTomManual = (musicaId, versaoId, tom) =>
   updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { tonsConhecidos: arrayUnion(tom) });
+
+/** "X" ao lado de um tom em SheetVersaoDetalhe.jsx (líder/auxiliar,
+ *  pedido do líder) — apaga esse tom de tonsConhecidos e de todo o
+ *  usoPorCulto (qualquer culto que o tenha usado deixa de contar), e
+ *  limpa o tom ATUAL da versão se for esse (senão tonsParaMostrar
+ *  ia voltar a mostrá-lo sozinho). Leitura + escrita direta do
+ *  cliente, sem transação — ação rara, de um líder/auxiliar de cada
+ *  vez, o mesmo risco que adicionarTomManual acima já aceita. */
+export async function removerTomVersao(musicaId, versaoId, tom) {
+  const ref = doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const dados = snap.data();
+  const atualizacao = {
+    tonsConhecidos: (dados.tonsConhecidos || []).filter((t) => t !== tom),
+    usoPorCulto: Object.fromEntries(Object.entries(dados.usoPorCulto || {}).filter(([, t]) => t !== tom)),
+  };
+  if (dados.tom === tom) atualizacao.tom = "";
+  await updateDoc(ref, atualizacao);
+}
 
 export const novaMusicaId = () => doc(cMusicas()).id;
 
