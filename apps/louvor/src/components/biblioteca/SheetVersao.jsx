@@ -3,7 +3,9 @@ import { criarVersao, guardarVersao, novaVersaoId, registarUsoVersao } from "../
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import GradeTom from "./GradeTom";
 
-export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardado }) {
+const PAPEIS_VOCAL = ["lead", "colead", "back"];
+
+export default function SheetVersao({ uid, musicaId, versao, voluntarios, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [nome, setNome] = useState(versao?.nome ?? "");
   const [tom, setTom] = useState(versao?.tom ?? "");
@@ -12,6 +14,16 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
   const [observacao, setObservacao] = useState(versao?.observacao ?? "");
   const [linkReferencia, setLinkReferencia] = useState(versao?.linkReferencia ?? "");
   const [aGuardar, setAGuardar] = useState(false);
+
+  // Quem canta (pedido do líder: "já coloca sempre a lista de todos
+  // os que cantam") — atalho para preencher o Nome, nunca substitui
+  // o campo livre (versões sem nome de pessoa, tipo "Original" ou
+  // "Acústico", continuam válidas). instrumentos é opcional e só
+  // informativo (ver CLAUDE.md desta base), por isso quem não o
+  // preencheu simplesmente não aparece aqui — nada trava.
+  const cantores = (voluntarios || [])
+    .filter((p) => (p.instrumentos || []).some((i) => PAPEIS_VOCAL.includes(i)))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt"));
 
   async function guardar() {
     if (!nome.trim()) return torrada("Dá um nome à versão (ex.: Onda, Original).");
@@ -46,6 +58,15 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
         <h2>{versao ? "Editar versão" : "Nova versão"}</h2>
         <label className="rot" style={{ marginTop: 12 }}>Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Onda, Original, Acústico…" autoFocus />
+        {cantores.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
+            {cantores.map((p) => (
+              <button key={p.id} type="button" className="bib-chip" data-on={nome === p.nome ? 1 : 0} onClick={() => setNome(p.nome)}>
+                {p.nome}
+              </button>
+            ))}
+          </div>
+        )}
         <label className="rot">Tom</label>
         <GradeTom valor={tom} onEscolher={setTom} />
         <label className="rot">BPM</label>

@@ -629,3 +629,10 @@
 .rep-steppers button:disabled {
   opacity: 0.35;
 }
+/* Botão de referência (link) de cada versão, dentro de
+ * SheetMusicaDetalhe — símbolo do Youtube com fundo vermelho claro
+ * (pedido do líder, era um 🔗 genérico). */
+.link-youtube {
+  background: #fde3e2;
+  color: #e0201b;
+}

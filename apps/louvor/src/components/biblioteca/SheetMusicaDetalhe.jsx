@@ -4,6 +4,7 @@ import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
 import SheetVersaoDetalhe from "./SheetVersaoDetalhe";
+import IconeYoutube from "./IconeYoutube";
 
 const LINKS = [
   ["letra", "Letra"],
@@ -46,7 +47,7 @@ function IconeLinkExterno() {
   );
 }
 
-export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onFechar, onAdicionarRepertorio }) {
+export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, voluntarios, onFechar, onAdicionarRepertorio }) {
   const torrada = useTorrada();
   const [sheetVersao, setSheetVersao] = useState(null); // { versaoId } | { novo: true } | null
   const [versaoDetalheId, setVersaoDetalheId] = useState(null); // id, nunca a versão em si — ver versoesOrdenadas.find abaixo
@@ -145,10 +146,10 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
               )}
               {v.linkReferencia && (
                 <a
-                  className="lapis" href={v.linkReferencia} target="_blank" rel="noreferrer"
+                  className="lapis link-youtube" href={v.linkReferencia} target="_blank" rel="noreferrer"
                   onClick={(e) => e.stopPropagation()} aria-label="Abrir referência deste tom" title="Referência deste tom"
                 >
-                  🔗
+                  <IconeYoutube />
                 </a>
               )}
               <button className="lapis" onClick={(e) => { e.stopPropagation(); setSheetVersao({ versaoId: v.id }); }}>✎</button>
@@ -226,7 +227,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
 
       {sheetVersao && (
         <SheetVersao
-          uid={uid} musicaId={musica.id}
+          uid={uid} musicaId={musica.id} voluntarios={voluntarios}
           versao={sheetVersao.versaoId ? versoes.find((v) => v.id === sheetVersao.versaoId) : null}
           onFechar={() => setSheetVersao(null)}
           onGuardado={(msg) => { setSheetVersao(null); torrada(msg); }}
@@ -236,9 +237,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
         <SheetVersaoDetalhe
           musicaId={musica.id} versaoId={versaoDetalhe.id}
           titulo={musica.titulo} artista={musica.artista}
-          nomeVersao={versaoDetalhe.nome} tom={versaoDetalhe.tom}
-          historico={agruparUsoPorCulto(versaoDetalhe.usoPorCulto)}
-          tonsConhecidos={versaoDetalhe.tonsConhecidos}
+          nomeVersao={versaoDetalhe.nome} podeExcluirTom={souLider}
           onFechar={() => setVersaoDetalheId(null)}
         />
       )}

@@ -174,8 +174,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           <SheetVersaoDetalhe
             musicaId={versaoDetalheHistorico.musicaId} versaoId={versaoDetalheHistorico.versaoId}
             titulo={versaoDetalheHistorico.titulo} artista={versaoDetalheHistorico.artista}
-            nomeVersao={versaoDetalheHistorico.nomeVersao} tom={versaoDetalheHistorico.tom}
-            historico={versaoDetalheHistorico.historico}
+            nomeVersao={versaoDetalheHistorico.nomeVersao} podeExcluirTom={souLider}
             onFechar={() => setVersaoDetalheHistorico(null)}
             onVerMusicaCompleta={() => {
               setAbertaId(versaoDetalheHistorico.musicaId);
@@ -301,7 +300,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       />
       {musicaAberta && (
         <SheetMusicaDetalhe
-          uid={uid} souLider={souLider}
+          uid={uid} souLider={souLider} voluntarios={voluntarios}
           musica={musicaAberta} versoes={versoesAberta}
           onFechar={() => setAbertaId(null)}
           onAdicionarRepertorio={() => { setAbertaId(null); setParaRepertorio(musicaAberta); }}

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import { adicionarTomManual, tonsParaMostrar } from "../../lib/biblioteca";
+import { adicionarTomManual, agruparUsoPorCulto, ouvirVersao, removerTomVersao, tonsParaMostrar } from "../../lib/biblioteca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import GradeTom from "./GradeTom";
 
@@ -15,18 +15,32 @@ import GradeTom from "./GradeTom";
  * as versões, mas com "Ver música completa" como saída para quem
  * quiser lá chegar mesmo assim (pedido do líder).
  *
+ * Ao vivo pelo próprio musicaId/versaoId (ouvirVersao), nunca por
+ * tom/historico/tonsConhecidos vindos de fora — os dois sítios que
+ * abrem isto passavam uma cópia parada em momentos diferentes, e
+ * "+ Adicionar tom" gravava certo no Firestore mas a lista não
+ * atualizava sozinha (bug real, reportado pelo líder no caminho do
+ * Histórico). Assim fica certo nos dois de uma vez, sem precisar de
+ * fix por chamador.
+ *
  * "+ Adicionar tom" (pedido do líder) grava em tonsConhecidos — um
  * tom declarado à mão, sem culto nenhum ligado — mostrado junto com
  * os tons que vêm de `historico` (derivados de usoPorCulto, esses
- * sim com datas reais), com "sem culto ainda" para os manuais.
+ * sim com datas reais), com "sem culto ainda" para os manuais. O X
+ * ao lado de cada tom (só líder/auxiliar, `podeExcluirTom`) apaga o
+ * tom de tonsConhecidos e de usoPorCulto — ver removerTomVersao.
  */
-export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista, nomeVersao, tom, historico, tonsConhecidos, onFechar, onVerMusicaCompleta }) {
+export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista, nomeVersao, podeExcluirTom, onFechar, onVerMusicaCompleta }) {
   const torrada = useTorrada();
+  const [versao, setVersao] = useState(null);
   const [aAdicionarTom, setAAdicionarTom] = useState(false);
   const [novoTom, setNovoTom] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
+  const [aExcluirTom, setAExcluirTom] = useState(null); // tom em exclusão, ou null
 
-  const linhas = tonsParaMostrar(historico, tom, tonsConhecidos)
+  useEffect(() => ouvirVersao(musicaId, versaoId, setVersao), [musicaId, versaoId]);
+
+  const linhas = tonsParaMostrar(agruparUsoPorCulto(versao?.usoPorCulto), versao?.tom, versao?.tonsConhecidos)
     .sort((a, b) => (b.datas?.length || 0) - (a.datas?.length || 0));
 
   async function guardarNovoTom() {
@@ -44,6 +58,18 @@ export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista
     }
   }
 
+  async function excluirTom(tom) {
+    setAExcluirTom(tom);
+    try {
+      await removerTomVersao(musicaId, versaoId, tom);
+      torrada("Tom excluído");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir o tom.");
+    } finally {
+      setAExcluirTom(null);
+    }
+  }
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -51,7 +77,7 @@ export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista
         <div className="pux" />
         <h2 style={{ textAlign: "center" }}>{nomeVersao}</h2>
         <p className="sb2" style={{ textAlign: "center" }}>{titulo}{artista ? ` · ${artista}` : ""}</p>
-        {tom && <p className="ds" style={{ textAlign: "center", marginTop: 4 }}>Tom atual: {tom}</p>}
+        {versao?.tom && <p className="ds" style={{ textAlign: "center", marginTop: 4 }}>Tom atual: {versao.tom}</p>}
 
         <div className="sect">
           <div className="cabecalho"><h3>Tons já usados</h3></div>
@@ -67,6 +93,15 @@ export default function SheetVersaoDetalhe({ musicaId, versaoId, titulo, artista
                 </p>
               </div>
               <span className="tag cinz">{(h.datas || []).length}×</span>
+              {podeExcluirTom && (
+                <button
+                  className="lapis" style={{ background: "var(--magenta)" }}
+                  disabled={aExcluirTom === h.tom} onClick={() => excluirTom(h.tom)}
+                  aria-label={`Excluir tom ${h.tom}`} title="Excluir este tom"
+                >
+                  {aExcluirTom === h.tom ? "…" : "✕"}
+                </button>
+              )}
             </div>
           ))}
 
