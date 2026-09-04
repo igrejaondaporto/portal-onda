@@ -2149,10 +2149,16 @@ export const criarCultoEspecial = onCall(async (req) => {
 });
 
 /* ── EXCLUIR CULTO ESPECIAL ────────────────────────────────
- * Nada é apagado, é desativado (ver CLAUDE.md) — o evento fica
- * `ativo:false` e some das listagens, mas a escala/ordem já gravadas
- * continuam no histórico. Só cultos especiais (fora dos domingos):
- * os domingos são geridos por `gerarDomingos`, nunca à mão. */
+ * Ao contrário do resto do app (ver CLAUDE.md, "nada é apagado"), um
+ * culto especial excluído é apagado a sério (pedido do líder,
+ * 2026-09) — o id do documento é a própria data (`eventos/{data}`),
+ * então um `ativo:false` deixava a data "presa" para sempre: recriar
+ * um culto especial no mesmo dia batia sempre no `already-exists` de
+ * criarCultoEspecial, mostrando um erro sobre um culto que já não
+ * devia contar. Como isto só existe para cultos especiais (nunca
+ * domingos, geridos por gerarDomingos) e o líder já confirmou a
+ * exclusão explicitamente, arrasta também a própria subcoleção de
+ * escala/confirmações desta base para não deixar lixo órfão. */
 export const excluirCultoEspecial = onCall(async (req) => {
   const baseId = exigeLider(req);
   const { eventoId } = req.data || {};
@@ -2170,7 +2176,13 @@ export const excluirCultoEspecial = onCall(async (req) => {
     throw new HttpsError("permission-denied", "Este culto é de outra base.");
   }
 
-  await ref.set({ ativo: false }, { merge: true });
+  const refEscala = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const confirmacoesSnap = await refEscala.collection("confirmacoes").listDocuments();
+  const lote = db.batch();
+  confirmacoesSnap.forEach((d) => lote.delete(d));
+  lote.delete(refEscala);
+  lote.delete(ref);
+  await lote.commit();
   return { ok: true };
 });
 
