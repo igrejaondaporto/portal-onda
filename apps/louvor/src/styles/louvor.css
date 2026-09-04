@@ -14,6 +14,17 @@
   max-height: 70vh;
 }
 
+/* ── Painel do líder — Voluntários em cartão expansível (portado de
+ * apps/tecnica/src/styles/tecnica.css, .tec-cartao/-corpo renomeadas
+ * lv-cartao/-corpo; pedido do líder, 2026-09 — a lista já não abre
+ * sempre, o painel é para administrar de vez em quando). ── */
+.lv-cartao {
+  margin-top: 18px;
+}
+.lv-cartao-corpo {
+  padding: 0 12px 10px;
+}
+
 /* ── Equipamentos (portado de apps/tecnica/src/styles/tecnica.css,
  * classes tec-* renomeadas lv-*; .mincartao/.cabtoque/.cartaomelh/
  * .quadmin/etc. já vêm do global.css partilhado) ── */

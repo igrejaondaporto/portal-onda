@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { ouvirIndiceCantor, agruparUsoPorCulto } from "../../lib/biblioteca";
+import { ouvirIndiceCantor, agruparUsoPorCulto, tonsParaMostrar } from "../../lib/biblioteca";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
+
+const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
  * Histórico por cantor — vista cheia dentro de Biblioteca, não um
@@ -35,6 +37,7 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
   const [cantor, setCantor] = useState(null);
   const [vista, setVista] = useState("musica"); // "musica" | "culto"
   const [indice, setIndice] = useState(null);
+  const [busca, setBusca] = useState("");
 
   useEffect(() => {
     if (!cantor) { setIndice(null); return; }
@@ -42,9 +45,14 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cantor?.id]);
 
+  useEffect(() => { setBusca(""); }, [cantor?.id]);
+
   const musicas = [...(indice?.musicas || [])]
-    .map((m) => ({ ...m, historico: agruparUsoPorCulto(m.usoPorCulto) }))
+    .map((m) => ({ ...m, historico: tonsParaMostrar(agruparUsoPorCulto(m.usoPorCulto), m.tom) }))
     .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt"));
+  const musicasFiltradas = busca.trim()
+    ? musicas.filter((m) => norm(m.titulo).includes(norm(busca)) || norm(m.artista).includes(norm(busca)))
+    : musicas;
 
   // Cada entrada carrega tudo o que SheetVersaoDetalhe precisa
   // (titulo/artista/nomeVersao/tom/historico) — abrir uma música por
@@ -95,13 +103,24 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
 
           {vista === "musica" ? (
             <>
-              <label className="rot" style={{ marginTop: 12 }}>
-                {musicas.length ? `${musicas.length} ${musicas.length === 1 ? "versão" : "versões"}` : "Ainda nenhuma versão"}
-              </label>
+              {musicas.length > 0 && (
+                <div className="bib-busca" style={{ marginTop: 10 }}>
+                  <span aria-hidden="true">🔎</span>
+                  <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Título ou artista" />
+                </div>
+              )}
+              {!!musicas.length && (
+                <label className="rot" style={{ marginTop: 12 }}>
+                  {musicasFiltradas.length} {musicasFiltradas.length === 1 ? "versão" : "versões"}
+                </label>
+              )}
               {!musicas.length && (
                 <div className="vaz">Ainda não há nada no histórico de {cantor.nome.split(" ")[0]}.</div>
               )}
-              {musicas.map((m) => (
+              {!musicasFiltradas.length && musicas.length > 0 && (
+                <div className="vaz">Nenhuma música encontrada para "{busca}".</div>
+              )}
+              {musicasFiltradas.map((m) => (
                 <div className="linha" style={{ cursor: "pointer" }} key={`${m.musicaId}-${m.versaoId}`} onClick={() => onAbrirMusica(m)}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p className="nmt">{m.titulo}</p>

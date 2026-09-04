@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES, agruparUsoPorCulto } from "../../lib/biblioteca";
+import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES, agruparUsoPorCulto, tonsParaMostrar } from "../../lib/biblioteca";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
@@ -118,7 +118,7 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
         <div className="sect">
           <div className="cabecalho"><h3>Versões</h3></div>
           {versoesOrdenadas.map((v) => {
-            const historicoV = agruparUsoPorCulto(v.usoPorCulto);
+            const historicoV = tonsParaMostrar(agruparUsoPorCulto(v.usoPorCulto), v.tom, v.tonsConhecidos);
             return (
             <div className="linha" key={v.id} style={{ cursor: "pointer" }} onClick={() => setVersaoDetalheId(v.id)}>
               <div style={{ flex: 1 }}>
