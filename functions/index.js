@@ -1194,8 +1194,12 @@ export const registarUsoVersaoLouvor = onCall(async (req) => {
   ]);
   if (!versaoSnap.exists) return { registado: false };
   const nomeVersao = (versaoSnap.data().nome || "").trim();
+  // Sem tom ainda conta como uso — o líder pediu que a música entre
+  // no Histórico do cantor já ao ser adicionada ao repertório, mesmo
+  // antes de o tom ser escolhido (ver GradeTom/SheetEditarTom, que
+  // chama isto de novo assim que o tom for definido, sobrescrevendo
+  // esta entrada com o tom a valer).
   const tom = versaoSnap.data().tom || null;
-  if (!tom) return { registado: false };
 
   const pessoas = await pessoasParaAtribuir(baseId, nomeVersao, eventoId);
   if (!pessoas.size) return { registado: false };
