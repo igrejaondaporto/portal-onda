@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, enqueteDispensada, dispensarEnquete } from "../lib/enquetes";
 import SheetResponderEnquete from "./SheetResponderEnquete";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
@@ -11,15 +11,20 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
  *  voltar a entrar. Bloqueante — ver bloqueante em
  *  SheetResponderEnquete. Fecha sozinho ao guardar: ouvirMinhaResposta
  *  atualiza `respostas` e `pendentes` esvazia. "Não sei ainda" fecha
- *  sem gravar — `dispensadas` é só local (não Firestore, de
- *  propósito: é "agora não", não uma resposta) — a pessoa continua a
- *  ver o balão fixo no Início (ver Inicio.jsx) até ao prazo. */
+ *  sem gravar resposta — dispensarEnquete grava no localStorage (não
+ *  é voto, é só "agora não"), por isso sobrevive a recarregar a
+ *  página; a pessoa continua a ver o balão fixo no Início (ver
+ *  Inicio.jsx) até ao prazo. */
 export default function EnqueteAutoStart({ uid }) {
   const torrada = useTorrada();
   const [enquetes, setEnquetes] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [eventosPorId, setEventosPorId] = useState({});
-  const [dispensadas, setDispensadas] = useState(() => new Set());
+  // localStorage não é reativo — este "forceUpdate" força reavaliar
+  // `pendentes` (que lê enqueteDispensada a cada render) assim que
+  // "Não sei ainda" grava uma dispensa nova. Valor em si nunca lido —
+  // só o `set` importa, por isso fica sem nome (padrão comum do React).
+  const [, forcarAtualizacao] = useState(0);
 
   useEffect(() => {
     if (!uid) return;
@@ -40,7 +45,7 @@ export default function EnqueteAutoStart({ uid }) {
     obterEventosPorIds(todosIds).then(setEventosPorId);
   }, [enquetes]);
 
-  const pendentes = enquetes.filter((e) => !respostas[e.id] && !dispensadas.has(e.id));
+  const pendentes = enquetes.filter((e) => !respostas[e.id] && !enqueteDispensada(e.id));
   if (!pendentes.length) return null;
 
   return (
@@ -50,7 +55,10 @@ export default function EnqueteAutoStart({ uid }) {
       eventosPorId={eventosPorId}
       minhasRespostas={respostas}
       onGuardado={(msg) => torrada(msg)}
-      onNaoSeiAinda={() => setDispensadas((s) => new Set([...s, ...pendentes.map((e) => e.id)]))}
+      onNaoSeiAinda={() => {
+        pendentes.forEach((e) => dispensarEnquete(e.id));
+        forcarAtualizacao((v) => v + 1);
+      }}
     />
   );
 }

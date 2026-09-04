@@ -42,6 +42,8 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
   const [enfase, setEnfase] = useState("");
   const [cores, setCores] = useState([]);
   const [dataEnsaio, setDataEnsaio] = useState("");
+  const [horaEnsaio, setHoraEnsaio] = useState("");
+  const [localEnsaio, setLocalEnsaio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
 
@@ -61,12 +63,15 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
   }, [itensRep]);
 
   const coresAtuais = evento.escala.coresRoupa || [];
-  const temDetalhes = coresAtuais.length > 0 || !!evento.escala.dataEnsaio || !!evento.escala.observacaoLider;
+  const temDetalhes = coresAtuais.length > 0 || !!evento.escala.dataEnsaio || !!evento.escala.horaEnsaio
+    || !!evento.escala.localEnsaio || !!evento.escala.observacaoLider;
 
   function abrirEdicao() {
     setEnfase(evento.escala.enfase || enfaseDefault(evento.data));
     setCores(coresAtuais);
     setDataEnsaio(evento.escala.dataEnsaio || "");
+    setHoraEnsaio(evento.escala.horaEnsaio || "");
+    setLocalEnsaio(evento.escala.localEnsaio || "");
     setObservacao(evento.escala.observacaoLider || "");
     setAEditar(true);
   }
@@ -85,7 +90,8 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
     setAGuardar(true);
     try {
       await definirDetalhesCultoLouvor(evento.id, {
-        enfase, coresRoupa: cores, dataEnsaio: dataEnsaio || null, observacao,
+        enfase, coresRoupa: cores, dataEnsaio: dataEnsaio || null,
+        horaEnsaio: horaEnsaio || null, localEnsaio, observacao,
       });
       setAEditar(false);
       torrada("Detalhes do culto atualizados");
@@ -163,8 +169,13 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
 
       {(evento.escala.dataEnsaio || podeEditar) && (
         <div className="caixinha ensaio">
-          <p className="caixinha-titulo">🏋️ <b>Ensaio</b></p>
-          <p className="ds">{evento.escala.dataEnsaio ? dataPorExtenso(evento.escala.dataEnsaio) : "Ainda não marcado"}</p>
+          <p className="caixinha-titulo">
+            🏋️ <b>Ensaio</b>
+            {evento.escala.dataEnsaio && ` - ${dataPorExtenso(evento.escala.dataEnsaio)}`}
+            {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
+          </p>
+          {evento.escala.localEnsaio && <p className="ds">📍 {evento.escala.localEnsaio}</p>}
+          {!evento.escala.dataEnsaio && <p className="ds">Ainda não marcado</p>}
           <CalendarioSemanal domingoISO={evento.data} ensaioISO={evento.escala.dataEnsaio} />
         </div>
       )}
@@ -208,6 +219,13 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
           <CalendarioSemanal
             domingoISO={evento.data} ensaioISO={dataEnsaio}
             onSelecionar={(iso) => setDataEnsaio((atual) => (atual === iso ? "" : iso))}
+          />
+          <label className="rot" style={{ marginTop: 12 }}>⏰ Hora do ensaio</label>
+          <input className="campo" type="time" value={horaEnsaio} onChange={(e) => setHoraEnsaio(e.target.value)} />
+          <label className="rot" style={{ marginTop: 12 }}>📍 Local do ensaio</label>
+          <input
+            className="campo" value={localEnsaio} onChange={(e) => setLocalEnsaio(e.target.value)}
+            placeholder="Casa do Povo, sala de ensaio…"
           />
           <label className="rot" style={{ marginTop: 12 }}>Observação</label>
           <textarea
@@ -255,7 +273,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
 
   const temEscala = eventosMes.some((e) => (e.escala.escalados || []).length > 0);
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
-  const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
   const hoje = hojeISO();
   const eventosMeus = eventosMes.filter((ev) => (ev.escala.pessoas || []).includes(uid));
 
@@ -409,7 +426,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
           </div>
         </>
       )}
-      <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
     </>
   );
 }
