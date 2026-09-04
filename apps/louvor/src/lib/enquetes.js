@@ -72,10 +72,22 @@ export function ouvirMinhaResposta(mes, uid, cb) {
 
 /** enquete.domingos são só ids de eventos/{id} — os cultos são
  *  globais, não moram na base, por isso é preciso buscá-los à parte. */
+/** Junta o evento global (data/tipo) com dataEnsaio/horaEnsaio/
+ *  localEnsaio, que o líder já define em Escala.jsx/DetalhesCulto
+ *  (definirDetalhesCultoLouvor) e vivem em `eventos/{id}/escalas/
+ *  louvor`, não no documento global — é o que SheetResponderEnquete
+ *  usa para saber se mostra a pergunta do ensaio (pedido do líder,
+ *  2026-09: votar indisponibilidade de culto já existia, faltava o
+ *  ensaio da mesma semana). */
 export async function obterEventosPorIds(ids) {
   const pares = await Promise.all(ids.map(async (id) => {
-    const s = await getDoc(doc(db, `eventos/${id}`));
-    return [id, s.exists() ? { id, ...s.data() } : { id, data: id }];
+    const [s, escalaSnap] = await Promise.all([
+      getDoc(doc(db, `eventos/${id}`)),
+      getDoc(doc(db, `eventos/${id}/escalas/${BASE_ID}`)),
+    ]);
+    const base = s.exists() ? { id, ...s.data() } : { id, data: id };
+    const { dataEnsaio, horaEnsaio, localEnsaio } = escalaSnap.exists() ? escalaSnap.data() : {};
+    return [id, { ...base, dataEnsaio: dataEnsaio || null, horaEnsaio: horaEnsaio || null, localEnsaio: localEnsaio || null }];
   }));
   return Object.fromEntries(pares);
 }
