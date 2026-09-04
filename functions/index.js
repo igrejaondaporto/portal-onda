@@ -1142,9 +1142,10 @@ export const registarHistoricoCantorLouvor = onCall(async (req) => {
   const { eventoId, musicaId, versaoId } = req.data || {};
   if (!eventoId || !musicaId || !versaoId) throw new HttpsError("invalid-argument", "Faltam dados.");
 
-  const [escalaSnap, versaoSnap] = await Promise.all([
+  const [escalaSnap, versaoSnap, musicaSnap] = await Promise.all([
     db.doc(`eventos/${eventoId}/escalas/${baseId}`).get(),
     db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).get(),
+    db.doc(`bases/${baseId}/musicas/${musicaId}`).get(),
   ]);
   if (!escalaSnap.exists) return { registado: false };
   const lead = (escalaSnap.data().escalados || []).find((e) => e.papel === "lead");
@@ -1154,18 +1155,37 @@ export const registarHistoricoCantorLouvor = onCall(async (req) => {
 
   const pessoaSnap = await db.doc(`bases/${baseId}/pessoas/${lead.pessoaId}`).get();
   const nome = pessoaSnap.exists ? pessoaSnap.data().nome : "—";
+  const tituloMusica = musicaSnap.exists ? musicaSnap.data().titulo : "—";
+  const artistaMusica = musicaSnap.exists ? musicaSnap.data().artista || "" : "";
 
-  const ref = db.doc(`bases/${baseId}/musicas/${musicaId}/historicoCantores/${lead.pessoaId}`);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const toms = snap.exists ? [...(snap.data().toms || [])] : [];
+  const refHistorico = db.doc(`bases/${baseId}/musicas/${musicaId}/historicoCantores/${lead.pessoaId}`);
+  // índice invertido (por cantor, todas as músicas) — evita uma
+  // collectionGroup query só para "todas as músicas que este cantor já
+  // cantou" (pedido do líder, ver Biblioteca.jsx). Atualizado na MESMA
+  // transação que historicoCantores, nunca desalinha: um doc por
+  // pessoa, um `get()` simples para ler, sem índice novo nenhum.
+  const refIndice = db.doc(`bases/${baseId}/indiceCantores/${lead.pessoaId}`);
+
+  function tomsAtualizados(tomsAntigos) {
+    const toms = [...(tomsAntigos || [])];
     const i = toms.findIndex((t) => t.tom === tom);
-    if (i === -1) {
-      toms.push({ tom, vezes: 1, primeiraVez: eventoId, ultimaVez: eventoId });
-    } else {
-      toms[i] = { ...toms[i], vezes: (toms[i].vezes || 0) + 1, ultimaVez: eventoId };
-    }
-    tx.set(ref, { nome, toms }, { merge: true });
+    if (i === -1) toms.push({ tom, vezes: 1, primeiraVez: eventoId, ultimaVez: eventoId });
+    else toms[i] = { ...toms[i], vezes: (toms[i].vezes || 0) + 1, ultimaVez: eventoId };
+    return toms;
+  }
+
+  await db.runTransaction(async (tx) => {
+    const [historicoSnap, indiceSnap] = await Promise.all([tx.get(refHistorico), tx.get(refIndice)]);
+
+    const toms = tomsAtualizados(historicoSnap.exists ? historicoSnap.data().toms : null);
+    tx.set(refHistorico, { nome, toms }, { merge: true });
+
+    const musicasIndice = indiceSnap.exists ? [...(indiceSnap.data().musicas || [])] : [];
+    const j = musicasIndice.findIndex((m) => m.musicaId === musicaId);
+    const entrada = { musicaId, titulo: tituloMusica, artista: artistaMusica, toms };
+    if (j === -1) musicasIndice.push(entrada);
+    else musicasIndice[j] = entrada;
+    tx.set(refIndice, { nome, musicas: musicasIndice }, { merge: true });
   });
   return { registado: true };
 });

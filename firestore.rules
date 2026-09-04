@@ -273,6 +273,17 @@ service cloud.firestore {
         }
       }
 
+      // ── índice invertido do histórico de tons, por cantor (Base
+      // Louvor) — um documento por pessoa com todas as músicas que já
+      // cantou, para "todas as músicas que este cantor já cantou" sem
+      // collectionGroup query nenhuma (ver Biblioteca.jsx). Escrito
+      // na mesma transação de historicoCantores, por
+      // registarHistoricoCantorLouvor — nunca desalinha. ──
+      match /indiceCantores/{cantor} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+      }
+
       // ── repertório do domingo (Base Louvor) — um por culto, sem
       // rascunho: fica visível para a projeção assim que existe (a
       // Técnica lê para a tela, ver CLAUDE.md da Louvor). Escrita só
