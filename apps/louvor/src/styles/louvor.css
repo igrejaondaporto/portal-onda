@@ -433,6 +433,12 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* Música ainda sem tom escolhido (pedido do líder, 2026-09) — vermelho
+ * para saltar aos olhos no repertório, não só "Tom" em cinza neutro. */
+.rep-tom.sem-tom {
+  background: var(--magenta);
+  color: #fff;
+}
 .rep-remover {
   border: 0;
   background: none;

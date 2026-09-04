@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir } from "../lib/modelo";
+import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar } from "../lib/modelo";
+import { ouvirContagemConfirmados } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
@@ -244,12 +245,21 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const [abertos, setAbertos] = useState({});
   const [contactoAberto, setContactoAberto] = useState(null);
   const [aba, setAba] = useState("minhas");
+  const [confirmados, setConfirmados] = useState(() => new Map());
   const refsEventos = useRef({});
+  const souLider = souLiderOuAuxiliar(papel);
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirBase(setBase), []);
+  // Só o líder/auxiliar vê "quem confirmou" (Escala geral, pedido do
+  // líder) — as regras só deixam ler confirmação alheia sendo líder,
+  // ver firestore.rules; nem vale a pena montar o listener sem ser.
+  useEffect(() => {
+    if (!souLider) { setConfirmados(new Map()); return; }
+    return ouvirContagemConfirmados(eventosMes, setConfirmados);
+  }, [souLider, eventosMes]);
 
   useEffect(() => {
     if (!eventoIdFoco || !eventosMes.length) return;
@@ -281,7 +291,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
 
   const escaladosDoPapel = (ev, papelId) => (ev.escala.escalados || []).filter((e) => e.papel === papelId);
 
-  function etiquetaEnfase(ev) {
+  function etiquetaEnfase(ev, mostrarConfirmados) {
     const id = ev.tipoCulto || tipoCultoDefault(ev.data);
     return (
       <>
@@ -291,18 +301,23 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 6 }}>
           {nomeTipoCulto(id)}
         </span>
+        {mostrarConfirmados && ev.escala?.publicado && (
+          <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 6 }}>
+            👍 {confirmados.get(ev.id) ?? 0}
+          </span>
+        )}
       </>
     );
   }
 
-  function CartaoDoCulto({ ev }) {
+  function CartaoDoCulto({ ev, mostrarConfirmados }) {
     const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
     const aberto = !!abertos[ev.id];
     return (
       <CartaoCulto
         evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
         realcado={realcado === ev.id}
-        etiqueta={etiquetaEnfase(ev)}
+        etiqueta={etiquetaEnfase(ev, mostrarConfirmados)}
         refCartao={(el) => { refsEventos.current[ev.id] = el; }}
         onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
         resumo={souEuNoCulto ? "Serves" : `${(ev.escala.pessoas || []).length} pessoas`}
@@ -415,7 +430,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
           </div>
 
           <div className="sect">
-            {eventosMes.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} />)}
+            {eventosMes.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} mostrarConfirmados={souLider} />)}
           </div>
         </>
       )}

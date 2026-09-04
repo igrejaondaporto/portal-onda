@@ -131,7 +131,12 @@ export const desfazerUsoVersao = (dados) =>
 export function agruparUsoPorCulto(usoPorCulto) {
   const porTom = {};
   Object.entries(usoPorCulto || {}).forEach(([eventoId, tom]) => {
-    (porTom[tom] ??= []).push(eventoId);
+    // `tom` pode vir null (música adicionada ao repertório antes de
+    // escolher o tom, ver registarUsoVersaoLouvor) — `porTom[null]`
+    // criava a chave literal "null" (JS coage a chave de objeto para
+    // string), que ia parar ao ecrã. "" normaliza para o mesmo
+    // tratamento que tonsParaMostrar/UI já dão a "sem tom".
+    (porTom[tom || ""] ??= []).push(eventoId);
   });
   return Object.entries(porTom).map(([tom, datas]) => ({ tom, datas: datas.sort().reverse() }));
 }

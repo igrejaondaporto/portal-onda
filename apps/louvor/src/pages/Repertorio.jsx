@@ -92,7 +92,7 @@ function ItemRepertorio({
           <p className="ds">{m?.artista ?? ""}</p>
           <div className="rep-item-acoes">
             <button
-              className="rep-tom" onClick={(e) => { e.stopPropagation(); onEditarTom(item, m); }}
+              className={`rep-tom${tom ? "" : " sem-tom"}`} onClick={(e) => { e.stopPropagation(); onEditarTom(item, m); }}
               aria-label="Trocar o tom"
             >
               {tom || "Tom"}

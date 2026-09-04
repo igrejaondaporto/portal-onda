@@ -133,7 +133,7 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 150 }}>
                     {(m.historico || []).length
                       ? m.historico.map((h) => (
-                          <span key={h.tom} className="tag cinz">{h.tom} · {(h.datas || []).length}×</span>
+                          <span key={h.tom || "sem-tom"} className="tag cinz">{h.tom || "sem tom"} · {(h.datas || []).length}×</span>
                         ))
                       : <span className="ds">sem uso ainda</span>}
                   </div>
@@ -152,7 +152,7 @@ export default function VistaHistoricoCantor({ voluntarios, onVoltar, onAbrirMus
                     <p className="nmt">{dataPorExtenso(eventoId)}</p>
                     {itens.map((it, i) => (
                       <p key={i} className="ds" style={{ cursor: "pointer" }} onClick={() => onAbrirMusica(it)}>
-                        {it.titulo} · tom {it.tom}
+                        {it.titulo} · tom {it.tom || "por definir"}
                       </p>
                     ))}
                   </div>
