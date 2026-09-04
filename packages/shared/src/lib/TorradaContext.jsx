@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { acabouDeAtualizar } from "./pwa.js";
+import { acabouDeAtualizar } from "./avisoAtualizacao.js";
 
 const Ctx = createContext(() => {});
 
