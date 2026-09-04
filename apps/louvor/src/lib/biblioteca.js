@@ -144,6 +144,11 @@ export async function criarVersao(musicaId, id, dados) {
     bpm: dados.bpm || null,
     duracao: dados.duracao || null,
     observacao: dados.observacao?.trim() || "",
+    // referência (Cifra Club, áudio…) que sustenta ESTE tom — não é o
+    // que a Técnica lê (isso continua a vir só de musicas.links, ver
+    // CLAUDE.md desta base), é só apoio pra quem vai cantar escolher
+    // o tom com uma referência à mão.
+    linkReferencia: dados.linkReferencia?.trim() || "",
     fonteTom: dados.fonteTom || "manual",
     fonteBpm: dados.fonteBpm || "manual",
     criadoPor: dados.criadoPor,

@@ -153,6 +153,14 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, onF
                   Marcar padrão
                 </button>
               )}
+              {v.linkReferencia && (
+                <a
+                  className="lapis" href={v.linkReferencia} target="_blank" rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()} aria-label="Abrir referência deste tom" title="Referência deste tom"
+                >
+                  🔗
+                </a>
+              )}
               <button className="lapis" onClick={() => setSheetVersao({ versaoId: v.id })}>✎</button>
             </div>
           ))}

@@ -10,13 +10,14 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
   const [bpm, setBpm] = useState(versao?.bpm ?? "");
   const [duracao, setDuracao] = useState(versao?.duracao ?? "");
   const [observacao, setObservacao] = useState(versao?.observacao ?? "");
+  const [linkReferencia, setLinkReferencia] = useState(versao?.linkReferencia ?? "");
   const [aGuardar, setAGuardar] = useState(false);
 
   async function guardar() {
     if (!nome.trim()) return torrada("Dá um nome à versão (ex.: Onda, Original).");
     setAGuardar(true);
     try {
-      const dados = { nome, tom, bpm: bpm ? Number(bpm) : null, duracao: duracao ? Number(duracao) : null, observacao };
+      const dados = { nome, tom, bpm: bpm ? Number(bpm) : null, duracao: duracao ? Number(duracao) : null, observacao, linkReferencia };
       if (versao) {
         await guardarVersao(musicaId, versao.id, dados);
       } else {
@@ -46,6 +47,11 @@ export default function SheetVersao({ uid, musicaId, versao, onFechar, onGuardad
         <input className="campo" inputMode="numeric" value={duracao} onChange={(e) => setDuracao(e.target.value)} placeholder="310" />
         <label className="rot">Observação</label>
         <input className="campo" value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Entra só com teclado…" />
+        <label className="rot">Link de referência deste tom (opcional)</label>
+        <input
+          className="campo" value={linkReferencia} onChange={(e) => setLinkReferencia(e.target.value)}
+          placeholder="Cifra Club, áudio… já neste tom"
+        />
         <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar} onClick={guardar}>
           {aGuardar ? "A guardar…" : "Guardar"}
         </button>
