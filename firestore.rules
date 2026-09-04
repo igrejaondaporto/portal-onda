@@ -262,23 +262,16 @@ service cloud.firestore {
           allow create, update: if minhaBase(base);
           allow delete:        if false;
         }
-        // ── histórico de tons por cantor (Base Louvor) — quem já
-        // cantou cada música e em que tom(ns), só o Lead do culto
-        // conta. Escrito só pela Cloud Function
-        // registarHistoricoCantorLouvor (transação, evita corrida
-        // entre dois toques quase juntos) — o cliente só lê. ──
-        match /historicoCantores/{cantor} {
-          allow read:  if minhaBase(base);
-          allow write: if false;                   // só por função
-        }
       }
 
       // ── índice invertido do histórico de tons, por cantor (Base
-      // Louvor) — um documento por pessoa com todas as músicas que já
+      // Louvor) — a versão É o cantor (nome da versão = nome da
+      // pessoa); um documento por pessoa com todas as versões que já
       // cantou, para "todas as músicas que este cantor já cantou" sem
       // collectionGroup query nenhuma (ver Biblioteca.jsx). Escrito
-      // na mesma transação de historicoCantores, por
-      // registarHistoricoCantorLouvor — nunca desalinha. ──
+      // só pela Cloud Function registarUsoVersaoLouvor (transação,
+      // evita corrida entre dois toques quase juntos) — nunca
+      // desalinha com o `historico` gravado na própria versão. ──
       match /indiceCantores/{cantor} {
         allow read:  if minhaBase(base);
         allow write: if false;                     // só por função

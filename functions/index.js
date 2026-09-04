@@ -1125,67 +1125,89 @@ export const excluirRascunhoEscala = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── HISTÓRICO DE TONS POR CANTOR (Base Louvor) ───────────────
- * Para cada música, quem já cantou e em que tom(ns) — pedido do
- * líder, 2026-09. Chamado do cliente nos dois momentos em que "este
- * tom passou a ser o que se canta neste domingo": ao adicionar a
- * música a um repertório (lib/repertorio.js), e ao trocar o tom de
- * um item já lá dentro (SheetEditarTom.jsx). O "cantor" é sempre
- * quem está como Lead nesse culto — Co-lead/Back acompanham, não
- * escolhem o tom. Sem Lead definido ainda para o culto, não regista
- * nada (silencioso, não é erro: dá para montar repertório antes de
- * escalar). Transação no servidor de propósito — dois toques quase
- * juntos não podem incrementar o mesmo tom em corrida. */
-export const registarHistoricoCantorLouvor = onCall(async (req) => {
+/* ── HISTÓRICO DE TONS POR VERSÃO (Base Louvor) ───────────────
+ * Cada versão É o cantor: o nome da versão é o nome da pessoa (ex.:
+ * "Tai"), não um arranjo genérico — pedido do líder, 2026-09,
+ * substituiu a tentativa anterior (histórico por Lead da escala, uma
+ * subcoleção `historicoCantores` à parte — removida). Esta função
+ * (a) grava, na própria versão, todo culto em que ela foi usada e
+ * com que tom (`historico: [{tom, datas: [eventoId,...]}]` — um
+ * tom pode voltar a aparecer em datas diferentes, "a pasta da versão
+ * do Tai" vai acumulando), e (b) quando o nome da versão bate com
+ * uma pessoa ativa da base, mantém um índice invertido por pessoa
+ * (`indiceCantores/{pessoaId}`) — "todas as músicas que este cantor
+ * já cantou" sem collectionGroup query nenhuma (ver Biblioteca.jsx).
+ * Chamada do cliente em três momentos: ao adicionar a música a um
+ * repertório (lib/repertorio.js) e ao trocar o tom de um item já lá
+ * dentro (SheetEditarTom.jsx) — as duas COM eventoId, contam como
+ * "uso" num culto — e ao criar/editar a própria versão
+ * (SheetVersao.jsx), SEM eventoId: só sincroniza nome/tom atual no
+ * índice, sem contar como uso — é assim que "criar uma versão nova
+ * já cria um cantor novo na biblioteca" (pedido do líder) acontece
+ * sem esperar por um culto. Sem versão com nome ainda, sem tom
+ * definido, ou sem pessoa correspondente na base, fica silencioso —
+ * não é erro. Transação de propósito: dois toques quase juntos não
+ * podem perder-se um ao outro. */
+export const registarUsoVersaoLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { eventoId, musicaId, versaoId } = req.data || {};
-  if (!eventoId || !musicaId || !versaoId) throw new HttpsError("invalid-argument", "Faltam dados.");
+  if (!musicaId || !versaoId) throw new HttpsError("invalid-argument", "Faltam dados.");
 
-  const [escalaSnap, versaoSnap, musicaSnap] = await Promise.all([
-    db.doc(`eventos/${eventoId}/escalas/${baseId}`).get(),
+  const [versaoSnap, musicaSnap] = await Promise.all([
     db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`).get(),
     db.doc(`bases/${baseId}/musicas/${musicaId}`).get(),
   ]);
-  if (!escalaSnap.exists) return { registado: false };
-  const lead = (escalaSnap.data().escalados || []).find((e) => e.papel === "lead");
-  if (!lead) return { registado: false };
-  const tom = versaoSnap.exists ? versaoSnap.data().tom : null;
-  if (!tom) return { registado: false };
+  if (!versaoSnap.exists) return { registado: false };
+  const nomeVersao = (versaoSnap.data().nome || "").trim();
+  const tom = versaoSnap.data().tom || null;
+  if (!nomeVersao || !tom) return { registado: false };
 
-  const pessoaSnap = await db.doc(`bases/${baseId}/pessoas/${lead.pessoaId}`).get();
-  const nome = pessoaSnap.exists ? pessoaSnap.data().nome : "—";
+  // Nome da versão bate com uma pessoa ativa da base — nome completo
+  // ou só o primeiro nome (é assim que o líder costuma nomear a
+  // versão, ex. "Tai" para "Taiane Silva"). Sem correspondência,
+  // fica sem cantor — decisão do líder, não é erro.
+  const pessoasSnap = await db.collection(`bases/${baseId}/pessoas`).where("ativo", "==", true).get();
+  const norm = (s) => (s || "").trim().toLowerCase();
+  const primeiroNome = (s) => norm(s).split(" ")[0];
+  const pessoa = pessoasSnap.docs.find((d) => {
+    const nomePessoa = d.data().nome || "";
+    return norm(nomePessoa) === norm(nomeVersao) || primeiroNome(nomePessoa) === norm(nomeVersao);
+  });
+  if (!pessoa) return { registado: false };
+
   const tituloMusica = musicaSnap.exists ? musicaSnap.data().titulo : "—";
   const artistaMusica = musicaSnap.exists ? musicaSnap.data().artista || "" : "";
 
-  const refHistorico = db.doc(`bases/${baseId}/musicas/${musicaId}/historicoCantores/${lead.pessoaId}`);
-  // índice invertido (por cantor, todas as músicas) — evita uma
-  // collectionGroup query só para "todas as músicas que este cantor já
-  // cantou" (pedido do líder, ver Biblioteca.jsx). Atualizado na MESMA
-  // transação que historicoCantores, nunca desalinha: um doc por
-  // pessoa, um `get()` simples para ler, sem índice novo nenhum.
-  const refIndice = db.doc(`bases/${baseId}/indiceCantores/${lead.pessoaId}`);
-
-  function tomsAtualizados(tomsAntigos) {
-    const toms = [...(tomsAntigos || [])];
-    const i = toms.findIndex((t) => t.tom === tom);
-    if (i === -1) toms.push({ tom, vezes: 1, primeiraVez: eventoId, ultimaVez: eventoId });
-    else toms[i] = { ...toms[i], vezes: (toms[i].vezes || 0) + 1, ultimaVez: eventoId };
-    return toms;
+  function historicoAtualizado(historicoAntigo) {
+    const historico = [...(historicoAntigo || [])];
+    const i = historico.findIndex((h) => h.tom === tom);
+    if (i === -1) historico.push({ tom, datas: eventoId ? [eventoId] : [] });
+    else if (eventoId && !historico[i].datas.includes(eventoId)) {
+      historico[i] = { ...historico[i], datas: [...historico[i].datas, eventoId] };
+    }
+    return historico;
   }
 
-  await db.runTransaction(async (tx) => {
-    const [historicoSnap, indiceSnap] = await Promise.all([tx.get(refHistorico), tx.get(refIndice)]);
+  const refVersao = db.doc(`bases/${baseId}/musicas/${musicaId}/versoes/${versaoId}`);
+  // índice invertido (por cantor, todas as versões/músicas) — evita
+  // uma collectionGroup query só para "tudo o que este cantor já
+  // cantou" (pedido do líder, ver Biblioteca.jsx). Atualizado na
+  // MESMA transação que a versão, nunca desalinha.
+  const refIndice = db.doc(`bases/${baseId}/indiceCantores/${pessoa.id}`);
 
-    const toms = tomsAtualizados(historicoSnap.exists ? historicoSnap.data().toms : null);
-    tx.set(refHistorico, { nome, toms }, { merge: true });
+  await db.runTransaction(async (tx) => {
+    const [versaoAtualSnap, indiceSnap] = await Promise.all([tx.get(refVersao), tx.get(refIndice)]);
+
+    const historico = historicoAtualizado(versaoAtualSnap.exists ? versaoAtualSnap.data().historico : null);
+    tx.set(refVersao, { historico }, { merge: true });
 
     const musicasIndice = indiceSnap.exists ? [...(indiceSnap.data().musicas || [])] : [];
-    const j = musicasIndice.findIndex((m) => m.musicaId === musicaId);
-    const entrada = { musicaId, titulo: tituloMusica, artista: artistaMusica, toms };
+    const j = musicasIndice.findIndex((m) => m.musicaId === musicaId && m.versaoId === versaoId);
+    const entrada = { musicaId, versaoId, titulo: tituloMusica, artista: artistaMusica, nomeVersao, tom, historico };
     if (j === -1) musicasIndice.push(entrada);
     else musicasIndice[j] = entrada;
-    tx.set(refIndice, { nome, musicas: musicasIndice }, { merge: true });
+    tx.set(refIndice, { nome: pessoa.data().nome, musicas: musicasIndice }, { merge: true });
   });
   return { registado: true };
 });
@@ -1258,7 +1280,7 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
 
-  const { eventoId, enfase, coresRoupa, dataEnsaio, observacao } = req.data || {};
+  const { eventoId, enfase, coresRoupa, dataEnsaio, horaEnsaio, localEnsaio, observacao } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
@@ -1283,6 +1305,8 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
   if (enfase !== undefined) dados.enfase = enfase;
   if (coresRoupa !== undefined) dados.coresRoupa = coresRoupa;
   if (dataEnsaio !== undefined) dados.dataEnsaio = dataEnsaio || null;
+  if (horaEnsaio !== undefined) dados.horaEnsaio = horaEnsaio || null;
+  if (localEnsaio !== undefined) dados.localEnsaio = String(localEnsaio ?? "").trim() || null;
   if (observacao !== undefined) dados.observacaoLider = String(observacao ?? "").trim() || null;
 
   await ref.set(dados, { merge: true });
