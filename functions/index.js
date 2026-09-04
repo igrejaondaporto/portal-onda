@@ -2138,7 +2138,14 @@ export const criarCultoEspecial = onCall(async (req) => {
   // não uma escrita direta do cliente (ver firestore.rules)
   const ref = db.doc(`eventos/${data}`);
   const snap = await ref.get();
-  if (snap.exists) throw new HttpsError("already-exists", "Já existe um culto nesse dia.");
+  // `ativo:false` conta como livre — excluirCultoEspecial já apaga a
+  // sério (ver comentário lá), mas um doc `ativo:false` anterior a
+  // essa mudança (ou qualquer outro jeito de sobrar um) não pode
+  // continuar a prender a data para sempre; `.set()` abaixo substitui
+  // o documento inteiro, então recriar aqui já "limpa" o resto sozinho.
+  if (snap.exists && snap.data().ativo !== false) {
+    throw new HttpsError("already-exists", "Já existe um culto nesse dia.");
+  }
 
   await ref.set({
     data, tipo: tipo.trim(), horaCulto, horaChegada,
