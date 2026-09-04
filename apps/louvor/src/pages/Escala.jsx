@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, nomeCor, ENFASES, nomeEnfase, enfaseDefault, podeDistribuir } from "../lib/modelo";
+import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir } from "../lib/modelo";
+import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
 import { ouvirRepertorio, agruparItensMedley } from "../lib/repertorio";
@@ -39,7 +40,6 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
   const [repertorio, setRepertorio] = useState(null);
   const [tons, setTons] = useState({});
   const [aEditar, setAEditar] = useState(false);
-  const [enfase, setEnfase] = useState("");
   const [cores, setCores] = useState([]);
   const [dataEnsaio, setDataEnsaio] = useState("");
   const [horaEnsaio, setHoraEnsaio] = useState("");
@@ -67,7 +67,6 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
     || !!evento.escala.localEnsaio || !!evento.escala.observacaoLider;
 
   function abrirEdicao() {
-    setEnfase(evento.escala.enfase || enfaseDefault(evento.data));
     setCores(coresAtuais);
     setDataEnsaio(evento.escala.dataEnsaio || "");
     setHoraEnsaio(evento.escala.horaEnsaio || "");
@@ -90,7 +89,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
     setAGuardar(true);
     try {
       await definirDetalhesCultoLouvor(evento.id, {
-        enfase, coresRoupa: cores, dataEnsaio: dataEnsaio || null,
+        coresRoupa: cores, dataEnsaio: dataEnsaio || null,
         horaEnsaio: horaEnsaio || null, localEnsaio, observacao,
       });
       setAEditar(false);
@@ -195,13 +194,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
 
       {aEditar && (
         <div className="caixa" style={{ marginTop: 10 }}>
-          <label className="rot">Ênfase do culto</label>
-          <div className="subtabs">
-            {ENFASES.map((e) => (
-              <button key={e.id} data-on={enfase === e.id ? 1 : 0} onClick={() => setEnfase(e.id)}>{e.nome}</button>
-            ))}
-          </div>
-          <label className="rot" style={{ marginTop: 12 }}><IconeCabide /> Cores da roupa</label>
+          <label className="rot"><IconeCabide /> Cores da roupa</label>
           {cores.map((c, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
               <input
@@ -289,14 +282,14 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const escaladosDoPapel = (ev, papelId) => (ev.escala.escalados || []).filter((e) => e.papel === papelId);
 
   function etiquetaEnfase(ev) {
-    const id = ev.escala.enfase || enfaseDefault(ev.data);
+    const id = ev.tipoCulto || tipoCultoDefault(ev.data);
     return (
       <>
         <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 8 }}>
           {diaSemanaAbrev(ev.data)}
         </span>
         <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 6 }}>
-          {nomeEnfase(id)}
+          {nomeTipoCulto(id)}
         </span>
       </>
     );

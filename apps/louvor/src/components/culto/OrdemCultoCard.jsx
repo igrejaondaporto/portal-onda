@@ -3,6 +3,7 @@ import { lerOrdemCulto, lerEEnviarOrdemCulto, removerOrdemCulto, limparOrdemCult
 import { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento, hojeISO, haAtras } from "@portal/shared/lib/data.js";
+import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
 import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
 
@@ -114,7 +115,12 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
     <div className="oc-cartao">
       <button className="oc-cab" data-aberto={aberto ? 1 : 0} onClick={onAbrir}>
         <div>
-          <p className="nm">{nomeEvento(evento)}</p>
+          <p className="nm">
+            {nomeEvento(evento)}
+            <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 8, fontSize: 10.5 }}>
+              {nomeTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data))}
+            </span>
+          </p>
           <p className="ds">
             {publicado
               ? `Publicado · ${evento.ordem.momentos.length} momentos · atualizada ${haAtras(evento.ordem.publicadoEm)}`
