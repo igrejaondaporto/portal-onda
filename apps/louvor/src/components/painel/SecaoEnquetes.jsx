@@ -21,6 +21,8 @@ import SheetResponderEnquete from "../SheetResponderEnquete";
 const telefoneWa = (t) => "351" + String(t || "").replace(/\D/g, "").replace(/^351/, "");
 
 function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, onEditar }) {
+  const domingosComEnsaio = (domingos || []).filter((id) => eventosPorId[id]?.dataEnsaio);
+  const ensaiosIndisponiveis = domingosComEnsaio.filter((id) => (r.indisponivelEnsaioEm || []).includes(id));
   return (
     <div style={{ padding: "10px 0", borderBottom: "1px solid var(--fio)", cursor: "pointer" }} onClick={onEditar}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
@@ -34,6 +36,7 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, onEditar }
             {r.semIndisponibilidade
               ? "Sem indisponibilidades"
               : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
+            {ensaiosIndisponiveis.length > 0 && ` · 🎙️ falta ${ensaiosIndisponiveis.length} ensaio${ensaiosIndisponiveis.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <span className="seta">✏️</span>
@@ -54,6 +57,14 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, onEditar }
             </span>
           );
         })}
+        {ensaiosIndisponiveis.map((id) => (
+          <span
+            key={`ensaio-${id}`}
+            style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 100, color: "#fff", background: "var(--laranja)" }}
+          >
+            🎙️ {dataCurta(eventosPorId[id]?.dataEnsaio)}
+          </span>
+        ))}
       </div>
     </div>
   );
