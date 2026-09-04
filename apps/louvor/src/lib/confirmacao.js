@@ -42,3 +42,18 @@ export function ouvirConfirmacoesDoMes(eventos, pessoaId, cb) {
 
 export const confirmarPresenca = (eventoId, pessoaId, resposta, justificativa = "") =>
   chamar("confirmarPresencaLouvor")({ eventoId, pessoaId, resposta, justificativa }).then((r) => r.data);
+
+/** "Ainda não sei" no popup automático (ConfirmacaoAutoStart) — mesmo
+ *  esquema de dispensarEnquete/enqueteDispensada em lib/enquetes.js:
+ *  fecha o popup sem gravar resposta nenhuma (não é voto, é só "agora
+ *  não"), guardado no localStorage — sobrevive a recarregar a página,
+ *  a pessoa continua a ver o balão fixo no Início até responder a
+ *  valer. */
+const chaveDispensada = (eventoId) => `louvor-confirmacao-dispensada-${eventoId}`;
+export function confirmacaoDispensada(eventoId) {
+  try { return localStorage.getItem(chaveDispensada(eventoId)) === "1"; }
+  catch { return false; }
+}
+export function dispensarConfirmacao(eventoId) {
+  try { localStorage.setItem(chaveDispensada(eventoId), "1"); } catch { /* privado/bloqueado — tudo bem, só perde o "lembrete" */ }
+}

@@ -17,9 +17,11 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  *
  * `bloqueante` é usado só pelo popup automático ao publicar
  * (ConfirmacaoAutoStart) — tira o toque no véu, mesmo padrão de
- * SheetResponderEnquete/bloqueante.
+ * SheetResponderEnquete/bloqueante; ganha também "Ainda não sei"
+ * (`onNaoSeiAinda`), pedido do líder — fecha sem gravar resposta
+ * nenhuma, a pessoa responde depois pelo balão fixo no Início.
  */
-export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoaPorId, pessoaAlvo, bloqueante, onFechar, onGuardado }) {
+export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoaPorId, pessoaAlvo, bloqueante, onNaoSeiAinda, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [passo, setPasso] = useState(0);
   const [resposta, setResposta] = useState(null); // "vai" | "nao_vai" | null
@@ -118,7 +120,9 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || !resposta} onClick={guardar}>
           {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${dataPorExtenso(cultos[passo + 1]?.data)} (${passo + 2}/${cultos.length})`}
         </button>
-        {!bloqueante && <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>}
+        {bloqueante
+          ? <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={onNaoSeiAinda}>Ainda não sei</button>
+          : <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>}
       </div>
     </>
   );

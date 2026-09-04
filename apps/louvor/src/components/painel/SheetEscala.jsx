@@ -71,7 +71,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     const novoLider = liderEscala ?? id;
     setEscalados(novosEscalados);
     setLiderEscala(novoLider);
-    setAEscolherPapel(null);
     persistir(novosEscalados, novoLider, anterior);
   }
 
@@ -79,7 +78,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     const anterior = { escalados, liderEscala };
     const novosEscalados = escalados.map((e) => (e.pessoaId === id ? { ...e, papel } : e));
     setEscalados(novosEscalados);
-    setAEscolherPapel(null);
     persistir(novosEscalados, liderEscala, anterior);
   }
 
