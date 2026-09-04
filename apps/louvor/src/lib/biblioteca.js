@@ -14,7 +14,7 @@
  */
 import { doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { cMusicas, cVersoes, cHistoricoCantores, dIndiceCantor } from "./modelo";
+import { cMusicas, cVersoes, dIndiceCantor } from "./modelo";
 
 export const CLASSIFICACOES = [
   { id: "adoracao", nome: "Adoração", ajuda: "Cânticos cujas letras expressam reconhecimento a Deus por aquilo que Ele é." },
@@ -66,32 +66,27 @@ export async function obterTonsDosItens(itens) {
   return Object.fromEntries(pares);
 }
 
-/** Quem já cantou esta música e em que tom(ns) — só o Lead do culto
- *  conta como "cantor" (ver registarHistoricoCantor). Poucos
- *  documentos por música, onSnapshot é barato. */
-export function ouvirHistoricoCantores(musicaId, cb) {
-  return onSnapshot(cHistoricoCantores(musicaId), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
-}
-
-/** O mesmo histórico, mas invertido: todas as músicas que ESTA
- *  pessoa já cantou (com Lead), em que tom(ns) — um documento só,
- *  sem query nenhuma (ver functions/index.js,
- *  registarHistoricoCantorLouvor, `indiceCantores`). null enquanto
- *  ainda não cantou nada com Lead definido. */
+/** Todas as versões (em qualquer música) cujo nome bate com esta
+ *  pessoa — a versão É o cantor, ver functions/index.js,
+ *  registarUsoVersaoLouvor. Um documento só, sem query nenhuma. null
+ *  enquanto não houver nenhuma versão com o nome dela ainda. */
 export function ouvirIndiceCantor(pessoaId, cb) {
   if (!pessoaId) { cb(null); return () => {}; }
   return onSnapshot(dIndiceCantor(pessoaId), (s) => cb(s.exists() ? s.data() : null));
 }
 
-/** Chamado nos dois momentos em que "este tom passou a ser o que se
- *  canta neste domingo": ao adicionar a música a um repertório
- *  (repertorio.js), e ao trocar o tom de um item já lá dentro
- *  (SheetEditarTom, dentro de Repertorio.jsx). Silencioso por
- *  natureza — sem Lead definido pro culto ainda, a função não regista
- *  nada, não é erro (o líder pode montar repertório antes de
- *  escalar); falhar aqui nunca deve travar o fluxo principal. */
-export const registarHistoricoCantor = (dados) =>
-  chamar("registarHistoricoCantorLouvor")(dados).then((r) => r.data).catch(() => null);
+/** Chamado em três momentos: ao adicionar a música a um repertório
+ *  (repertorio.js) e ao trocar o tom de um item já lá dentro
+ *  (SheetEditarTom, dentro de Repertorio.jsx) — as duas COM eventoId,
+ *  contam como "esta versão foi usada neste culto". E ao criar ou
+ *  editar a própria versão (SheetVersao.jsx) — SEM eventoId, só
+ *  sincroniza nome/tom no índice por cantor, sem contar como uso
+ *  (é assim que criar uma versão nova já a faz aparecer no Histórico
+ *  por cantor, mesmo antes de qualquer culto). Silencioso por
+ *  natureza — sem nome que bata com ninguém da base, não regista
+ *  nada, não é erro; falhar aqui nunca deve travar o fluxo principal. */
+export const registarUsoVersao = (dados) =>
+  chamar("registarUsoVersaoLouvor")(dados).then((r) => r.data).catch(() => null);
 
 export const novaMusicaId = () => doc(cMusicas()).id;
 
