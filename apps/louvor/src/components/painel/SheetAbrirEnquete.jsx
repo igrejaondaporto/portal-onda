@@ -101,7 +101,7 @@ function useCultosDoMes(mes) {
   };
 }
 
-function BlocoCultos({ titulo, c }) {
+function BlocoCultos({ titulo, c, esconderEnsaio }) {
   return (
     <>
       <label className="rot" style={{ marginTop: 14 }}>{titulo}</label>
@@ -116,14 +116,18 @@ function BlocoCultos({ titulo, c }) {
               {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
             </div>
           </div>
-          <button
-            className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, padding: "9px" }}
-            onClick={() => c.setEnsaioAberto((a) => (a === ev.id ? null : ev.id))}
-          >
-            🎙️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
-          </button>
-          {c.ensaioAberto === ev.id && (
-            <CalendarioSemanal domingoISO={ev.id} ensaioISO={c.ensaios[ev.id]} onSelecionar={(iso) => c.definirEnsaio(ev.id, iso)} />
+          {!esconderEnsaio && (
+            <>
+              <button
+                className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, padding: "9px" }}
+                onClick={() => c.setEnsaioAberto((a) => (a === ev.id ? null : ev.id))}
+              >
+                🎙️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
+              </button>
+              {c.ensaioAberto === ev.id && (
+                <CalendarioSemanal domingoISO={ev.id} ensaioISO={c.ensaios[ev.id]} onSelecionar={(iso) => c.definirEnsaio(ev.id, iso)} />
+              )}
+            </>
           )}
         </div>
       ))}
@@ -157,6 +161,10 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
   const [prazo, setPrazo] = useState(`${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}-25`);
   const [aEnviar, setAEnviar] = useState(false);
   const [tambemMesSeguinte, setTambemMesSeguinte] = useState(false);
+  // "Não quero agendar os ensaios agora" — mesmo pedido de
+  // SheetRascunho.jsx: só esconde o botão/calendário de ensaio nesta
+  // folha, nada se perde, agenda-se depois em Escala.
+  const [naoAgendarEnsaios, setNaoAgendarEnsaios] = useState(false);
 
   const mes2 = tambemMesSeguinte ? proximoMes(mes) : null;
   const c1 = useCultosDoMes(mes);
@@ -188,7 +196,12 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
         <label className="rot">Mês</label>
         <input className="campo" type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
 
-        <label className="rot">Prazo para responder</label>
+        <label className="opcao" style={{ marginTop: 8 }} onClick={() => setNaoAgendarEnsaios((v) => !v)}>
+          <span style={{ flex: 1 }}>Não quero agendar os ensaios agora</span>
+          <span className={`chk${naoAgendarEnsaios ? " on" : ""}`}>✓</span>
+        </label>
+
+        <label className="rot" style={{ marginTop: 12 }}>Prazo para responder</label>
         <input className="campo" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
 
         <div className="linha" style={{ cursor: "pointer", marginTop: 8 }} onClick={() => setTambemMesSeguinte((v) => !v)}>
@@ -199,8 +212,8 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
           </div>
         </div>
 
-        <BlocoCultos titulo="Cultos deste mês" c={c1} />
-        {tambemMesSeguinte && <BlocoCultos titulo="Cultos do mês seguinte" c={c2} />}
+        <BlocoCultos titulo="Cultos deste mês" c={c1} esconderEnsaio={naoAgendarEnsaios} />
+        {tambemMesSeguinte && <BlocoCultos titulo="Cultos do mês seguinte" c={c2} esconderEnsaio={naoAgendarEnsaios} />}
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || c1.aCarregar || (tambemMesSeguinte && c2.aCarregar)} onClick={guardar}>
           {aEnviar ? "A abrir…" : "Abrir enquete"}
