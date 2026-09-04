@@ -7,6 +7,7 @@ import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { ouvirAvisos, tempoRestante } from "../lib/avisos";
 import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
+import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -18,6 +19,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import SheetAniversarios from "../components/painel/SheetAniversarios";
 import SheetConfirmarPresenca from "../components/SheetConfirmarPresenca";
+import SheetResponderEnquete from "../components/SheetResponderEnquete";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -39,6 +41,10 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [minhaResposta, setMinhaResposta] = useState(null); // {resposta, justificativa?} | null
   const [confirmadosMes, setConfirmadosMes] = useState(() => new Map());
   const [sheetConfirmar, setSheetConfirmar] = useState(false);
+  const [enquetesAbertas, setEnquetesAbertas] = useState([]);
+  const [minhasRespostasEnquete, setMinhasRespostasEnquete] = useState({});
+  const [eventosEnquetePorId, setEventosEnquetePorId] = useState({});
+  const [sheetEnquete, setSheetEnquete] = useState(false);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -77,6 +83,24 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // o mesmo, mas para todos os cultos do mês visível no Calendário —
   // um listener por culto onde a pessoa está escalada e publicado
   useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setConfirmadosMes), [eventosMes, uid]);
+
+  // enquete de indisponibilidade — o popup obrigatório (EnqueteAutoStart,
+  // ver Sessao.jsx) já força a primeira resposta; este balão fica fixo
+  // aqui para dar para alterar o voto até ao prazo do líder, e é onde
+  // "Não sei ainda" no popup manda a pessoa depois.
+  useEffect(() => ouvirEnquetesAbertas(setEnquetesAbertas), []);
+  useEffect(() => {
+    if (!enquetesAbertas.length) { setMinhasRespostasEnquete({}); return; }
+    const paragens = enquetesAbertas.map((e) =>
+      ouvirMinhaResposta(e.id, uid, (r) => setMinhasRespostasEnquete((s) => ({ ...s, [e.id]: r })))
+    );
+    return () => paragens.forEach((p) => p());
+  }, [enquetesAbertas, uid]);
+  useEffect(() => {
+    const ids = [...new Set(enquetesAbertas.flatMap((e) => e.domingos || []))];
+    if (!ids.length) { setEventosEnquetePorId({}); return; }
+    obterEventosPorIds(ids).then(setEventosEnquetePorId);
+  }, [enquetesAbertas]);
 
   const meusPapeis = meuEvento
     ? meusPapeisNoCulto(meuEvento.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`)
@@ -132,6 +156,28 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
+      {enquetesAbertas.map((e) => {
+        const respondeu = !!minhasRespostasEnquete[e.id];
+        return (
+          <div
+            key={e.id} className="destaque" style={{ background: "var(--violeta)", marginBottom: 10 }}
+            onClick={() => setSheetEnquete(true)}
+          >
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>
+                {respondeu ? "Já respondeste — toca para alterar" : "Enquete de indisponibilidade"}
+              </p>
+              <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+                Tens alguma indisponibilidade?
+              </p>
+              {tempoRestanteVoto(e.prazo) && (
+                <p style={{ fontSize: 11.5, fontWeight: 600, opacity: 0.85, marginTop: 3 }}>⏱️ {tempoRestanteVoto(e.prazo)}</p>
+              )}
+            </div>
+            <span style={{ fontSize: 24 }}>🗳️</span>
+          </div>
+        );
+      })}
       {sirvo && meuEvento.escala.publicado && !minhaResposta && (
         <div
           className="destaque" style={{ background: "var(--verde)", marginBottom: 10 }}
@@ -358,6 +404,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
         onFechar={() => setSheetConfirmar(false)}
         onGuardado={(msg) => { setSheetConfirmar(false); torrada(msg); }}
+      />
+    )}
+    {sheetEnquete && enquetesAbertas.length > 0 && (
+      <SheetResponderEnquete
+        enquetes={enquetesAbertas}
+        eventosPorId={eventosEnquetePorId}
+        minhasRespostas={minhasRespostasEnquete}
+        onFechar={() => setSheetEnquete(false)}
+        onGuardado={(msg) => { setSheetEnquete(false); torrada(msg); }}
       />
     )}
     </>

@@ -9,14 +9,17 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
  *  vivo (onSnapshot) em vez de checagem única: se uma enquete abre a
  *  meio da sessão, a pessoa vê o popup sem precisar de sair e
  *  voltar a entrar. Bloqueante — ver bloqueante em
- *  SheetResponderEnquete. Fecha sozinho: depois de guardar,
- *  ouvirMinhaResposta atualiza `respostas` e `pendentes` esvazia —
- *  sem estado de "dispensado" para gerir. */
+ *  SheetResponderEnquete. Fecha sozinho ao guardar: ouvirMinhaResposta
+ *  atualiza `respostas` e `pendentes` esvazia. "Não sei ainda" fecha
+ *  sem gravar — `dispensadas` é só local (não Firestore, de
+ *  propósito: é "agora não", não uma resposta) — a pessoa continua a
+ *  ver o balão fixo no Início (ver Inicio.jsx) até ao prazo. */
 export default function EnqueteAutoStart({ uid }) {
   const torrada = useTorrada();
   const [enquetes, setEnquetes] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [eventosPorId, setEventosPorId] = useState({});
+  const [dispensadas, setDispensadas] = useState(() => new Set());
 
   useEffect(() => {
     if (!uid) return;
@@ -37,7 +40,7 @@ export default function EnqueteAutoStart({ uid }) {
     obterEventosPorIds(todosIds).then(setEventosPorId);
   }, [enquetes]);
 
-  const pendentes = enquetes.filter((e) => !respostas[e.id]);
+  const pendentes = enquetes.filter((e) => !respostas[e.id] && !dispensadas.has(e.id));
   if (!pendentes.length) return null;
 
   return (
@@ -47,6 +50,7 @@ export default function EnqueteAutoStart({ uid }) {
       eventosPorId={eventosPorId}
       minhasRespostas={respostas}
       onGuardado={(msg) => torrada(msg)}
+      onNaoSeiAinda={() => setDispensadas((s) => new Set([...s, ...pendentes.map((e) => e.id)]))}
     />
   );
 }

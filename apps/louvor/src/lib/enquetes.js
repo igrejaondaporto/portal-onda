@@ -105,6 +105,20 @@ const nomeDoMes = (mes) => {
 const dataPorExtensoTexto = (iso) =>
   iso ? new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "long" }) : "";
 
+/** "3 dias restantes"/"último dia" até ao fim do dia do prazo —
+ *  mesmo relógio mostrado no popup obrigatório e no balão fixo do
+ *  Início (pedido do líder). `new Date(ano,mes,dia,23,59,59)` local,
+ *  nunca `new Date(iso)` direto (regra do CLAUDE.md raiz). */
+export function tempoRestanteVoto(prazoISO) {
+  if (!prazoISO) return null;
+  const [a, m, d] = prazoISO.split("-").map(Number);
+  const fim = new Date(a, m - 1, d, 23, 59, 59);
+  const ms = fim.getTime() - Date.now();
+  if (ms <= 0) return null;
+  const dias = Math.ceil(ms / 86400000);
+  return dias <= 1 ? "último dia para votar" : `${dias} dias para votar`;
+}
+
 /** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre
  *  já com a mensagem escrita, só falta escolher o grupo. Recebe uma
  *  ou duas enquetes ({mes, prazo}) — quando são duas (líder abriu os
