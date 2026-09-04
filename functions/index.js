@@ -1177,16 +1177,21 @@ export const registarHistoricoCantorLouvor = onCall(async (req) => {
  * estar `publicado` (Fase C) é que faz sentido pedir confirmação —
  * antes disso a pessoa nem sabe que está escalada a sério. `pessoaId`
  * é só do líder/auxiliar, mesmo padrão de responderEnquete: corrigir
- * quem esqueceu, sem depender do telemóvel da pessoa. `confirmado:
- * false` desfaz — a pessoa pode confirmar sem querer e voltar atrás,
- * sem precisar de pedir ao líder (self-service; o líder continua a
- * poder ajustar a escala manualmente se for o caso de "afinal não
- * posso ir" chegar tarde demais). */
+ * quem esqueceu, sem depender do telemóvel da pessoa.
+ *
+ * `resposta: "vai" | "nao_vai"` — não é só um booleano de "confirmei
+ * sim/não": quem não pode vir já deixa a justificativa aqui, no
+ * mesmo gesto (pedido do líder, "mais intuitivo"). Documento sempre
+ * existe depois da primeira resposta (troca de "vai" para "nao_vai"
+ * e vice-versa é sempre um novo `set`, nunca delete) — "responder de
+ * novo" mostra sempre a última resposta, não "desfaz" para vazio. */
+const RESPOSTAS_PRESENCA = new Set(["vai", "nao_vai"]);
 export const confirmarPresencaLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { eventoId, pessoaId, confirmado = true } = req.data || {};
+  const { eventoId, pessoaId, resposta, justificativa = "" } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!RESPOSTAS_PRESENCA.has(resposta)) throw new HttpsError("invalid-argument", "Resposta inválida.");
 
   let alvo = uid;
   if (pessoaId && pessoaId !== uid) {
@@ -1205,14 +1210,13 @@ export const confirmarPresencaLouvor = onCall(async (req) => {
     throw new HttpsError("failed-precondition", "Esta pessoa não está escalada neste culto.");
   }
 
-  const ref = escalaRef.collection("confirmacoes").doc(alvo);
-  if (confirmado) {
-    const dados = { confirmado: true, confirmadoEm: admin.firestore.FieldValue.serverTimestamp() };
-    if (alvo !== uid) { dados.respondidoPeloLider = true; dados.respondidoPor = uid; }
-    await ref.set(dados);
-  } else {
-    await ref.delete();
-  }
+  const dados = {
+    resposta,
+    justificativa: resposta === "nao_vai" ? (String(justificativa).trim() || null) : null,
+    respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (alvo !== uid) { dados.respondidoPeloLider = true; dados.respondidoPor = uid; }
+  await escalaRef.collection("confirmacoes").doc(alvo).set(dados);
   return { ok: true };
 });
 
