@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { responderEnquete } from "../lib/enquetes";
+import { responderEnquete, tempoRestanteVoto } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
 
@@ -20,9 +20,11 @@ const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
  *
  *  `bloqueante` é usado só pelo popup automático ao entrar
  *  (EnqueteAutoStart) — tira o toque no véu e o botão "Fechar", para
- *  a pessoa não escapar sem responder. No resto dos usos (Início,
- *  PainelLider) fecha normalmente. */
-export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRespostas, pessoaAlvo, bloqueante, onFechar, onGuardado }) {
+ *  a pessoa não escapar sem responder; em troca ganha "Não sei
+ *  ainda" (`onNaoSeiAinda`), que fecha sem gravar nada — a pessoa
+ *  responde depois pelo balão fixo no Início, até ao prazo. No resto
+ *  dos usos (Início, PainelLider) fecha normalmente. */
+export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRespostas, pessoaAlvo, bloqueante, onNaoSeiAinda, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [passo, setPasso] = useState(0);
   const [semIndisponibilidade, setSemIndisponibilidade] = useState(false);
@@ -98,7 +100,10 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
             A responder em nome de {pessoaAlvo.nome} — fica marcado que foi o líder a responder.
           </p>
         )}
-        <p className="sb2">Prazo até {dataPorExtenso(enquete.prazo)}</p>
+        <p className="sb2">
+          Prazo até {dataPorExtenso(enquete.prazo)}
+          {tempoRestanteVoto(enquete.prazo) && <> · ⏱️ {tempoRestanteVoto(enquete.prazo)}</>}
+        </p>
 
         <button
           className="btn full" style={{
@@ -130,7 +135,9 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || !podeGuardar} onClick={guardar}>
           {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${nomeMes(enquetes[passo + 1]?.id)} (${passo + 2}/${enquetes.length})`}
         </button>
-        {!bloqueante && <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>}
+        {bloqueante
+          ? <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={onNaoSeiAinda}>Não sei ainda</button>
+          : <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>}
       </div>
     </>
   );

@@ -11,6 +11,7 @@ import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import EnqueteAutoStart from "../components/EnqueteAutoStart.jsx";
+import ConfirmacaoAutoStart from "../components/ConfirmacaoAutoStart.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -111,6 +112,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     <TourProvider>
       <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
       <EnqueteAutoStart uid={uid} />
+      <ConfirmacaoAutoStart uid={uid} />
       <Tour />
       <div className="app">
         <AvisoOffline />
