@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
-import { ouvirMusicas, obterTonsDosItens, guardarVersao, registarUsoVersao, desfazerUsoVersao } from "../lib/biblioteca";
+import { ouvirMusicas, obterTonsDosItens, definirTomComRedirecionamento, registarUsoVersao, desfazerUsoVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
@@ -198,11 +198,18 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
 
   async function confirmarNovoTom(novoTom) {
     const { item } = itemTomAEditar;
-    await guardarVersao(item.musicaId, item.versaoId, { tom: novoTom });
+    const lead = leadId ? voluntarios.find((p) => p.id === leadId) : null;
+    const versaoFinalId = await definirTomComRedirecionamento(item.musicaId, item.versaoId, novoTom, voluntarios, lead, uid);
+    const redirecionou = versaoFinalId !== item.versaoId;
+
+    if (redirecionou) {
+      if (eventoId) desfazerUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
+      persistir(itensLocais.map((it) => (it.id === item.id ? { ...it, versaoId: versaoFinalId } : it)));
+    }
     setTons((atual) => ({ ...atual, [item.id]: novoTom }));
     setItemTomAEditar(null);
-    torrada("Tom atualizado");
-    if (eventoId) registarUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
+    torrada(redirecionou ? `Tom atualizado — versão de ${lead.nome.split(" ")[0]}` : "Tom atualizado");
+    if (eventoId) registarUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: versaoFinalId });
   }
 
   const nMusicas = itensLocais.filter((i) => i.tipo === "musica").length;

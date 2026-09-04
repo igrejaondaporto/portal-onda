@@ -9,6 +9,20 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
   const porDia = {};
   eventosMes.forEach((ev) => { porDia[Number(ev.data.slice(8, 10))] = ev; });
 
+  // Dia de ensaio (eventos/{e}/escalas/louvor.dataEnsaio) — só pintado
+  // quando cai dentro do próprio mês em exibição (a semana de ensaio
+  // de um culto no início do mês pode cair no mês anterior; fica sem
+  // marcar aí, simplificação aceitável — ver CalendarioSemanal). Um
+  // dia que já é culto nunca perde essa cor por também ser ensaio de
+  // outro culto (raro, mas o culto é a informação mais importante).
+  const diasEnsaio = new Set();
+  eventosMes.forEach((ev) => {
+    const iso = ev.escala?.dataEnsaio;
+    if (!iso) return;
+    const [ea, em, ed] = iso.split("-").map(Number);
+    if (ea === ano && em - 1 === mes) diasEnsaio.add(ed);
+  });
+
   const celulas = [];
   for (let i = 0; i < primeiro; i++) celulas.push(<div className="cald vazio" key={`v${i}`} />);
   for (let d = 1; d <= dias; d++) {
@@ -18,6 +32,8 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
       const souEscalado = ev.escala.pessoas.includes(uid);
       const porConfirmar = souEscalado && ev.escala.publicado && !confirmados?.has(ev.id);
       cl += porConfirmar ? " naoconfirmado" : souEscalado ? " sirvo" : " culto";
+    } else if (diasEnsaio.has(d)) {
+      cl += " ensaio";
     }
     if (ehHoje(d)) cl += " hoje";
     celulas.push(
@@ -35,6 +51,7 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
   const algumaPorConfirmar = eventosMes.some(
     (e) => e.escala.pessoas.includes(uid) && e.escala.publicado && !confirmados?.has(e.id)
   );
+  const algumEnsaio = diasEnsaio.size > 0;
 
   return (
     <div className="cal">
@@ -57,6 +74,9 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
           <span className="lg"><s style={{ background: "var(--agua)" }} />Culto</span>
           {algumaPorConfirmar && (
             <span className="lg"><s style={{ background: "var(--magenta)" }} />Por confirmar</span>
+          )}
+          {algumEnsaio && (
+            <span className="lg"><s style={{ background: "var(--violeta)" }} />Ensaio</span>
           )}
           <span className="lg"><s style={{ boxShadow: "inset 0 0 0 2.5px var(--lima)" }} />Hoje</span>
         </div>

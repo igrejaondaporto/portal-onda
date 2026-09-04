@@ -171,7 +171,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAbert
         <div className="caixinha ensaio">
           <p className="caixinha-titulo">
             🏋️ <b>Ensaio</b>
-            {evento.escala.dataEnsaio && ` - ${dataPorExtenso(evento.escala.dataEnsaio)}`}
+            {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
             {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
           </p>
           {evento.escala.localEnsaio && <p className="ds">📍 {evento.escala.localEnsaio}</p>}
@@ -416,7 +416,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
                     </tbody>
                   </table>
                 </div>
-                <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. Desliza a tabela se não couber.</p>
+                <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece num box azul. Desliza a tabela se não couber.</p>
               </>
             )}
           </div>

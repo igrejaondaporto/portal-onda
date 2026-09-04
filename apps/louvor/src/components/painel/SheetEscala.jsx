@@ -14,9 +14,10 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  * "ministério" dentro da base. Quem toca mais do que um aparece em
  * mais do que um bloco; escalar num bloco onde já está escalado
  * noutro move-a para aqui (nunca em dois papéis ao mesmo tempo, ver
- * guardarEscalaLouvor). Quem ainda não tem instrumento no perfil cai
- * num bloco à parte, com o seletor de papel de sempre — para não
- * desaparecer da escala só por o perfil estar incompleto.
+ * guardarEscalaLouvor). Quem não tem nenhum instrumento no perfil
+ * (não canta nem toca nada — fica só "Voluntário" no papel de base,
+ * ver PainelLider.jsx) nem aparece aqui — pedido do líder, 2026-09:
+ * essas pessoas não servem em papel nenhum da escala.
  *
  * `aoMudar(escalados, liderEscala)`, se vier, substitui a escrita
  * direta na escala ao vivo (guardarEscala) — é o que SecaoRascunhos
@@ -32,7 +33,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [estatisticas, setEstatisticas] = useState({});
   const [ordem, setOrdem] = useState("vezes");
-  const [aEscolherPapel, setAEscolherPapel] = useState(null); // pessoaId, a meio de juntar (só no bloco "sem instrumento")
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
   const [publicado, setPublicado] = useState(!!evento?.escala?.publicado);
@@ -174,58 +174,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     );
   }
 
-  // Linha no bloco "sem instrumento definido" — mantém o seletor de
-  // papel de sempre, porque aqui não há um bloco só para decidir por.
-  function linhaSemInstrumento(p) {
-    const entrada = escalados.find((e) => e.pessoaId === p.id);
-    const lid = liderEscala === p.id;
-    const { semServico, stat, texto } = linhaEstatistica(p);
-    const aEscolher = aEscolherPapel === p.id;
-    return (
-      <div key={p.id}>
-        <div className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}>
-          <span
-            onClick={() => (entrada ? setAEscolherPapel(aEscolher ? null : p.id) : setAEscolherPapel(p.id))}
-            style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
-          >
-            <Avatar pessoa={p} tamanho={38} fonte={15} />
-            <span style={{ flex: 1 }}>
-              <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
-              <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                {entrada ? `${nomePapel(entrada.papel)}${lid ? " · líder de escala" : ""}` : "fora deste culto"}
-              </span>
-              <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
-                {texto}
-                {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
-              </span>
-            </span>
-          </span>
-          {entrada && (
-            <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">★</button>
-          )}
-          {entrada && (
-            <span className="chk on" onClick={() => tirar(p.id)} style={{ cursor: "pointer" }}>✓</span>
-          )}
-        </div>
-        {aEscolher && (
-          <div className="subtabs" style={{ margin: "0 0 12px" }}>
-            {PAPEIS.map((papel) => (
-              <button
-                key={papel.id}
-                data-on={entrada?.papel === papel.id ? 1 : 0}
-                onClick={() => (entrada ? trocarPapel(p.id, papel.id) : juntarComPapel(p.id, papel.id))}
-              >
-                {papel.nome}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const semInstrumento = voluntariosOrdenados.filter((p) => !(p.instrumentos || []).length);
-
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -255,18 +203,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
             </div>
           );
         })}
-
-        {semInstrumento.length > 0 && (
-          <div style={{ marginTop: 18 }}>
-            <div className="cabecalho" style={{ paddingTop: 0, marginBottom: 2 }}>
-              <h3>Sem instrumento definido</h3>
-            </div>
-            <p className="ds" style={{ margin: "0 0 8px" }}>
-              Ainda sem instrumento no perfil — dá para escalar à mesma, escolhendo o papel abaixo.
-            </p>
-            {semInstrumento.map((p) => linhaSemInstrumento(p))}
-          </div>
-        )}
 
         {!aoMudar && (
           publicado ? (
