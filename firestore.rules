@@ -367,6 +367,15 @@ service cloud.firestore {
           allow read:  if minhaBase(base) && (souLiderBase(base) || euSou(pessoa));
           allow write: if false;
         }
+
+        // confirmação de presença no ENSAIO (Base Louvor, 2026-09) —
+        // mesmo padrão de /confirmacoes acima, subcoleção própria
+        // porque é uma pergunta diferente (ensaio, não culto). Sempre
+        // por confirmarPresencaEnsaioLouvor.
+        match /confirmacoesEnsaio/{pessoa} {
+          allow read:  if minhaBase(base) && (souLiderBase(base) || euSou(pessoa));
+          allow write: if false;
+        }
       }
 
       // pessoa+culto, não de uma base — só quem serve em mais do que
