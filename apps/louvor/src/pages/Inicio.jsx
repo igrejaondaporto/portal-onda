@@ -6,7 +6,7 @@ import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { ouvirAvisos, tempoRestante, percentagemDecorrida } from "../lib/avisos";
-import { ouvirConfirmacao, ouvirConfirmacoesDoMes } from "../lib/confirmacao";
+import { ouvirConfirmacao, ouvirConfirmacoesDoMes, ouvirConfirmacoesEnsaioDoMes } from "../lib/confirmacao";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
@@ -45,6 +45,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [respostasMesAtual, setRespostasMesAtual] = useState(() => new Map());
   const [sheetConfirmar, setSheetConfirmar] = useState(false);
   const [sheetMudarResposta, setSheetMudarResposta] = useState(false);
+  const [respostasEnsaioMesAtual, setRespostasEnsaioMesAtual] = useState(() => new Map());
+  const [sheetConfirmarEnsaio, setSheetConfirmarEnsaio] = useState(false);
   const [enquetesAbertas, setEnquetesAbertas] = useState([]);
   const [minhasRespostasEnquete, setMinhasRespostasEnquete] = useState({});
   const [eventosEnquetePorId, setEventosEnquetePorId] = useState({});
@@ -113,6 +115,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     .filter((ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostasMesAtual.has(ev.id))
     .sort((a, b) => a.data.localeCompare(b.data));
   const cultoPorConfirmar = cultosPorConfirmar[0] ?? null;
+
+  // Confirmação de ENSAIO (2026-09) — mesmo cálculo, mas o gate é
+  // `dataEnsaio` estar marcada, não `publicado` (ver
+  // ouvirConfirmacoesEnsaioDoMes/confirmarPresencaEnsaioLouvor):
+  // assim que o líder marca a data do ensaio dentro do cartão do
+  // culto (Escala geral), quem serve nesse culto já vê o balão sem
+  // nenhum passo de "enviar" — a própria data existir é o convite.
+  useEffect(() => ouvirConfirmacoesEnsaioDoMes(eventosMesAtual, uid, setRespostasEnsaioMesAtual), [eventosMesAtual, uid]);
+  const ensaiosPorConfirmar = eventosMesAtual
+    .filter((ev) => ev.escala?.dataEnsaio && (ev.escala.pessoas || []).includes(uid) && !respostasEnsaioMesAtual.has(ev.id))
+    .sort((a, b) => (a.escala.dataEnsaio || "").localeCompare(b.escala.dataEnsaio || ""));
+  const ensaioPorConfirmar = ensaiosPorConfirmar[0] ?? null;
 
   // enquete de indisponibilidade — o popup obrigatório (EnqueteAutoStart,
   // ver Sessao.jsx) já força a primeira resposta; este balão fica fixo
@@ -227,6 +241,20 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             </p>
           </div>
           <span style={{ fontSize: 24 }}>✓</span>
+        </div>
+      )}
+      {ensaioPorConfirmar && (
+        <div
+          className="destaque" style={{ background: "var(--laranja)", marginBottom: 10 }}
+          onClick={() => setSheetConfirmarEnsaio(true)}
+        >
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma o ensaio</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Vais ao ensaio de {dataPorExtenso(ensaioPorConfirmar.escala.dataEnsaio)}?
+            </p>
+          </div>
+          <span style={{ fontSize: 24 }}>🎙️</span>
         </div>
       )}
       {avisos.map((a) => (
@@ -456,6 +484,16 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
         onFechar={() => setSheetMudarResposta(false)}
         onGuardado={(msg) => { setSheetMudarResposta(false); torrada(msg); }}
+      />
+    )}
+    {sheetConfirmarEnsaio && ensaioPorConfirmar && (
+      <SheetConfirmarPresenca
+        tipo="ensaio"
+        cultos={ensaiosPorConfirmar}
+        minhasRespostas={{}}
+        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
+        onFechar={() => setSheetConfirmarEnsaio(false)}
+        onGuardado={(msg) => { setSheetConfirmarEnsaio(false); torrada(msg); }}
       />
     )}
     {sheetEnquete && enquetesAbertas.length > 0 && (

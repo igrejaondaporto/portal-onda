@@ -81,6 +81,36 @@ export async function obterTonsDosItens(itens) {
   return Object.fromEntries(pares);
 }
 
+/** Mesma leitura pontual de obterTomVersao, mas para `linkReferencia`
+ *  — o link da VERSÃO (o mesmo campo que SheetVersao.jsx já usa),
+ *  não da música inteira. Pedido do líder, 2026-09: dentro do
+ *  Repertório, ao editar o tom de um item, também dá para colar o
+ *  link dessa versão ali mesmo — e o botão de YouTube ao lado do selo
+ *  de tom (ver Repertorio.jsx) só aparece quando ESTA versão tem
+ *  link, nunca a partir do link da música (que outras versões podem
+ *  não ter nada a ver). Função em par com obterTomVersao/
+ *  obterTonsDosItens de propósito, não junta os dois num objeto só —
+ *  Escala.jsx (que usa obterTonsDosItens para a prévia) nunca
+ *  precisou do link, só o Repertório precisa. */
+export async function obterLinkVersao(musicaId, versaoId) {
+  if (!musicaId || !versaoId) return null;
+  const snap = await getDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`));
+  return snap.exists() ? snap.data().linkReferencia || null : null;
+}
+
+export async function obterLinksDosItens(itens) {
+  const musicais = (itens || []).filter((i) => i.tipo === "musica" && i.musicaId && i.versaoId);
+  const pares = await Promise.all(
+    musicais.map((i) => obterLinkVersao(i.musicaId, i.versaoId).then((link) => [i.id, link]))
+  );
+  return Object.fromEntries(pares);
+}
+
+export async function definirLinkVersao(musicaId, versaoId, link) {
+  if (!musicaId || !versaoId) return;
+  await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}/versoes/${versaoId}`), { linkReferencia: String(link || "").trim() || null });
+}
+
 /** Todas as versões (em qualquer música) cujo nome bate com esta
  *  pessoa — a versão É o cantor, ver functions/index.js,
  *  registarUsoVersaoLouvor. Um documento só, sem query nenhuma. null

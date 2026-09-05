@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { ouvirRepertorio, guardarRepertorio, itemMusica, itemMomento } from "../lib/repertorio";
-import { ouvirMusicas, obterTonsDosItens, definirTomComRedirecionamento, registarUsoVersao, desfazerUsoVersao } from "../lib/biblioteca";
+import { ouvirMusicas, obterTonsDosItens, obterLinksDosItens, definirLinkVersao, definirTomComRedirecionamento, registarUsoVersao, desfazerUsoVersao } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
@@ -46,7 +46,7 @@ function haQuanto(ts) {
  * a observação do medley).
  */
 function ItemRepertorio({
-  item, i, total, m, tom, esteEhMedley, proximoEhMedley, numero,
+  item, i, total, m, tom, link, esteEhMedley, proximoEhMedley, numero,
   podeAlternar, mostrarObs, aEditarObs, obsEditando, setObsEditando,
   onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover, onEditarTom,
 }) {
@@ -97,6 +97,17 @@ function ItemRepertorio({
             >
               {tom || "Tom"}
             </button>
+            {link && (
+              <a
+                className="rep-link-youtube" href={link} target="_blank" rel="noreferrer"
+                onClick={(e) => e.stopPropagation()} aria-label="Abrir link desta versão"
+              >
+                <svg viewBox="0 0 24 17" width="20" height="14" aria-hidden="true">
+                  <path d="M23.5 2.5a3 3 0 0 0-2.1-2.1C19.5 0 12 0 12 0S4.5 0 2.6.4A3 3 0 0 0 .5 2.5 31 31 0 0 0 0 8.3a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.5 16.6 12 16.6 12 16.6s7.5 0 9.4-.4a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-5.8 31 31 0 0 0-.5-5.8Z" fill="#FF0000" />
+                  <path d="M9.6 11.8 15.8 8.3 9.6 4.8Z" fill="#fff" />
+                </svg>
+              </a>
+            )}
             <span className="rep-acoes-direita">
               <span className="rep-steppers">
                 <button aria-label="Mover para cima" disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>▲</button>
@@ -156,6 +167,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [itensLocais, setItensLocais] = useState([]);
   const [aArrastar, setAArrastar] = useState(false);
   const [tons, setTons] = useState({});
+  const [links, setLinks] = useState({});
   const [itemTomAEditar, setItemTomAEditar] = useState(null); // { item, m } | null
 
   const sensores = useSensors(
@@ -196,7 +208,16 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     return () => { cancelado = true; };
   }, [itensLocais]);
 
-  async function confirmarNovoTom(novoTom) {
+  // Mesmo padrão da leitura de tons acima, mas para o link de
+  // referência de cada versão — só o botão de YouTube ao lado do selo
+  // de tom precisa disto (ver ItemRepertorio).
+  useEffect(() => {
+    let cancelado = false;
+    obterLinksDosItens(itensLocais).then((mapa) => { if (!cancelado) setLinks(mapa); });
+    return () => { cancelado = true; };
+  }, [itensLocais]);
+
+  async function confirmarNovoTom(novoTom, novoLink) {
     const { item } = itemTomAEditar;
     const lead = leadId ? voluntarios.find((p) => p.id === leadId) : null;
     const versaoFinalId = await definirTomComRedirecionamento(item.musicaId, item.versaoId, novoTom, voluntarios, lead, uid);
@@ -206,7 +227,11 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       if (eventoId) desfazerUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
       persistir(itensLocais.map((it) => (it.id === item.id ? { ...it, versaoId: versaoFinalId } : it)));
     }
+    // Link é da VERSÃO final (a mesma para onde o tom foi, se
+    // redirecionou) — não da música, e não do item do repertório.
+    await definirLinkVersao(item.musicaId, versaoFinalId, novoLink);
     setTons((atual) => ({ ...atual, [item.id]: novoTom }));
+    setLinks((atual) => ({ ...atual, [item.id]: novoLink || null }));
     setItemTomAEditar(null);
     torrada(redirecionou ? `Tom atualizado — versão de ${lead.nome.split(" ")[0]}` : "Tom atualizado");
     if (eventoId) registarUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: versaoFinalId });
@@ -392,7 +417,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
               return (
                 <ItemRepertorio
                   key={item.id} item={item} i={i} total={itensLocais.length} m={m}
-                  tom={tons[item.id]}
+                  tom={tons[item.id]} link={links[item.id]}
                   esteEhMedley={esteEhMedley} proximoEhMedley={proximoEhMedley}
                   numero={numerosOrdinais[item.id]}
                   podeAlternar={podeAlternar}
@@ -455,6 +480,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
         <SheetEditarTom
           titulo={itemTomAEditar.m?.titulo}
           tomAtual={tons[itemTomAEditar.item.id]}
+          linkAtual={links[itemTomAEditar.item.id]}
           onFechar={() => setItemTomAEditar(null)}
           onConfirmar={confirmarNovoTom}
         />

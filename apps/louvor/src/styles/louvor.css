@@ -439,6 +439,18 @@
   background: var(--magenta);
   color: #fff;
 }
+/* Botão de link da versão (YouTube), ao lado do selo de tom — só
+ * aparece quando a versão tem `linkReferencia` (ver SheetEditarTom,
+ * Repertorio.jsx). Mesmo tamanho de toque do resto da barra de ações. */
+.rep-link-youtube {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 9px;
+  border-radius: 100px;
+  background: #fff;
+}
 .rep-remover {
   border: 0;
   background: none;

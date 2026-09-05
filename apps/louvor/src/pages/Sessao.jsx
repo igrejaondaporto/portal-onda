@@ -31,9 +31,9 @@ const ICONE_REPERTORIO = '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
+  ["repertorio", "Repertório", ICONE_REPERTORIO],
   ["culto", "Culto"],
   ["biblioteca", "Biblioteca", ICONE_BIBLIOTECA],
-  ["repertorio", "Repertório", ICONE_REPERTORIO],
 ];
 
 /**
