@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { confirmarPresenca } from "../lib/confirmacao";
+import { confirmarPresenca, confirmarPresencaEnsaio } from "../lib/confirmacao";
 import { emojiPapel, nomePapel } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
@@ -20,8 +20,16 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  * SheetResponderEnquete/bloqueante; ganha também "Ainda não sei"
  * (`onNaoSeiAinda`), pedido do líder — fecha sem gravar resposta
  * nenhuma, a pessoa responde depois pelo balão fixo no Início.
+ *
+ * `tipo="ensaio"` reaproveita o componente inteiro para a confirmação
+ * de ENSAIO (2026-09) em vez de culto — só troca o texto e a função
+ * chamada (confirmarPresencaEnsaio); a data mostrada passa a ser
+ * `culto.escala.dataEnsaio`, não `culto.data` (o culto e o ensaio
+ * raramente caem no mesmo dia). "Quem mais serve" continua a mostrar
+ * a escala do CULTO — é quem vai ao ensaio junto, faz sentido nos
+ * dois casos.
  */
-export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoaPorId, pessoaAlvo, bloqueante, onNaoSeiAinda, onFechar, onGuardado }) {
+export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoaPorId, pessoaAlvo, bloqueante, tipo = "culto", onNaoSeiAinda, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [passo, setPasso] = useState(0);
   const [resposta, setResposta] = useState(null); // "vai" | "nao_vai" | null
@@ -37,6 +45,9 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
   const culto = cultos[passoSeguro];
   const ultimoPasso = passoSeguro === cultos.length - 1;
   const escalados = culto?.escala?.escalados || [];
+  const dataAlvo = (c) => (tipo === "ensaio" ? c?.escala?.dataEnsaio : c?.data);
+  const confirmarFn = tipo === "ensaio" ? confirmarPresencaEnsaio : confirmarPresenca;
+  const verbo = tipo === "ensaio" ? "ir ao ensaio de" : "servir";
 
   useEffect(() => {
     if (!culto) return;
@@ -50,13 +61,13 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
     if (!culto || !resposta) return torrada("Toca em \"Vou\" ou \"Não vou\".");
     setAEnviar(true);
     try {
-      await confirmarPresenca(culto.id, pessoaAlvo?.id, resposta, justificativa);
+      await confirmarFn(culto.id, pessoaAlvo?.id, resposta, justificativa);
       if (ultimoPasso) {
         onGuardado("Resposta guardada");
       } else {
         setPasso(passoSeguro + 1);
         setAEnviar(false);
-        torrada(`Guardado — falta ${dataPorExtenso(cultos[passoSeguro + 1].data)}`);
+        torrada(`Guardado — falta ${dataPorExtenso(dataAlvo(cultos[passoSeguro + 1]))}`);
       }
     } catch (e) {
       torrada(e.message || "Não foi possível guardar a resposta.");
@@ -78,8 +89,8 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         )}
         <h2>
           {pessoaAlvo
-            ? `${pessoaAlvo.nome.split(" ")[0]} confirma que vai servir ${dataPorExtenso(culto.data)}?`
-            : `Confirmas que vais servir ${dataPorExtenso(culto.data)}?`}
+            ? `${pessoaAlvo.nome.split(" ")[0]} confirma que vai ${verbo} ${dataPorExtenso(dataAlvo(culto))}?`
+            : `Confirmas que vais ${verbo} ${dataPorExtenso(dataAlvo(culto))}?`}
         </h2>
         {pessoaAlvo && (
           <p className="ds" style={{ color: "var(--magenta)", fontWeight: 600, marginTop: 2 }}>
@@ -127,7 +138,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
         )}
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || !resposta} onClick={guardar}>
-          {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${dataPorExtenso(cultos[passoSeguro + 1]?.data)} (${passoSeguro + 2}/${cultos.length})`}
+          {aEnviar ? "A guardar…" : ultimoPasso ? "Guardar resposta" : `Guardar e ir para ${dataPorExtenso(dataAlvo(cultos[passoSeguro + 1]))} (${passoSeguro + 2}/${cultos.length})`}
         </button>
         {bloqueante
           ? <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={onNaoSeiAinda}>Ainda não sei</button>

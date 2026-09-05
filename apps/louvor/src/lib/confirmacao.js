@@ -13,6 +13,12 @@ const refConfirmacao = (eventoId, pessoaId) =>
 const cConfirmacoes = (eventoId) =>
   collection(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoes`);
 
+// Confirmação de ENSAIO — mesma forma, subcoleção própria (ver
+// confirmarPresencaEnsaioLouvor em functions/index.js). Pergunta
+// diferente da de cima: "vais ao ensaio?", não "vais servir?".
+const refConfirmacaoEnsaio = (eventoId, pessoaId) =>
+  doc(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoesEnsaio/${pessoaId}`);
+
 /** null enquanto não respondeu; senão {resposta, justificativa, ...}. */
 export function ouvirConfirmacao(eventoId, pessoaId, cb) {
   if (!eventoId || !pessoaId) return () => {};
@@ -70,6 +76,35 @@ export function ouvirConfirmacoesPorCulto(eventos, cb) {
 
 export const confirmarPresenca = (eventoId, pessoaId, resposta, justificativa = "") =>
   chamar("confirmarPresencaLouvor")({ eventoId, pessoaId, resposta, justificativa }).then((r) => r.data);
+
+/** null enquanto não respondeu à confirmação de ENSAIO. */
+export function ouvirConfirmacaoEnsaio(eventoId, pessoaId, cb) {
+  if (!eventoId || !pessoaId) return () => {};
+  return onSnapshot(refConfirmacaoEnsaio(eventoId, pessoaId), (s) => cb(s.exists() ? s.data() : null));
+}
+
+/** Espelho de ouvirConfirmacoesDoMes, mas o gate é `dataEnsaio`
+ *  definida, não `publicado` — o ensaio pode ser marcado antes ou
+ *  depois de a escala do culto em si estar pública. */
+export function ouvirConfirmacoesEnsaioDoMes(eventos, pessoaId, cb) {
+  const alvos = (eventos || []).filter(
+    (ev) => ev.escala?.dataEnsaio && (ev.escala.pessoas || []).includes(pessoaId)
+  );
+  if (!alvos.length) { cb(new Map()); return () => {}; }
+
+  const respostas = new Map();
+  const paragens = alvos.map((ev) =>
+    onSnapshot(refConfirmacaoEnsaio(ev.id, pessoaId), (s) => {
+      if (s.exists()) respostas.set(ev.id, s.data());
+      else respostas.delete(ev.id);
+      cb(new Map(respostas));
+    })
+  );
+  return () => paragens.forEach((p) => p());
+}
+
+export const confirmarPresencaEnsaio = (eventoId, pessoaId, resposta, justificativa = "") =>
+  chamar("confirmarPresencaEnsaioLouvor")({ eventoId, pessoaId, resposta, justificativa }).then((r) => r.data);
 
 /** "Ainda não sei" no popup automático (ConfirmacaoAutoStart) — mesmo
  *  esquema de dispensarEnquete/enqueteDispensada em lib/enquetes.js:
