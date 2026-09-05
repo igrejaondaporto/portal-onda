@@ -1372,6 +1372,52 @@ export const confirmarPresencaLouvor = onCall(async (req) => {
   return { ok: true };
 });
 
+/** Confirmação de presença no ENSAIO — espelho de confirmarPresencaLouvor
+ *  acima, mas o gate é `dataEnsaio` estar definida (não `publicado`):
+ *  o ensaio é marcado por definirDetalhesCultoLouvor a qualquer
+ *  momento, independente de a escala do culto em si já estar
+ *  publicada. Pedido do líder, 2026-09: assim que ele marca a data do
+ *  ensaio dentro do cartão do culto (Escala geral), quem já está
+ *  escalado nesse culto passa a ter uma confirmação de ensaio
+ *  pendente — sem passo extra nenhum, o próprio "está pendente" já
+ *  nasce de existir `dataEnsaio` e faltar `confirmacoesEnsaio/{pessoa}`
+ *  (ver ouvirConfirmacoesEnsaioDoMes no cliente). Subcoleção própria,
+ *  nunca reaproveita `confirmacoes` — são perguntas diferentes (ir ao
+ *  ensaio vs. ir ao culto), a pessoa responde às duas em separado. */
+export const confirmarPresencaEnsaioLouvor = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  const { eventoId, pessoaId, resposta, justificativa = "" } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!RESPOSTAS_PRESENCA.has(resposta)) throw new HttpsError("invalid-argument", "Resposta inválida.");
+
+  let alvo = uid;
+  if (pessoaId && pessoaId !== uid) {
+    if (!PAPEIS_LIDER.has(req.auth.token.papel)) {
+      throw new HttpsError("permission-denied", "Só o líder pode confirmar por outra pessoa.");
+    }
+    alvo = pessoaId;
+  }
+
+  const escalaRef = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const escalaSnap = await escalaRef.get();
+  if (!escalaSnap.exists || !escalaSnap.data().dataEnsaio) {
+    throw new HttpsError("failed-precondition", "Este culto ainda não tem ensaio marcado.");
+  }
+  if (!(escalaSnap.data().pessoas || []).includes(alvo)) {
+    throw new HttpsError("failed-precondition", "Esta pessoa não está escalada neste culto.");
+  }
+
+  const dados = {
+    resposta,
+    justificativa: resposta === "nao_vai" ? (String(justificativa).trim() || null) : null,
+    respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (alvo !== uid) { dados.respondidoPeloLider = true; dados.respondidoPor = uid; }
+  await escalaRef.collection("confirmacoesEnsaio").doc(alvo).set(dados);
+  return { ok: true };
+});
+
 /** Tipo do culto (Ceia/Contribua/Culto da Família) — era só da Louvor
  *  (eventos/{e}/escalas/louvor.enfase), passou a global em 2026-09
  *  (pedido do líder da Louvor): a Backstage escolhe obrigatoriamente
@@ -1425,7 +1471,27 @@ export const definirDetalhesCultoLouvor = onCall(async (req) => {
   if (localEnsaio !== undefined) dados.localEnsaio = String(localEnsaio ?? "").trim() || null;
   if (observacao !== undefined) dados.observacaoLider = String(observacao ?? "").trim() || null;
 
+  // Data do ensaio mudou de facto (marcada de novo ou remarcada para
+  // outro dia) — limpa quem já tinha confirmado, senão um "sim" dado
+  // para o ensaio de sábado ficava a valer sozinho para o de terça
+  // que o líder remarcou (pedido do líder, 2026-09: cada vez que
+  // marca uma data nova, já manda a confirmação de novo a quem serve
+  // nesse culto — isto é o que torna essa confirmação "pendente outra
+  // vez" sem precisar de nenhum passo explícito de "enviar"). Nunca
+  // dispara ao só definir cores/local/observação.
+  const dataEnsaioMudou = dataEnsaio !== undefined && (dataEnsaio || null) !== (snap.exists ? (snap.data().dataEnsaio || null) : null);
+
   await ref.set(dados, { merge: true });
+
+  if (dataEnsaioMudou) {
+    const antigas = await ref.collection("confirmacoesEnsaio").listDocuments();
+    if (antigas.length) {
+      const lote = db.batch();
+      antigas.forEach((d) => lote.delete(d));
+      await lote.commit();
+    }
+  }
+
   return { ok: true };
 });
 
