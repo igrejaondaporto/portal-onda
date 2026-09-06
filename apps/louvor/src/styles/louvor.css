@@ -409,6 +409,34 @@
   background: #fff;
   cursor: pointer;
 }
+/* Comentário livre por música (2026-09, pedido do líder) — mesmo
+ * padrão visual de .rep-medley-obs/.rep-medley-add, mas em amarelo
+ * fraquinho para se distinguir à vista da observação do medley (essa
+ * é sempre "qual parte entra"; isto é qualquer recado). Vale para
+ * qualquer música, não só medley. */
+.rep-comentario {
+  background: #FFFBEB;
+  border: 1.5px dashed #F0DFA0;
+  border-radius: 10px;
+  padding: 8px 34px 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--tinta);
+  position: relative;
+}
+.rep-comentario-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1.5px dashed #F0DFA0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--cinza);
+  background: #FFFBEB;
+  cursor: pointer;
+}
 .rep-alca {
   color: var(--cinza);
   cursor: grab;
@@ -439,8 +467,9 @@
   background: var(--magenta);
   color: #fff;
 }
-/* Botão de link da versão (YouTube), ao lado do selo de tom — só
- * aparece quando a versão tem `linkReferencia` (ver SheetEditarTom,
+/* Botão de link da versão, ao lado do selo de tom — sempre visível
+ * (2026-09, pedido do líder): ícone de link externo quando vazio,
+ * YouTube quando já tem `linkReferencia` (ver SheetEditarLink,
  * Repertorio.jsx). Mesmo tamanho de toque do resto da barra de ações. */
 .rep-link-youtube {
   flex: none;
@@ -448,8 +477,11 @@
   align-items: center;
   justify-content: center;
   padding: 7px 9px;
+  border: 0;
   border-radius: 100px;
   background: #fff;
+  color: var(--tinta);
+  cursor: pointer;
 }
 .rep-remover {
   border: 0;

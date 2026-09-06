@@ -9,24 +9,20 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
  * edita), por isso vale para qualquer repertório futuro que use essa
  * versão, não só este culto.
  *
- * Ganhou também o link de referência da versão (2026-09, pedido do
- * líder) — mesmo campo `linkReferencia` que SheetVersao.jsx já grava
- * na Biblioteca, só que editável direto daqui, sem sair do
- * Repertório. `onConfirmar(tom, link)` grava os dois; se o tom
- * redirecionar para outra versão (ver definirTomComRedirecionamento
- * em Repertorio.jsx), o link segue junto para a versão final.
+ * O link de referência da versão tem botão próprio ao lado do selo de
+ * tom (ver SheetEditarLink.jsx) — não vive mais aqui dentro
+ * (2026-09, pedido do líder: "desmembra isso de Tom").
  */
-export default function SheetEditarTom({ titulo, tomAtual, linkAtual, onFechar, onConfirmar }) {
+export default function SheetEditarTom({ titulo, tomAtual, onFechar, onConfirmar }) {
   const torrada = useTorrada();
   const [tom, setTom] = useState(tomAtual || "");
-  const [link, setLink] = useState(linkAtual || "");
   const [aGuardar, setAGuardar] = useState(false);
 
   async function confirmar() {
     if (!tom) return torrada("Escolhe um tom.");
     setAGuardar(true);
     try {
-      await onConfirmar(tom, link.trim());
+      await onConfirmar(tom);
     } catch (e) {
       torrada(e.message || "Não foi possível guardar o tom.");
     } finally {
@@ -41,11 +37,6 @@ export default function SheetEditarTom({ titulo, tomAtual, linkAtual, onFechar, 
         <div className="pux" />
         <h2>Tom {titulo ? `· ${titulo}` : ""}</h2>
         <GradeTom valor={tom} onEscolher={setTom} />
-        <label className="rot" style={{ marginTop: 14 }}>Link da versão (opcional)</label>
-        <input
-          className="campo" value={link} onChange={(e) => setLink(e.target.value)}
-          placeholder="Ex.: link do YouTube desta versão"
-        />
         <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar || !tom} onClick={confirmar}>
           {aGuardar ? "A guardar…" : "✓ Confirmar"}
         </button>

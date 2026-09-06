@@ -9,6 +9,7 @@ import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/da
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
 import SheetEditarTom from "../components/repertorio/SheetEditarTom";
+import SheetEditarLink from "../components/repertorio/SheetEditarLink";
 
 // Referência estável para "sem itens" — `repertorio?.itens ?? []`
 // parecia inofensivo, mas cria um array NOVO a cada render sempre que
@@ -48,7 +49,9 @@ function haQuanto(ts) {
 function ItemRepertorio({
   item, i, total, m, tom, link, esteEhMedley, proximoEhMedley, numero,
   podeAlternar, mostrarObs, aEditarObs, obsEditando, setObsEditando,
-  onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover, onEditarTom,
+  aEditarComentario, comentarioEditando, setComentarioEditando,
+  onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover, onEditarTom, onEditarLink,
+  onEditarComentario, onGuardarComentario, onCancelarComentario,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const estilo = {
@@ -97,17 +100,23 @@ function ItemRepertorio({
             >
               {tom || "Tom"}
             </button>
-            {link && (
-              <a
-                className="rep-link-youtube" href={link} target="_blank" rel="noreferrer"
-                onClick={(e) => e.stopPropagation()} aria-label="Abrir link desta versão"
-              >
+            <button
+              className="rep-link-youtube" onClick={(e) => { e.stopPropagation(); onEditarLink(item, m); }}
+              aria-label={link ? "Ver ou trocar o link desta versão" : "Adicionar link desta versão"}
+            >
+              {link ? (
                 <svg viewBox="0 0 24 17" width="20" height="14" aria-hidden="true">
                   <path d="M23.5 2.5a3 3 0 0 0-2.1-2.1C19.5 0 12 0 12 0S4.5 0 2.6.4A3 3 0 0 0 .5 2.5 31 31 0 0 0 0 8.3a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.5 16.6 12 16.6 12 16.6s7.5 0 9.4-.4a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-5.8 31 31 0 0 0-.5-5.8Z" fill="#FF0000" />
                   <path d="M9.6 11.8 15.8 8.3 9.6 4.8Z" fill="#fff" />
                 </svg>
-              </a>
-            )}
+              ) : (
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <path d="M15 3h6v6" />
+                  <path d="M10 14 21 3" />
+                </svg>
+              )}
+            </button>
             <span className="rep-acoes-direita">
               <span className="rep-steppers">
                 <button aria-label="Mover para cima" disabled={i === 0} onClick={(e) => { e.stopPropagation(); onMover(item.id, -1); }}>▲</button>
@@ -140,6 +149,29 @@ function ItemRepertorio({
           + Qual parte desta música vai ser usada?
         </button>
       ) : null}
+      {aEditarComentario ? (
+        <div className="rep-comentario">
+          <label className="rot">Comentários</label>
+          <input
+            className="campo" value={comentarioEditando} onChange={(e) => setComentarioEditando(e.target.value)}
+            placeholder="Algum recado sobre esta música…" autoFocus
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button className="btn full" style={{ flex: 1 }} onClick={onGuardarComentario}>Guardar</button>
+            <button className="btn sec full" style={{ flex: 1 }} onClick={onCancelarComentario}>Cancelar</button>
+          </div>
+        </div>
+      ) : item.comentario ? (
+        <div className="rep-comentario">
+          <p className="rot" style={{ marginBottom: 2 }}>Comentários</p>
+          {item.comentario}
+          <button className="rep-medley-editar" onClick={onEditarComentario} aria-label="Editar comentário">✎</button>
+        </div>
+      ) : (
+        <button className="rep-comentario-add" onClick={onEditarComentario}>
+          + Comentários
+        </button>
+      )}
     </div>
   );
 }
@@ -159,6 +191,8 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [medleysFechados, setMedleysFechados] = useState(() => new Set());
   const [medleyAEditar, setMedleyAEditar] = useState(null); // id do item, ou null
   const [obsEditando, setObsEditando] = useState("");
+  const [comentarioAEditar, setComentarioAEditar] = useState(null); // id do item, ou null
+  const [comentarioEditando, setComentarioEditando] = useState("");
 
   // Cópia local dos itens — o arrasto reordena isto ao vivo, sem
   // gravar a cada troca; só persiste quando o dedo solta. Sincroniza
@@ -169,6 +203,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [tons, setTons] = useState({});
   const [links, setLinks] = useState({});
   const [itemTomAEditar, setItemTomAEditar] = useState(null); // { item, m } | null
+  const [itemLinkAEditar, setItemLinkAEditar] = useState(null); // { item, m } | null
 
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -217,7 +252,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     return () => { cancelado = true; };
   }, [itensLocais]);
 
-  async function confirmarNovoTom(novoTom, novoLink) {
+  async function confirmarNovoTom(novoTom) {
     const { item } = itemTomAEditar;
     const lead = leadId ? voluntarios.find((p) => p.id === leadId) : null;
     const versaoFinalId = await definirTomComRedirecionamento(item.musicaId, item.versaoId, novoTom, voluntarios, lead, uid);
@@ -227,14 +262,23 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
       if (eventoId) desfazerUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: item.versaoId });
       persistir(itensLocais.map((it) => (it.id === item.id ? { ...it, versaoId: versaoFinalId } : it)));
     }
-    // Link é da VERSÃO final (a mesma para onde o tom foi, se
-    // redirecionou) — não da música, e não do item do repertório.
-    await definirLinkVersao(item.musicaId, versaoFinalId, novoLink);
     setTons((atual) => ({ ...atual, [item.id]: novoTom }));
-    setLinks((atual) => ({ ...atual, [item.id]: novoLink || null }));
     setItemTomAEditar(null);
     torrada(redirecionou ? `Tom atualizado — versão de ${lead.nome.split(" ")[0]}` : "Tom atualizado");
     if (eventoId) registarUsoVersao({ eventoId, musicaId: item.musicaId, versaoId: versaoFinalId });
+  }
+
+  // Link é sempre da versão ATUAL do item (item.versaoId) — já é a
+  // que o Lead está a usar naquele momento, resolvida por qualquer
+  // redirecionamento de tom anterior; este botão não redireciona
+  // nada sozinho, só grava no que já está (2026-09, pedido do líder:
+  // "desmembra isso de Tom").
+  async function confirmarNovoLink(novoLink) {
+    const { item } = itemLinkAEditar;
+    await definirLinkVersao(item.musicaId, item.versaoId, novoLink);
+    setLinks((atual) => ({ ...atual, [item.id]: novoLink || null }));
+    setItemLinkAEditar(null);
+    torrada(novoLink ? "Link guardado" : "Link removido");
   }
 
   const nMusicas = itensLocais.filter((i) => i.tipo === "musica").length;
@@ -325,6 +369,23 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
     const texto = obsEditando.trim() || null;
     persistir(itensLocais.map((it) => (it.id === id ? { ...it, observacaoMedley: texto } : it)));
     setMedleyAEditar(null);
+  }
+
+  // Comentário livre por música — diferente da observação de medley
+  // (essa é só "qual parte entra"; o comentário é qualquer recado
+  // sobre aquela música, para qualquer item, medley ou não). Mesmo
+  // padrão de edição da observação acima, estado à parte porque as
+  // duas caixas podem estar abertas em músicas diferentes ao mesmo
+  // tempo (pedido do líder, 2026-09).
+  function iniciarEdicaoComentario(item) {
+    setComentarioEditando(item.comentario || "");
+    setComentarioAEditar(item.id);
+  }
+
+  function guardarComentario(id) {
+    const texto = comentarioEditando.trim() || null;
+    persistir(itensLocais.map((it) => (it.id === id ? { ...it, comentario: texto } : it)));
+    setComentarioAEditar(null);
   }
 
   function aoComecarArrasto() {
@@ -428,8 +489,14 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                   onEditarObs={() => iniciarEdicaoObs(item)}
                   onGuardarObs={() => guardarObsMedley(item.id)}
                   onCancelarObs={() => setMedleyAEditar(null)}
+                  aEditarComentario={comentarioAEditar === item.id}
+                  comentarioEditando={comentarioEditando} setComentarioEditando={setComentarioEditando}
+                  onEditarComentario={() => iniciarEdicaoComentario(item)}
+                  onGuardarComentario={() => guardarComentario(item.id)}
+                  onCancelarComentario={() => setComentarioAEditar(null)}
                   onMover={mover} onRemover={remover}
                   onEditarTom={(it, musica) => setItemTomAEditar({ item: it, m: musica })}
+                  onEditarLink={(it, musica) => setItemLinkAEditar({ item: it, m: musica })}
                 />
               );
             })}
@@ -480,9 +547,16 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
         <SheetEditarTom
           titulo={itemTomAEditar.m?.titulo}
           tomAtual={tons[itemTomAEditar.item.id]}
-          linkAtual={links[itemTomAEditar.item.id]}
           onFechar={() => setItemTomAEditar(null)}
           onConfirmar={confirmarNovoTom}
+        />
+      )}
+      {itemLinkAEditar && (
+        <SheetEditarLink
+          titulo={itemLinkAEditar.m?.titulo}
+          linkAtual={links[itemLinkAEditar.item.id]}
+          onFechar={() => setItemLinkAEditar(null)}
+          onConfirmar={confirmarNovoLink}
         />
       )}
     </>
