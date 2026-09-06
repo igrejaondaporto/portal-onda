@@ -41,6 +41,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
   const torrada = useTorrada();
   const [repertorio, setRepertorio] = useState(null);
   const [tons, setTons] = useState({});
+  const [escalaAberta, setEscalaAberta] = useState(false);
   const [aEditar, setAEditar] = useState(false);
   const [cores, setCores] = useState([]);
   const [dataEnsaio, setDataEnsaio] = useState("");
@@ -108,28 +109,38 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
   return (
     <>
       <div className="caixinha escala">
-        <p className="caixinha-titulo">Escala</p>
-        {escalados.length ? (
-          escalados.map((e) => {
-            const p = pessoaPorId(e.pessoaId);
-            if (!p) return null;
-            return (
-              <LinhaPessoaContacto
-                key={e.pessoaId} pessoa={p}
-                resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
-                tagExtra={(
-                  <>
-                    {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
-                    {confirmados?.has(e.pessoaId) && <span title="Confirmou presença">👍</span>}
-                  </>
-                )}
-                aberta={contactoAberto === e.pessoaId}
-                onToggle={() => onToggleContacto(e.pessoaId)}
-              />
-            );
-          })
-        ) : (
-          <p className="ds">Ainda ninguém escalado.</p>
+        <p
+          className="caixinha-titulo" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+          onClick={() => setEscalaAberta((v) => !v)}
+        >
+          <span style={{ flex: 1 }}>
+            Escala {escalados.length > 0 && `(${escalados.length})`}
+          </span>
+          <span className="seta">{escalaAberta ? "︿" : "›"}</span>
+        </p>
+        {escalaAberta && (
+          escalados.length ? (
+            escalados.map((e) => {
+              const p = pessoaPorId(e.pessoaId);
+              if (!p) return null;
+              return (
+                <LinhaPessoaContacto
+                  key={e.pessoaId} pessoa={p}
+                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
+                  tagExtra={(
+                    <>
+                      {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
+                      {confirmados?.has(e.pessoaId) && <span title="Confirmou presença">👍</span>}
+                    </>
+                  )}
+                  aberta={contactoAberto === e.pessoaId}
+                  onToggle={() => onToggleContacto(e.pessoaId)}
+                />
+              );
+            })
+          ) : (
+            <p className="ds">Ainda ninguém escalado.</p>
+          )
         )}
       </div>
 
