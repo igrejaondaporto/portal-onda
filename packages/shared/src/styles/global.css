@@ -32,17 +32,25 @@ html {
   overflow-anchor: none;
   /* iOS Safari sem isto: arrastar para os lados mostra o fundo do
    * WebView além do conteúdo (não há nada horizontal pra rolar, é só
-   * o "elástico" nativo), e puxar para baixo no topo da página
-   * arrasta a página inteira consigo — incluindo o NavBar fixo, que
-   * fica meio cortado até o elástico voltar. overflow-x tem de estar
-   * aqui e no body (o `body { overflow-x: hidden }` sozinho não
-   * chega — o elástico é do documento, não do overflow do body).
-   * overscroll-behavior:none tira o elástico nas duas direções, sem
-   * mexer no scroll normal (vertical, dentro da página) nem no
-   * scroll de dentro de folhas/carrosséis, que continuam com o seu
-   * próprio overflow. */
+   * o "elástico" nativo). overflow-x tem de estar aqui e no body (o
+   * `body { overflow-x: hidden }` sozinho não chega — o elástico é do
+   * documento, não do overflow do body).
+   *
+   * CUIDADO: `overscroll-behavior: none` (as duas direções) aqui já
+   * partiu o scroll a valer — Android (só dava para rolar com dois
+   * dedos, entalando) e PC (roda do rato parava de fazer nada, só a
+   * barra lateral arrastada à mão continuava a funcionar), em todas
+   * as bases, mesmo sem folha nenhuma aberta (visto em produção,
+   * 2026-09-07, ~5 dias depois deste código entrar). `none` no
+   * elemento raiz desliga o encadeamento de scroll que o Chrome usa
+   * para decidir se rola pelo caminho rápido (compositor) ou pelo
+   * lento (thread principal) — cai para o lento e trava. Só a
+   * direção vertical no topo (puxar para baixo arrastava o NavBar
+   * fixo) precisa de travar o elástico; `overscroll-behavior-y:
+   * contain` resolve isso sem desligar o encadeamento de scroll
+   * inteiro. */
   overflow-x: hidden;
-  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
 }
 body {
   font-family: var(--o);
@@ -50,7 +58,7 @@ body {
   background: #fff;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
 }
 button,
 input,
