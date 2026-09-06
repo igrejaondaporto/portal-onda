@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { responderEnquete, tempoRestanteVoto } from "../lib/enquetes";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { dataPorExtenso, diaSemanaAbrev, MESES } from "@portal/shared/lib/data.js";
+import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
 
 const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
 
@@ -23,13 +23,16 @@ const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
  *  a pessoa não escapar sem responder; em troca ganha "Não sei
  *  ainda" (`onNaoSeiAinda`), que fecha sem gravar nada — a pessoa
  *  responde depois pelo balão fixo no Início, até ao prazo. No resto
- *  dos usos (Início, PainelLider) fecha normalmente. */
+ *  dos usos (Início, PainelLider) fecha normalmente.
+ *
+ *  Já não pergunta pelo ensaio (2026-09, pedido do líder: "deixa o
+ *  campo de ensaio apenas para o box lá dentro de Escala geral
+ *  mesmo") — essa confirmação vive só em DetalhesCulto/Escala.jsx. */
 export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRespostas, pessoaAlvo, bloqueante, onNaoSeiAinda, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [passo, setPasso] = useState(0);
   const [semIndisponibilidade, setSemIndisponibilidade] = useState(false);
   const [indisponivel, setIndisponivel] = useState({});
-  const [indisponivelEnsaio, setIndisponivelEnsaio] = useState({});
   const [nota, setNota] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
@@ -40,7 +43,6 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
     const resposta = minhasRespostas?.[enquete.id];
     setSemIndisponibilidade(!!resposta?.semIndisponibilidade);
     setIndisponivel(Object.fromEntries((resposta?.indisponivelEm || []).map((id) => [id, true])));
-    setIndisponivelEnsaio(Object.fromEntries((resposta?.indisponivelEnsaioEm || []).map((id) => [id, true])));
     setNota(resposta?.nota || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enquete.id]);
@@ -55,12 +57,6 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
     setIndisponivel((s) => ({ ...s, [id]: !s[id] }));
   }
 
-  // Independente do voto do culto — dá pra faltar só ao ensaio (ou só
-  // ao culto), por isso nunca mexe em semIndisponibilidade/indisponivel.
-  function alternarEnsaio(id) {
-    setIndisponivelEnsaio((s) => ({ ...s, [id]: !s[id] }));
-  }
-
   const marcadas = Object.values(indisponivel).some(Boolean);
   const podeGuardar = semIndisponibilidade || marcadas;
 
@@ -73,7 +69,6 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
         pessoaId: pessoaAlvo?.id,
         indisponivelEm: semIndisponibilidade ? [] : Object.keys(indisponivel).filter((id) => indisponivel[id]),
         semIndisponibilidade,
-        indisponivelEnsaioEm: Object.keys(indisponivelEnsaio).filter((id) => indisponivelEnsaio[id]),
         nota: nota.trim(),
       });
       if (ultimoPasso) {
@@ -99,11 +94,7 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
             Esta enquete é para os meses de {enquetes.map((e) => nomeMes(e.id)).join(" e ")} — passo {passo + 1}/{enquetes.length}
           </p>
         )}
-        <h2>
-          {pessoaAlvo
-            ? `${pessoaAlvo.nome.split(" ")[0]} tem alguma indisponibilidade em ${nomeMes(enquete.id)}?`
-            : `Tens alguma indisponibilidade em ${nomeMes(enquete.id)}?`}
-        </h2>
+        <h2>INDISPONIBILIDADES DE {nomeMes(enquete.id).toUpperCase()}</h2>
         {pessoaAlvo && (
           <p className="ds" style={{ color: "var(--magenta)", fontWeight: 600, marginTop: 2 }}>
             A responder em nome de {pessoaAlvo.nome} — fica marcado que foi o líder a responder.
@@ -128,26 +119,12 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
         {(enquete.domingos || []).map((id) => {
           const ev = eventosPorId?.[id];
           return (
-            <div key={id}>
-              <div className="linha" style={{ cursor: "pointer" }} onClick={() => alternar(id)}>
-                <button className={`chk${indisponivel[id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternar(id); }}>✓</button>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{ev?.tipo || dataPorExtenso(ev?.data || id)}</p>
-                  {ev?.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
-                </div>
+            <div className="linha" style={{ cursor: "pointer" }} key={id} onClick={() => alternar(id)}>
+              <button className={`chk${indisponivel[id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternar(id); }}>✓</button>
+              <div style={{ flex: 1 }}>
+                <p className="nmt">{ev?.tipo || dataPorExtenso(ev?.data || id)}</p>
+                {ev?.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
               </div>
-              {ev?.dataEnsaio && (
-                <div
-                  className="linha" style={{ cursor: "pointer", paddingLeft: 20 }}
-                  onClick={() => alternarEnsaio(id)}
-                >
-                  <button className={`chk${indisponivelEnsaio[id] ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternarEnsaio(id); }}>✓</button>
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt" style={{ fontSize: 13.5 }}>🎙️ Ensaio · {diaSemanaAbrev(ev.dataEnsaio)}, {dataPorExtenso(ev.dataEnsaio)}</p>
-                    {ev.horaEnsaio && <p className="ds">⏰ {ev.horaEnsaio}{ev.localEnsaio ? ` · 📍 ${ev.localEnsaio}` : ""}</p>}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

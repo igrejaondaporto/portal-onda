@@ -18,6 +18,8 @@ const cConfirmacoes = (eventoId) =>
 // diferente da de cima: "vais ao ensaio?", não "vais servir?".
 const refConfirmacaoEnsaio = (eventoId, pessoaId) =>
   doc(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoesEnsaio/${pessoaId}`);
+const cConfirmacoesEnsaio = (eventoId) =>
+  collection(db, `eventos/${eventoId}/escalas/${BASE_ID}/confirmacoesEnsaio`);
 
 /** null enquanto não respondeu; senão {resposta, justificativa, ...}. */
 export function ouvirConfirmacao(eventoId, pessoaId, cb) {
@@ -105,6 +107,28 @@ export function ouvirConfirmacoesEnsaioDoMes(eventos, pessoaId, cb) {
 
 export const confirmarPresencaEnsaio = (eventoId, pessoaId, resposta, justificativa = "") =>
   chamar("confirmarPresencaEnsaioLouvor")({ eventoId, pessoaId, resposta, justificativa }).then((r) => r.data);
+
+/** Espelho de ouvirConfirmacoesPorCulto, mas para ENSAIO — quem já
+ *  confirmou "vai" ao ensaio, por culto. Devolve `Map<eventoId,
+ *  Set<pessoaId>>`; o líder usa o Set para mostrar as mini-fotos de
+ *  quem já confirmou dentro do próprio cartão de "Ensaio" em
+ *  Escala.jsx (pedido do líder — "não uma lista grande", só as
+ *  fotinhas ao lado do título). Só cultos com `dataEnsaio` marcada
+ *  entram — sem ensaio marcado ainda, não há nada para confirmar. */
+export function ouvirConfirmacoesEnsaioPorCulto(eventos, cb) {
+  const alvos = (eventos || []).filter((ev) => ev.escala?.dataEnsaio);
+  if (!alvos.length) { cb(new Map()); return () => {}; }
+
+  const porCulto = new Map();
+  const paragens = alvos.map((ev) =>
+    onSnapshot(cConfirmacoesEnsaio(ev.id), (snap) => {
+      const confirmados = new Set(snap.docs.filter((d) => d.data().resposta === "vai").map((d) => d.id));
+      porCulto.set(ev.id, confirmados);
+      cb(new Map(porCulto));
+    })
+  );
+  return () => paragens.forEach((p) => p());
+}
 
 /** "Ainda não sei" no popup automático (ConfirmacaoAutoStart) — mesmo
  *  esquema de dispensarEnquete/enqueteDispensada em lib/enquetes.js:

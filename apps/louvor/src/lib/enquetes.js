@@ -81,13 +81,8 @@ export function ouvirMinhaResposta(mes, uid, cb) {
  *  ensaio da mesma semana). */
 export async function obterEventosPorIds(ids) {
   const pares = await Promise.all(ids.map(async (id) => {
-    const [s, escalaSnap] = await Promise.all([
-      getDoc(doc(db, `eventos/${id}`)),
-      getDoc(doc(db, `eventos/${id}/escalas/${BASE_ID}`)),
-    ]);
-    const base = s.exists() ? { id, ...s.data() } : { id, data: id };
-    const { dataEnsaio, horaEnsaio, localEnsaio } = escalaSnap.exists() ? escalaSnap.data() : {};
-    return [id, { ...base, dataEnsaio: dataEnsaio || null, horaEnsaio: horaEnsaio || null, localEnsaio: localEnsaio || null }];
+    const s = await getDoc(doc(db, `eventos/${id}`));
+    return [id, s.exists() ? { id, ...s.data() } : { id, data: id }];
   }));
   return Object.fromEntries(pares);
 }

@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { obterEventosDoMes } from "../../lib/painel";
 import { guardarRascunho, publicarRascunho, obterDetalhesCultos } from "../../lib/rascunho";
-import { definirDetalhesCultoLouvor } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { MESES, nomeEvento, dataPorExtenso } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
-import CalendarioSemanal from "../CalendarioSemanal";
 import SheetEscala from "./SheetEscala";
 import SheetNovoCulto from "./SheetNovoCulto";
 
 /** Um domingo (ou culto especial) dentro do rascunho — cartão próprio
- *  em vez de uma linha só, porque agora carrega três ações (escalar,
- *  ensaio, remover) e as miniaturas de quem já está posto. */
-function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, esconderEnsaio, onEscalar, onRemover, onToggleEnsaio, onDefinirEnsaio }) {
+ *  em vez de uma linha só, porque carrega duas ações (escalar,
+ *  remover) e as miniaturas de quem já está posto. Não trata mais de
+ *  ensaio (2026-09, pedido do líder: "deixa o campo de ensaio apenas
+ *  para o box lá dentro de Escala geral mesmo") — ver DetalhesCulto
+ *  em Escala.jsx. */
+function CartaoDomingo({ item, evento, pessoaPorId, onEscalar, onRemover }) {
   const pessoas = item.escalados.map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
   return (
     <div className="caixa" style={{ marginTop: 8 }}>
@@ -38,16 +39,6 @@ function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, escond
         </button>
         <span className="seta">›</span>
       </div>
-      {!esconderEnsaio && (
-        <>
-          <button className="btn sec full" style={{ marginTop: 10, fontSize: 12.5, padding: "9px" }} onClick={onToggleEnsaio}>
-            🎙️ {ensaio ? `Ensaio: ${dataPorExtenso(ensaio)}` : "Adicionar ensaio"}
-          </button>
-          {ensaioAberto && (
-            <CalendarioSemanal domingoISO={item.eventoId} ensaioISO={ensaio} onSelecionar={onDefinirEnsaio} />
-          )}
-        </>
-      )}
     </div>
   );
 }
@@ -63,10 +54,7 @@ function CartaoDomingo({ item, evento, ensaio, pessoaPorId, ensaioAberto, escond
  * parcial (decisão do líder, ver CLAUDE.md).
  *
  * Um rascunho NOVO já entra com todos os domingos do mês corrente —
- * pedido do líder, "não preciso perguntar se quero adicionar". O
- * ensaio de cada culto é escrita direta na escala ao vivo
- * (definirDetalhesCultoLouvor) mesmo a meio do rascunho — não é
- * "quem serve", pode ficar visível cedo (ver lib/rascunho.js).
+ * pedido do líder, "não preciso perguntar se quero adicionar".
  */
 export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuardado }) {
   const torrada = useTorrada();
@@ -76,17 +64,8 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
   const [nome, setNome] = useState(rascunho?.nome || "");
   const [itens, setItens] = useState(() => (rascunho?.itens ? [...rascunho.itens] : []));
   const [eventosPorId, setEventosPorId] = useState({});
-  const [ensaios, setEnsaios] = useState({}); // eventoId -> "AAAA-MM-DD" | null
-  const [ensaioAberto, setEnsaioAberto] = useState(null); // eventoId | null
   const [mesSeguinteIncluido, setMesSeguinteIncluido] = useState(false);
   const [aIncluirMesSeguinte, setAIncluirMesSeguinte] = useState(false);
-  // "Não quero agendar os ensaios agora" — pedido do líder: só esconde
-  // o botão/calendário de ensaio de cada domingo nesta folha, para
-  // montar a escala sem parar em cada culto a pensar no ensaio. Nada
-  // se perde — quem já tinha ensaio marcado continua gravado, só a
-  // AÇÃO de marcar um novo fica escondida; agenda-se depois em Escala
-  // → detalhes do culto, sem precisar voltar aqui.
-  const [naoAgendarEnsaios, setNaoAgendarEnsaios] = useState(false);
 
   const [eventoAEscalar, setEventoAEscalar] = useState(null);
   const [sheetNovoCulto, setSheetNovoCulto] = useState(false);
@@ -96,7 +75,6 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
 
   const registarEventos = (evs) => {
     setEventosPorId((s) => ({ ...s, ...Object.fromEntries(evs.map((ev) => [ev.id, ev])) }));
-    setEnsaios((s) => ({ ...s, ...Object.fromEntries(evs.map((ev) => [ev.id, ev.escala?.dataEnsaio || null])) }));
   };
 
   // Rascunho novo: entra logo com todos os domingos do mês corrente.
@@ -110,7 +88,7 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Rascunho já existente: busca nome/data/ensaio de cada item já lá dentro.
+  // Rascunho já existente: busca nome/data de cada item já lá dentro.
   useEffect(() => {
     if (!rascunho) return;
     const ids = (rascunho.itens || []).map((it) => it.eventoId);
@@ -140,17 +118,6 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
 
   function aoMudarEscala(eventoId, escalados, liderEscala) {
     setItens((atual) => atual.map((it) => (it.eventoId === eventoId ? { ...it, escalados, liderEscala } : it)));
-  }
-
-  async function definirEnsaio(eventoId, iso) {
-    const novaData = ensaios[eventoId] === iso ? null : iso;
-    setEnsaios((s) => ({ ...s, [eventoId]: novaData }));
-    try {
-      await definirDetalhesCultoLouvor(eventoId, { dataEnsaio: novaData });
-    } catch (e) {
-      torrada(e.message || "Não foi possível guardar o ensaio.");
-      setEnsaios((s) => ({ ...s, [eventoId]: ensaios[eventoId] ?? null }));
-    }
   }
 
   async function guardar(fechar = true) {
@@ -196,23 +163,14 @@ export default function SheetRascunho({ rascunho, voluntarios, onFechar, onGuard
         <label className="rot">Nome</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Escala de Outubro" />
 
-        <label className="opcao" style={{ marginTop: 10 }} onClick={() => setNaoAgendarEnsaios((v) => !v)}>
-          <span style={{ flex: 1 }}>Não quero agendar os ensaios agora</span>
-          <span className={`chk${naoAgendarEnsaios ? " on" : ""}`}>✓</span>
-        </label>
-
         <label className="rot" style={{ marginTop: 14 }}>Domingos no rascunho ({ordenados.length})</label>
         {!ordenados.length && <div className="vaz">Nenhum ainda.</div>}
         {ordenados.map((it) => (
           <CartaoDomingo
-            key={it.eventoId} item={it} evento={eventosPorId[it.eventoId]} ensaio={ensaios[it.eventoId]}
+            key={it.eventoId} item={it} evento={eventosPorId[it.eventoId]}
             pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
-            ensaioAberto={ensaioAberto === it.eventoId}
-            esconderEnsaio={naoAgendarEnsaios}
             onEscalar={() => setEventoAEscalar(it.eventoId)}
             onRemover={() => removerDoRascunho(it.eventoId)}
-            onToggleEnsaio={() => setEnsaioAberto((a) => (a === it.eventoId ? null : it.eventoId))}
-            onDefinirEnsaio={(iso) => definirEnsaio(it.eventoId, iso)}
           />
         ))}
 

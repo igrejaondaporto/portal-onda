@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { abrirEnquete } from "../../lib/enquetes";
 import { obterEventosDoMes, criarCultoEspecial } from "../../lib/painel";
-import { definirDetalhesCultoLouvor } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import CalendarioSemanal from "../CalendarioSemanal";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -25,7 +23,11 @@ function proximoMes(mesStr) {
 /** Os cultos de um mês (para marcar/desmarcar) + o mini-formulário de
  *  culto especial dele — usado uma vez por mês na folha, para o
  *  segundo mês (quando o líder liga "também o mês seguinte") ter
- *  exatamente a mesma capacidade do primeiro. */
+ *  exatamente a mesma capacidade do primeiro.
+ *
+ *  Não trata mais de ensaio (2026-09, pedido do líder: "deixa o campo
+ *  de ensaio apenas para o box lá dentro de Escala geral mesmo") —
+ *  isso mudou de casa, ver DetalhesCulto em Escala.jsx. */
 function useCultosDoMes(mes) {
   const torrada = useTorrada();
   const [eventos, setEventos] = useState([]);
@@ -35,35 +37,21 @@ function useCultosDoMes(mes) {
   const [nomeEspecial, setNomeEspecial] = useState("");
   const [dataEspecial, setDataEspecial] = useState("");
   const [aCriarEspecial, setACriarEspecial] = useState(false);
-  const [ensaios, setEnsaios] = useState({}); // eventoId -> "AAAA-MM-DD" | null
-  const [ensaioAberto, setEnsaioAberto] = useState(null); // eventoId | null
 
   useEffect(() => {
-    if (!mes) { setEventos([]); setSelecionados({}); setEnsaios({}); return; }
+    if (!mes) { setEventos([]); setSelecionados({}); return; }
     const [ano, m] = mes.split("-").map(Number);
     setACarregar(true);
     obterEventosDoMes(ano, m - 1)
       .then((evs) => {
         setEventos(evs);
         setSelecionados(Object.fromEntries(evs.map((e) => [e.id, true])));
-        setEnsaios(Object.fromEntries(evs.map((e) => [e.id, e.escala?.dataEnsaio || null])));
       })
       .finally(() => setACarregar(false));
   }, [mes]);
 
   function alternar(id) {
     setSelecionados((s) => ({ ...s, [id]: !s[id] }));
-  }
-
-  async function definirEnsaio(eventoId, iso) {
-    const novaData = ensaios[eventoId] === iso ? null : iso;
-    setEnsaios((s) => ({ ...s, [eventoId]: novaData }));
-    try {
-      await definirDetalhesCultoLouvor(eventoId, { dataEnsaio: novaData });
-    } catch (e) {
-      torrada(e.message || "Não foi possível guardar o ensaio.");
-      setEnsaios((s) => ({ ...s, [eventoId]: ensaios[eventoId] ?? null }));
-    }
   }
 
   const [ano, m] = (mes || "0-0").split("-").map(Number);
@@ -97,11 +85,10 @@ function useCultosDoMes(mes) {
     eventos, selecionados, alternar, aCarregar, domingos,
     aAdicionarEspecial, setAAdicionarEspecial, nomeEspecial, setNomeEspecial,
     dataEspecial, setDataEspecial, dataMin, dataMax, aCriarEspecial, adicionarEspecial,
-    ensaios, ensaioAberto, setEnsaioAberto, definirEnsaio,
   };
 }
 
-function BlocoCultos({ titulo, c, esconderEnsaio }) {
+function BlocoCultos({ titulo, c }) {
   return (
     <>
       <label className="rot" style={{ marginTop: 14 }}>{titulo}</label>
@@ -116,19 +103,6 @@ function BlocoCultos({ titulo, c, esconderEnsaio }) {
               {ev.tipo && <p className="ds">{dataPorExtenso(ev.data)}</p>}
             </div>
           </div>
-          {!esconderEnsaio && (
-            <>
-              <button
-                className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, padding: "9px" }}
-                onClick={() => c.setEnsaioAberto((a) => (a === ev.id ? null : ev.id))}
-              >
-                🎙️ {c.ensaios[ev.id] ? `Ensaio: ${dataPorExtenso(c.ensaios[ev.id])}` : "Adicionar ensaio"}
-              </button>
-              {c.ensaioAberto === ev.id && (
-                <CalendarioSemanal domingoISO={ev.id} ensaioISO={c.ensaios[ev.id]} onSelecionar={(iso) => c.definirEnsaio(ev.id, iso)} />
-              )}
-            </>
-          )}
         </div>
       ))}
 
@@ -161,10 +135,6 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
   const [prazo, setPrazo] = useState(`${hoje.getFullYear()}-${pad2(hoje.getMonth() + 1)}-25`);
   const [aEnviar, setAEnviar] = useState(false);
   const [tambemMesSeguinte, setTambemMesSeguinte] = useState(false);
-  // "Não quero agendar os ensaios agora" — mesmo pedido de
-  // SheetRascunho.jsx: só esconde o botão/calendário de ensaio nesta
-  // folha, nada se perde, agenda-se depois em Escala.
-  const [naoAgendarEnsaios, setNaoAgendarEnsaios] = useState(false);
 
   const mes2 = tambemMesSeguinte ? proximoMes(mes) : null;
   const c1 = useCultosDoMes(mes);
@@ -196,11 +166,6 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
         <label className="rot">Mês</label>
         <input className="campo" type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
 
-        <label className="opcao" style={{ marginTop: 8 }} onClick={() => setNaoAgendarEnsaios((v) => !v)}>
-          <span style={{ flex: 1 }}>Não quero agendar os ensaios agora</span>
-          <span className={`chk${naoAgendarEnsaios ? " on" : ""}`}>✓</span>
-        </label>
-
         <label className="rot" style={{ marginTop: 12 }}>Prazo para responder</label>
         <input className="campo" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
 
@@ -212,8 +177,8 @@ export default function SheetAbrirEnquete({ onFechar, onGuardado }) {
           </div>
         </div>
 
-        <BlocoCultos titulo="Cultos deste mês" c={c1} esconderEnsaio={naoAgendarEnsaios} />
-        {tambemMesSeguinte && <BlocoCultos titulo="Cultos do mês seguinte" c={c2} esconderEnsaio={naoAgendarEnsaios} />}
+        <BlocoCultos titulo="Cultos deste mês" c={c1} />
+        {tambemMesSeguinte && <BlocoCultos titulo="Cultos do mês seguinte" c={c2} />}
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || c1.aCarregar || (tambemMesSeguinte && c2.aCarregar)} onClick={guardar}>
           {aEnviar ? "A abrir…" : "Abrir enquete"}
