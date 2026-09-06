@@ -10,6 +10,8 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetEscolherMusica from "../components/repertorio/SheetEscolherMusica";
 import SheetEditarTom from "../components/repertorio/SheetEditarTom";
 import SheetEditarLink from "../components/repertorio/SheetEditarLink";
+import SheetLinksMusica from "../components/repertorio/SheetLinksMusica";
+import IconeYoutube from "../components/biblioteca/IconeYoutube";
 
 // Referência estável para "sem itens" — `repertorio?.itens ?? []`
 // parecia inofensivo, mas cria um array NOVO a cada render sempre que
@@ -51,7 +53,7 @@ function ItemRepertorio({
   podeAlternar, mostrarObs, aEditarObs, obsEditando, setObsEditando,
   aEditarComentario, comentarioEditando, setComentarioEditando,
   onAlternar, onEditarObs, onGuardarObs, onCancelarObs, onMover, onRemover, onEditarTom, onEditarLink,
-  onEditarComentario, onGuardarComentario, onCancelarComentario,
+  onEditarComentario, onGuardarComentario, onCancelarComentario, onVerLinks,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const estilo = {
@@ -88,7 +90,10 @@ function ItemRepertorio({
           {!m?.capaUrl && (m?.titulo?.[0]?.toUpperCase() ?? "?")}
         </div>
         <div className="rep-item-corpo">
-          <p className="nmt">
+          <p
+            className="nmt" style={m ? { cursor: "pointer" } : undefined}
+            onClick={m ? (e) => { e.stopPropagation(); onVerLinks(m); } : undefined}
+          >
             {numero}ª · {m?.titulo ?? "Música removida"}
             {esteEhMedley && <span className="tag lim" style={{ marginLeft: 8 }}>medley</span>}
           </p>
@@ -105,10 +110,7 @@ function ItemRepertorio({
               aria-label={link ? "Ver ou trocar o link desta versão" : "Adicionar link desta versão"}
             >
               {link ? (
-                <svg viewBox="0 0 24 17" width="20" height="14" aria-hidden="true">
-                  <path d="M23.5 2.5a3 3 0 0 0-2.1-2.1C19.5 0 12 0 12 0S4.5 0 2.6.4A3 3 0 0 0 .5 2.5 31 31 0 0 0 0 8.3a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.5 16.6 12 16.6 12 16.6s7.5 0 9.4-.4a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-5.8 31 31 0 0 0-.5-5.8Z" fill="#FF0000" />
-                  <path d="M9.6 11.8 15.8 8.3 9.6 4.8Z" fill="#fff" />
-                </svg>
+                <IconeYoutube />
               ) : (
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -204,6 +206,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
   const [links, setLinks] = useState({});
   const [itemTomAEditar, setItemTomAEditar] = useState(null); // { item, m } | null
   const [itemLinkAEditar, setItemLinkAEditar] = useState(null); // { item, m } | null
+  const [musicaLinksAVer, setMusicaLinksAVer] = useState(null); // música (m) | null
 
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -497,6 +500,7 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
                   onMover={mover} onRemover={remover}
                   onEditarTom={(it, musica) => setItemTomAEditar({ item: it, m: musica })}
                   onEditarLink={(it, musica) => setItemLinkAEditar({ item: it, m: musica })}
+                  onVerLinks={setMusicaLinksAVer}
                 />
               );
             })}
@@ -558,6 +562,9 @@ export default function Repertorio({ uid, mes, ano, mudarMes, ativo, definirCabe
           onFechar={() => setItemLinkAEditar(null)}
           onConfirmar={confirmarNovoLink}
         />
+      )}
+      {musicaLinksAVer && (
+        <SheetLinksMusica musica={musicaLinksAVer} onFechar={() => setMusicaLinksAVer(null)} />
       )}
     </>
   );
