@@ -3343,10 +3343,9 @@ export const excluirEnquete = onCall(async (req) => {
 export const responderEnquete = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { mes, pessoaId, indisponivelEm = [], semIndisponibilidade = false, nota = "", indisponivelEnsaioEm = [] } = req.data || {};
+  const { mes, pessoaId, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
   if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
   if (!Array.isArray(indisponivelEm)) throw new HttpsError("invalid-argument", "Indisponibilidade inválida.");
-  if (!Array.isArray(indisponivelEnsaioEm)) throw new HttpsError("invalid-argument", "Indisponibilidade de ensaio inválida.");
   if (!semIndisponibilidade && !indisponivelEm.length) {
     throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
   }
@@ -3368,7 +3367,6 @@ export const responderEnquete = onCall(async (req) => {
   await refEnquete(baseId, mes).collection("respostas").doc(alvo).set({
     indisponivelEm: semIndisponibilidade ? [] : indisponivelEm,
     semIndisponibilidade: !!semIndisponibilidade,
-    indisponivelEnsaioEm,
     nota: nota.trim(),
     respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
     ...(alvo !== uid ? { respondidoPeloLider: true, respondidoPor: uid } : {}),
