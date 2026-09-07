@@ -107,6 +107,18 @@ service cloud.firestore {
         allow read, write: if souLiderBase(base);
       }
 
+      // ── lições (Base New): o líder sobe um .docx, fica visível
+      // para toda a base. Mesmo padrão de avisos/funcoes acima — só
+      // o líder escreve, sem autoria mista, sem delete a sério
+      // (excluir tira o documento inteiro de propósito aqui, ao
+      // contrário de avisos: é um ficheiro no Storage, não um estado
+      // "ativo:false" que faça sentido manter). O ficheiro em si tem
+      // a regra dele em storage.rules. ──
+      match /licoes/{licao} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+
       // ── config (Base Técnica): tabela de correspondência de nomes
       // FreeShow → painel para a ordem do culto ao vivo. Só a própria
       // base lê (é o único ecrã que a usa), só por Cloud Function. ──
