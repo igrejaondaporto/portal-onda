@@ -67,6 +67,10 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   // ponto rosa no menu: o culto que estiver a gravar agora, seja
   // qual for a data — só leitura aqui, quem inicia é sempre a Técnica
   const [aoVivoGravando, setAoVivoGravando] = useState(false);
+  // ponto no separador "Lição" + o balão no Início — calculado dentro
+  // do próprio Início (já tem o próximo culto e a listener das lições
+  // carregados), só sobe o resultado para aqui poder acender o NavBar.
+  const [alertaLicao, setAlertaLicao] = useState(false);
 
   useEffect(() => {
     return onSnapshot(doc(db, `bases/${baseId}/pessoas/${uid}`), (s) => setPessoa(s.exists() ? s.data() : null));
@@ -183,6 +187,8 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
               onIrReembolsos={() => irPara("reembolsos")}
+              onIrLicao={() => irPara("licao")}
+              onAlertaLicao={setAlertaLicao}
             />
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
@@ -238,7 +244,10 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </p>
         </div>
       </div>
-      <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivoGravando ? ["culto"] : []} />
+      <NavBar
+        pagina={pagina} onIr={irPara} itens={ABAS}
+        alertas={[...(aoVivoGravando ? ["culto"] : []), ...(alertaLicao ? ["licao"] : [])]}
+      />
       {menuAberto && (
         <MenuComTour
           baseId={baseId} papel={papel} irPara={irPara}

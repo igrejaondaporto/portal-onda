@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirLicoes, enviarLicao, excluirLicao } from "../lib/licoes";
+import { ouvirAdolescentes, criarAdolescente, ouvirPresencas, marcarPresenca } from "../lib/presencaLicao";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, nomeEvento, haAtras, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -15,9 +16,20 @@ function IconeDocx() {
   );
 }
 
+/** Só funciona para ficheiros já num URL público (o link do Storage
+ *  já é isso) — o visualizador é do Google, não nosso; se um dia
+ *  parar de responder ou vier vazio, "Abrir/descarregar" ao lado
+ *  continua a ser o caminho garantido. */
+function visualizadorUrl(arquivoUrl) {
+  return `https://docs.google.com/gview?url=${encodeURIComponent(arquivoUrl)}&embedded=true`;
+}
+
 /** Lição — uma por domingo (culto), não uma lista solta: o líder sobe
  *  o .docx da semana, os voluntários abrem para passar aos jovens.
- *  Mesma casca de cartão por culto que a Escala já usa. */
+ *  Mesma casca de cartão por culto que a Escala já usa. Cada cartão
+ *  também tem a presença dos adolescentes desse domingo — separado
+ *  de existir lição ou não (dá para marcar presença mesmo sem
+ *  documento enviado essa semana). */
 export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
@@ -25,16 +37,24 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
   const [eventosMes, setEventosMes] = useState([]);
   const [licoes, setLicoes] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
+  const [adolescentes, setAdolescentes] = useState([]);
+  const [presencas, setPresencas] = useState({});
   const [abertos, setAbertos] = useState({});
+  const [aVisualizar, setAVisualizar] = useState(null); // eventoId com o visualizador aberto
   const [eventoAEnviar, setEventoAEnviar] = useState(null);
   const [titulo, setTitulo] = useState("");
   const [ficheiro, setFicheiro] = useState(null);
   const [aEnviar, setAEnviar] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [eventoANomear, setEventoANomear] = useState(null); // qual cartão está com o campo "+ adolescente" aberto
+  const [aMostrarResumo, setAMostrarResumo] = useState(false);
   const hoje = hojeISO();
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirLicoes(setLicoes), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => ouvirAdolescentes(setAdolescentes), []);
+  useEffect(() => ouvirPresencas(setPresencas), []);
 
   const nDoMes = eventosMes.filter((ev) => licoes[ev.id]).length;
 
@@ -94,6 +114,30 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
     }
   }
 
+  async function adicionarAdolescente(eventoId) {
+    const nome = novoNome.trim();
+    if (!nome) return;
+    try {
+      await criarAdolescente(nome);
+      setNovoNome("");
+      setEventoANomear(null);
+      torrada(`${nome} adicionado`);
+    } catch {
+      torrada("Não foi possível adicionar.", true);
+    }
+    // não marca presença automaticamente aqui — quem acabou de
+    // adicionar toca no nome a seguir, se for o caso, como qualquer
+    // outro. Mantém eventoId só pra saber qual cartão fechar.
+    void eventoId;
+  }
+
+  // resumo de participação: quantos domingos (com presença registada
+  // em QUALQUER mês, não só o visível) cada adolescente esteve.
+  const totalDomingosComRegisto = Object.keys(presencas).length;
+  const resumoAdolescentes = adolescentes
+    .map((a) => ({ ...a, presencas: Object.values(presencas).filter((lista) => lista.includes(a.id)).length }))
+    .sort((a, b) => b.presencas - a.presencas || a.nome.localeCompare(b.nome));
+
   return (
     <div className="sect" style={{ marginTop: 12 }}>
       <input
@@ -110,11 +154,18 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
         </span>
       </div>
 
+      {adolescentes.length > 0 && (
+        <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setAMostrarResumo(true)}>
+          Resumo de participação
+        </button>
+      )}
+
       {eventosMes.length === 0 && <div className="vaz" style={{ marginTop: 12 }}>Sem cultos criados neste mês ainda.</div>}
 
       {eventosMes.map((ev) => {
         const licao = licoes[ev.id];
         const pessoa = licao && pessoaPorId(licao.enviadoPor);
+        const presentesDoDia = presencas[ev.id] || [];
         return (
           <CartaoCulto
             key={ev.id} evento={ev} hoje={hoje} aberto={!!abertos[ev.id]}
@@ -122,20 +173,34 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
             resumo={licao ? licao.titulo : "Ainda sem lição"}
           >
             {licao ? (
-              <a
-                className="linha" href={licao.arquivoUrl} target="_blank" rel="noreferrer"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <span style={{ color: "var(--azul)" }}><IconeDocx /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p className="nmt">{licao.arquivoNome}</p>
-                  <p className="ds">
-                    {pessoa ? `${pessoa.nome} · ` : ""}
-                    {licao.criadoEm ? haAtras(licao.criadoEm) : "agora"}
-                  </p>
-                </div>
-                {pessoa && <Avatar pessoa={pessoa} tamanho={30} fonte={12} />}
-              </a>
+              <>
+                <a
+                  className="linha" href={licao.arquivoUrl} target="_blank" rel="noreferrer"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <span style={{ color: "var(--azul)" }}><IconeDocx /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{licao.arquivoNome}</p>
+                    <p className="ds">
+                      {pessoa ? `${pessoa.nome} · ` : ""}
+                      {licao.criadoEm ? haAtras(licao.criadoEm) : "agora"}
+                    </p>
+                  </div>
+                  {pessoa && <Avatar pessoa={pessoa} tamanho={30} fonte={12} />}
+                </a>
+                <button
+                  className="btn sec full" style={{ marginTop: 8 }}
+                  onClick={() => setAVisualizar((v) => (v === ev.id ? null : ev.id))}
+                >
+                  {aVisualizar === ev.id ? "Fechar" : "Ver aqui"}
+                </button>
+                {aVisualizar === ev.id && (
+                  <iframe
+                    src={visualizadorUrl(licao.arquivoUrl)} title={licao.titulo}
+                    style={{ width: "100%", height: 420, border: "1px solid var(--fio)", borderRadius: 12, marginTop: 8 }}
+                  />
+                )}
+              </>
             ) : (
               <p className="ds">A líder ainda não enviou a lição deste domingo.</p>
             )}
@@ -146,6 +211,53 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
                 </button>
                 {licao && <button className="btn sec" onClick={() => excluir(ev.id)}>Excluir</button>}
               </div>
+            )}
+
+            <p className="rot" style={{ marginTop: 14 }}>
+              Presença · {presentesDoDia.length} de {adolescentes.length}
+            </p>
+            {adolescentes.length === 0 && eventoANomear !== ev.id && (
+              <p className="ds">Ainda não há adolescentes na lista.</p>
+            )}
+            {adolescentes.map((a) => {
+              const presente = presentesDoDia.includes(a.id);
+              return (
+                <button
+                  key={a.id} className="linha"
+                  style={{ width: "100%", background: "none", border: 0, textAlign: "left", cursor: "pointer" }}
+                  onClick={() => marcarPresenca(ev.id, a.id, !presente)}
+                >
+                  <span
+                    className="check" data-on={presente ? 1 : 0}
+                    style={{
+                      width: 22, height: 22, borderRadius: "50%", border: "2px solid var(--fio)",
+                      display: "flex", alignItems: "center", justifyContent: "center", flex: "none",
+                      ...(presente ? { background: "var(--azul)", borderColor: "var(--azul)", color: "#fff" } : {}),
+                    }}
+                  >
+                    {presente ? "✓" : ""}
+                  </span>
+                  <span className="nmt">{a.nome}</span>
+                </button>
+              );
+            })}
+            {eventoANomear === ev.id ? (
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input
+                  className="campo" style={{ flex: 1 }} autoFocus value={novoNome}
+                  placeholder="Nome do adolescente"
+                  onChange={(e) => setNovoNome(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") adicionarAdolescente(ev.id); }}
+                />
+                <button className="btn" onClick={() => adicionarAdolescente(ev.id)}>Adicionar</button>
+              </div>
+            ) : (
+              <button
+                className="btn sec full" style={{ marginTop: 8 }}
+                onClick={() => { setEventoANomear(ev.id); setNovoNome(""); }}
+              >
+                + Adolescente
+              </button>
             )}
           </CartaoCulto>
         );
@@ -172,6 +284,24 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
             Cancelar
           </button>
         </div>
+      )}
+
+      {aMostrarResumo && (
+        <>
+          <div className="veu on" onClick={() => setAMostrarResumo(false)} />
+          <div className="pin on" role="dialog" aria-modal="true">
+            <div className="pux" />
+            <h2>Resumo de participação</h2>
+            <p className="sb2">{totalDomingosComRegisto} domingo{totalDomingosComRegisto === 1 ? "" : "s"} com presença registada</p>
+            {resumoAdolescentes.map((a) => (
+              <div className="linha" key={a.id}>
+                <div style={{ flex: 1 }}><p className="nmt">{a.nome}</p></div>
+                <span className="tag cinz">{a.presencas}/{totalDomingosComRegisto}</span>
+              </div>
+            ))}
+            <button className="btn sec full" style={{ marginTop: 16 }} onClick={() => setAMostrarResumo(false)}>Fechar</button>
+          </div>
+        </>
       )}
     </div>
   );
