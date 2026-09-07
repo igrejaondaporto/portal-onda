@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useTorrada } from "../lib/TorradaContext.jsx";
-import { CANAIS_CHAMADAS, PADRAO_FREESHOW, INTERVALO_SONDA_MS } from "../lib/chamadas.js";
+import {
+  CANAIS_CHAMADAS, PADRAO_FREESHOW, INTERVALO_SONDA_MS,
+  ouvirHistoricoChamadas, registarChamada,
+} from "../lib/chamadas.js";
 
 const COOLDOWN_MS = 3 * 60 * 1000; // tempo mínimo antes de poder chamar o mesmo nome outra vez
 
@@ -46,6 +49,19 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
     definirCabecalho?.({ titulo: "Chamadas", subtitulo: "Escreve o nome e aparece na projeção", chips: [] });
   }, [definirCabecalho]);
 
+  // Histórico partilhado (Firestore) — em vez de um por aparelho, ver
+  // ouvirHistoricoChamadas em lib/chamadas.js. `canais` já respeita
+  // canaisPermitidos (o Kinder tranca cada aparelho num canal só).
+  //
+  // Dependência é a CHAVE (string), nunca `canais` em si: esse array é
+  // recalculado a cada render (não é memoizado) — como "Chamados hoje"
+  // também re-renderiza a cada segundo (ver `agora` abaixo), usar
+  // `canais` como dependência reabria o listener a cada segundo, e o
+  // histórico nunca chegava a assentar num valor (visto ao testar
+  // contra produção antes de entrar: o histórico nunca aparecia).
+  const canaisChave = canais.map((c) => c.id).join(",");
+  useEffect(() => ouvirHistoricoChamadas(canaisChave.split(","), setHistorico), [canaisChave]);
+
   // só para o contador de cada nome em "Chamados hoje" ir andando sozinho
   useEffect(() => {
     const id = setInterval(() => setAgora(Date.now()), 1000);
@@ -57,7 +73,7 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
   // o contador dentro do nome em "Chamados hoje".
   function restanteCooldown(canalId, texto) {
     const chave = texto.trim().toLowerCase();
-    const ultima = historico.find((h) => h.c.id === canalId && h.txt.trim().toLowerCase() === chave);
+    const ultima = historico.find((h) => h.canalId === canalId && h.txt.trim().toLowerCase() === chave);
     if (!ultima) return 0;
     return Math.max(0, ultima.quando + COOLDOWN_MS - agora);
   }
@@ -164,7 +180,12 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
 
     const quando = Date.now();
     setAgora(quando);
-    setHistorico((h) => [{ c: k, txt, quando }, ...h.filter((item) => !(item.c.id === k.id && item.txt === txt))].slice(0, 10));
+    // Fica logo visível neste aparelho via onSnapshot assim que a
+    // escrita voltar — não precisa de estado otimista aqui. Falhar
+    // (ex.: sem rede) não desfaz a chamada já enviada ao FreeShow
+    // acima, que é a parte que importa a sério — só o histórico
+    // partilhado é que ficaria por atualizar até à próxima chamada.
+    registarChamada(k.id, txt, quando).catch(() => {});
     setValor("");
   }
 
@@ -231,13 +252,15 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
         <div className="cabecalho"><h3>Chamados hoje</h3></div>
         {historico.length === 0 && <p className="vaz">Ainda não chamaste ninguém.</p>}
         {historico.map((item, i) => {
-          const restante = restanteCooldown(item.c.id, item.txt);
+          const c = CANAIS_CHAMADAS.find((x) => x.id === item.canalId);
+          if (!c) return null; // canal antigo/removido — não deve acontecer, mas nunca rebentar por isso
+          const restante = restanteCooldown(item.canalId, item.txt);
           return (
             <button
-              className="chamada-linha" key={i} style={{ borderLeftColor: item.c.cor }}
-              onClick={() => { trocar(item.c); chamar(item.c, item.txt); }}
+              className="chamada-linha" key={i} style={{ borderLeftColor: c.cor }}
+              onClick={() => { trocar(c); chamar(c, item.txt); }}
             >
-              <span className="tag" style={{ background: item.c.cor }}>{item.c.rotulo}</span>
+              <span className="tag" style={{ background: c.cor }}>{c.rotulo}</span>
               <span className="nmt">
                 {item.txt}
                 {restante > 0 && (
