@@ -186,28 +186,27 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
 
       {(evento.escala.dataEnsaio || podeEditar) && (
         <div className="caixinha ensaio">
-          <p className="caixinha-titulo" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span>
-              🎙️ <b>Ensaio</b>
-              {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
-              {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
-            </span>
-            {/* Quem já confirmou o ensaio — só mini-fotos ao lado do
-                título, nunca uma lista (pedido do líder, "não fica uma
-                lista grande"). Ver ouvirConfirmacoesEnsaioPorCulto. */}
-            {confirmadosEnsaio?.size > 0 && (
-              <span style={{ display: "flex", marginLeft: -2 }} title="Já confirmaram o ensaio">
-                {[...confirmadosEnsaio].slice(0, 6).map((pessoaId) => {
-                  const p = pessoaPorId(pessoaId);
-                  return p ? (
-                    <span key={pessoaId} style={{ marginLeft: -6, border: "2px solid #fff", borderRadius: "50%" }}>
-                      <Avatar pessoa={p} tamanho={18} fonte={8} />
-                    </span>
-                  ) : null;
-                })}
-              </span>
-            )}
+          <p className="caixinha-titulo">
+            🎙️ <b>Ensaio</b>
+            {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
+            {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
           </p>
+          {/* Quem já confirmou o ensaio — mini-fotos numa linha própria,
+              abaixo do título (ao lado cortava e não cabia todo mundo),
+              nunca uma lista (pedido do líder, "não fica uma lista
+              grande"). Ver ouvirConfirmacoesEnsaioPorCulto. */}
+          {confirmadosEnsaio?.size > 0 && (
+            <div style={{ display: "flex", marginTop: 6 }} title="Já confirmaram o ensaio">
+              {[...confirmadosEnsaio].slice(0, 10).map((pessoaId, i) => {
+                const p = pessoaPorId(pessoaId);
+                return p ? (
+                  <span key={pessoaId} style={{ marginLeft: i === 0 ? 0 : -6, border: "2px solid #fff", borderRadius: "50%" }}>
+                    <Avatar pessoa={p} tamanho={18} fonte={8} />
+                  </span>
+                ) : null;
+              })}
+            </div>
+          )}
           {evento.escala.localEnsaio && <p className="ds">📍 {evento.escala.localEnsaio}</p>}
           {!evento.escala.dataEnsaio && <p className="ds">Ainda não marcado</p>}
           <CalendarioSemanal domingoISO={evento.data} ensaioISO={evento.escala.dataEnsaio} />
