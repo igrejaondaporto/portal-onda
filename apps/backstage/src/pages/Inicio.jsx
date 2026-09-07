@@ -116,7 +116,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   const minhas = funcoesCulto.filter((f) => (atribuicoesEfetivas[f.id] || []).includes(uid));
   const total = funcoesCulto.length;
-  const feitas = Object.keys(checklist).length;
+  const feitas = funcoesCulto.filter((f) => checklist[f.id]).length;
   const pct = total ? Math.round((feitas / total) * 100) : 0;
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
