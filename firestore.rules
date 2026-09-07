@@ -511,6 +511,19 @@ service cloud.firestore {
       allow write: if autenticado();
     }
 
+    // ── histórico de chamadas (Kinder + o "Carro" da Técnica) ──
+    // Um documento por canal, por dia — ver ouvirHistoricoChamadas/
+    // registarChamada em packages/shared/src/lib/chamadas.js. Leitura
+    // pública (é um telão, sem dado sensível — só nomes de crianças e
+    // matrículas já mostradas na projeção); escrita exige sessão —
+    // PIN normal na Técnica, sessão anónima no Kinder (kiosk sem
+    // login por pessoa, ver apps/kinder/src/App.jsx) — mesmo padrão
+    // de progressoBases acima.
+    match /chamadas/{dia}/canais/{canal} {
+      allow read:  if true;
+      allow write: if autenticado();
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
