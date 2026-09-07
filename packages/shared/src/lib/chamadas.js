@@ -13,7 +13,7 @@
  * (o título da app, "Chamadas Kinder"). As categorias, por baixo dele,
  * são só Baby, Fun, Júnior e Carro — não há canal "kinder" nenhum.
  */
-import { doc, onSnapshot, runTransaction } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./firebase.js";
 import { hojeISO } from "./data.js";
 
@@ -43,51 +43,61 @@ export const INTERVALO_SONDA_MS = 1500; // de quanto em quanto tempo perguntar a
  * (ver `conectar`/`perguntar` em PainelChamadas.jsx), a mesma fonte
  * para todos, sem depender de nenhum aparelho em concreto.
  *
- * Um documento por canal, por dia (`chamadas/{AAAA-MM-DD}/canais/
- * {canalId}`) — reinicia sozinho a cada dia, sem precisar de limpar
- * nada. Leitura pública (é um telão, não tem dado sensível nenhum);
- * escrita exige sessão — PIN normal na Técnica, sessão anónima no
- * Kinder (kiosk sem login, ver apps/kinder/src/App.jsx) — mesmo
- * padrão de `progressoBases` no firestore.rules.
- */
-const HISTORICO_MAX = 15;
-const refHistoricoCanal = (canalId) => doc(db, `chamadas/${hojeISO()}/canais/${canalId}`);
+ * Uma SUBCOLEÇÃO por canal, por dia (`chamadas/{AAAA-MM-DD}/canais/
+ * {canalId}/itens/{auto-id}`) — reinicia sozinha a cada dia, sem
+ * precisar de limpar nada. Leitura pública (é um telão, não tem dado
+ * sensível nenhum); escrita exige sessão — PIN normal na Técnica,
+ * sessão anónima no Kinder (kiosk sem login, ver
+ * apps/kinder/src/App.jsx) — mesmo padrão de `progressoBases` no
+ * firestore.rules.
+ *
+ * Uma chamada = um documento novo (`addDoc`), não uma entrada dentro
+ * de um array de um documento só — passou por duas versões antes
+ * desta: primeiro `runTransaction` (lia o documento inteiro, cortava
+ * para os últimos N, reescrevia), depois `arrayUnion` (escrevia
+ * direto, sem ler primeiro). Testei as duas ao vivo com chamadas
+ * seguidas rápidas e a demora entre uma chamada e a seguinte
+ * aparecer no histórico era sempre ~1s, crescendo por chamada — a
+ * mesma demora com as duas formas, incluindo esta (subcoleção,
+ * escritas em paralelo, sem fila nenhuma entre documentos
+ * diferentes). Ou seja, **não era o array vs. transação** — é o
+ * tempo real de ida e volta ao Firestore (mais visível em wifi mais
+ * lenta, como a da igreja, do que na rede de quem testa a
+ * programar). Fica esta versão de qualquer forma, por ser a correta
+ * (sem fila entre documentos diferentes, sem ler antes de escrever,
+ * `limit` a fazer o corte em vez de cortar à mão) — mas quem resolve
+ * a demora *sentida* é o estado otimista em PainelChamadas.jsx
+ * (`chamar`), que mostra a chamada na hora, sem esperar pelo
+ * Firestore confirmar. Só mostra os últimos 20 (pedido do líder). */
+export const HISTORICO_LIMITE = 20;
+const cItensCanal = (canalId) => collection(db, `chamadas/${hojeISO()}/canais/${canalId}/itens`);
 
 /** Ouve um ou vários canais ao mesmo tempo (a Técnica mistura todos
- *  num histórico só; o Kinder tranca cada aparelho num canal) e
- *  devolve a lista já combinada e ordenada por mais recente. */
+ *  num histórico só; o Kinder tranca cada aparelho num canal, mas
+ *  ouve todos — ver canaisHistorico em PainelChamadas.jsx) e devolve
+ *  a lista já combinada, ordenada por mais recente e cortada nos
+ *  últimos 20. */
 export function ouvirHistoricoChamadas(canaisIds, cb) {
   const porCanal = {};
   function emitir() {
     const combinado = Object.values(porCanal).flat()
       .sort((a, b) => b.quando - a.quando)
-      .slice(0, HISTORICO_MAX);
+      .slice(0, HISTORICO_LIMITE);
     cb(combinado);
   }
-  const paragens = canaisIds.map((id) =>
-    onSnapshot(refHistoricoCanal(id), (s) => {
-      porCanal[id] = (s.exists() ? s.data().historico : []) || [];
+  const paragens = canaisIds.map((id) => {
+    const q = query(cItensCanal(id), orderBy("quando", "desc"), limit(HISTORICO_LIMITE));
+    return onSnapshot(q, (snap) => {
+      porCanal[id] = snap.docs.map((d) => d.data());
       emitir();
-    }),
-  );
+    });
+  });
   return () => paragens.forEach((p) => p());
 }
 
-/** Regista uma chamada no histórico partilhado — transação (não
- *  confia no `historico` já carregado no cliente, que pode estar
- *  desatualizado se outro aparelho acabou de chamar entretanto) que
- *  lê o documento fresco, tira duplicados do mesmo texto no mesmo
- *  canal e mantém só os mais recentes. */
+/** Regista uma chamada — um documento novo na subcoleção do canal,
+ *  ver comentário grande acima do porquê disto em vez de um array
+ *  num documento só. */
 export function registarChamada(canalId, txt, quando) {
-  const ref = refHistoricoCanal(canalId);
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    const atual = (snap.exists() ? snap.data().historico : []) || [];
-    const novo = [
-      { canalId, txt, quando },
-      ...atual.filter((h) => !(h.canalId === canalId && h.txt === txt)),
-    ].slice(0, HISTORICO_MAX);
-    tx.set(ref, { historico: novo }, { merge: true });
-  });
+  return addDoc(cItensCanal(canalId), { canalId, txt, quando });
 }
-
