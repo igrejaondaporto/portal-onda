@@ -256,7 +256,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 {l.real ? (
                   <>
                     <b className={`tec-hora-real ${corAtraso(l.real.horaReal, l.hora) || ""}`}>{l.real.horaReal}</b>
-                    <span>{l.extra ? "não previsto" : `previsto ${previstoExibido}`}</span>
+                    <span>{l.extra ? "não previsto" : `${l.minutos}min · previsto ${previstoExibido}`}</span>
                   </>
                 ) : l.pulada ? (
                   <>
@@ -266,7 +266,7 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                 ) : estado ? (
                   <>
                     <b className="tec-hora-prevista">{l.horaPrevista}</b>
-                    <span>previsão</span>
+                    <span>{l.minutos}min · previsão</span>
                   </>
                 ) : (
                   <>
