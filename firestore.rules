@@ -512,14 +512,18 @@ service cloud.firestore {
     }
 
     // ── histórico de chamadas (Kinder + o "Carro" da Técnica) ──
-    // Um documento por canal, por dia — ver ouvirHistoricoChamadas/
-    // registarChamada em packages/shared/src/lib/chamadas.js. Leitura
-    // pública (é um telão, sem dado sensível — só nomes de crianças e
-    // matrículas já mostradas na projeção); escrita exige sessão —
-    // PIN normal na Técnica, sessão anónima no Kinder (kiosk sem
-    // login por pessoa, ver apps/kinder/src/App.jsx) — mesmo padrão
-    // de progressoBases acima.
-    match /chamadas/{dia}/canais/{canal} {
+    // Uma subcoleção por canal, por dia (um documento por chamada,
+    // não um array num documento só — Firestore ordena escritas ao
+    // MESMO documento, o que empilhava atraso a cada chamada seguida
+    // numa ligação lenta; ver ouvirHistoricoChamadas/registarChamada
+    // em packages/shared/src/lib/chamadas.js). Leitura pública (é um
+    // telão, sem dado sensível — só nomes de crianças e matrículas já
+    // mostradas na projeção); escrita exige sessão — PIN normal na
+    // Técnica, sessão anónima no Kinder (kiosk sem login por pessoa,
+    // ver apps/kinder/src/App.jsx) — mesmo padrão de progressoBases
+    // acima. O documento `canais/{canal}` em si nunca é lido/escrito
+    // — só existe como "pai" da subcoleção.
+    match /chamadas/{dia}/canais/{canal}/itens/{item} {
       allow read:  if true;
       allow write: if autenticado();
     }
