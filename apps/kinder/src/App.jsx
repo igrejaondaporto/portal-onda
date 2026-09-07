@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { signInAnonymously } from "firebase/auth";
+import { auth } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { CANAIS_CHAMADAS } from "@portal/shared/lib/chamadas.js";
 import PainelChamadas from "@portal/shared/components/PainelChamadas.jsx";
@@ -44,6 +46,18 @@ export default function App() {
     return BASES.some((c) => c.id === guardado) ? guardado : null;
   });
   const [aTrocar, setATrocar] = useState(false);
+
+  // Sem PIN por pessoa aqui (ver comentário grande abaixo) — mas o
+  // histórico de chamadas partilhado (chamadas/{dia}/canais/{canal},
+  // ver lib/chamadas.js) exige sessão para escrever, igual a
+  // qualquer outra base. Sessão anónima resolve isso sem inventar
+  // login nenhum: persiste sozinha entre recarregar a página (o
+  // Firebase guarda-a), só se perde se o aparelho limpar os dados do
+  // site. Não bloqueia o ecrã à espera — resolve em segundo plano
+  // enquanto quem está a chamar ainda está a escrever o nome.
+  useEffect(() => {
+    if (!auth.currentUser) signInAnonymously(auth).catch(() => {});
+  }, []);
 
   function escolher(id) {
     localStorage.setItem(CHAVE_ESTACAO, id);
