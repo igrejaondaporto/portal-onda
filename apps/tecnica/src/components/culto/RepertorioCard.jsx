@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirRepertorioLouvor } from "../../lib/repertorioLouvor";
+import { ouvirRepertorioLouvor, ouvirRepertorioNotasTecnica, definirFreeShow } from "../../lib/repertorioLouvor";
 import { nomeEvento, haAtras, hojeISO } from "@portal/shared/lib/data.js";
 
 // Cifra sai de propósito aqui — é para quem toca, a projeção só cuida
@@ -49,6 +49,7 @@ function IconeLinkExterno() {
  *  esses campos, ver apps/louvor/src/pages/Repertorio.jsx). */
 export default function RepertorioCard({ evento, aberto, onAbrir }) {
   const [repertorio, setRepertorio] = useState(null);
+  const [notas, setNotas] = useState(null);
   // Observação do medley visível por omissão — só entra aqui quem foi
   // explicitamente fechado (o oposto do que "expandido" seria).
   const [medleysFechados, setMedleysFechados] = useState(() => new Set());
@@ -68,6 +69,17 @@ export default function RepertorioCard({ evento, aberto, onAbrir }) {
     if (!aberto) return;
     return ouvirRepertorioLouvor(evento.id, setRepertorio);
   }, [aberto, evento.id]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    return ouvirRepertorioNotasTecnica(evento.id, setNotas);
+  }, [aberto, evento.id]);
+
+  const freeShow = notas?.freeShow ?? {};
+  function alternarFreeShow(e, itemId) {
+    e.stopPropagation();
+    definirFreeShow(evento.id, itemId, !freeShow[itemId]);
+  }
 
   const itens = repertorio?.itens ?? [];
   const nMusicas = itens.filter((i) => i.tipo === "musica").length;
@@ -139,6 +151,19 @@ export default function RepertorioCard({ evento, aberto, onAbrir }) {
                       </p>
                       <p className="ds">{item.artista ?? ""}</p>
                     </div>
+                    {/* "Já temos esta música salva no FreeShow?" — nota
+                        só da Técnica, não mexe no repertório da Louvor
+                        (ver definirFreeShow). Sem checkbox em item de
+                        momento — só faz sentido por música. */}
+                    <label
+                      className="tec-rep-freeshow" onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox" checked={!!freeShow[item.id]}
+                        onChange={(e) => alternarFreeShow(e, item.id)}
+                      />
+                      <span>(Free Show)</span>
+                    </label>
                   </div>
                   {linksDaMusica.length > 0 && (
                     <div className="tec-rep-links">

@@ -474,6 +474,22 @@
   font-weight: 700;
   font-size: 13px;
 }
+.tec-rep-freeshow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cinza);
+  cursor: pointer;
+}
+.tec-rep-freeshow input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--azul);
+  cursor: pointer;
+}
 .tec-rep-links {
   display: flex;
   flex-wrap: wrap;
