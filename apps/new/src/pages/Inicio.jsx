@@ -6,7 +6,8 @@ import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirF
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
-import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
+import { ouvirLicoes } from "../lib/licoes";
+import { dataPorExtenso, eur, nomeCurto, MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Avatares from "@portal/shared/components/Avatares.jsx";
@@ -29,7 +30,10 @@ function ordenarPorAtribuicao(lista, checklist) {
   return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrCulto, onIrReembolsos }) {
+export default function Inicio({
+  uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho,
+  onIrEscala, onIrInventario, onIrCulto, onIrReembolsos, onIrLicao, onAlertaLicao,
+}) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -53,6 +57,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [minhasRespostas, setMinhasRespostas] = useState({}); // { [mes]: resposta | null }
   const [eventosEnquete, setEventosEnquete] = useState({});
   const [aResponderEnquete, setAResponderEnquete] = useState(false);
+  const [licoes, setLicoes] = useState({});
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -60,6 +65,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   useEffect(() => ouvirFuncoes(setFuncoes), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirReembolsos(false, uid, setMeusReembolsos), [uid]);
+  useEffect(() => ouvirLicoes(setLicoes), []);
 
   // a escala do culto que vamos mostrar no Início tem de ser ao vivo — se
   // o líder mudar quem serve ou o líder de escala, não é preciso refresh.
@@ -179,6 +185,21 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     }
   }
 
+  // Culto mais próximo (hoje ou depois) dentro do mês visível — não é
+  // necessariamente `meuEvento` (esse é "onde EU sirvo", pode ser
+  // null se a pessoa não estiver escalada; a lição é da base toda,
+  // sem depender de estar escalado). Só a líder sobe a lição, por
+  // isso só ela vê o aviso — os outros só leem, avisá-los não muda
+  // nada da parte deles. Tem de vir antes do `if (!meuEvento)` abaixo
+  // — hooks nunca depois de um return condicional.
+  const hojeParaLicao = new Date().toISOString().slice(0, 10);
+  const proximoCulto = eventosMes.find((ev) => ev.data >= hojeParaLicao) ?? null;
+  const licaoPorEnviar = souLiderBase && !!proximoCulto && !licoes[proximoCulto.id];
+
+  useEffect(() => {
+    onAlertaLicao?.(licaoPorEnviar);
+  }, [licaoPorEnviar, onAlertaLicao]);
+
   if (!meuEvento) return null;
 
   // fica visível até ao prazo, mesmo depois de responder — para quem
@@ -214,6 +235,18 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {licaoPorEnviar && (
+        <div className="destaque" onClick={() => onIrLicao?.()}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Ainda não enviaste a lição desta semana
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{nomeEvento(proximoCulto)}</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>
