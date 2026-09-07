@@ -397,6 +397,17 @@ service cloud.firestore {
                         get(/databases/$(database)/documents/eventos/$(evento)/escalas/$(request.auth.token.baseId)).data.pessoas;
       }
 
+      // notas da Técnica sobre o repertório que a Louvor montou —
+      // hoje só "temos no FreeShow?" por item (ver RepertorioCard.jsx).
+      // Nota da Técnica sobre dado da Louvor, nunca o inverso — por
+      // isso vive aqui, não em bases/louvor/repertorios, e só a
+      // Técnica lê/escreve. Escrita direta do cliente (sem Cloud
+      // Function), mesmo padrão de contagem/geral — id fixo "tecnica",
+      // sem necessidade de mais nenhuma base ter isto.
+      match /repertorioNotas/tecnica {
+        allow read, write: if minhaBase('tecnica');
+      }
+
       // contagem do culto da Base Pessoal — um documento vivo por culto.
       // Escreve direto do cliente para continuar utilizável quando a rede
       // falha; cada categoria regista quem a preencheu e a sua origem.
