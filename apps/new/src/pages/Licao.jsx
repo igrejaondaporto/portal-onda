@@ -155,7 +155,7 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
       </div>
 
       {adolescentes.length > 0 && (
-        <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setAMostrarResumo(true)}>
+        <button className="btn sec full" style={{ marginTop: 4 }} onClick={() => setAMostrarResumo(true)}>
           Resumo de participação
         </button>
       )}
