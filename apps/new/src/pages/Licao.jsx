@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirLicoes, enviarLicao, excluirLicao } from "../lib/licoes";
-import { ouvirAdolescentes, criarAdolescente, ouvirPresencas, marcarPresenca } from "../lib/presencaLicao";
+import { ouvirAdolescentes, criarAdolescente, removerAdolescente, ouvirPresencas, marcarPresenca } from "../lib/presencaLicao";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, nomeEvento, haAtras, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -114,6 +114,14 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
     }
   }
 
+  async function removerDaLista(pessoa) {
+    try {
+      await removerAdolescente(pessoa.id);
+    } catch {
+      torrada("Não foi possível remover.", true);
+    }
+  }
+
   async function adicionarAdolescente(eventoId) {
     const nome = novoNome.trim();
     if (!nome) return;
@@ -213,52 +221,62 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
               </div>
             )}
 
-            <p className="rot" style={{ marginTop: 14 }}>
-              Presença · {presentesDoDia.length} de {adolescentes.length}
-            </p>
-            {adolescentes.length === 0 && eventoANomear !== ev.id && (
-              <p className="ds">Ainda não há adolescentes na lista.</p>
-            )}
-            {adolescentes.map((a) => {
-              const presente = presentesDoDia.includes(a.id);
-              return (
+            <div className="blococor" style={{ marginTop: 14 }}>
+              <p className="rot" style={{ paddingTop: 10 }}>
+                Presença · {presentesDoDia.length} de {adolescentes.length}
+              </p>
+              {adolescentes.length === 0 && eventoANomear !== ev.id && (
+                <p className="ds">Ainda não há adolescentes na lista.</p>
+              )}
+              {adolescentes.map((a) => {
+                const presente = presentesDoDia.includes(a.id);
+                return (
+                  <div key={a.id} className="linha">
+                    <button
+                      type="button"
+                      style={{ flex: 1, display: "flex", alignItems: "center", gap: 13, background: "none", border: 0, textAlign: "left", cursor: "pointer", padding: 0 }}
+                      onClick={() => marcarPresenca(ev.id, a.id, !presente)}
+                    >
+                      <span
+                        className="check" data-on={presente ? 1 : 0}
+                        style={{
+                          width: 22, height: 22, borderRadius: "50%", border: "2px solid var(--fio)",
+                          display: "flex", alignItems: "center", justifyContent: "center", flex: "none",
+                          ...(presente ? { background: "var(--azul)", borderColor: "var(--azul)", color: "#fff" } : {}),
+                        }}
+                      >
+                        {presente ? "✓" : ""}
+                      </span>
+                      <span className="nmt">{a.nome}</span>
+                    </button>
+                    <button
+                      className="oc-icobt mag" aria-label={`Remover ${a.nome}`} title="Remover"
+                      onClick={() => removerDaLista(a)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+              {eventoANomear === ev.id ? (
+                <div style={{ display: "flex", gap: 8, marginTop: 8, paddingBottom: 10 }}>
+                  <input
+                    className="campo" style={{ flex: 1 }} autoFocus value={novoNome}
+                    placeholder="Nome do adolescente"
+                    onChange={(e) => setNovoNome(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") adicionarAdolescente(ev.id); }}
+                  />
+                  <button className="btn" onClick={() => adicionarAdolescente(ev.id)}>Adicionar</button>
+                </div>
+              ) : (
                 <button
-                  key={a.id} className="linha"
-                  style={{ width: "100%", background: "none", border: 0, textAlign: "left", cursor: "pointer" }}
-                  onClick={() => marcarPresenca(ev.id, a.id, !presente)}
+                  className="btn sec full" style={{ marginTop: 8, marginBottom: 10 }}
+                  onClick={() => { setEventoANomear(ev.id); setNovoNome(""); }}
                 >
-                  <span
-                    className="check" data-on={presente ? 1 : 0}
-                    style={{
-                      width: 22, height: 22, borderRadius: "50%", border: "2px solid var(--fio)",
-                      display: "flex", alignItems: "center", justifyContent: "center", flex: "none",
-                      ...(presente ? { background: "var(--azul)", borderColor: "var(--azul)", color: "#fff" } : {}),
-                    }}
-                  >
-                    {presente ? "✓" : ""}
-                  </span>
-                  <span className="nmt">{a.nome}</span>
+                  + Adolescente
                 </button>
-              );
-            })}
-            {eventoANomear === ev.id ? (
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <input
-                  className="campo" style={{ flex: 1 }} autoFocus value={novoNome}
-                  placeholder="Nome do adolescente"
-                  onChange={(e) => setNovoNome(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") adicionarAdolescente(ev.id); }}
-                />
-                <button className="btn" onClick={() => adicionarAdolescente(ev.id)}>Adicionar</button>
-              </div>
-            ) : (
-              <button
-                className="btn sec full" style={{ marginTop: 8 }}
-                onClick={() => { setEventoANomear(ev.id); setNovoNome(""); }}
-              >
-                + Adolescente
-              </button>
-            )}
+              )}
+            </div>
           </CartaoCulto>
         );
       })}
