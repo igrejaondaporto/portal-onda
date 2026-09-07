@@ -28,6 +28,7 @@ apps/apoio/             App da Base de Apoio. Domínio: apoio.igrejaonda.pt
 apps/tecnica/           App da Base Técnica. Domínio: tecnica.igrejaonda.pt
 apps/backstage/         App da Backstage. Domínio: back.igrejaonda.pt
 apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.pt
+apps/new/               App da Base New. Domínio: new.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -77,6 +78,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Comunicação | `apps/comunicacao` | `comunicacao.igrejaonda.pt` | `apps/comunicacao/CLAUDE.md` |
 | Pessoal | `apps/pessoal` | `pessoal.igrejaonda.pt` | `apps/pessoal/CLAUDE.md` |
 | Louvor | `apps/louvor` | `louvor.igrejaonda.pt` | `apps/louvor/CLAUDE.md` |
+| New | `apps/new` | `new.igrejaonda.pt` | `apps/new/CLAUDE.md` |
 
 ## Stack
 
