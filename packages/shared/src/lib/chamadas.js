@@ -17,10 +17,17 @@ import { doc, onSnapshot, runTransaction } from "firebase/firestore";
 import { db } from "./firebase.js";
 import { hojeISO } from "./data.js";
 
+/* `oid` de "fun" e "junior" estavam errados desde sempre (troca/typo
+ * na altura em que este catálogo foi escrito à mão) — nunca dava para
+ * apanhar isso sem o túnel do FreeShow ligado a sério (fs.painelonda.pt
+ * ficou fora do ar até 2026-09-07). Confirmados ao vivo, contra o
+ * FreeShow real: `clear_overlays` + `name_select_overlay` por overlay,
+ * lendo o id que `get_output` devolve a seguir. Baby e Carro já
+ * batiam certo. */
 export const CANAIS_CHAMADAS = [
   { id: "baby", oid: "c7ec7b48c05", rotulo: "Baby", overlay: "BABY", variavel: "baby", prefixo: "BABY: ", campo: "Nome da criança", exemplo: "Eloa", maiusculas: false, cor: "var(--violeta)" },
-  { id: "fun", oid: "8dfa868047d", rotulo: "Fun", overlay: "Z_FUN", variavel: "fun", prefixo: "FUN: ", campo: "Nome da criança", exemplo: "Débora", maiusculas: false, cor: "var(--ciano)" },
-  { id: "junior", oid: "b239c603705", rotulo: "Júnior", overlay: "Z_JUNIOR", variavel: "junior", prefixo: "JÚNIOR: ", campo: "Nome da criança", exemplo: "Arthur", maiusculas: false, cor: "var(--verde)" },
+  { id: "fun", oid: "62628c23d38", rotulo: "Fun", overlay: "Z_FUN", variavel: "fun", prefixo: "FUN: ", campo: "Nome da criança", exemplo: "Débora", maiusculas: false, cor: "var(--ciano)" },
+  { id: "junior", oid: "160e1f2472f", rotulo: "Júnior", overlay: "Z_JUNIOR", variavel: "junior", prefixo: "JÚNIOR: ", campo: "Nome da criança", exemplo: "Arthur", maiusculas: false, cor: "var(--verde)" },
   { id: "carro", oid: "bc2dfa6c39e", rotulo: "Carro", overlay: "Z_CARRO", variavel: "carro", prefixo: "CARRO: ", campo: "Carro e matrícula", exemplo: "VW Taigo AO96GD", maiusculas: true, cor: "var(--laranja)" },
 ];
 export const PADRAO_FREESHOW = "https://fs.painelonda.pt";
