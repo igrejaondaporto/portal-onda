@@ -121,7 +121,7 @@ export default function App() {
         ) : (
           <>
             <div className="tit" style={{ marginTop: 16 }}><h2>{canal.rotulo}</h2></div>
-            <PainelChamadas canaisPermitidos={[estacaoId]} />
+            <PainelChamadas canaisPermitidos={[estacaoId]} canaisHistorico={BASES.map((c) => c.id)} />
           </>
         )}
       </main>
