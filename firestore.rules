@@ -119,6 +119,20 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
 
+      // ── adolescentes + presença na Lição (Base New): os jovens não
+      // são voluntários, não têm login nem PIN — é só um catálogo de
+      // nomes que qualquer voluntário mantém, para marcar quem esteve
+      // em cada domingo. Sem autoria mista real (não há "dono" de um
+      // adolescente), por isso escrita aberta a toda a base, como
+      // funcoes/avisos mas sem o gate de líder — quem passa a lição
+      // naquele domingo é quem marca. ──
+      match /adolescentes/{pessoa} {
+        allow read, write: if minhaBase(base);
+      }
+      match /presencasLicao/{evento} {
+        allow read, write: if minhaBase(base);
+      }
+
       // ── config (Base Técnica): tabela de correspondência de nomes
       // FreeShow → painel para a ordem do culto ao vivo. Só a própria
       // base lê (é o único ecrã que a usa), só por Cloud Function. ──
