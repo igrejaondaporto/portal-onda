@@ -20,16 +20,26 @@ const formatarRestante = (ms) => {
  * kinder.igrejaonda.pt standalone, que tranca cada estação num canal
  * só) — por isso vive aqui, não copiado.
  *
- * `canaisPermitidos`: array de ids de CANAIS_CHAMADAS a mostrar — não
- * passar (ou passar undefined) mostra todos. `definirCabecalho` é
- * opcional — só as apps com a casca de cabeçalho do Portal (crista +
- * definirCabecalho) o passam; o kinder standalone não tem essa casca.
+ * `canaisPermitidos`: array de ids de CANAIS_CHAMADAS a mostrar/chamar
+ * — não passar (ou passar undefined) mostra todos. `canaisHistorico`:
+ * ids cujo "Chamados hoje" entra na lista — por omissão, os mesmos de
+ * `canaisPermitidos` (era o comportamento antigo). O Kinder passa os
+ * dois separados: `canaisPermitidos` tranca cada aparelho na sua
+ * própria estação (só essa aparece pra chamar), mas `canaisHistorico`
+ * inclui Baby+Fun+Júnior sempre — pedido do líder, "mostre todos os
+ * nomes pra todas as categorias" (quem está no Fun quer ver quem já
+ * foi chamado no Baby também). `definirCabecalho` é opcional — só as
+ * apps com a casca de cabeçalho do Portal (crista + definirCabecalho)
+ * o passam; o kinder standalone não tem essa casca.
  */
-export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
+export default function PainelChamadas({ canaisPermitidos, canaisHistorico, definirCabecalho }) {
   const torrada = useTorrada();
   const canais = canaisPermitidos?.length
     ? CANAIS_CHAMADAS.filter((c) => canaisPermitidos.includes(c.id))
     : CANAIS_CHAMADAS;
+  const canaisHist = canaisHistorico?.length
+    ? CANAIS_CHAMADAS.filter((c) => canaisHistorico.includes(c.id))
+    : canais;
 
   const [canal, setCanal] = useState(canais[0]);
   const [valor, setValor] = useState("");
@@ -50,17 +60,18 @@ export default function PainelChamadas({ canaisPermitidos, definirCabecalho }) {
   }, [definirCabecalho]);
 
   // Histórico partilhado (Firestore) — em vez de um por aparelho, ver
-  // ouvirHistoricoChamadas em lib/chamadas.js. `canais` já respeita
-  // canaisPermitidos (o Kinder tranca cada aparelho num canal só).
+  // ouvirHistoricoChamadas em lib/chamadas.js. `canaisHist` já respeita
+  // canaisHistorico (por omissão, o mesmo que canaisPermitidos).
   //
-  // Dependência é a CHAVE (string), nunca `canais` em si: esse array é
-  // recalculado a cada render (não é memoizado) — como "Chamados hoje"
-  // também re-renderiza a cada segundo (ver `agora` abaixo), usar
-  // `canais` como dependência reabria o listener a cada segundo, e o
-  // histórico nunca chegava a assentar num valor (visto ao testar
-  // contra produção antes de entrar: o histórico nunca aparecia).
-  const canaisChave = canais.map((c) => c.id).join(",");
-  useEffect(() => ouvirHistoricoChamadas(canaisChave.split(","), setHistorico), [canaisChave]);
+  // Dependência é a CHAVE (string), nunca `canaisHist` em si: esse
+  // array é recalculado a cada render (não é memoizado) — como
+  // "Chamados hoje" também re-renderiza a cada segundo (ver `agora`
+  // abaixo), usar o array como dependência reabria o listener a cada
+  // segundo, e o histórico nunca chegava a assentar num valor (visto
+  // ao testar contra produção antes de entrar: o histórico nunca
+  // aparecia).
+  const canaisHistChave = canaisHist.map((c) => c.id).join(",");
+  useEffect(() => ouvirHistoricoChamadas(canaisHistChave.split(","), setHistorico), [canaisHistChave]);
 
   // só para o contador de cada nome em "Chamados hoje" ir andando sozinho
   useEffect(() => {
