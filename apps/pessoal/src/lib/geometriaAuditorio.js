@@ -4,10 +4,12 @@
  * Firestore. Recebe a `planta` (bases/pessoal/acomodacao/planta) e
  * devolve números; quem desenha é MapaAuditorio.jsx.
  *
- * Assume o mesmo número de lugares em todas as fileiras (é o que a
- * planta semeada tem hoje — 12x12). Se um dia uma fileira precisar de
- * um número diferente de lugares, esta conta tem de mudar; não é o
- * caso agora.
+ * Assume o mesmo número de lugares em todas as fileiras DA GRELHA
+ * uniforme A–L (é o que a planta semeada tem — 12x12). Se um dia uma
+ * fileira dessa grelha precisar de um número diferente, esta conta
+ * tem de mudar. A fileira M (2026-09, 4 lugares atrás da L) é a
+ * exceção deliberada — não entra nessa grelha, vive em
+ * `planta.fileirasExtra` e é gerada à parte (ver gerarLugaresExtra).
  */
 
 // viewBox fixo — o mesmo do protótipo. `geometria` da planta ainda não
@@ -22,6 +24,69 @@ const CURVA = 22;
 
 export function fileirasDaPlanta(planta) {
   return planta?.fileiras ?? [];
+}
+
+/** Lugares extra fora da grelha uniforme A–L — hoje só a fileira M (4
+ *  lugares atrás da L, dois atrás do 1/2 e dois atrás do 11/12, pedido
+ *  do dono do produto depois de a planta original já estar no ar).
+ *  Cada entrada de `planta.fileirasExtra` diz atrás de que fileira
+ *  fica (`atras`) e em que colunas dessa fileira se alinha
+ *  (`colunas`) — usa a MESMA largura/curva da fileira de referência
+ *  (nunca entra na progressão A→L de `linha()`, que continua com as
+ *  fileiras de sempre; senão a L teria de encolher para abrir
+ *  espaço). Os lugares saem numerados 1..N dentro da própria fileira
+ *  extra (M1, M2…), não herdam o número da coluna de trás. */
+export function fileirasExtraDaPlanta(planta) {
+  return planta?.fileirasExtra ?? [];
+}
+
+// Distância (mesma unidade do viewBox) entre a fileira extra e a
+// fileira de referência — cabe folgado no chão/enquadramento já
+// desenhados para A–L, sem precisar de os alargar (ver comentário
+// grande no histórico desta função, verificado a olho antes de
+// entrar em produção).
+const GAP_EXTRA = 130;
+
+export function gerarLugaresExtra(planta) {
+  const fileiras = fileirasDaPlanta(planta);
+  const ns = lugaresPorFileira(planta);
+  const total = fileiras.length;
+  return fileirasExtraDaPlanta(planta).flatMap((fx) => {
+    const iRef = fileiras.findIndex((f) => f.id === fx.atras);
+    if (iRef < 0) return [];
+    return fx.colunas.map((col, k) => {
+      const { x, y, sw, sh } = posicaoLugar(iRef, col - 1, total, ns);
+      return { id: `${fx.id}${k + 1}`, fileira: fx.id, indice: k, x, y: y + GAP_EXTRA, sw, sh };
+    });
+  });
+}
+
+/** Rótulo (círculo com a letra) da fileira extra — um por grupo de
+ *  colunas contíguas (cluster). Fica centrado por cima do próprio
+ *  cluster (não ao lado, como os rótulos das fileiras A–L) — o chão
+ *  desenhado estreita a esta distância do palco, e o lado esquerdo/
+ *  direito de uma fileira já tão atrás cai fora dele; por cima do
+ *  cluster há sempre chão de sobra por baixo dos lugares. */
+export function gerarRotulosExtra(planta) {
+  const fileiras = fileirasDaPlanta(planta);
+  const ns = lugaresPorFileira(planta);
+  const total = fileiras.length;
+  return fileirasExtraDaPlanta(planta).flatMap((fx) => {
+    const iRef = fileiras.findIndex((f) => f.id === fx.atras);
+    if (iRef < 0) return [];
+    const grupos = [];
+    fx.colunas.forEach((col) => {
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo && col - ultimo[ultimo.length - 1] === 1) ultimo.push(col);
+      else grupos.push([col]);
+    });
+    return grupos.map((g) => {
+      const posicoes = g.map((col) => posicaoLugar(iRef, col - 1, total, ns));
+      const x = posicoes.reduce((soma, p) => soma + p.x, 0) / posicoes.length;
+      const sh = posicoes[0].sh;
+      return { fileira: fx.id, x, y: posicoes[0].y + GAP_EXTRA - sh * 0.9 };
+    });
+  });
 }
 
 export function lugaresPorFileira(planta) {
@@ -43,6 +108,9 @@ export function estadoInicialLugares(planta) {
       const id = `${f.id}${j}`;
       lugares[id] = reservados.has(id) ? "reservado" : bloqueados.has(id) ? "bloqueado" : "livre";
     }
+  });
+  gerarLugaresExtra(planta).forEach((l) => {
+    lugares[l.id] = reservados.has(l.id) ? "reservado" : bloqueados.has(l.id) ? "bloqueado" : "livre";
   });
   return lugares;
 }
@@ -78,6 +146,7 @@ export function gerarLugares(planta) {
       lugares.push({ id: `${f.id}${j + 1}`, fileira: f.id, indice: j, x, y, sw, sh });
     }
   });
+  lugares.push(...gerarLugaresExtra(planta));
   return lugares;
 }
 

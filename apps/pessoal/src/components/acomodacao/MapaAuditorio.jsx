@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import {
-  VW, VH, gerarLugares, gerarRotulosFileira, gerarNumerosFundo, gerarEscadas, gerarEntradas,
+  VW, VH, gerarLugares, gerarRotulosFileira, gerarRotulosExtra, gerarNumerosFundo, gerarEscadas, gerarEntradas,
   enquadramentoInicial,
 } from "../../lib/geometriaAuditorio";
 import { CORES_LUGAR } from "../../lib/modelo";
@@ -14,6 +14,7 @@ function Cenario({ planta }) {
   const escadas = useMemo(() => gerarEscadas(planta), [planta]);
   const entradas = useMemo(() => gerarEntradas(planta), [planta]);
   const rotulos = useMemo(() => gerarRotulosFileira(planta), [planta]);
+  const rotulosExtra = useMemo(() => gerarRotulosExtra(planta), [planta]);
   const numeros = useMemo(() => gerarNumerosFundo(planta), [planta]);
 
   return (
@@ -75,6 +76,12 @@ function Cenario({ planta }) {
       ))}
       {numeros.map((n) => (
         <text key={n.numero} x={n.x} y={n.y} textAnchor="middle" fontFamily="Outfit" fontSize="26" fontWeight="700" fill="#FFF3D4" opacity=".62">{n.numero}</text>
+      ))}
+      {rotulosExtra.map((r, i) => (
+        <g key={`${r.fileira}-${i}`}>
+          <circle cx={r.x} cy={r.y} r="19" fill="rgba(8,10,40,.78)" />
+          <text x={r.x} y={r.y + 5} textAnchor="middle" fontFamily="Outfit" fontSize="22" fontWeight="800" fill="#FFE9B8" opacity=".95">{r.fileira}</text>
+        </g>
       ))}
       {entradas.map((e, i) => (
         <g key={i} transform={`translate(${e.x.toFixed(1)} ${e.y.toFixed(1)}) rotate(${e.angulo.toFixed(1)})`}>
