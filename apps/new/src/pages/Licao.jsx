@@ -163,7 +163,7 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
       </div>
 
       {adolescentes.length > 0 && (
-        <button className="btn sec full" style={{ marginTop: 4 }} onClick={() => setAMostrarResumo(true)}>
+        <button className="btn sec full" style={{ marginTop: 4, marginBottom: 16 }} onClick={() => setAMostrarResumo(true)}>
           Resumo de participação
         </button>
       )}
@@ -214,10 +214,10 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
             )}
             {souLiderBase && (
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                <button className="btn sec full" onClick={() => abrirEnvio(ev.id)}>
+                <button className={`btn full${licao ? " sec" : ""}`} onClick={() => abrirEnvio(ev.id)}>
                   {licao ? "Substituir ficheiro" : "Enviar lição (.docx)"}
                 </button>
-                {licao && <button className="btn sec" onClick={() => excluir(ev.id)}>Excluir</button>}
+                {licao && <button className="btn perigo" onClick={() => excluir(ev.id)}>Excluir</button>}
               </div>
             )}
 
