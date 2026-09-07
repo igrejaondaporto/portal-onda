@@ -30,27 +30,21 @@ html {
    * no sítio. Afeta qualquer "Ver mais"/expansão de lista, em
    * qualquer base. */
   overflow-anchor: none;
-  /* iOS Safari sem isto: arrastar para os lados mostra o fundo do
-   * WebView além do conteúdo (não há nada horizontal pra rolar, é só
-   * o "elástico" nativo). overflow-x tem de estar aqui e no body (o
-   * `body { overflow-x: hidden }` sozinho não chega — o elástico é do
-   * documento, não do overflow do body).
-   *
-   * CUIDADO: `overscroll-behavior: none` (as duas direções) aqui já
-   * partiu o scroll a valer — Android (só dava para rolar com dois
-   * dedos, entalando) e PC (roda do rato parava de fazer nada, só a
-   * barra lateral arrastada à mão continuava a funcionar), em todas
-   * as bases, mesmo sem folha nenhuma aberta (visto em produção,
-   * 2026-09-07, ~5 dias depois deste código entrar). `none` no
-   * elemento raiz desliga o encadeamento de scroll que o Chrome usa
-   * para decidir se rola pelo caminho rápido (compositor) ou pelo
-   * lento (thread principal) — cai para o lento e trava. Só a
-   * direção vertical no topo (puxar para baixo arrastava o NavBar
-   * fixo) precisa de travar o elástico; `overscroll-behavior-y:
-   * contain` resolve isso sem desligar o encadeamento de scroll
-   * inteiro. */
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
+  /* CUIDADO — histórico do elástico do iOS Safari (#115):
+   * `overflow-x`/`overscroll-behavior` chegaram a viver AQUI, no
+   * `html`, para travar o elástico horizontal e o do topo. Isso
+   * partiu o scroll a valer em Android/PC (só rolava com a barra
+   * lateral arrastada à mão ou com dois dedos, entalando) — mesmo
+   * depois de trocar `overscroll-behavior: none` por só
+   * `-y: contain` (visto em produção, 2026-09-07, o scroll normal
+   * continuava preso ao arrastar a barra lateral). Qualquer uma
+   * destas propriedades no elemento raiz (`html`) mexe em como o
+   * Chrome decide o caminho do scroll — mesmo em modo mais restrito.
+   * Ficam só no `body` abaixo, o padrão testado em produção por
+   * qualquer site — se o elástico do iOS Safari voltar a incomodar,
+   * resolve-se com uma regra específica para iOS (`@supports
+   * (-webkit-touch-callout: none)`), nunca mexendo no `html` de
+   * novo sem confirmar antes que não volta a travar o resto. */
 }
 body {
   font-family: var(--o);
