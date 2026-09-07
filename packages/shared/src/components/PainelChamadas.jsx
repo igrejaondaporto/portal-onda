@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useTorrada } from "../lib/TorradaContext.jsx";
 import {
-  CANAIS_CHAMADAS, PADRAO_FREESHOW, INTERVALO_SONDA_MS,
+  CANAIS_CHAMADAS, PADRAO_FREESHOW, INTERVALO_SONDA_MS, HISTORICO_LIMITE,
   ouvirHistoricoChamadas, registarChamada,
 } from "../lib/chamadas.js";
 
@@ -191,11 +191,20 @@ export default function PainelChamadas({ canaisPermitidos, canaisHistorico, defi
 
     const quando = Date.now();
     setAgora(quando);
-    // Fica logo visível neste aparelho via onSnapshot assim que a
-    // escrita voltar — não precisa de estado otimista aqui. Falhar
-    // (ex.: sem rede) não desfaz a chamada já enviada ao FreeShow
-    // acima, que é a parte que importa a sério — só o histórico
-    // partilhado é que ficaria por atualizar até à próxima chamada.
+    // Otimista: mostra já neste aparelho, sem esperar o Firestore
+    // confirmar — a ida e volta real (mais o onSnapshot a reagir)
+    // demora sempre um bocado, mais em wifi mais lenta (a da igreja,
+    // não a rede de quem testa a programar) do que se sentia a testar
+    // — visto ao vivo, 2026-09: chamadas seguidas rápidas só
+    // apareciam com um atraso visível, dava a impressão de estar
+    // "uma atrás". Mesma `quando` usada aqui e em registarChamada —
+    // quando o onSnapshot chegar a valer, o item otimista e o item
+    // real têm a mesma chave (canalId+txt+quando), não duplica.
+    setHistorico((h) => [{ canalId: k.id, txt, quando }, ...h].slice(0, HISTORICO_LIMITE));
+    // Falhar (ex.: sem rede) não desfaz a chamada já enviada ao
+    // FreeShow acima, que é a parte que importa a sério — só o
+    // histórico partilhado é que ficaria por atualizar até à
+    // próxima chamada ou até recarregar a página.
     registarChamada(k.id, txt, quando).catch(() => {});
     setValor("");
   }
