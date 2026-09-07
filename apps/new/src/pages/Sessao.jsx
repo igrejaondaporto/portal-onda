@@ -215,7 +215,10 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           </div>
           <div style={{ display: pagina === "licao" ? "" : "none" }}>
-            <Licao uid={uid} papel={papel} ativo={pagina === "licao"} definirCabecalho={setCab} />
+            <Licao
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
+              ativo={pagina === "licao"} definirCabecalho={setCab}
+            />
           </div>
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
