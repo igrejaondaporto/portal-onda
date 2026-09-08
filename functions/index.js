@@ -1746,14 +1746,57 @@ export const atribuirFuncao = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── ACOMODAÇÃO (Base Pessoal): fechar o mapa do culto ─────────
- * A única ação do módulo que passa por Cloud Function — marcar
- * lugares é escrita direta do cliente (ver firestore.rules,
- * eventos/{evento}/acomodacao/mapa), porque tem de funcionar
- * offline. Fechar não: os números do resumo têm de vir de uma
- * contagem sobre o que está realmente gravado no servidor, não do
- * que o cliente diz que contou, e a escrita do resumo + a marca
- * `fechado:true` no mapa têm de acontecer juntas. */
+/* ── ACOMODAÇÃO (Base Pessoal): fechar/corrigir o mapa do culto ─
+ * Marcar lugares é escrita direta do cliente (ver firestore.rules,
+ * eventos/{evento}/acomodacao/mapa), porque tem de funcionar offline.
+ * Fechar e corrigir a data, porém, passam pelo servidor: os números do
+ * resumo têm de vir do estado realmente gravado e uma mudança de data
+ * não pode deixar o mapa antigo por engano no próximo domingo. */
+
+function lugaresIniciaisAcomodacao(planta) {
+  const fileiras = Array.isArray(planta?.fileiras) ? planta.fileiras : [];
+  const porFileira = fileiras[0]?.lugares ?? 12;
+  const reservados = new Set(planta?.reservados ?? []);
+  const bloqueados = new Set(planta?.bloqueiosPermanentes ?? []);
+  const lugares = {};
+
+  fileiras.forEach((fileira) => {
+    for (let n = 1; n <= porFileira; n++) {
+      const id = `${fileira.id}${n}`;
+      lugares[id] = reservados.has(id) ? "reservado" : bloqueados.has(id) ? "bloqueado" : "livre";
+    }
+  });
+  (planta?.fileirasExtra ?? []).forEach((fileira) => {
+    if (!fileiras.some((f) => f.id === fileira.atras)) return;
+    (fileira.colunas ?? []).forEach((_, indice) => {
+      const id = `${fileira.id}${indice + 1}`;
+      lugares[id] = reservados.has(id) ? "reservado" : bloqueados.has(id) ? "bloqueado" : "livre";
+    });
+  });
+  return lugares;
+}
+
+function resumoAcomodacao(eventoId, lugares, uid) {
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
+  const ocupados = contagem.ocupado + contagem.visitante;
+  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  return {
+    eventoId,
+    ocupados: contagem.ocupado, visitantes: contagem.visitante,
+    livres: contagem.livre, reservados: contagem.reservado, bloqueados: contagem.bloqueado,
+    capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
+    fechadoEm: admin.firestore.FieldValue.serverTimestamp(), fechadoPor: uid,
+  };
+}
+
+function hojeEmLisboa() {
+  const partes = new Intl.DateTimeFormat("en", {
+    timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const valor = (tipo) => partes.find((p) => p.type === tipo)?.value;
+  return `${valor("year")}-${valor("month")}-${valor("day")}`;
+}
 export const fecharAcomodacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1774,18 +1817,7 @@ export const fecharAcomodacao = onCall(async (req) => {
   if (!mapa.exists) throw new HttpsError("not-found", "Este culto ainda não tem mapa.");
   if (mapa.data().fechado) throw new HttpsError("failed-precondition", "Este culto já foi fechado.");
 
-  const lugares = mapa.data().lugares || {};
-  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
-  Object.values(lugares).forEach((s) => { if (s in contagem) contagem[s]++; });
-  const ocupados = contagem.ocupado + contagem.visitante;
-  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
-  const resumo = {
-    eventoId,
-    ocupados: contagem.ocupado, visitantes: contagem.visitante,
-    livres: contagem.livre, reservados: contagem.reservado, bloqueados: contagem.bloqueado,
-    capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
-    fechadoEm: admin.firestore.FieldValue.serverTimestamp(), fechadoPor: uid,
-  };
+  const resumo = resumoAcomodacao(eventoId, mapa.data().lugares || {}, uid);
 
   const lote = db.batch();
   lote.set(db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`), resumo);
@@ -1793,6 +1825,66 @@ export const fecharAcomodacao = onCall(async (req) => {
   await lote.commit();
 
   return { ok: true, resumo: { ...resumo, fechadoEm: null } };
+});
+
+/** Move um mapa preenchido para a data certa e reinicia o mapa de
+ * origem. Só a líder da Base Pessoal pode fazê-lo: é uma correção de
+ * histórico, não uma marcação operacional. O destino tem de ser um
+ * culto real e não pode ter mapa nem resumo, para nunca apagar dados.
+ * Se a data escolhida já passou, o mapa chega fechado e com o resumo
+ * calculado, para aparecer imediatamente no histórico. */
+export const corrigirDataMapaAcomodacao = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal" || !PAPEIS_LIDER.has(req.auth.token.papel)) {
+    throw new HttpsError("permission-denied", "Só a líder da Base Pessoal pode corrigir a data do mapa.");
+  }
+
+  const { eventoId, novoEventoId } = req.data || {};
+  const dataValida = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dataValida.test(eventoId || "") || !dataValida.test(novoEventoId || "")) {
+    throw new HttpsError("invalid-argument", "Escolhe datas de culto válidas.");
+  }
+  if (eventoId === novoEventoId) throw new HttpsError("invalid-argument", "Escolhe uma data diferente.");
+
+  const origemRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
+  const destinoRef = db.doc(`eventos/${novoEventoId}/acomodacao/mapa`);
+  const eventoDestinoRef = db.doc(`eventos/${novoEventoId}`);
+  const resumoDestinoRef = db.doc(`bases/pessoal/acomodacaoResumos/${novoEventoId}`);
+  const plantaRef = db.doc("bases/pessoal/acomodacao/planta");
+  const fecharDestino = novoEventoId < hojeEmLisboa();
+
+  await db.runTransaction(async (tx) => {
+    const [origem, destino, eventoDestino, resumoDestino, planta] = await Promise.all([
+      tx.get(origemRef), tx.get(destinoRef), tx.get(eventoDestinoRef), tx.get(resumoDestinoRef), tx.get(plantaRef),
+    ]);
+    if (!origem.exists) throw new HttpsError("not-found", "O mapa que queres corrigir já não existe.");
+    if (origem.data().fechado) throw new HttpsError("failed-precondition", "Reabre este mapa antes de corrigir a data.");
+    if (!eventoDestino.exists) throw new HttpsError("not-found", "Não existe um culto nessa data.");
+    if (destino.exists || resumoDestino.exists) {
+      throw new HttpsError("already-exists", "Já há dados de mapa para a data escolhida. Não substituímos dados existentes.");
+    }
+    if (!planta.exists) throw new HttpsError("failed-precondition", "A planta do auditório não está configurada.");
+
+    const dadosOrigem = origem.data();
+    const lugares = dadosOrigem.lugares || {};
+    const agora = admin.firestore.FieldValue.serverTimestamp();
+    tx.set(destinoRef, {
+      eventoId: novoEventoId,
+      lugares,
+      fechado: fecharDestino,
+      criadoEm: dadosOrigem.criadoEm ?? agora,
+      iniciadoPor: dadosOrigem.iniciadoPor ?? uid,
+      movidoDe: eventoId, movidoEm: agora, movidoPor: uid,
+    });
+    tx.update(origemRef, {
+      lugares: lugaresIniciaisAcomodacao(planta.data()), fechado: false,
+      atualizadoEm: agora, reiniciadoPor: uid, reiniciadoEm: agora,
+    });
+    if (fecharDestino) tx.set(resumoDestinoRef, resumoAcomodacao(novoEventoId, lugares, uid));
+  });
+
+  return { ok: true, fechado: fecharDestino };
 });
 
 /** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
