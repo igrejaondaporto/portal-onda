@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { chamar } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import { cPlanta } from "../lib/modelo";
 import { obterMeuEvento } from "../lib/culto";
 import { maiorBlocoLivre, estadoInicialLugares } from "../lib/geometriaAuditorio";
@@ -32,6 +33,9 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   const [modoReservar, setModoReservar] = useState(false);
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
   const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
+  const [aCorrigirData, setACorrigirData] = useState(false);
+  const [novoEventoId, setNovoEventoId] = useState("");
+  const [aMoverMapa, setAMoverMapa] = useState(false);
 
   useEffect(() => onSnapshot(cPlanta(), (s) => setPlanta(s.exists() ? s.data() : null)), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -128,6 +132,21 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     }
   }
 
+  async function corrigirDataMapa() {
+    if (!novoEventoId) { torrada("Escolhe a data correta do culto."); return; }
+    setAMoverMapa(true);
+    try {
+      const r = await chamar("corrigirDataMapaAcomodacao")({ eventoId, novoEventoId });
+      setACorrigirData(false);
+      setNovoEventoId("");
+      torrada(r.data.fechado ? "Mapa movido e guardado no histórico." : "Mapa movido para a data escolhida.");
+    } catch (e) {
+      torrada(e.message || "Não foi possível corrigir a data do mapa.");
+    } finally {
+      setAMoverMapa(false);
+    }
+  }
+
   if (!planta) return null;
   // meuEvento fica null quando não há nenhum culto futuro gerado
   // ainda (obterMeuEvento nunca recua para um culto passado) — raro,
@@ -168,6 +187,9 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
               {modoReservar ? "✓ A reservar" : "Reservas"}
             </button>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
+            {papel === "lider_base" && mapa && (
+              <button className="btn sec" onClick={() => setACorrigirData(true)}>Corrigir data</button>
+            )}
             <button className="btn sec" style={{ color: "var(--magenta)" }} onClick={() => setAConfirmarLimpar(true)}>
               Limpar tudo
             </button>
@@ -191,6 +213,27 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
                 </button>
               </div>
             </div>
+          )}
+          {aCorrigirData && (
+            <>
+              <div className="veu on" onClick={() => !aMoverMapa && setACorrigirData(false)} />
+              <div className="pin on" role="dialog" aria-modal="true" aria-label="Corrigir data do mapa">
+                <div className="pux" />
+                <h2>Corrigir data do mapa</h2>
+                <p className="sb2">
+                  Os lugares preenchidos de {dataPorExtenso(eventoId)} vão para a data escolhida. Este mapa fica limpo para o próximo culto.
+                </p>
+                <label className="rot" style={{ marginTop: 14 }}>Data correta do culto</label>
+                <input className="campo" type="date" value={novoEventoId} onChange={(e) => setNovoEventoId(e.target.value)} disabled={aMoverMapa} />
+                <p className="ds" style={{ marginTop: 10 }}>
+                  Só podes escolher um culto já criado e sem dados de mapa. Se a data já passou, o registo fica guardado no histórico.
+                </p>
+                <button className="btn full" style={{ marginTop: 16 }} disabled={aMoverMapa} onClick={corrigirDataMapa}>
+                  {aMoverMapa ? "A mover…" : "Mover mapa para esta data"}
+                </button>
+                <button className="btn sec full" style={{ marginTop: 9 }} disabled={aMoverMapa} onClick={() => setACorrigirData(false)}>Cancelar</button>
+              </div>
+            </>
           )}
         </>
       )}
