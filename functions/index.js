@@ -1776,6 +1776,18 @@ function lugaresIniciaisAcomodacao(planta) {
   return lugares;
 }
 
+/** Um mapa criado só por alguém abrir o ecrã não tem marcações — é
+ * seguro reutilizá-lo numa correção de data. Qualquer diferença (até
+ * um único lugar) continua a bloquear a operação para não se perder
+ * trabalho real. */
+function mapaEstaNoEstadoInicial(lugares, lugaresIniciais) {
+  const atuais = lugares || {};
+  const idsAtuais = Object.keys(atuais);
+  const idsIniciais = Object.keys(lugaresIniciais);
+  return idsAtuais.length === idsIniciais.length
+    && idsIniciais.every((id) => atuais[id] === lugaresIniciais[id]);
+}
+
 function resumoAcomodacao(eventoId, lugares, uid) {
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
   Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
@@ -1830,7 +1842,7 @@ export const fecharAcomodacao = onCall(async (req) => {
 /** Move um mapa preenchido para a data certa e reinicia o mapa de
  * origem. Só a líder da Base Pessoal pode fazê-lo: é uma correção de
  * histórico, não uma marcação operacional. O destino tem de ser um
- * culto real e não pode ter mapa nem resumo, para nunca apagar dados.
+ * culto real e não pode ter mapa preenchido nem resumo, para nunca apagar dados.
  * Se a data escolhida já passou, o mapa chega fechado e com o resumo
  * calculado, para aparecer imediatamente no histórico. */
 export const corrigirDataMapaAcomodacao = onCall(async (req) => {
@@ -1861,10 +1873,13 @@ export const corrigirDataMapaAcomodacao = onCall(async (req) => {
     if (!origem.exists) throw new HttpsError("not-found", "O mapa que queres corrigir já não existe.");
     if (origem.data().fechado) throw new HttpsError("failed-precondition", "Reabre este mapa antes de corrigir a data.");
     if (!eventoDestino.exists) throw new HttpsError("not-found", "Não existe um culto nessa data.");
-    if (destino.exists || resumoDestino.exists) {
+    if (!planta.exists) throw new HttpsError("failed-precondition", "A planta do auditório não está configurada.");
+    const lugaresIniciais = lugaresIniciaisAcomodacao(planta.data());
+    const destinoTemMarcacoes = destino.exists
+      && (destino.data().fechado || !mapaEstaNoEstadoInicial(destino.data().lugares, lugaresIniciais));
+    if (destinoTemMarcacoes || resumoDestino.exists) {
       throw new HttpsError("already-exists", "Já há dados de mapa para a data escolhida. Não substituímos dados existentes.");
     }
-    if (!planta.exists) throw new HttpsError("failed-precondition", "A planta do auditório não está configurada.");
 
     const dadosOrigem = origem.data();
     const lugares = dadosOrigem.lugares || {};
@@ -1878,7 +1893,7 @@ export const corrigirDataMapaAcomodacao = onCall(async (req) => {
       movidoDe: eventoId, movidoEm: agora, movidoPor: uid,
     });
     tx.update(origemRef, {
-      lugares: lugaresIniciaisAcomodacao(planta.data()), fechado: false,
+      lugares: lugaresIniciais, fechado: false,
       atualizadoEm: agora, reiniciadoPor: uid, reiniciadoEm: agora,
     });
     if (fecharDestino) tx.set(resumoDestinoRef, resumoAcomodacao(novoEventoId, lugares, uid));
