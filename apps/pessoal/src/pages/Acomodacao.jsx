@@ -226,7 +226,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
                 <label className="rot" style={{ marginTop: 14 }}>Data correta do culto</label>
                 <input className="campo" type="date" value={novoEventoId} onChange={(e) => setNovoEventoId(e.target.value)} disabled={aMoverMapa} />
                 <p className="ds" style={{ marginTop: 10 }}>
-                  Só podes escolher um culto já criado e sem dados de mapa. Se a data já passou, o registo fica guardado no histórico.
+                  Só podes escolher um culto já criado e sem mapa preenchido. Se a data já passou, o registo fica guardado no histórico.
                 </p>
                 <button className="btn full" style={{ marginTop: 16 }} disabled={aMoverMapa} onClick={corrigirDataMapa}>
                   {aMoverMapa ? "A mover…" : "Mover mapa para esta data"}
