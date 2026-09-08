@@ -42,6 +42,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@portal/backstage"],
       "port": 5175
+    },
+    {
+      "name": "new-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/new"],
+      "port": 5180
+    },
+    {
+      "name": "shift-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@portal/shift"],
+      "port": 5181
     }
   ]
 }

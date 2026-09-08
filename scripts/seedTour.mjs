@@ -164,6 +164,75 @@ const TOURS = {
     ],
   },
 
+  shift: {
+    // Clone exato da New (mesmas telas/abas) — ver CLAUDE.md desta
+    // base. Mesmo molde Apoio, com "Lição" no lugar de "Montar".
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel do Voluntário",
+        texto: "Aqui vês quando serves, sem precisares de procurar no WhatsApp.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres a escala completa do mês — todos os cultos e quem serve em cada um.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-funcoes",
+        titulo: "Funções",
+        texto: "Em Funções vês a descrição de cada tarefa — o que fazer em cada uma.",
+        alvo: "nav-funcoes", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "A ordem do culto fica sempre em Culto, atualizada.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-inventario",
+        titulo: "Inventário",
+        texto: "Em Inventário aumentas ou diminuis a quantidade de um item sempre que algo acabar ou chegar novo.",
+        alvo: "nav-inventario", pagina: "inicio",
+      },
+      {
+        chave: "nav-licao",
+        titulo: "Lição",
+        texto: "Em Lição fica o documento que o líder enviar — toca para abrir.",
+        alvo: "nav-licao", pagina: "inicio",
+      },
+      {
+        chave: "checklist",
+        titulo: "A tua checklist",
+        texto: "Aqui em cima ficam as tuas tarefas de hoje — toca para marcares como feita.",
+        alvo: "checklist-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês — toca num culto para escolher quem serve.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
+
   tecnica: {
     // Ordem pensada pra nunca esperar: os botões do menu (NavBar, fixo
     // no rodapé) não dependem de nenhum dado da Firestore, aparecem

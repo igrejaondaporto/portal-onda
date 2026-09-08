@@ -29,6 +29,7 @@ apps/tecnica/           App da Base Técnica. Domínio: tecnica.igrejaonda.pt
 apps/backstage/         App da Backstage. Domínio: back.igrejaonda.pt
 apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.pt
 apps/new/               App da Base New. Domínio: new.igrejaonda.pt
+apps/shift/             App da Base SHIFT. Domínio: shift.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -79,6 +80,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Pessoal | `apps/pessoal` | `pessoal.igrejaonda.pt` | `apps/pessoal/CLAUDE.md` |
 | Louvor | `apps/louvor` | `louvor.igrejaonda.pt` | `apps/louvor/CLAUDE.md` |
 | New | `apps/new` | `new.igrejaonda.pt` | `apps/new/CLAUDE.md` |
+| SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
 
 ## Stack
 
