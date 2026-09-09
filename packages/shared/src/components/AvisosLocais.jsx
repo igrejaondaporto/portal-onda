@@ -17,12 +17,15 @@ export default function AvisosLocais({ avisos, style }) {
   return (
     <div style={style}>
       <p className="cap">Avisos locais</p>
-      {avisos.map((a, i) => (
-        <div className="oc-aviso" key={i}>
-          <span className="quadmin" style={{ background: "var(--lima)" }} />
-          <p className="nm" style={{ fontSize: 14.5, fontWeight: 700 }}>{a.nome}</p>
-        </div>
-      ))}
+      {/* Uma linha, não uma lista. Isto é o aviso de que vai haver
+        * avisos — quem precisa de saber o que cada um leva abre o PDF
+        * original, que está aqui ao lado. Quatro linhas de 14,5px em
+        * negrito ocupavam meio ecrã de telemóvel para dizer quatro
+        * palavras, e empurravam a ordem do culto para baixo (pedido
+        * do líder da Técnica, 2026-09). */}
+      <p className="ds" style={{ marginTop: 3, fontWeight: 600, color: "var(--tinta)", lineHeight: 1.5 }}>
+        {avisos.map((a) => a.nome).join(" · ")}
+      </p>
     </div>
   );
 }
