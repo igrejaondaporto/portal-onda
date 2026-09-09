@@ -15,9 +15,17 @@ service firebase.storage {
       allow read:  if minhaBase(base);
       allow write: if lider(base) && imagem();
     }
+    // Equipamentos da Técnica: a foto do item e a FATURA DE COMPRA
+    // (`{itemId}-fatura`), que é o documento a apresentar se for
+    // preciso acionar a garantia — e essa chega quase sempre em PDF,
+    // não em fotografia. Mesmo limite dos reembolsos, que já aceitam
+    // as duas coisas pela mesma razão. Continua só o líder a escrever.
     match /bases/{base}/inventario/{ficheiro} {
       allow read:  if minhaBase(base);
-      allow write: if lider(base) && imagem();
+      allow write: if lider(base)
+                   && request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
     }
     // Biblioteca (Base Louvor): capa processada pela Cloud Function
     // processarCapaMusica (Admin SDK, ignora estas regras) — o cliente

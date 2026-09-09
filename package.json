@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "smoke": "node scripts/smoke-functions.mjs",
     "verificar:isolamento": "node scripts/verificar-isolamento.mjs",
-    "teste:ciclo": "node scripts/e2e-ciclo-base.mjs"
+    "teste:ciclo": "node scripts/e2e-ciclo-base.mjs",
+    "teste:ordem": "node scripts/testa-ordem-culto.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

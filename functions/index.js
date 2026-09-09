@@ -20,6 +20,7 @@ import essentiaLib from "essentia.js";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { linhasDoPdf, analisar } from "./ordemCultoPdf.js";
 import { logger } from "firebase-functions";
 import { sondarUmaVez, normalizarNome } from "./freeshow.js";
 
@@ -1961,103 +1962,12 @@ export const arquivarResumoAcomodacao = onCall(async (req) => {
 });
 
 /* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
- * A base é o analisador testado contra o PDF real do pastor (ver
- * culto-transcrito.html, na raiz do projeto) — só a origem do texto
- * muda: aqui vem do Storage via pdfjs-dist em vez do <input type=file>
- * do browser. Duas correções vieram de testar com o PDF a sério:
- *   1. o extrator às vezes mete espaços à volta de ':' e '/' dentro
- *      de horas e datas (ex.: "09 : 30") — normalizar() tira-os.
- *   2. o nome de um aviso pode cair na linha A SEGUIR à data, não só
- *      antes dela na mesma linha, quando a célula "Informações" da
- *      grelha quebra em duas linhas.
+ * O analisador vive em `ordemCultoPdf.js`, sem `firebase-admin` pelo
+ * meio, para se poder correr com um `node` e um PDF de mentira — ver
+ * `npm run teste:ordem`. Aqui fica só a parte que precisa do Storage.
+ *
  * Quando o pastor mudar o modelo do PDF, isto parte — o ecrã de
  * revisão do líder é a rede de segurança, não um extra. */
-async function linhasDoPdf(bytes) {
-  const pdf = await getDocument({ data: bytes, disableFontFace: true, useSystemFonts: true }).promise;
-  const linhas = [];
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const conteudo = await (await pdf.getPage(p)).getTextContent();
-    const porY = new Map();
-    for (const it of conteudo.items) {
-      if (!it.str.trim()) continue;
-      const y = Math.round(it.transform[5]);          // agrupa pela altura
-      const chave = [...porY.keys()].find((k) => Math.abs(k - y) <= 3) ?? y;
-      if (!porY.has(chave)) porY.set(chave, []);
-      porY.get(chave).push({ x: it.transform[4], s: it.str });
-    }
-    [...porY.entries()].sort((a, b) => b[0] - a[0]).forEach(([, itens]) => {
-      linhas.push(normalizar(itens.sort((a, b) => a.x - b.x).map((i) => i.s).join(" ")
-        .replace(/\s+/g, " ").trim()));
-    });
-  }
-  return linhas.filter(Boolean);
-}
-
-/** Junta glifos partidos pelo extrator de texto: "09 : 30" → "09:30",
- *  "14 / 08" → "14/08", "sexta - feira" → "sexta-feira". */
-function normalizar(linha) {
-  return linha
-    .replace(/(\d)\s*:\s*(\d)/g, "$1:$2")
-    .replace(/(\d)\s*\/\s*(\d)/g, "$1/$2")
-    .replace(/([a-zà-úA-ZÀ-Ú])\s+-\s+([a-zà-úA-ZÀ-Ú])/g, "$1-$2")
-    .replace(/\s+,/g, ",");
-}
-
-const RESP = /(Pr(?:\.|a\.)?\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\wáéíóúâêôãõçÁÉÍÓÚ.]*|Base\s+[A-Z]\w+|Banda|Projeç[ãa]o|Sonoplastia|Diaconia|Louvor)\s*$/;
-const DETALHE = /(Ilumina[çc][ãa]o:\s*.+|TODOS OS VOLUNT[ÁA]RIOS)\s*$/i;
-const RUIDO_FIM_AVISO = /\s+((BG|Avisos|Materiais)\s*)+$/i;
-
-function analisar(linhas) {
-  const momentos = [], avisos = [];
-  let titulo = null, dataFicheiro = null;
-
-  linhas.forEach((linha, i) => {
-    const t = linha.match(/ORDEM CULTO ([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]+?)\s*(\d{2}\/\d{2})/i);
-    if (t) { titulo = t[1].trim(); dataFicheiro = t[2]; }
-
-    const m = linha.match(/^(\d{1,2}:\d{2})\s+(.+?)\s+(\d+)\s*min\s+(.*)$/);
-    if (m) {
-      let resto = m[4].trim(), detalhe = null, responsavel = null;
-      const d = resto.match(DETALHE);
-      if (d) { detalhe = d[1].trim(); resto = resto.slice(0, d.index).trim(); }
-      const r = resto.match(RESP);
-      if (r) { responsavel = r[1].trim(); resto = resto.slice(0, r.index).trim(); }
-      momentos.push({ hora: m[1], momento: m[2].trim(), minutos: +m[3],
-        projecao: resto === "-" ? null : resto || null, responsavel, detalhe });
-      return;
-    }
-
-    const a = linha.match(/(\d{2}\/\d{2})(?:\/\d{4})?[,\s]+(.*)$/);
-    if (a && !/^\d{1,2}:\d{2}/.test(linha) && !/min\b/.test(linha)) {
-      let nome = linha.slice(0, a.index).trim().replace(/[,\s–-]+$/, "").replace(RUIDO_FIM_AVISO, "").trim();
-      let j = i + 1;
-      // sem nome antes da data nesta linha? a célula "Evento" da grelha
-      // pode ter caído na linha seguinte, não na anterior
-      if (!nome) {
-        const candidato = linhas[j];
-        if (candidato && !/^(Evento|Informa)/i.test(candidato)) {
-          nome = candidato.replace(RUIDO_FIM_AVISO, "").trim();
-          j++;
-        }
-      }
-      const infoPartes = [a[2]];
-      if (linhas[j] && /^(Povo|Casa|Sala)\b/.test(linhas[j]) && infoPartes.join(" ").trim().endsWith("do")) {
-        infoPartes.push(linhas[j].split(" ")[0]);
-        j++;
-      }
-      const info = infoPartes.join(" ").replace(RUIDO_FIM_AVISO, "").trim();
-      if (nome) avisos.push({ nome, data: a[1], info });
-    }
-  });
-
-  let fim = null;
-  if (momentos.length) {
-    const u = momentos.at(-1), [h, mi] = u.hora.split(":").map(Number);
-    const t = h * 60 + mi + u.minutos;
-    fim = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-  }
-  return { titulo, dataFicheiro, momentos, avisos, inicio: momentos[0]?.hora ?? null, fim };
-}
 
 export const lerOrdemCulto = onCall(async (req) => {
   const { eventoId, caminhoStorage } = req.data || {};
@@ -2069,7 +1979,7 @@ export const lerOrdemCulto = onCall(async (req) => {
     const [buffer] = await admin.storage().bucket().file(caminhoStorage).download();
     // pdfjs-dist exige um Uint8Array "puro" — um Buffer do Node, mesmo
     // sendo tecnicamente um Uint8Array, é rejeitado pelo teste interno dele
-    const r = analisar(await linhasDoPdf(new Uint8Array(buffer)));
+    const r = analisar(await linhasDoPdf(new Uint8Array(buffer), getDocument));
     if (!r.momentos.length) return { momentos: [], avisos: [], falhou: true };
     return { ...r, falhou: false };
   } catch (e) {
@@ -2632,14 +2542,35 @@ function quantidadeValida(v) {
   return n;
 }
 
+/**
+ * A fatura de compra do equipamento: o URL do ficheiro que já subiu
+ * para o Storage (`bases/{base}/inventario/{itemId}-fatura`) e o nome
+ * original, só para se ver o que é sem abrir. Serve a garantia — é o
+ * papel que a loja pede quando o aparelho avaria dentro do prazo.
+ *
+ * Não é o servidor que faz o upload (o cliente sobe direto para o
+ * Storage, como já fazia com a foto); aqui só se guarda a referência,
+ * e valida-se que é mesmo do nosso Storage para o campo não virar um
+ * link para qualquer sítio.
+ */
+function faturaValida(fatura) {
+  if (!fatura) return null;
+  const url = String(fatura.url || "");
+  if (!/^https:\/\/firebasestorage\.googleapis\.com\//.test(url) || url.length > 2000) {
+    throw new HttpsError("invalid-argument", "Fatura inválida.");
+  }
+  return { url, nome: String(fatura.nome || "Fatura").slice(0, 120) };
+}
+
 export const criarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
-    ministerioId, foto, quantidade: quantidadeValida(quantidade), estado: "ok", ativo: true,
+    ministerioId, foto, quantidade: quantidadeValida(quantidade), fatura: faturaValida(fatura),
+    estado: "ok", ativo: true,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { itemId };
@@ -2647,12 +2578,16 @@ export const criarEquipamento = onCall(async (req) => {
 
 export const guardarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
     ministerioId, foto, quantidade: quantidadeValida(quantidade),
+    // só se mexe na fatura quando o pedido fala dela. Sem isto, um
+    // cliente antigo em cache (que não conhece o campo) apagava a
+    // fatura já guardada a cada gravação, sem ninguém perceber.
+    ...("fatura" in (req.data || {}) ? { fatura: faturaValida(fatura) } : {}),
   }, { merge: true });
   return { ok: true };
 });
