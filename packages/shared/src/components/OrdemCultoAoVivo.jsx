@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { MESES } from "../lib/data.js";
 import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "../lib/ordemAoVivo.js";
 import { sondarFreeshowAgora } from "../lib/cultoAoVivo.js";
+import AvisosLocais from "./AvisosLocais.jsx";
 
 const NOSSOS = /volunt|café dos|pré-culto/i;
 const paraMinutos = (hora) => { const [h, m] = hora.split(":").map(Number); return h * 60 + m; };
@@ -164,23 +164,7 @@ export default function OrdemCultoAoVivo({ ordem, chegada, hoje, aoVivo }) {
         })}
       </div>
 
-      {ordem.avisos?.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <p className="cap">Avisos locais</p>
-          {ordem.avisos.map((a, i) => {
-            const [d, mm] = String(a.data || "").split("/");
-            return (
-              <div className="oc-aviso" key={i}>
-                <span className="oc-dt"><b>{d}</b><span>{MESES[Number(mm) - 1]?.slice(0, 3).toLowerCase()}</span></span>
-                <div style={{ flex: 1 }}>
-                  <p className="nm" style={{ fontSize: 14.5, fontWeight: 700 }}>{a.nome}</p>
-                  <p className="ds">{a.info}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <AvisosLocais avisos={ordem.avisos} style={{ marginTop: 20 }} />
 
       {ordem.pdfUrl && (
         <a

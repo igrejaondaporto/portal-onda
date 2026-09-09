@@ -40,6 +40,20 @@ esquecimento, é registo.
   medido, 22px→16px em ecrã largo. Chegam `background`, `border`,
   `padding` e `cursor`.
 
+- **Avisos locais da ordem do culto: só o nome do evento**
+  (`packages/shared/src/components/AvisosLocais.jsx` +
+  `functions/ordemCultoPdf.js`). Já é partilhado, fica aqui só o
+  porquê: o analisador procurava uma data em qualquer sítio da linha
+  e usava o que estivesse à esquerda dela como nome. Numa grelha de
+  seis colunas isso dava "CONF26 27" e engolia as linhas cuja coluna
+  "Informações" não fosse DD/MM ("26/set", "No final do culto") —
+  quatro avisos no PDF, um só na app. Agora o nome vem sempre da
+  coluna "Evento", cortada pelo `x`: meio caminho entre o centro do
+  rótulo "Evento" e o do rótulo "Informações". **Cortar no início do
+  rótulo seguinte não chega** — as células vêm centradas, e um texto
+  largo começa à esquerda de um rótulo curto. Qualquer base que leia
+  grelhas de PDF deve copiar esta ideia, não a versão da data.
+
 ## Já portado
 
 | Data | Nasceu em | O quê | Portado para | Nota |
