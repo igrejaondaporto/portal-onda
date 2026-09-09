@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { iniciarCultoAoVivo, descartarCultoAoVivo, finalizarCultoAoVivo, editarSecaoAoVivo, reassociarSecaoAoVivo, sondarFreeshowAgora } from "../../lib/cultoAoVivo";
 import { normalizarNome, cruzarComReal, calcularPrevisoes, marcarPuladas } from "@portal/shared/lib/ordemAoVivo.js";
@@ -373,24 +372,6 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
               </button>
             </span>
           )}
-        </div>
-      )}
-
-      {ordem.avisos?.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <p className="cap">Avisos locais</p>
-          {ordem.avisos.map((a, i) => {
-            const [d, mm] = String(a.data || "").split("/");
-            return (
-              <div className="oc-aviso" key={i}>
-                <span className="oc-dt"><b>{d}</b><span>{MESES[Number(mm) - 1]?.slice(0, 3).toLowerCase()}</span></span>
-                <div style={{ flex: 1 }}>
-                  <p className="nm" style={{ fontSize: 14.5, fontWeight: 700 }}>{a.nome}</p>
-                  <p className="ds">{a.info}</p>
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
 

@@ -28,6 +28,19 @@ export default function SheetEquipamentoDetalhe({ equipamento, melhorias, minist
         {estado && <span className={`tag ${estado.tag}`} style={{ marginTop: 8, display: "inline-block" }}>{estado.texto}</span>}
         {equipamento.foto && <div style={{ marginTop: 10 }}><FotoRedonda src={equipamento.foto} alt={equipamento.nome} tamanho={90} /></div>}
 
+        {/* A fatura está aqui, e não só no ecrã do líder, porque é aqui
+          * que se chega quando o aparelho avaria — e é nesse momento
+          * que interessa saber se ainda tem garantia. Só o líder a
+          * mete (Painel → Equipamentos); toda a base a lê. */}
+        {equipamento.fatura?.url && (
+          <a
+            className="btn sec full" href={equipamento.fatura.url} target="_blank" rel="noreferrer"
+            style={{ marginTop: 12, textDecoration: "none", display: "block", textAlign: "center" }}
+          >
+            Ver a fatura de compra
+          </a>
+        )}
+
         <button className="btn full" style={{ marginTop: 16 }} onClick={onReportarAvaria}>Reportar avaria</button>
 
         <label className="rot" style={{ marginTop: 16 }}>Histórico de melhorias</label>

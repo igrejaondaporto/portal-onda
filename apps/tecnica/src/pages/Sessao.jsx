@@ -13,7 +13,6 @@ import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
 import Culto from "./Culto";
-import Chamadas from "./Chamadas";
 import Equipamentos from "./Equipamentos";
 import Reembolsos from "./Reembolsos";
 import Wiki from "./Wiki";
@@ -25,17 +24,19 @@ import Perfil from "./Perfil";
 const ICONE_WIKI = '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>';
 // urna — enquete de disponibilidade e montagem da escala do mês
 const ICONE_MONTAR = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
-// megafone — Chamadas (Baby/Fun/Júnior/Carro na projeção, ligação
-// direta ao FreeShow, portado do Kinder)
-const ICONE_CHAMADAS = '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>';
-
 // não há aba Funções na Técnica — a checklist vive só no Início,
-// filtrada pelo ministério da pessoa naquele culto (ver Inicio.jsx)
+// filtrada pelo ministério da pessoa naquele culto (ver Inicio.jsx).
+//
+// Também não há aba Chamadas: existiu, e saiu a pedido do líder
+// (2026-09) — com seis botões em baixo o menu deixava de se ler, e
+// chamar crianças para a projeção já tem app própria e sem login, o
+// kinder.igrejaonda.pt, que é onde a equipa do Kinder está. O painel
+// em si continua em packages/shared (PainelChamadas.jsx), a servir o
+// Kinder; aqui só deixou de haver porta para ele.
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
   ["culto", "Culto"],
-  ["chamadas", "Chamadas", ICONE_CHAMADAS],
   ["inventario", "Equipamentos"],
   ["wiki", "Wiki", ICONE_WIKI],
 ];
@@ -207,9 +208,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               aoVivoGravando={aoVivoGravando}
             />
           </div>
-          {pagina === "chamadas" && (
-            <Chamadas definirCabecalho={setCab} />
-          )}
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
             <Equipamentos
               uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
