@@ -5,6 +5,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento, hojeISO, haAtras } from "@portal/shared/lib/data.js";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
 import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
+import AvisosLocais from "@portal/shared/components/AvisosLocais.jsx";
 
 /** Um culto no separador Culto → Ordem. Fechado mostra só a data e o
  *  estado; aberto mostra a cronologia publicada, ou o botão de subir/
@@ -156,6 +157,11 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
               )}
             </div>
           )}
+          {/* Os avisos vêm ANTES da ordem, logo a seguir às notas da
+            * Backstage: são o que a Projeção tem de ter pronto antes de
+            * o culto começar (BG, vídeo), e não um apêndice para se ler
+            * no fim. Pedido do líder, 2026-09. */}
+          {publicado && <AvisosLocais avisos={evento.ordem.avisos} style={{ marginBottom: 18 }} />}
           {publicado ? (
             <>
               <OrdemCultoTimeline
