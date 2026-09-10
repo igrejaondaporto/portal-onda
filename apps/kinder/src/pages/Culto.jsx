@@ -96,7 +96,7 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
             <OrdemCultoCard
               key={ev.id} evento={ev} podePublicar={podePublicar}
               aberto={cardAberto === ev.id} onAbrir={() => setCardAberto(cardAberto === ev.id ? null : ev.id)}
-              chegada={ev.horaChegada || base?.horaChegada || "09:00"}
+              chegada={ev.horaChegada || base?.horaChegada || "08:30"}
               pdfUrlExistente={ordens[ev.id]}
               onPdfEnviado={(eventoId, url) => setOrdens((o) => ({ ...o, [eventoId]: url }))}
               onNotasGuardadas={(eventoId, notas) => setEventosMes((l) => l.map((e) => (e.id === eventoId ? { ...e, notas } : e)))}

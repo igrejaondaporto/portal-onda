@@ -58,7 +58,7 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
     definirCabecalho({
       titulo: <em>Escala</em>,
       subtitulo: `Os cultos de ${MESES[mes].toLowerCase()}`,
-      chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "09:00"}` : "Escala por definir"],
+      chips: [`${eventosMes.length} cultos`, temEscala ? `Chegada ${base?.horaChegada ?? "08:30"}` : "Escala por definir"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, eventosMes.length, temEscala, mes, base]);

@@ -43,7 +43,7 @@ async function main() {
 
   await db.doc(`bases/${BASE}`).set({
     nome: "Kinder", slug: BASE, cor: "#7B5CFF",
-    horaChegada: "09:00", horaCulto: "10:30",
+    horaChegada: "08:30", horaCulto: "10:30",
     local: "Casa do Povo de Vermoim, Maia", ativa: true,
   }, { merge: true });
   console.log("documento da base gravado (nome/cor/horas — ajustar com a Maria)\n");
