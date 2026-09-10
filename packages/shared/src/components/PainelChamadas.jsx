@@ -280,7 +280,7 @@ export default function PainelChamadas({ canaisPermitidos, canaisHistorico, defi
               className="chamada-linha" key={i} style={{ borderLeftColor: c.cor }}
               onClick={() => { trocar(c); chamar(c, item.txt); }}
             >
-              <span className="tag" style={{ background: c.cor }}>{c.rotulo}</span>
+              <span className="tag" style={{ background: c.cor, color: c.corTexto }}>{c.rotulo}</span>
               <span className="nmt">
                 {item.txt}
                 {restante > 0 && (

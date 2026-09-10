@@ -8,10 +8,11 @@
  *   3. A regra do líder de escala (só edita o culto em que está nomeado)
  *      é simples de escrever aqui e horrível de escrever nas regras.
  */
+// primeiro de tudo: região e CORS, antes de qualquer função existir (ver opcoes.js)
+import { ORIGENS_PERMITIDAS } from "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import admin from "firebase-admin";
 import sharp from "sharp";
@@ -23,26 +24,20 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { linhasDoPdf, analisar } from "./ordemCultoPdf.js";
 import { logger } from "firebase-functions";
 import { sondarUmaVez, normalizarNome } from "./freeshow.js";
+import { CATEGORIAS_KINDER } from "./kinder.js";
+
+// Base Kinder: famílias, crianças e check-in — ficheiro próprio para
+// não afogar este (ver o comentário no topo de kinder.js).
+export {
+  dadosRegistoKinder, registarFamiliaKinder, novoLinkFamiliaKinder,
+  confirmarFamiliaKinder, desativarFamiliaKinder, editarFamiliaKinder,
+  dadosFamiliaKinder, checkinKinder, checkoutKinder, anularCheckinKinder,
+} from "./kinder.js";
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// O frontend vive no Cloudflare, não no domínio das Functions — sem isto
-// os pedidos são bloqueados como cross-origin. Cobre o domínio de cada
-// base (apoio.igrejaonda.pt…), o domínio antigo ainda em DNS, os
-// previews do Workers Builds, e o dev local em localhost/127.0.0.1
-// em qualquer porta — de propósito, para uma base nova não ter de
-// mexer aqui. As portas concretas de cada app vivem só no cliente
-// (PORTAS_DEV em packages/shared/src/lib/auth.js).
-const ORIGENS_PERMITIDAS = [
-  /^https:\/\/([a-z0-9-]+\.)?igrejaonda\.pt$/,
-  /^https:\/\/([a-z0-9-]+\.)?painelonda\.pt$/,
-  /^https:\/\/[a-z0-9-]+\.workers\.dev$/,
-  /^http:\/\/(localhost|127\.0\.0\.1):\d+$/,
-];
-
-// Portugal → o datacenter mais próximo. Poupa ~80ms por chamada.
-setGlobalOptions({ region: "europe-west1", maxInstances: 10, cors: ORIGENS_PERMITIDAS });
+// Região (europe-west1) e CORS: ver opcoes.js, importado no topo.
 
 const MAX_1 = 3;                  // tentativas antes do bloqueio
 const MAX_2 = 5;                  // tentativas depois dos 15 minutos
@@ -366,12 +361,17 @@ function exigeLider(req) {
   return baseId;
 }
 
+/** Bases onde "auxiliar" é um papel válido. Louvor (2026-09) e Kinder
+ *  (2026-09: a líder geral é lider_base, as três líderes de categoria
+ *  — Baby, Fun, Júnior — são auxiliares, com as mesmas funções). */
+const BASES_COM_AUXILIAR = new Set(["louvor", "kinder"]);
+
 /** Mesma regra usada para montar o custom token em `entrar` e
- *  `trocarBase` — só a Louvor pode ter "auxiliar"; noutra base isso
- *  colapsa para "voluntario", como qualquer papel desconhecido. */
+ *  `trocarBase` — só as BASES_COM_AUXILIAR podem ter "auxiliar"; noutra
+ *  base isso colapsa para "voluntario", como qualquer papel desconhecido. */
 function papelParaToken(papelPessoa, baseId) {
   if (papelPessoa === "lider_base") return "lider_base";
-  if (papelPessoa === "auxiliar" && baseId === "louvor") return "auxiliar";
+  if (papelPessoa === "auxiliar" && BASES_COM_AUXILIAR.has(baseId)) return "auxiliar";
   return "voluntario";
 }
 
@@ -392,15 +392,15 @@ function exigePodePublicarCulto(req) {
 const PIN_PADRAO = { lider_base: "123456", auxiliar: "123456", voluntario: "1234" };
 const pinProvisorio = (papel) => PIN_PADRAO[papel] ?? PIN_PADRAO.voluntario;
 
-/** "auxiliar" só é um papel válido na Louvor (ver PAPEIS_LIDER acima
- *  e PAPEIS_BASE no cliente) — noutra base é o mesmo erro que
- *  qualquer papel desconhecido. */
+/** "auxiliar" só é um papel válido nas BASES_COM_AUXILIAR (ver
+ *  PAPEIS_LIDER acima e PAPEIS_BASE no cliente) — noutra base é o
+ *  mesmo erro que qualquer papel desconhecido. */
 function validarPapelBase(papel, baseId) {
   if (!["voluntario", "lider_base", "auxiliar"].includes(papel)) {
     throw new HttpsError("invalid-argument", "Papel inválido.");
   }
-  if (papel === "auxiliar" && baseId !== "louvor") {
-    throw new HttpsError("invalid-argument", "Este papel só existe na Louvor.");
+  if (papel === "auxiliar" && !BASES_COM_AUXILIAR.has(baseId)) {
+    throw new HttpsError("invalid-argument", "Este papel não existe nesta base.");
   }
 }
 
@@ -409,9 +409,21 @@ function validarPapelBase(papel, baseId) {
 // outras bases o campo nunca aparece.
 const ANIVERSARIO_RE = /^\d{2}-\d{2}$/;
 
+/** Categoria fixa do voluntário na Base Kinder (Baby/Fun/Júnior) —
+ *  `null` = sem categoria (a líder geral). Nas outras bases o campo
+ *  nunca é gravado, mesmo que o cliente o mande. */
+function categoriaKinder(categoria, baseId) {
+  if (baseId !== "kinder" || categoria === undefined) return {};
+  if (categoria !== null && !CATEGORIAS_KINDER.includes(categoria)) {
+    throw new HttpsError("invalid-argument", "Categoria inválida.");
+  }
+  return { categoria };
+}
+
 export const criarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null, aniversario = null } = req.data || {};
+  const { nome, telefone = "", papel = "voluntario", pessoaExistenteId = null, ministerios, genero = null, nivel = null, cargo = null, instrumentos = null, aniversario = null, categoria } = req.data || {};
+  const comCategoria = categoriaKinder(categoria, baseId);
   validarPapelBase(papel, baseId);
   if (aniversario && !ANIVERSARIO_RE.test(aniversario)) throw new HttpsError("invalid-argument", "Aniversário inválido.");
   const comAniversario = aniversario ? { aniversario } : {};
@@ -481,7 +493,7 @@ export const criarVoluntario = onCall(async (req) => {
       nome: nome.trim() || globalSnap.data().nome, telefone: telefoneFinal, papel, ativo: true, genero,
       foto: fotoFinal,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario,
+      ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario, ...comCategoria,
     });
     // chave com ponto num set(merge:true) grava um campo literal
     // "bases.tecnica", não o mapa aninhado — tem de ser objeto aninhado
@@ -497,7 +509,7 @@ export const criarVoluntario = onCall(async (req) => {
   await ref.set({
     nome: nome.trim(), telefone, papel, ativo: true, foto: null, genero,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario,
+    ...comMinisterios, ...comNivel, ...comCargo, ...comInstrumentos, ...comAniversario, ...comCategoria,
   });
   await refGlobal(ref.id).set({
     nome: nome.trim(), foto: null, bases: { [baseId]: true },
@@ -563,7 +575,7 @@ export const listarPessoasDaBase = onCall(async (req) => {
 
 export const editarVoluntario = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos, aniversario } = req.data || {};
+  const { pessoaId, nome, telefone = "", papel, ministerios, foto, genero, nivel, cargo, instrumentos, aniversario, categoria } = req.data || {};
   if (!pessoaId) throw new HttpsError("invalid-argument", "Falta o voluntário.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (aniversario && !ANIVERSARIO_RE.test(aniversario)) throw new HttpsError("invalid-argument", "Aniversário inválido.");
@@ -597,6 +609,8 @@ export const editarVoluntario = onCall(async (req) => {
   // undefined (campo nem enviado) = não mexer; null ou "" = apagar —
   // mesmo tratamento de foto acima. Só a Louvor envia isto.
   if (aniversario !== undefined) dados.aniversario = aniversario || null;
+  // undefined = não mexer (mesma convenção de foto); só a Kinder grava.
+  Object.assign(dados, categoriaKinder(categoria, baseId));
   await ref.set(dados, { merge: true });
   return { ok: true };
 });
@@ -713,7 +727,8 @@ async function exigeLiderDoCulto(req, eventoId) {
   const escala = await db.doc(`eventos/${eventoId}/escalas/${baseId}`).get();
   if (!escala.exists) throw new HttpsError("not-found", "Este culto não tem escala.");
 
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  // auxiliar incluído: tem as mesmas funções do líder (Louvor, Kinder)
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   const souLiderEscala = escala.data().liderEscala === uid;
   if (!souLiderBase && !souLiderEscala) {
     throw new HttpsError("permission-denied",
@@ -815,7 +830,9 @@ export const guardarEscalaApoio = onCall(async (req) => {
 
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
   const snap = await ref.get();
-  const souLiderBase = req.auth.token.papel === "lider_base";
+  // auxiliar incluído — a Kinder (e a Louvor, se um dia usar esta)
+  // tem líderes de categoria com as mesmas funções da líder geral.
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
   const souLiderAtual = snap.exists && snap.data().liderEscala === uid;
   if (!souLiderBase && !souLiderAtual) {
     throw new HttpsError("permission-denied",
@@ -2101,9 +2118,16 @@ async function exigeGestorInventario(req) {
     "Só o líder da base, ou o líder de escala no dia do culto, pode gerir o inventário.");
 }
 
+/** Sala do item (Base Kinder: Baby/Fun/Júnior, ou "partilhado" entre
+ *  as três). Só entra no documento quando o cliente manda — as outras
+ *  bases nunca mandam, e o campo nunca lhes aparece. */
+const SALAS_INVENTARIO = new Set([...CATEGORIAS_KINDER, "partilhado"]);
+const salaInventario = (sala) =>
+  sala === undefined ? {} : { sala: SALAS_INVENTARIO.has(sala) ? sala : "partilhado" };
+
 export const criarItemInventario = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
-  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes } = req.data || {};
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes, sala } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
@@ -2111,6 +2135,7 @@ export const criarItemInventario = onCall(async (req) => {
     nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
     minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
     observacoes: observacoes?.trim() || null,
+    ...salaInventario(sala),
     ativo: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { itemId };
@@ -2118,7 +2143,7 @@ export const criarItemInventario = onCall(async (req) => {
 
 export const guardarItemInventario = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
-  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes } = req.data || {};
+  const { itemId, nome, categoria, unidade, minimo, quantidade, foto, observacoes, sala } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o item.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   if (!categoria?.trim()) throw new HttpsError("invalid-argument", "Falta a categoria.");
@@ -2126,6 +2151,7 @@ export const guardarItemInventario = onCall(async (req) => {
     nome: nome.trim(), categoria: categoria.trim(), unidade: unidade?.trim() || "unidades",
     minimo: Number(minimo) || 0, quantidade: Number(quantidade) || 0, foto: foto ?? null,
     observacoes: observacoes?.trim() || null,
+    ...salaInventario(sala),
   }, { merge: true });
   return { ok: true };
 });
