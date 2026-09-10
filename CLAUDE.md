@@ -81,6 +81,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Louvor | `apps/louvor` | `louvor.igrejaonda.pt` | `apps/louvor/CLAUDE.md` |
 | New | `apps/new` | `new.igrejaonda.pt` | `apps/new/CLAUDE.md` |
 | SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
+| Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |
 
 ## Stack
 

@@ -1,31 +1,186 @@
-/* Kiosk de uma função só — sem casca de app (NavBar, MenuEu, tour),
- * por isso as poucas coisas de layout que faltam ficam aqui em vez
- * de no global.css partilhado. */
+/* Base Kinder — só esta app carrega isto, a seguir ao global.css
+ * partilhado (ver CLAUDE.md raiz, "Trabalhar numa base sem mexer nas
+ * outras"). As cores das salas vêm de lib/modelo.js (CATEGORIAS) por
+ * variáveis CSS locais: `style={varsCategoria(id)}` no elemento. */
+
+/* ── As três salas ───────────────────────────────────────────── */
+.kin-cats {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  margin-top: 4px;
+  scrollbar-width: none;
+}
+.kin-cats::-webkit-scrollbar { display: none; }
+
+.kin-cat {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 2px solid var(--c);
+  background: #fff;
+  color: var(--tinta);
+  border-radius: 100px;
+  padding: 9px 15px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.14s;
+}
+.kin-cat[data-on="1"] {
+  background: var(--c);
+  color: var(--c-texto);
+}
+.kin-cat:active { transform: scale(0.96); }
+.kin-cat-n {
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: var(--c-suave);
+  color: var(--c-texto-suave);
+}
+
+/* cartão com a cor da sala à esquerda */
+.kin-faixa {
+  border-left: 5px solid var(--c);
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  box-shadow: 0 1px 0 var(--fio);
+}
+.kin-faixa-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kin-faixa-cab h4 {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.kin-tagcat {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: var(--c-suave);
+  color: var(--c-texto-suave);
+  white-space: nowrap;
+}
+
+/* alergias / restrições / necessidades — sempre à vista */
+.kin-alerta {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #ffe3ea;
+  color: #b4124f;
+  margin: 3px 4px 0 0;
+}
+.kin-alerta.info { background: #eef0f6; color: #4a5070; }
+
+/* o código de levantamento — lido em voz alta à porta */
+.kin-codigo {
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin: 10px 0 4px;
+}
+
+/* sub-abas que não cabem numa linha (Culto tem seis) */
+.kin-subtabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+}
+.kin-subtabs::-webkit-scrollbar { display: none; }
+.kin-subtabs button { flex: none; white-space: nowrap; }
+
+.kin-procura {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.kin-procura .campo { flex: 1; margin: 0; }
+
+.kin-qr {
+  display: block;
+  margin: 12px auto 4px;
+  width: 220px;
+  max-width: 70%;
+  image-rendering: pixelated;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+}
+
+.kin-video {
+  width: 100%;
+  border-radius: 14px;
+  background: #000;
+  aspect-ratio: 1;
+  object-fit: cover;
+  margin-top: 12px;
+}
+
+.kin-grelha {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.kin-num {
+  border-radius: 14px;
+  padding: 12px 8px;
+  text-align: center;
+  background: var(--c-suave);
+  color: var(--c-texto-suave);
+}
+.kin-num b { display: block; font-size: 28px; font-weight: 900; letter-spacing: -0.03em; }
+.kin-num span { font-size: 12px; font-weight: 700; }
+
+/* ── páginas dos pais (/registo, /familia/<token>) — sem conta ── */
+.kin-publico .folha { padding-bottom: 60px; }
 @media (min-width: 900px) {
-  .crista {
-    padding: 26px 46px 0;
-  }
-  .curva {
-    width: calc(100% + 92px);
-    margin: 0 -46px -2px;
-  }
-  .folha {
-    padding: 6px 46px 60px;
-    max-width: 480px;
+  .kin-publico .folha,
+  .kin-kiosk .folha {
+    max-width: 520px;
     margin: 0 auto;
   }
 }
 
-/* ── Voltar ao início, no cabeçalho ──
- *
- * A saída da base era um botão de texto no fim da página, depois do
- * histórico de chamados — fora da vista de quem acabou de entrar. Sobe
- * para o cabeçalho, ao lado do logo, que está sempre no mesmo sítio.
- *
- * O desenho é o do `.chip` do partilhado (a pílula branca translúcida
- * que já vive sobre o azul da crista); repete-se aqui em vez de se usar
- * a classe porque `.chip` não é botão — não tem cursor, borda a zero
- * nem reação ao toque. */
+/* ── Kiosk de chamadas (/chamadas) ───────────────────────────── */
+/* Sem casca de app (NavBar, MenuEu, tour) — o layout que falta fica
+ * aqui, preso a .kin-kiosk para não mexer no Portal. */
+@media (min-width: 900px) {
+  .kin-kiosk .crista {
+    padding: 26px 46px 0;
+  }
+  .kin-kiosk .curva {
+    width: calc(100% + 92px);
+    margin: 0 -46px -2px;
+  }
+  .kin-kiosk .folha {
+    padding: 6px 46px 60px;
+    max-width: 480px;
+  }
+}
+
+/* Voltar ao início, no cabeçalho — o desenho é o do `.chip` do
+ * partilhado, repetido aqui porque `.chip` não é botão. 40px de altura
+ * para um polegar apressado com a criança ao colo. */
 .kin-voltar {
   display: inline-flex;
   align-items: center;
@@ -34,9 +189,6 @@
   background: rgba(255, 255, 255, 0.17);
   border: 0;
   border-radius: 100px;
-  /* 12px em cima e em baixo dão 40px de altura ao botão. Com os 9px do
-   * `.chip`, que é só um rótulo e não se toca, ficava em 34px — pouco
-   * para um polegar apressado com a criança ao colo. */
   padding: 12px 16px 12px 13px;
   color: #fff;
   font-size: 12.5px;
@@ -49,9 +201,8 @@
   transform: scale(0.96);
 }
 
-/* O logo leva ao mesmo sítio, como na Técnica: é onde a mão vai por
- * hábito. Só tira a moldura de <button> — o tamanho, a cor e o peso
- * das letras continuam a vir de `.logo`, no partilhado. */
+/* O logo leva ao mesmo sítio. Só tira a moldura de <button> — sem
+ * `font: inherit`, que encolhia o logo (ver MELHORIAS-ENTRE-BASES). */
 .kin-logo-botao {
   background: none;
   border: 0;
@@ -59,9 +210,7 @@
   cursor: pointer;
 }
 
-/* A linha do logo tem a altura do botão mesmo quando ele não está lá
- * (na escolha da base). Sem isto o cabeçalho encolhe 21px ao voltar ao
- * início e o "Chamadas Kinder" dá um salto entre as duas telas. */
-.crista .lin {
+/* A linha do logo tem a altura do botão mesmo quando ele não está lá */
+.kin-kiosk .crista .lin {
   min-height: 40px;
 }

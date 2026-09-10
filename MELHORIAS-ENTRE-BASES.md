@@ -15,6 +15,25 @@ esquecimento, é registo.
 
 ## Por portar (identificado, ainda não feito)
 
+- **Registo/edição sem sessão nenhuma, por token no link** (Base
+  Kinder, 2026-09 — `/registo` e `/familia/<token>`,
+  `functions/kinder.js`). É o primeiro sítio do repo em que alguém
+  sem conta escreve no Firestore por uma Cloud Function: token de 18
+  bytes gerado no servidor, só o hash fica guardado, limite de
+  pedidos por IP. Serve qualquer base que precise de um formulário
+  público (o Formulário de contacto da Pessoal, por exemplo, ainda
+  pede sessão de voluntário para o visitante nem chegar a preencher)
+  — o padrão (token, hash, limite por IP, Cloud Function em vez de
+  escrita direta) portava sem tocar em `familias`/`criancas`.
+- **`SeletorCategoria` — dividir um menu inteiro por sub-grupo
+  colorido** (Base Kinder, 2026-09, `src/components/SeletorCategoria.jsx`
+  + `varsCategoria` em `lib/modelo.js`, variáveis CSS locais). Só a
+  Kinder tem sub-grupos com cor própria hoje, mas o padrão (chips
+  coloridos no topo do ecrã, sala/grupo por omissão = o da própria
+  pessoa, líderes abrem em "Todas") serve qualquer base com
+  subdivisões coloridas — a Técnica já tem cor por ministério
+  (`corMinisterio`), só nunca precisou de um seletor a filtrar o
+  ecrã inteiro por ela.
 - **Lembrete de confirmação de presença perto do culto** (pedido do
   líder da Louvor, 2026-09). Hoje a confirmação de presença
   (`eventos/{e}/escalas/louvor/confirmacoes/{pessoaId}`, ver
@@ -28,7 +47,10 @@ esquecimento, é registo.
   amadurecer (e a confirmação de presença em si só existe na Louvor
   por agora, ver decisão da Apoio de não a ter).
 - **O logo leva ao Início** (`apps/tecnica/src/pages/Sessao.jsx` e
-  `apps/kinder/src/App.jsx`, classes `.tec-logo-botao`/`.kin-logo-botao`).
+  `apps/kinder/src/pages/Sessao.jsx`/`src/kiosk/KioskChamadas.jsx`,
+  classes `.tec-logo-botao`/`.kin-logo-botao` — caminho atualizado
+  2026-09 quando a Kinder ganhou Portal: a classe saiu do antigo
+  `App.jsx` do kiosk para os dois sítios que hoje têm cabeçalho).
   O canto superior esquerdo é onde a mão vai por hábito, e não custa
   nada: envolver o `<span className="logo">` num `<button>` com
   `aria-label`, mais quatro linhas de CSS local a tirar a moldura de
