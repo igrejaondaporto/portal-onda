@@ -40,10 +40,14 @@ export const fns = getFunctions(app, "europe-west1");
 // uma funcionalidade nova de ponta a ponta no Mac, sem tocar no
 // Firestore/Functions reais. Cada base pode usar isto sem afetar as
 // outras: é local ao browser de quem está a testar.
+// As portas vêm do firebase.json por omissão; VITE_EMU_* só servem para
+// correr um segundo conjunto de emuladores ao lado de outro já no ar
+// (ex.: `--config` com outras portas), sem os dois se pisarem.
 if (import.meta.env.VITE_USE_EMULATORS === "true") {
-  connectFirestoreEmulator(db, "localhost", 8080);
-  connectFunctionsEmulator(fns, "localhost", 5001);
-  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+  const porta = (nome, padrao) => Number(import.meta.env[`VITE_EMU_${nome}`] || padrao);
+  connectFirestoreEmulator(db, "localhost", porta("FIRESTORE", 8080));
+  connectFunctionsEmulator(fns, "localhost", porta("FUNCTIONS", 5001));
+  connectAuthEmulator(auth, `http://localhost:${porta("AUTH", 9099)}`, { disableWarnings: true });
 }
 
 export const BASE_ID = import.meta.env.VITE_BASE_ID || "apoio";

@@ -13,10 +13,11 @@ service cloud.firestore {
 
     function autenticado()      { return request.auth != null; }
     function minhaBase(b)       { return autenticado() && request.auth.token.baseId == b; }
-    // "auxiliar" só existe na Louvor (tem as mesmas funções do líder
-    // da base, pedido do líder 2026-09) — seguro tratar aqui de forma
-    // genérica: as Cloud Functions recusam esse papel para qualquer
-    // outra base, então nunca chega a entrar no token de mais ninguém.
+    // "auxiliar" só existe na Louvor e na Kinder (tem as mesmas funções
+    // do líder da base, pedido de cada líder, 2026-09) — seguro tratar
+    // aqui de forma genérica: as Cloud Functions recusam esse papel para
+    // qualquer outra base (BASES_COM_AUXILIAR em functions/index.js),
+    // então nunca chega a entrar no token de mais ninguém.
     function souLiderBase(b) {
       return minhaBase(b)
         && (request.auth.token.papel == 'lider_base' || request.auth.token.papel == 'auxiliar');
@@ -76,6 +77,13 @@ service cloud.firestore {
         allow create, delete: if false;            // só por função
         // o segredo
         match /privado/{doc} { allow read, write: if false; }
+        // capacitações feitas (Base Kinder) — incluindo a data e a
+        // validade do certificado de registo criminal. Cada um marca
+        // as suas; a líder vê (e corrige) as de todos. Mais ninguém lê.
+        match /capacitacoes/{cap} {
+          allow read:  if minhaBase(base) && (euSou(pessoa) || souLiderBase(base));
+          allow write: if minhaBase(base) && (euSou(pessoa) || souLiderBase(base));
+        }
       }
 
       // ── catálogo de funções ──────────────────────────────
@@ -341,6 +349,45 @@ service cloud.firestore {
         allow read:  if minhaBase(base);
         allow write: if false;
       }
+
+      // ── Base Kinder: famílias e crianças (dados de menores e de
+      // saúde). Lê só quem está na própria base — nunca `autenticado()`,
+      // que também é verdade para as sessões anónimas do kiosk de
+      // chamadas. Escrita sempre por Cloud Function (functions/kinder.js):
+      // os pais escrevem sem conta, pelo link da família. ──
+      match /familias/{familia} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+      }
+      match /criancas/{crianca} {
+        allow read:  if minhaBase(base);
+        allow write: if false;                     // só por função
+      }
+      // definições da base que a líder muda (Kinder: faixas etárias,
+      // texto do consentimento). Diferente de config/{doc}, que é só
+      // por função.
+      match /definicoes/{doc} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+      // catálogos que só a líder mantém (Kinder) — mesmo padrão de funcoes
+      match /checklistSala/{item} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+      match /capacitacoes/{cap} {
+        allow read:  if minhaBase(base);
+        allow write: if souLiderBase(base);
+      }
+      // ocorrências (Kinder: queda, febre…) — quem regista vê as suas,
+      // a líder vê todas e marca "pais avisados"/resolvida. Nunca apagadas.
+      match /ocorrencias/{ocorrencia} {
+        allow read:   if souLiderBase(base)
+                      || (minhaBase(base) && resource.data.registadoPor == request.auth.uid);
+        allow create: if minhaBase(base) && request.resource.data.registadoPor == request.auth.uid;
+        allow update: if souLiderBase(base);
+        allow delete: if false;
+      }
     }
 
     // ── contactos (Formulário da Base Pessoal) — coleção GLOBAL,
@@ -442,6 +489,31 @@ service cloud.firestore {
         allow read: if autenticado();
         allow create, update: if minhaBase('pessoal');
         allow delete: if false;
+      }
+
+      // ── Base Kinder, por culto ──
+      // check-in e códigos de levantamento: só por função (código único
+      // no culto, confere à saída). Lê só a Kinder.
+      match /checkinKinder/{crianca} {
+        allow read:  if minhaBase('kinder');
+        allow write: if false;
+      }
+      match /codigosKinder/{familia} {
+        allow read:  if minhaBase('kinder');
+        allow write: if false;
+      }
+      // checklist de sala marcada (um doc por sala) e contagem corrigida
+      // à mão — escrita direta, para funcionar sem rede ao domingo, como
+      // a contagem da Pessoal. Sem delete: fazem parte do histórico.
+      match /checklistKinder/{sala} {
+        allow read:           if minhaBase('kinder');
+        allow create, update: if minhaBase('kinder');
+        allow delete:         if false;
+      }
+      match /contagemKinder/{doc} {
+        allow read:           if minhaBase('kinder');
+        allow create, update: if minhaBase('kinder');
+        allow delete:         if false;
       }
 
       // mapa do auditório da Base Pessoal — escreve direto do cliente

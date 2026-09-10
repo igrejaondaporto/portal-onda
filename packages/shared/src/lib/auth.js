@@ -47,6 +47,7 @@ export const PORTAS_DEV = {
   backstage: 5175,
   comunicacao: 5176,
   pessoal: 5177,
+  kinder: 5178,
   louvor: 5179,
   new: 5180,
   shift: 5181,
