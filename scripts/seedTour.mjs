@@ -563,6 +563,84 @@ const TOURS = {
       },
     ],
   },
+  kinder: {
+    // Base própria, sem enquete/sugestor. NavBar primeiro (5 abas —
+    // Início, Escala, Check-in, Lição, Culto), depois os blocos do
+    // Início que só existem quando há dados: hoje-bloco (quando há
+    // culto hoje), licao-bloco, escala-bloco. O check-in é a única
+    // aba com um alvo próprio dentro dela (checkin-qr), porque é o
+    // fluxo mais diferente do resto do Portal.
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Kinder",
+        texto: "Aqui vês quando serves, na tua sala, sem precisares de procurar no WhatsApp.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Aqui em baixo, no menu, toca em Escala para veres todos os cultos, com as três salas separadas por cor.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-checkin",
+        titulo: "Check-in",
+        texto: "Em Check-in registas a entrada e a saída das crianças.",
+        alvo: "nav-checkin", pagina: "inicio",
+      },
+      {
+        chave: "checkin-qr",
+        titulo: "Ler o QR da família",
+        texto: "Os pais mostram o QR do link deles — toca aqui para o ler com a câmara.",
+        alvo: "checkin-qr", pagina: "checkin",
+      },
+      {
+        chave: "nav-licao",
+        titulo: "Lição",
+        texto: "Em Lição fica o vídeo da Kiwify e o que precisas de preparar para a tua sala.",
+        alvo: "nav-licao", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "Em Culto tens a checklist da sala, o inventário, as chamadas e a contagem.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "hoje",
+        titulo: "Hoje nas salas",
+        texto: "Aqui em cima vês quantas crianças estão em cada sala agora, e alergias ou cuidados a que prestar atenção.",
+        alvo: "hoje-bloco", pagina: "inicio",
+      },
+      {
+        chave: "licao",
+        titulo: "A lição da semana",
+        texto: "A lição da tua sala aparece aqui, com um aviso quando é nova.",
+        alvo: "licao-bloco", pagina: "inicio",
+      },
+      {
+        chave: "escala",
+        titulo: "A tua escala",
+        texto: "Aqui vês o calendário do mês — toca num dia para veres os detalhes.",
+        alvo: "escala-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com a tua líder de sala.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês por sala — toca num culto para escolher quem serve.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
 };
 
 async function main() {
