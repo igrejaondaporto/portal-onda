@@ -94,4 +94,21 @@ export function idade(dataNascimento, hoje = new Date()) {
   return hoje.getFullYear() - a - (hoje.getMonth() + 1 < m || (hoje.getMonth() + 1 === m && hoje.getDate() < d) ? 1 : 0);
 }
 
-export const FAIXAS_PADRAO = { baby: { min: 0, max: 3 }, fun: { min: 4, max: 7 }, junior: { min: 8, max: 11 } };
+export const FAIXAS_PADRAO = { baby: { min: 1, max: 2 }, fun: { min: 3, max: 5 }, junior: { min: 6, max: 8 } };
+
+/** Capacidade de cada sala: 5 crianças por voluntário lá dentro
+ *  (confirmado com a líder — 2 voluntários → 10 no Baby, 3 → 15).
+ *  Mesma proporção nas três salas. */
+export const CRIANCAS_POR_VOLUNTARIO = 5;
+
+/** Quantos voluntários de cada sala estão escalados hoje (a partir da
+ *  escala do culto + o catálogo de voluntários) → capacidade de cada
+ *  sala, no mesmo formato de `contagens` do SeletorCategoria. */
+export function capacidadesPorSala(idsEscalados, voluntarios) {
+  const porSala = Object.fromEntries(CATEGORIAS.map((c) => [c.id, 0]));
+  for (const id of idsEscalados) {
+    const cat = voluntarios.find((v) => v.id === id)?.categoria;
+    if (cat && cat in porSala) porSala[cat] += 1;
+  }
+  return Object.fromEntries(CATEGORIAS.map((c) => [c.id, porSala[c.id] * CRIANCAS_POR_VOLUNTARIO]));
+}

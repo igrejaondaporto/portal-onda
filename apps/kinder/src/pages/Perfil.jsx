@@ -151,7 +151,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
             <div className="linha" key={ev.id}>
               <div style={{ flex: 1 }}>
                 <p className="nmt">{nomeEvento(ev)}</p>
-                <p className="ds">Chegada {ev.horaChegada || "09:00"}</p>
+                <p className="ds">Chegada {ev.horaChegada || "08:30"}</p>
               </div>
               {ev.escala.liderEscala === uid && <span className="tag lim">Líder de escala</span>}
             </div>

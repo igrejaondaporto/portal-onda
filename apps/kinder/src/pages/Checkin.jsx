@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { CATEGORIAS, categoriaInicial, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, capacidadesPorSala, categoriaInicial, cEscala, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
+import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
 } from "../lib/kinder";
@@ -48,11 +49,15 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   const [verSaidos, setVerSaidos] = useState(false);
   const [verPendentes, setVerPendentes] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const [voluntarios, setVoluntarios] = useState([]);
+  const [escalaHoje, setEscalaHoje] = useState(null);
 
   useEffect(() => ouvirFamilias(setFamilias), []);
   useEffect(() => ouvirCriancas(setCriancas), []);
   useEffect(() => ouvirCheckins(hoje, setCheckins), [hoje]);
   useEffect(() => ouvirCodigos(hoje, setCodigos), [hoje]);
+  useEffect(() => ouvirVoluntarios(setVoluntarios), []);
+  useEffect(() => onSnapshot(cEscala(hoje), (s) => setEscalaHoje(s.exists() ? s.data() : null)), [hoje]);
   useEffect(() => onSnapshot(doc(db, `eventos/${hoje}`), (s) => setHaCultoHoje(s.exists() && s.data().ativo !== false)), [hoje]);
   useEffect(() => {
     if (salaDefinida || !pessoa) return;
@@ -70,6 +75,11 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   const saidos = validos.filter((c) => c.saidaEm);
   const naSalaFiltrados = naSala.filter((c) => !sala || c.categoria === sala);
   const contagens = Object.fromEntries(CATEGORIAS.map((c) => [c.id, naSala.filter((k) => k.categoria === c.id).length]));
+  const capacidades = useMemo(
+    () => capacidadesPorSala(escalaHoje?.pessoas ?? [], voluntarios),
+    [escalaHoje, voluntarios],
+  );
+  const salaNoLimite = sala && capacidades[sala] > 0 && contagens[sala] >= capacidades[sala];
   const pendentes = familias.filter((f) => f.estado === "pendente");
 
   const resultados = useMemo(() => {
@@ -166,7 +176,14 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
 
           <div className="sect">
             <div className="cabecalho"><h3>Na sala agora</h3></div>
-            <SeletorCategoria valor={sala} onMudar={setSala} contagens={contagens} />
+            <SeletorCategoria valor={sala} onMudar={setSala} contagens={contagens} capacidades={capacidades} />
+            {salaNoLimite && (
+              <p className="ds" style={{ marginTop: 4 }}>
+                <span className="kin-alerta">
+                  {nomeCategoria(sala)} no limite ({contagens[sala]}/{capacidades[sala]}) — precisa de mais um voluntário na sala para receber mais crianças.
+                </span>
+              </p>
+            )}
             {naSalaFiltrados.length === 0 ? (
               <div className="vaz" style={{ marginTop: 10 }}>{sala ? `Ninguém na sala ${nomeCategoria(sala)}.` : "Ninguém na sala ainda."}</div>
             ) : naSalaFiltrados

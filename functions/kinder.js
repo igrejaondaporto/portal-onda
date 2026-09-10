@@ -31,7 +31,7 @@ const ALFABETO_CODIGO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const TAMANHO_CODIGO = 4;
 // idades por omissão — a líder muda em Painel → Definições
 // (bases/kinder/definicoes/categorias), só servem para SUGERIR a sala
-const FAIXAS_PADRAO = { baby: { min: 0, max: 3 }, fun: { min: 4, max: 7 }, junior: { min: 8, max: 11 } };
+const FAIXAS_PADRAO = { baby: { min: 1, max: 2 }, fun: { min: 3, max: 5 }, junior: { min: 6, max: 8 } };
 // por IP e por hora. Alto de propósito: ao domingo as famílias todas
 // registam-se pela mesma rede da Casa do Povo, que é um IP só.
 const MAX_REGISTOS_POR_HORA = 40;

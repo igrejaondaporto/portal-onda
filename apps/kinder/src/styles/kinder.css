@@ -43,6 +43,13 @@
   background: var(--c-suave);
   color: var(--c-texto-suave);
 }
+/* sala no limite da capacidade (crianças ≥ voluntários × 5) — mesma
+ * cor de aviso do resto da app (.kin-alerta), por cima do fundo da
+ * própria cor da sala para continuar legível quando o botão está ativo. */
+.kin-cat-n.no-limite {
+  background: #ffe3ea;
+  color: #b4124f;
+}
 
 /* cartão com a cor da sala à esquerda */
 .kin-faixa {
@@ -149,7 +156,10 @@
   color: var(--c-texto-suave);
 }
 .kin-num b { display: block; font-size: 28px; font-weight: 900; letter-spacing: -0.03em; }
+.kin-num b small { font-size: 15px; font-weight: 700; opacity: 0.55; }
 .kin-num span { font-size: 12px; font-weight: 700; }
+/* sala no limite da capacidade — mesmo tratamento do .kin-cat-n.no-limite */
+.kin-num.no-limite { background: #ffe3ea; color: #b4124f; }
 
 /* ── páginas dos pais (/registo, /familia/<token>) — sem conta ── */
 .kin-publico .folha { padding-bottom: 60px; }

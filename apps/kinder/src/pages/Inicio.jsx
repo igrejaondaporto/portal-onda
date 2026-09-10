@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, souLider, nomeCategoria, varsCategoria, CATEGORIAS } from "../lib/modelo";
+import { cEscala, souLider, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
@@ -83,13 +83,14 @@ export default function Inicio({
 
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
   const liderEscalaNome = meuEvento?.escala.liderEscala ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome : null;
-  const chegada = meuEvento?.horaChegada || base?.horaChegada || "09:00";
+  const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
   const eventoHoje = eventosMes.find((ev) => ev.data === hoje) ?? null;
   const proximoCulto = eventosMes.find((ev) => ev.data >= hoje) ?? null;
 
   const pendentes = familias.filter((f) => f.estado === "pendente");
   const naSala = checkins.filter((c) => !c.anulado && !c.saidaEm);
   const porSala = Object.fromEntries(CATEGORIAS.map((c) => [c.id, naSala.filter((k) => k.categoria === c.id).length]));
+  const capacidades = capacidadesPorSala(eventoHoje?.escala.pessoas ?? [], voluntarios);
   const criancaPorId = Object.fromEntries(criancas.map((c) => [c.id, c]));
   const comCuidados = naSala
     .filter((k) => lider || !minhaSala || k.categoria === minhaSala)
@@ -161,12 +162,19 @@ export default function Inicio({
             <div className="sect" data-tour="hoje-bloco">
               <div className="cabecalho"><h3>Hoje nas salas</h3><span className="cap">{naSala.length} crianças</span></div>
               <div className="kin-grelha">
-                {CATEGORIAS.map((c) => (
-                  <div className="kin-num" key={c.id} style={varsCategoria(c.id)}>
-                    <b>{porSala[c.id]}</b><span>{c.nome}</span>
-                  </div>
-                ))}
+                {CATEGORIAS.map((c) => {
+                  const cap = capacidades[c.id];
+                  const noLimite = cap > 0 && porSala[c.id] >= cap;
+                  return (
+                    <div className={`kin-num${noLimite ? " no-limite" : ""}`} key={c.id} style={varsCategoria(c.id)}>
+                      <b>{porSala[c.id]}{cap > 0 ? <small>/{cap}</small> : ""}</b><span>{c.nome}</span>
+                    </div>
+                  );
+                })}
               </div>
+              {CATEGORIAS.some((c) => capacidades[c.id] > 0 && porSala[c.id] >= capacidades[c.id]) && (
+                <p className="ds" style={{ marginTop: 8 }}>Capacidade: {CRIANCAS_POR_VOLUNTARIO} crianças por voluntário na sala.</p>
+              )}
               {comCuidados.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <p className="rot" style={{ marginTop: 0 }}>Atenção{minhaSala && !lider ? ` na sala ${nomeCategoria(minhaSala)}` : ""}</p>
