@@ -257,6 +257,21 @@ textarea {
   line-height: 1.4;
   animation: ap 0.3s;
 }
+.pwa-aviso {
+  background: var(--agua);
+  padding: 14px 16px;
+  animation: ap 0.3s;
+}
+.pwa-aviso-bt {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pwa-aviso-bt .btn {
+  padding: 9px 16px;
+  font-size: 13.5px;
+}
 
 /* ── folha do PIN ── */
 /* Trava o scroll do fundo enquanto uma folha está aberta — sem isto,
