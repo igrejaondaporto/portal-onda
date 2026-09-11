@@ -4,6 +4,7 @@ import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import SheetPin from "@portal/shared/components/SheetPin.jsx";
 import GatilhoDev from "@portal/shared/components/GatilhoDev.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
+import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 
 function TituloBase({ nome }) {
   if (!nome) return <h1>Base</h1>;
@@ -44,6 +45,7 @@ export default function Entrada({ onDeveTrocarPin }) {
   return (
     <div className="login">
       <AvisoOffline />
+      <AvisoInstalarPWA />
       <div className="crista entrada">
         <div>
           <div className="lin">

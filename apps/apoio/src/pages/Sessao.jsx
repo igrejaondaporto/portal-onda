@@ -9,6 +9,7 @@ import MenuEu from "@portal/shared/components/MenuEu.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
+import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -132,6 +133,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
       <Tour />
       <div className="app">
         <AvisoOffline />
+        <AvisoInstalarPWA />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">
