@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ouvirLicoes, enviarLicao, excluirLicao } from "../lib/licoes";
+import { useEffect, useState } from "react";
+import { ouvirLicoes, guardarLicao, excluirLicao } from "../lib/licoes";
 import { ouvirAdolescentes, criarAdolescente, removerAdolescente, ouvirPresencas, marcarPresenca } from "../lib/presencaLicao";
 import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { MESES, nomeEvento, haAtras, hojeISO } from "@portal/shared/lib/data.js";
@@ -7,33 +7,47 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
-function IconeDocx() {
+function IconeDrive() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6" />
+      <path d="m8 13 4-7 4 7" />
+      <path d="M3.5 19h17L16 4H8L3.5 19Z" />
     </svg>
   );
 }
 
-/** Só funciona para ficheiros já num URL público (o link do Storage
- *  já é isso) — o visualizador é do Google, não nosso; se um dia
- *  parar de responder ou vier vazio, "Abrir/descarregar" ao lado
- *  continua a ser o caminho garantido. */
-function visualizadorUrl(arquivoUrl) {
-  return `https://docs.google.com/gview?url=${encodeURIComponent(arquivoUrl)}&embedded=true`;
+/** Aceita qualquer link do Drive/Docs/Sheets/Slides e devolve o URL
+ *  embutível oficial do Google (o `/preview` do próprio dono do
+ *  documento, não um serviço de terceiros) — cada produto tem o seu
+ *  caminho de preview, mas todos seguem "/d/{id}/preview". Se o link
+ *  não tiver um id reconhecível (partilha não pública, formato
+ *  diferente), devolve o link tal qual — o iframe pode ficar em
+ *  branco nesse caso, mas "Abrir no Drive" ao lado continua a ser o
+ *  caminho garantido. */
+function driveEmbedUrl(link) {
+  const m = link.match(/\/d\/([a-zA-Z0-9_-]+)/) || link.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!m) return link;
+  const id = m[1];
+  if (link.includes("docs.google.com/document")) return `https://docs.google.com/document/d/${id}/preview`;
+  if (link.includes("docs.google.com/spreadsheets")) return `https://docs.google.com/spreadsheets/d/${id}/preview`;
+  if (link.includes("docs.google.com/presentation")) return `https://docs.google.com/presentation/d/${id}/preview`;
+  return `https://drive.google.com/file/d/${id}/preview`;
 }
 
-/** Lição — uma por domingo (culto), não uma lista solta: o líder sobe
- *  o .docx da semana, os voluntários abrem para passar aos jovens.
- *  Mesma casca de cartão por culto que a Escala já usa. Cada cartão
- *  também tem a presença dos adolescentes desse domingo — separado
- *  de existir lição ou não (dá para marcar presença mesmo sem
- *  documento enviado essa semana). */
+function linkDriveValido(link) {
+  return /drive\.google\.com|docs\.google\.com/.test(link);
+}
+
+/** Lição — uma por domingo (culto), não uma lista solta: a líder cola
+ *  o link do Drive da semana, os voluntários abrem (ou veem a
+ *  pré-visualização ali mesmo) para passar aos jovens. Mesma casca de
+ *  cartão por culto que a Escala já usa. Cada cartão também tem a
+ *  presença dos adolescentes desse domingo — separado de existir
+ *  lição ou não (dá para marcar presença mesmo sem link colado essa
+ *  semana). */
 export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
-  const inputRef = useRef(null);
   const [eventosMes, setEventosMes] = useState([]);
   const [licoes, setLicoes] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
@@ -43,7 +57,7 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
   const [aVisualizar, setAVisualizar] = useState(null); // eventoId com o visualizador aberto
   const [eventoAEnviar, setEventoAEnviar] = useState(null);
   const [titulo, setTitulo] = useState("");
-  const [ficheiro, setFicheiro] = useState(null);
+  const [link, setLink] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [eventoANomear, setEventoANomear] = useState(null); // qual cartão está com o campo "+ adolescente" aberto
@@ -72,34 +86,26 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
     return voluntarios.find((p) => p.id === id);
   }
 
-  function abrirEnvio(eventoId) {
+  function abrirEnvio(eventoId, licaoAtual) {
     setEventoAEnviar(eventoId);
-    setTitulo(`Lição de ${nomeEvento({ data: eventoId })}`);
-    setFicheiro(null);
-    setTimeout(() => inputRef.current?.click(), 0);
-  }
-
-  function escolherFicheiro(e) {
-    const f = e.target.files[0];
-    e.target.value = "";
-    if (!f) return;
-    if (!f.name.toLowerCase().endsWith(".docx")) {
-      torrada("Só ficheiros .docx", true);
-      return;
-    }
-    setFicheiro(f);
+    setTitulo(licaoAtual?.titulo || `Lição de ${nomeEvento({ data: eventoId })}`);
+    setLink(licaoAtual?.link || "");
   }
 
   async function enviar() {
-    if (!ficheiro || !eventoAEnviar) return;
+    if (!eventoAEnviar) return;
+    if (!linkDriveValido(link)) {
+      torrada("Cola um link do Drive válido", true);
+      return;
+    }
     setAEnviar(true);
     try {
-      await enviarLicao(uid, eventoAEnviar, { titulo, ficheiro });
-      torrada("Lição enviada");
+      await guardarLicao(uid, eventoAEnviar, { titulo, link });
+      torrada("Lição guardada");
       setEventoAEnviar(null);
-      setFicheiro(null);
+      setLink("");
     } catch {
-      torrada("Não foi possível enviar. Tenta outra vez.", true);
+      torrada("Não foi possível guardar. Tenta outra vez.", true);
     } finally {
       setAEnviar(false);
     }
@@ -148,12 +154,6 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
 
   return (
     <div className="sect" style={{ marginTop: 12 }}>
-      <input
-        ref={inputRef} type="file"
-        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        style={{ display: "none" }} onChange={escolherFicheiro}
-      />
-
       <div className="cabecalho">
         <h3>{MESES[mes]} {ano}</h3>
         <span className="calnav">
@@ -183,12 +183,12 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
             {licao ? (
               <>
                 <a
-                  className="linha" href={licao.arquivoUrl} target="_blank" rel="noreferrer"
+                  className="linha" href={licao.link} target="_blank" rel="noreferrer"
                   style={{ textDecoration: "none", color: "inherit" }}
                 >
-                  <span style={{ color: "var(--azul)" }}><IconeDocx /></span>
+                  <span style={{ color: "var(--azul)" }}><IconeDrive /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{licao.arquivoNome}</p>
+                    <p className="nmt">{licao.titulo}</p>
                     <p className="ds">
                       {pessoa ? `${pessoa.nome} · ` : ""}
                       {licao.criadoEm ? haAtras(licao.criadoEm) : "agora"}
@@ -204,18 +204,18 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
                 </button>
                 {aVisualizar === ev.id && (
                   <iframe
-                    src={visualizadorUrl(licao.arquivoUrl)} title={licao.titulo}
+                    src={driveEmbedUrl(licao.link)} title={licao.titulo}
                     style={{ width: "100%", height: 420, border: "1px solid var(--fio)", borderRadius: 12, marginTop: 8 }}
                   />
                 )}
               </>
             ) : (
-              <p className="ds">A líder ainda não enviou a lição deste domingo.</p>
+              <p className="ds">A líder ainda não colou o link da lição deste domingo.</p>
             )}
             {souLiderBase && (
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                <button className={`btn full${licao ? " sec" : ""}`} onClick={() => abrirEnvio(ev.id)}>
-                  {licao ? "Substituir ficheiro" : "Enviar lição (.docx)"}
+                <button className={`btn full${licao ? " sec" : ""}`} onClick={() => abrirEnvio(ev.id, licao)}>
+                  {licao ? "Substituir link" : "Colar link do Drive"}
                 </button>
                 {licao && <button className="btn perigo" onClick={() => excluir(ev.id)}>Excluir</button>}
               </div>
@@ -281,23 +281,27 @@ export default function Licao({ uid, papel, mes, ano, mudarMes, ativo, definirCa
         );
       })}
 
-      {eventoAEnviar && ficheiro && (
-        <div className="veu on" onClick={() => { setEventoAEnviar(null); setFicheiro(null); }} />
+      {eventoAEnviar && (
+        <div className="veu on" onClick={() => setEventoAEnviar(null)} />
       )}
-      {eventoAEnviar && ficheiro && (
+      {eventoAEnviar && (
         <div className="pin on" role="dialog" aria-modal="true">
           <div className="pux" />
-          <h2>Enviar lição</h2>
+          <h2>Lição do Drive</h2>
           <p className="sb2">{nomeEvento({ data: eventoAEnviar })}</p>
           <label className="rot" style={{ marginTop: 12 }}>Título</label>
           <input className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-          <p className="ds" style={{ marginTop: 8 }}>Ficheiro: {ficheiro.name}</p>
+          <label className="rot" style={{ marginTop: 12 }}>Link do Drive</label>
+          <input
+            className="campo" value={link} placeholder="https://drive.google.com/…"
+            onChange={(e) => setLink(e.target.value)}
+          />
           <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={enviar}>
-            {aEnviar ? "A enviar…" : "Publicar para a base"}
+            {aEnviar ? "A guardar…" : "Publicar para a base"}
           </button>
           <button
             className="btn sec full" style={{ marginTop: 9 }}
-            onClick={() => { setEventoAEnviar(null); setFicheiro(null); }}
+            onClick={() => setEventoAEnviar(null)}
           >
             Cancelar
           </button>

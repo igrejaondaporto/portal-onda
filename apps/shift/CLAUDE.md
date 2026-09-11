@@ -68,20 +68,31 @@ Só a líder da base cria no catálogo.
 
 ```js
 bases/shift/licoes/{id}
-  titulo, arquivoUrl, arquivoNome, enviadoPor, criadoEm
+  titulo, link, enviadoPor, criadoEm
 ```
 
-Só a líder sobe (`lib/licoes.js`, `Licao.jsx`) — escrita direta do
-cliente (sem Cloud Function), mesmo padrão de `avisos`/`funcoes`:
-sem autoria mista, sem campo calculado no servidor. O ficheiro
-(sempre `.docx`, validado tanto no `<input accept>` do cliente como
-no `contentType` da regra do Storage) vive em
-`bases/shift/licoes/{id}.docx`; o Firestore só guarda o link e
-quem/quando enviou. Toda a base lê a lista (mais recente primeiro),
-tocar abre/descarrega o ficheiro. "Excluir" aqui apaga a sério (documento
-+ ficheiro) — ao contrário da regra 5 do `CLAUDE.md` raiz
-("nada se apaga"), não faz sentido manter um `.docx` antigo indefinidamente
-só marcado como inativo; reconsiderar se um dia precisar de histórico.
+**Diferente da New** (o molde original): aqui não há upload nem
+Storage — a equipa já trabalha sempre a partir do Google Drive
+(pedido da líder, 2026-09), por isso a líder só cola o link do
+documento já existente lá. `link` aceita qualquer URL do
+`drive.google.com`/`docs.google.com` (ficheiro solto, Doc, Sheet ou
+Slide); `driveEmbedUrl()` em `Licao.jsx` deriva o URL de
+pré-visualização oficial (`/d/{id}/preview`) a partir do id na URL —
+sem id reconhecível, cai para o link tal qual (o iframe pode ficar em
+branco, mas "Abrir no Drive" ao lado continua a ser o caminho
+garantido). Escrita direta do cliente (sem Cloud Function), mesmo
+padrão de `avisos`/`funcoes`: sem autoria mista, sem campo calculado
+no servidor. Só a líder guarda (`lib/licoes.js`, `Licao.jsx`); toda a
+base lê a lista (mais recente primeiro). Colar um link novo no mesmo
+domingo substitui o anterior. "Excluir" aqui apaga o documento a
+sério — ao contrário da regra 5 do `CLAUDE.md` raiz ("nada se
+apaga"), não faz sentido manter uma referência a um link antigo
+indefinidamente só marcada como inativa; reconsiderar se um dia
+precisar de histórico.
+
+A regra do Storage em `bases/{base}/licoes/{ficheiro}` continua a
+existir (serve a New/Kinder, que ainda fazem upload de `.docx`) mas
+fica sem uso nesta base — nada escreve lá a partir da SHIFT.
 
 ## O que esta base NÃO tem (herdado do molde da New/Apoio, removido de propósito)
 
