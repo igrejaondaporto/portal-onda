@@ -289,10 +289,22 @@ grupoPais`, devolvido por `dadosRegistoKinder`); vazio = o botão nem
 aparece. Sem grupo nenhum criado ainda por omissão — é a líder que
 cola o link quando o grupo existir.
 
-RGPD: o texto de `definicoes/consentimento` é **placeholder** — tem
-de ser validado pela igreja antes de ir para os pais a sério (editar
-em Painel → Salas e consentimento). Retenção (crianças sem check-in
-há X tempo) ainda não está automatizada — decisão pendente.
+RGPD: o texto de `definicoes/consentimento` é o padrão que a igreja
+decidiu (2026-09) — a líder pode sempre ajustar em Painel → Salas e
+consentimento, mas mudar o número de meses ou o que é dito sobre a
+foto pede também mudar `MESES_RETENCAO`/`CONSENTIMENTO_PADRAO` em
+`functions/kinder.js`, para o texto continuar a bater certo com o
+que a função faz a sério.
+
+**Retenção — apaga a sério, não é `ativo:false`.** Única excepção à
+regra 5 do repositório: `purgarFamiliasInativasKinder`
+(`functions/kinder.js`, agendada, todos os dias) apaga família,
+crianças e as fotos no Storage de quem não faz check-in nenhum há
+`MESES_RETENCAO` (6) — quem voltar tem de se registar de novo. Conta
+por `ultimoCheckinEm` (atualizado em cada `checkinKinder`); sem
+nenhum ainda, é `criadoEm` que decide. O consentimento já avisa a
+família disto — é essa avisa que torna a exclusão a sério aceitável
+aqui, ao contrário do resto do Portal.
 
 ## Lição — documento subido à mão, sem automação da Kiwify
 
@@ -367,7 +379,9 @@ branco, como o resto do cabeçalho.
 
 ## Detalhes ainda por fechar com a líder
 
-- Texto de consentimento e prazos de retenção — validar com a igreja.
+- Texto de consentimento — a igreja já fechou o prazo de retenção
+  (6 meses) e a menção à foto (2026-09); o resto do texto continua
+  livre para a líder ajustar.
 - Se/quando imprimir etiqueta ou pulseira (hoje não imprimem).
 - Cor da base para a Backstage (`bases/kinder.cor` — hoje o roxo do
   Baby, `#7B5CFF`, escolhido por não colidir com nenhuma outra base).

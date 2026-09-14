@@ -33,6 +33,7 @@ export {
   desativarFamiliaKinder, editarFamiliaKinder,
   dadosFamiliaKinder, checkinKinder, checkoutKinder, anularCheckinKinder,
   guardarLicaoKinder, desativarLicaoKinder,
+  purgarFamiliasInativasKinder,
 } from "./kinder.js";
 
 admin.initializeApp();
