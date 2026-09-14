@@ -20,6 +20,7 @@
 // região e CORS antes de qualquer onCall deste ficheiro (ver opcoes.js)
 import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import admin from "firebase-admin";
 import sharp from "sharp";
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
@@ -40,13 +41,19 @@ const HORA_MS = 60 * 60 * 1000;
 
 // Texto provisório — tem de ser revisto pela igreja antes de ir para
 // os pais a sério (a líder substitui em Painel → Definições, e cada
-// alteração sobe a versão guardada em cada família).
+// alteração sobe a versão guardada em cada família). Retenção: ver
+// MESES_RETENCAO/purgarFamiliasInativasKinder abaixo — a família tem
+// de saber que a exclusão é a sério (apaga, não é só "esconde"), e
+// que a foto tem um uso limitado e diferente do da rede social.
 const CONSENTIMENTO_PADRAO =
   "Autorizo a Igreja Onda a guardar os dados desta ficha (nomes, datas de nascimento, " +
   "contactos, alergias e cuidados de saúde) para acolher as crianças no Kinder durante os " +
-  "cultos e para me contactar se for preciso. Os dados só são vistos pelos voluntários do " +
-  "Kinder, nunca são partilhados fora da igreja e são apagados se a criança não vier durante " +
-  "um ano. Posso pedir para os corrigir ou apagar a qualquer momento.";
+  "cultos e para me contactar se for preciso. Se eu subir uma foto da criança ou de quem a " +
+  "vem buscar, é só para os voluntários reconhecerem quem é quem — nunca é partilhada nem " +
+  "usada para outro fim (isso é sempre um consentimento à parte). Os dados só são vistos " +
+  "pelos voluntários do Kinder, nunca são partilhados fora da igreja, e são apagados a " +
+  "sério (não só escondidos) se a criança não vier durante 6 meses — nesse caso é preciso " +
+  "voltar a registar. Posso pedir para os corrigir ou apagar antes disso, a qualquer momento.";
 
 const db = () => admin.firestore();
 const agora = () => admin.firestore.FieldValue.serverTimestamp();
@@ -325,8 +332,10 @@ export const novoLinkFamiliaKinder = onCall(async (req) => {
   return { token };
 });
 
-/** "Nada é apagado, é desativado" (regra 5) — a anonimização por
- *  retenção (RGPD) é outra coisa, ainda por fechar com a igreja. */
+/** "Nada é apagado, é desativado" (regra 5) — continua a valer para
+ *  a líder remover uma família à mão. A retenção por RGPD
+ *  (purgarFamiliasInativasKinder, abaixo) é a excepção deliberada: o
+ *  consentimento já avisa a família que essa exclusão é a sério. */
 export const desativarFamiliaKinder = onCall(async (req) => {
   exigeKinder(req);
   if (!souLider(req)) throw new HttpsError("permission-denied", "Só uma líder pode remover uma família.");
@@ -338,6 +347,45 @@ export const desativarFamiliaKinder = onCall(async (req) => {
   (await criancasDaFamilia(familiaId)).forEach((c) => lote.update(c.ref, { ativo: false }));
   await lote.commit();
   return { ok: true };
+});
+
+/** Apaga a sério (não `ativo:false`) uma foto de criança/responsável/
+ *  autorizado no Storage — nunca falha a purga toda por um ficheiro
+ *  que talvez nem exista (ninguém subiu foto). */
+async function apagarFotoSeExistir(caminho) {
+  try { await admin.storage().bucket().file(caminho).delete(); } catch { /* sem foto, nada a apagar */ }
+}
+
+/** RGPD, decisão da igreja (2026-09): família sem check-in nenhum há
+ *  MESES_RETENCAO é apagada a sério — família, crianças e fotos no
+ *  Storage — nunca só `ativo:false`. Quem voltar tem de se registar
+ *  de novo (o consentimento já avisa disto). Corre sozinha, todos os
+ *  dias — `ultimoCheckinEm` é atualizado em cada check-in
+ *  (checkinKinder); sem nenhum ainda, é `criadoEm` que conta. */
+const MESES_RETENCAO = 6;
+
+async function apagarFamiliaKinder(snap) {
+  const f = snap.data();
+  const familiaId = snap.id;
+  const criancas = await col("criancas").where("familiaId", "==", familiaId).get();
+  await Promise.all([
+    ...criancas.docs.map((c) => c.ref.delete()),
+    ...criancas.docs.map((c) => apagarFotoSeExistir(`bases/${BASE}/criancas/${c.id}.webp`)),
+    ...[...(f.responsaveis || []), ...(f.autorizados || [])].map((p) => apagarFotoSeExistir(`bases/${BASE}/familias/${familiaId}/pessoas/${p.id}.webp`)),
+  ]);
+  await snap.ref.delete();
+}
+
+export const purgarFamiliasInativasKinder = onSchedule("every 24 hours", async () => {
+  const limite = new Date();
+  limite.setMonth(limite.getMonth() - MESES_RETENCAO);
+  const limiteMs = limite.getTime();
+  const todas = await col("familias").get();
+  for (const snap of todas.docs) {
+    const f = snap.data();
+    const referencia = (f.ultimoCheckinEm ?? f.criadoEm)?.toMillis?.();
+    if (referencia && referencia < limiteMs) await apagarFamiliaKinder(snap);
+  }
 });
 
 /** Editar a ficha — pelos pais (com o token do link) ou por um
@@ -497,9 +545,12 @@ export const checkinKinder = onCall(async (req) => {
       });
     });
     famSnaps.forEach((s) => {
-      if (s.exists && s.data().estado === "pendente") {
-        tx.update(s.ref, { estado: "confirmada", confirmadaPor: uid, confirmadaEm: agora() });
-      }
+      if (!s.exists) return;
+      // ultimoCheckinEm é o que purgarFamiliasInativasKinder usa para
+      // saber que a família ainda está viva — sem check-in nenhum, é
+      // sempre criadoEm que conta (ver essa função).
+      const extra = s.data().estado === "pendente" ? { estado: "confirmada", confirmadaPor: uid, confirmadaEm: agora() } : {};
+      tx.update(s.ref, { ...extra, ultimoCheckinEm: agora() });
     });
   });
   return { eventoId, codigos };
