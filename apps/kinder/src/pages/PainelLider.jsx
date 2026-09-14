@@ -109,13 +109,14 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
             <p className="ds" style={{ padding: "8px 0 2px" }}>Cada pessoa serve na sua sala. Pelo menos dois adultos por sala.</p>
             {eventosMes.map((ev) => {
               const pessoas = ev.escala.pessoas.map(pessoaPorId).filter(Boolean);
-              const lider = ev.escala.liderEscala ? pessoaPorId(ev.escala.liderEscala) : null;
               const porSala = CATEGORIAS.map((c) => `${c.nome.slice(0, 1)}${pessoas.filter((p) => p.categoria === c.id).length}`).join(" · ");
+              const salasRelevantes = minhaSala ? [minhaSala] : CATEGORIAS.map((c) => c.id);
+              const mestrasDefinidas = salasRelevantes.filter((s) => ev.escala.mestras?.[s]).length;
               return (
                 <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => setSheet({ tipo: "escala", eventoId: ev.id })}>
                   <div style={{ flex: 1 }}>
                     <p className="nmt">{nomeEvento(ev)}{ev.tipo && <span className="tag esp">especial</span>}</p>
-                    <p className="ds">{pessoas.length ? `${porSala} · ${lider ? lider.nome + " lidera" : "líder por definir"}` : "Ninguém escalado"}</p>
+                    <p className="ds">{pessoas.length ? `${porSala} · ${mestrasDefinidas}/${salasRelevantes.length} mestras definidas` : "Ninguém escalado"}</p>
                   </div>
                   {pessoas.length ? <Avatares pessoas={pessoas.slice(0, 4)} /> : <span className="tag cinz">definir</span>}
                   <span className="seta">›</span>

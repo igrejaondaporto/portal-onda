@@ -868,6 +868,40 @@ export const guardarEscalaApoio = onCall(async (req) => {
   return { ok: true };
 });
 
+/* ── MESTRA POR SALA (Kinder) ─────────────────────────────────
+ * A Kinder não tem "líder de escala" único (o `liderEscala` de
+ * guardarEscalaApoio, acima, fica sempre null para esta base) — cada
+ * sala (Baby/Fun/Júnior) tem a sua própria Mestra no culto, escolhida
+ * entre quem já está escalado nessa sala nesse dia. Guardado num
+ * campo à parte (`mestras: {baby, fun, junior}`) no mesmo documento
+ * da escala, com merge por chave (uma sala não pisa a outra). A
+ * líder geral escolhe a mestra de qualquer sala; a líder de sala só
+ * a da sua própria. */
+export const guardarMestraKinder = onCall(async (req) => {
+  const baseId = exigeLider(req);
+  if (baseId !== "kinder") throw new HttpsError("permission-denied", "Só a Kinder usa isto.");
+  const { eventoId, sala, pessoaId = null } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+  if (!["baby", "fun", "junior"].includes(sala)) throw new HttpsError("invalid-argument", "Sala inválida.");
+
+  if (req.auth.token.papel === "auxiliar") {
+    const minhaPessoa = await db.doc(`bases/kinder/pessoas/${req.auth.uid}`).get();
+    if (minhaPessoa.data()?.categoria !== sala) {
+      throw new HttpsError("permission-denied", "Só podes escolher a mestra da tua sala.");
+    }
+  }
+
+  if (pessoaId) {
+    const daMestra = await db.doc(`bases/kinder/pessoas/${pessoaId}`).get();
+    if (daMestra.data()?.categoria !== sala) {
+      throw new HttpsError("invalid-argument", "A mestra tem de ser da própria sala.");
+    }
+  }
+
+  await db.doc(`eventos/${eventoId}/escalas/kinder`).set({ mestras: { [sala]: pessoaId } }, { merge: true });
+  return { ok: true };
+});
+
 /* ── ESCALA (Backstage) ──────────────────────────────────────
  * Mesmo formato da Apoio (lista simples, sem ministérios). Função
  * própria, não reaproveita guardarEscalaApoio, porque cada base tem

@@ -11,7 +11,7 @@
  *   bases/kinder/checklistSala/{item}              ← texto, categoria, fase abrir|fechar
  *   bases/kinder/definicoes/{categorias|consentimento}
  *   bases/kinder/inventario/{item}                 ← + sala (baby|fun|junior|partilhado)
- *   eventos/{e}/escalas/kinder                     ← pessoas[] + liderEscala (lista simples)
+ *   eventos/{e}/escalas/kinder                     ← pessoas[] (lista simples) + mestras {baby,fun,junior}
  *   eventos/{e}/checkinKinder/{crianca}            ← só por Cloud Function
  *   eventos/{e}/codigosKinder/{familia}            ← idem
  *   eventos/{e}/checklistKinder/{sala}             ← itens marcados
@@ -94,9 +94,10 @@ export function rotuloPapel(papel, cat) {
  *  abrem em "Todas" — veem as três salas. */
 export const categoriaInicial = (papel, pessoa) => (souLider(papel) ? null : pessoa?.categoria ?? null);
 
-/** A regra do líder de escala, replicada no cliente só para esconder
- *  botões. A que conta é a da Cloud Function. */
-export const podeDistribuir = (papel, uid, escala) => souLider(papel) || escala?.liderEscala === uid;
+/** Quem pode escrever o feedback do culto — a Kinder não tem líder de
+ *  escala único (cada sala tem a sua Mestra, uma etiqueta, não uma
+ *  permissão), por isso é sempre só a líder. */
+export const podeDistribuir = (papel) => souLider(papel);
 
 /** Idade em anos completos a partir de "AAAA-MM-DD" — datas locais,
  *  nunca toISOString (desvia um dia em UTC+). */

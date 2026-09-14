@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
-import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
+import { guardarEscala, guardarMestraKinder, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
-import { nomeCategoria } from "../../lib/modelo";
+import { CATEGORIAS, nomeCategoria, varsCategoria } from "../../lib/modelo";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
  * "Concluir" só fecha a folha.
+ *
+ * A Kinder não tem um "líder de escala" único: cada sala tem a sua
+ * própria Mestra, escolhida entre quem está escalado nessa sala
+ * nesse dia (a estrela). Por isso a lista aqui vem sempre agrupada
+ * por sala, com uma estrela por grupo — nunca uma só para a folha
+ * toda (ver guardarMestraKinder, functions/index.js).
  *
  * `voluntarios` já vem filtrado pela sala de quem está a montar (ver
  * PainelLider — a líder geral vê as três, a líder de sala só a sua);
@@ -18,7 +24,7 @@ import { nomeCategoria } from "../../lib/modelo";
 export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
-  const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
+  const [mestras, setMestras] = useState(evento?.escala?.mestras ?? {});
   const [estatisticas, setEstatisticas] = useState({});
   const [ordem, setOrdem] = useState("vezes");
   const [aDispensar, setADispensar] = useState(false);
@@ -31,32 +37,32 @@ export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGua
   // grava otimista (o toque já muda o ecrã), mas se o servidor recusar
   // (ex.: pessoa já escalada nesse dia noutra base) desfaz e avisa —
   // nunca fica um estado no ecrã que não bateu certo com o gravado.
-  async function persistir(novasPessoas, novoLider, anterior) {
+  async function persistirPessoas(novasPessoas, anteriores) {
     try {
-      await guardarEscala(evento.id, { pessoas: novasPessoas, liderEscala: novoLider });
+      await guardarEscala(evento.id, { pessoas: novasPessoas, liderEscala: null });
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
-      setPessoas(anterior.pessoas);
-      setLiderEscala(anterior.liderEscala);
+      setPessoas(anteriores);
     }
   }
 
-  function alternar(id) {
-    const anterior = { pessoas, liderEscala };
-    let novoLider = liderEscala;
+  function alternar(id, catId) {
+    const anteriores = pessoas;
     const dentro = pessoas.includes(id);
     const novasPessoas = dentro ? pessoas.filter((x) => x !== id) : [...pessoas, id];
-    if (dentro && liderEscala === id) novoLider = null;
-    if (!dentro && !liderEscala) novoLider = id;
     setPessoas(novasPessoas);
-    setLiderEscala(novoLider);
-    persistir(novasPessoas, novoLider, anterior);
+    persistirPessoas(novasPessoas, anteriores);
+    // saiu da escala e era a mestra da sala — tira também
+    if (dentro && mestras[catId] === id) definirMestra(catId, null);
   }
 
-  function definirLider(id) {
-    const anterior = { pessoas, liderEscala };
-    setLiderEscala(id);
-    persistir(pessoas, id, anterior);
+  function definirMestra(catId, id) {
+    const anterior = mestras[catId] ?? null;
+    setMestras((m) => ({ ...m, [catId]: id }));
+    guardarMestraKinder(evento.id, catId, id).catch((e) => {
+      torrada(e.message || "Não foi possível guardar.");
+      setMestras((m) => ({ ...m, [catId]: anterior }));
+    });
   }
 
   async function alternarDispensa() {
@@ -85,6 +91,50 @@ export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGua
     return va - vb || a.nome.localeCompare(b.nome, "pt");
   });
 
+  const salasNaFolha = sala ? CATEGORIAS.filter((c) => c.id === sala) : CATEGORIAS;
+  const semSala = sala ? [] : voluntariosOrdenados.filter((p) => !p.categoria);
+
+  function linha(p, catId) {
+    const dentro = pessoas.includes(p.id);
+    const ehMestra = catId && mestras[catId] === p.id;
+    const stat = estatisticas[p.id];
+    const semServico = !stat?.vezes;
+    const statTexto = semServico
+      ? "Ainda não serviu neste trimestre"
+      : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
+    return (
+      <div
+        className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
+        key={p.id}
+      >
+        <span
+          onClick={() => alternar(p.id, catId)}
+          style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
+        >
+          <Avatar pessoa={p} tamanho={38} fonte={15} />
+          <span style={{ flex: 1 }}>
+            <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+            <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
+              {dentro ? (ehMestra ? "mestra" : "na escala") : "fora deste culto"}
+            </span>
+            <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
+              {statTexto}
+              {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
+            </span>
+          </span>
+        </span>
+        {dentro && catId && (
+          <button className={`estrela${ehMestra ? " on" : ""}`} onClick={() => definirMestra(catId, ehMestra ? null : p.id)} title="Mestra">
+            ★
+          </button>
+        )}
+        <span className={`chk${dentro ? " on" : ""}`} onClick={() => alternar(p.id, catId)} style={{ cursor: "pointer" }}>
+          ✓
+        </span>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -96,57 +146,29 @@ export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGua
           {pessoas.filter((id) => voluntarios.some((v) => v.id === id)).length} pessoas · chegada {evento.horaChegada || "08:00"}
         </p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
-          {sala
-            ? `Só a sala ${nomeCategoria(sala)} aparece aqui. `
-            : ""}
-          Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.
+          {sala ? `Só a sala ${nomeCategoria(sala)} aparece aqui. ` : ""}
+          Toca no nome para juntar ou tirar da escala. A estrela escolhe a Mestra de cada sala.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>
           <button data-on={ordem === "vezes" ? 1 : 0} onClick={() => setOrdem("vezes")}>Menos vezes primeiro</button>
           <button data-on={ordem === "nome" ? 1 : 0} onClick={() => setOrdem("nome")}>Nome</button>
         </div>
-        <div style={{ marginTop: 12 }}>
-          {voluntariosOrdenados.map((p) => {
-            const dentro = pessoas.includes(p.id);
-            const lid = liderEscala === p.id;
-            const stat = estatisticas[p.id];
-            const semServico = !stat?.vezes;
-            const statTexto = semServico
-              ? "Ainda não serviu neste trimestre"
-              : `${stat.vezes} ${stat.vezes === 1 ? "vez" : "vezes"} · última a ${dataCurta(stat.ultima)}`;
-            return (
-              <div
-                className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}
-                key={p.id}
-              >
-                <span
-                  onClick={() => alternar(p.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
-                >
-                  <Avatar pessoa={p} tamanho={38} fonte={15} />
-                  <span style={{ flex: 1 }}>
-                    <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
-                    <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-                      {dentro ? (lid ? "líder de escala" : "na escala") : "fora deste culto"}
-                    </span>
-                    <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
-                      {statTexto}
-                      {stat?.liderVezes ? <span style={{ opacity: 0.75 }}> · {stat.liderVezes}x líder</span> : null}
-                    </span>
-                  </span>
-                </span>
-                {dentro && (
-                  <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">
-                    ★
-                  </button>
-                )}
-                <span className={`chk${dentro ? " on" : ""}`} onClick={() => alternar(p.id)} style={{ cursor: "pointer" }}>
-                  ✓
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        {salasNaFolha.map((c) => {
+          const daSala = voluntariosOrdenados.filter((p) => p.categoria === c.id);
+          if (!daSala.length) return null;
+          return (
+            <div key={c.id} style={{ marginTop: 16 }}>
+              <p className="rot"><span className="kin-tagcat" style={varsCategoria(c.id)}>{c.nome}</span></p>
+              {daSala.map((p) => linha(p, c.id))}
+            </div>
+          );
+        })}
+        {semSala.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <p className="rot">Sem sala</p>
+            {semSala.map((p) => linha(p, null))}
+          </div>
+        )}
         <button className="btn full" style={{ marginTop: 20 }} onClick={() => onGuardado("Escala atualizada")}>
           Concluir
         </button>

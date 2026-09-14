@@ -93,10 +93,10 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
       {aba === "feedbacks" && (
         <>
           <p className="nota" style={{ marginTop: 16 }}>
-            Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
+            Depois do culto, a líder escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
           </p>
           {eventosMes.map((ev) => {
-            const pode = podeDistribuir(papel, uid, ev.escala);
+            const pode = podeDistribuir(papel);
             const autor = ev.escala.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.escala.feedback.autorUid) : null;
             return (
               <div className="sect" key={ev.id}>
@@ -105,7 +105,6 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
                     {dataPorExtenso(ev.data)}
                     {ev.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
                   </h3>
-                  {ev.escala.liderEscala && <span className="cap">{voluntarios.find((p) => p.id === ev.escala.liderEscala)?.nome}</span>}
                 </div>
                 {ev.escala.feedback?.texto ? (
                   <div className="caixa">

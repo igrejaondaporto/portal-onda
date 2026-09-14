@@ -153,7 +153,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
                 <p className="nmt">{nomeEvento(ev)}</p>
                 <p className="ds">Chegada {ev.horaChegada || "08:30"}</p>
               </div>
-              {ev.escala.liderEscala === uid && <span className="tag lim">Líder de escala</span>}
+              {pessoa?.categoria && ev.escala.mestras?.[pessoa.categoria] === uid && <span className="tag lim">Mestra</span>}
             </div>
           )) : <div className="vaz">Não estás escalado nos próximos tempos.</div>}
         </div>

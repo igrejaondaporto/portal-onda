@@ -4,7 +4,6 @@ import {
   adicionarItemListaCompras, alterarQuantidadeItemListaCompras, removerItemListaCompras,
   fecharListaCompras,
 } from "../lib/inventario";
-import { obterMeuEvento } from "../lib/culto";
 import { singularizar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
@@ -29,7 +28,6 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   const [itens, setItens] = useState([]);
   const [expandida, setExpandida] = useState(null);
   const [sheet, setSheet] = useState(null);
-  const [souLiderEscalaHoje, setSouLiderEscalaHoje] = useState(false);
   const [listaAberta, setListaAberta] = useState(null);
   const [aProcessarLista, setAProcessarLista] = useState(false);
   const [aEditarQtd, setAEditarQtd] = useState(null);
@@ -45,15 +43,8 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
 
   useEffect(() => ouvirInventario(setItens), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
-  useEffect(() => {
-    if (souLiderBase) return;
-    obterMeuEvento(uid).then((ev) => {
-      const hoje = new Date().toISOString().slice(0, 10);
-      setSouLiderEscalaHoje(ev?.data === hoje && ev.escala.liderEscala === uid);
-    });
-  }, [uid, souLiderBase]);
 
-  const podeGerir = souLiderBase || souLiderEscalaHoje;
+  const podeGerir = souLiderBase;
 
   const itensDaSala = sala ? itens.filter((i) => !i.sala || i.sala === sala || i.sala === "partilhado") : itens;
   const falta = itensDaSala.filter((i) => i.quantidade <= i.minimo);

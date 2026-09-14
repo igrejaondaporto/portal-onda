@@ -66,35 +66,29 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
 
   const salasVisiveis = sala ? CATEGORIAS.filter((c) => c.id === sala) : CATEGORIAS;
 
-  // quadro do mês: uma linha "Líder de escala" + um bloco por sala
-  // (divisor colorido + uma linha por lugar) — igual ao espírito da
-  // tabela por ministério da Técnica, mas dividindo por Baby/Fun/
-  // Júnior em vez de por ministério. Cada bloco fica na cor cheia da
-  // sala, com o nome sempre em branco — a cor já diz a sala, não
-  // precisa também de tingir a letra.
-  const pessoasDaSalaSemLider = (ev, catId) =>
-    ev.escala.pessoas.filter((id) => id !== ev.escala.liderEscala && pessoaPorId(id)?.categoria === catId);
+  // quadro do mês: um bloco por sala, sem "Líder de escala" (a Kinder
+  // não tem isso — cada sala tem a sua Mestra, ver a etiqueta ao lado
+  // do nome). Igual ao espírito da tabela por ministério da Técnica:
+  // linha simples, sem pintar o fundo — só um quadradinho da cor da
+  // sala junto ao nome dela, uma vez por bloco.
+  const pessoasDaSala = (ev, catId) => ev.escala.pessoas.filter((id) => pessoaPorId(id)?.categoria === catId);
   const blocos = salasQuadro.map((c) => {
-    const maxLin = Math.max(0, ...eventosMes.map((ev) => pessoasDaSalaSemLider(ev, c.id).length));
-    const linhas = [
-      // divisor — uma barra da cor da sala, a separar claramente o
-      // bloco do Baby, do Fun e do Júnior no meio da tabela
-      <tr key={`${c.id}-div`}>
-        <td colSpan={1 + eventosMes.length} style={{ background: c.cor, color: "#fff", fontWeight: 800, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "8px 12px" }}>
-          {c.nome}
-        </td>
-      </tr>,
-    ];
+    const maxLin = Math.max(0, ...eventosMes.map((ev) => pessoasDaSala(ev, c.id).length));
+    const linhas = [];
     for (let i = 0; i < maxLin; i++) {
       linhas.push(
         <tr key={`${c.id}-${i}`}>
-          <td className="papel" style={{ background: c.cor, color: "#fff" }} />
+          <td className="papel">
+            {i === 0 && <><span className="quadmin" style={{ background: c.cor }} />{c.nome}</>}
+          </td>
           {eventosMes.map((ev) => {
-            const id = pessoasDaSalaSemLider(ev, c.id)[i];
+            const id = pessoasDaSala(ev, c.id)[i];
             const p = id ? pessoaPorId(id) : null;
+            const ehMestra = ev.escala.mestras?.[c.id] === id;
             return (
-              <td key={ev.id} style={{ background: c.cor, color: "#fff", fontWeight: id === uid ? 800 : 500, textDecoration: id === uid ? "underline" : "none" }}>
+              <td key={ev.id} className={id === uid ? "mim" : ""}>
                 {p ? p.nome : "—"}
+                {ehMestra && <span className="tag lim" style={{ marginLeft: 6, fontSize: 9, padding: "2px 6px" }}>Mestra</span>}
               </td>
             );
           })}
@@ -130,23 +124,11 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="lid">
-                    <td className="papel">Líder de escala</td>
-                    {eventosMes.map((ev) => {
-                      const id = ev.escala.liderEscala;
-                      const p = id ? pessoaPorId(id) : null;
-                      return (
-                        <td key={ev.id} className={id === uid ? "mim" : ""}>
-                          {p ? p.nome : "por definir"}
-                        </td>
-                      );
-                    })}
-                  </tr>
                   {blocos.map((b) => b.linhas)}
                 </tbody>
               </table>
             </div>
-            <p className="ds" style={{ marginTop: 12 }}>Cada bloco é a cor da sala; o teu nome aparece sublinhado. Desliza a tabela se não couber.</p>
+            <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul; a Mestra de cada sala tem a etiqueta. Desliza a tabela se não couber.</p>
           </>
         ) : (
           <div className="semescala" style={{ marginTop: 16 }}>
@@ -166,7 +148,7 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
               key={p.id} pessoa={p}
               resumo={p.id === uid ? "tu" : p.categoria ? `Sala ${nomeCategoria(p.categoria)}` : "Geral"}
               funcoesDaPessoa={[]}
-              tagExtra={ev.escala.liderEscala === p.id ? <span className="tag lim">Líder de escala</span> : null}
+              tagExtra={p.categoria && ev.escala.mestras?.[p.categoria] === p.id ? <span className="tag lim">Mestra</span> : null}
               aberta={contactoAberto?.eventoId === ev.id && contactoAberto?.pessoaId === p.id}
               onToggle={() => setContactoAberto((a) => (a?.eventoId === ev.id && a?.pessoaId === p.id ? null : { eventoId: ev.id, pessoaId: p.id }))}
             />

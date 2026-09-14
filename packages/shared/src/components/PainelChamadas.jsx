@@ -31,8 +31,15 @@ const formatarRestante = (ms) => {
  * foi chamado no Baby também). `definirCabecalho` é opcional — só as
  * apps com a casca de cabeçalho do Portal (crista + definirCabecalho)
  * o passam; o kinder standalone não tem essa casca.
- */
-export default function PainelChamadas({ canaisPermitidos, canaisHistorico, definirCabecalho }) {
+ *
+ * `ativo` (por omissão `true`, para o kiosk standalone — que não tem
+ * outra tela, está sempre "ativo"): só liga ao FreeShow enquanto for
+ * `true`. Quem tem um Portal com várias telas e as mantém todas
+ * montadas ao mesmo tempo (display:none nas outras — ver Sessao.jsx
+ * do Kinder) passa `ativo={pagina === "chamadas"}`, senão o socket
+ * tentava ligar-se (e falhar, e avisar) o tempo todo em qualquer
+ * ecrã, mesmo com a pessoa a mexer noutra coisa. */
+export default function PainelChamadas({ canaisPermitidos, canaisHistorico, definirCabecalho, ativo = true }) {
   const torrada = useTorrada();
   const canais = canaisPermitidos?.length
     ? CANAIS_CHAMADAS.filter((c) => canaisPermitidos.includes(c.id))
@@ -54,6 +61,10 @@ export default function PainelChamadas({ canaisPermitidos, canaisHistorico, defi
   const sondaRef = useRef(null);
   const valoresRef = useRef({});
   const noArRef = useRef(null);
+  // quantas vezes avisou "sem ligação" seguidas — sem isto, o
+  // socket.io tenta reconectar a cada segundo e cada falha é um
+  // aviso novo, spam infinito enquanto a projeção estiver desligada
+  const errosSeguidosRef = useRef(0);
 
   useEffect(() => {
     definirCabecalho?.({ titulo: "Chamadas", subtitulo: "Escreve o nome e aparece na projeção", chips: [] });
@@ -125,6 +136,7 @@ export default function PainelChamadas({ canaisPermitidos, canaisHistorico, defi
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      errosSeguidosRef.current = 0;
       setLigado(true);
       setMostrarLigacao(false);
       torrada("Ligado à projeção.");
@@ -141,18 +153,23 @@ export default function PainelChamadas({ canaisPermitidos, canaisHistorico, defi
     socket.on("connect_error", () => {
       setLigado(false);
       clearInterval(sondaRef.current);
-      torrada("Sem ligação à projeção.", true);
+      errosSeguidosRef.current += 1;
+      // só as duas primeiras seguidas — a partir daí já percebeu-se,
+      // o resto era só ruído (o socket.io insiste sozinho de 1 em 1s)
+      if (errosSeguidosRef.current <= 2) torrada("Sem ligação à projeção.", true);
     });
   }
 
   useEffect(() => {
+    if (!ativo) return;
+    errosSeguidosRef.current = 0;
     conectar(PADRAO_FREESHOW);
     return () => {
       if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
       clearInterval(sondaRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ativo]);
 
   function enviar(action, data = {}) {
     const s = socketRef.current;

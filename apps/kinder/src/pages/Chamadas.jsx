@@ -25,5 +25,5 @@ export default function Chamadas({ papel, pessoa, ativo, definirCabecalho }) {
     definirCabecalho({ titulo: <em>Chamadas</em>, subtitulo: "Escreve o nome e aparece na projeção", chips: [] });
   }, [ativo, definirCabecalho]);
 
-  return <PainelChamadas canaisPermitidos={canais} canaisHistorico={canais} />;
+  return <PainelChamadas canaisPermitidos={canais} canaisHistorico={canais} ativo={ativo} />;
 }
