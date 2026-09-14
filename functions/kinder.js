@@ -365,9 +365,6 @@ export const checkinKinder = onCall(async (req) => {
   const ids = [...new Set((req.data?.criancaIds || []).filter((x) => typeof x === "string"))].slice(0, 12);
   if (!ids.length) throw new HttpsError("invalid-argument", "Escolhe pelo menos uma criança.");
   const eventoId = hojeEmLisboa();
-  if (!(await db().doc(`eventos/${eventoId}`).get()).exists) {
-    throw new HttpsError("failed-precondition", "Hoje não há culto marcado — o check-in só abre em dia de culto.");
-  }
   const snaps = await Promise.all(ids.map((id) => refCrianca(id).get()));
   const criancas = snaps.map((s) => {
     if (!s.exists || s.data().ativo === false) throw new HttpsError("not-found", "Criança não encontrada.");

@@ -10,13 +10,25 @@ import { Cuidados } from "../../pages/Checkin";
 
 const primeiroNome = (n) => String(n || "").split(" ")[0];
 
+/** Ícone do WhatsApp — cru, sem depender de nenhuma lib (mesmo padrão
+ *  do resto do Kinder, ver IconeSite em ImprimirRegisto.jsx). Só o
+ *  ícone no botão, sem texto — a própria forma já diz o que é. */
+function IconeWhatsApp() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.5 14.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.2-.6.9-.8 1-.1.2-.3.2-.5.1-1.4-.6-2.4-1.4-3.3-2.9-.1-.2-.1-.4.1-.5.2-.2.5-.5.6-.7.1-.2.1-.4 0-.5-.1-.2-.7-1.7-.9-2.1-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.5.2-.6.3-.5.5-.7 1.1-.7 1.8.1 1.6 1 3.1 2.4 4.5 1.7 1.7 3.1 2.3 4.9 2.6.6.1 1.1 0 1.5-.2.4-.2 1.2-.9 1.4-1.4.2-.5.2-.9.1-1-.1-.1-.2-.2-.4-.2z" />
+      <path d="M12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.2L2 22l4.9-1.5c1.5.9 3.2 1.3 5.1 1.3 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.7 0-3.4-.5-4.8-1.4l-.3-.2-3.1.9.9-3-.2-.3C3.6 14 3.1 12.4 3.1 12.1c0-4.9 4-8.9 8.9-8.9s8.9 4 8.9 8.9-4 8.9-8.9 9.1z" />
+    </svg>
+  );
+}
+
 /**
  * Uma família, à entrada: marcar as crianças que ficam → check-in →
  * o código aparece aqui e pode seguir por WhatsApp para os pais.
  * Também: corrigir a ficha, enviar (outra vez) o link da família e,
  * só líderes, remover a família.
  */
-export default function SheetFamilia({ familia, criancas, checkinPorCrianca, codigo, haCultoHoje, lider, restrita, tokenAcabado, onFechar, onSaida }) {
+export default function SheetFamilia({ familia, criancas, checkinPorCrianca, codigo, lider, restrita, tokenAcabado, onFechar, onSaida }) {
   const torrada = useTorrada();
   const foraDaSala = criancas.filter((c) => !checkinPorCrianca[c.id] || checkinPorCrianca[c.id].saidaEm);
   const [escolhidas, setEscolhidas] = useState(() => new Set(foraDaSala.map((c) => c.id)));
@@ -152,8 +164,8 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
             </div>
 
             {foraDaSala.length > 0 && (
-              <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar || haCultoHoje === false} onClick={checkin}>
-                {haCultoHoje === false ? "Hoje não há culto" : aEnviar ? "A registar…" : `Fazer check-in (${escolhidas.size})`}
+              <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={checkin}>
+                {aEnviar ? "A registar…" : `Fazer check-in (${escolhidas.size})`}
               </button>
             )}
             {naSala.length > 0 && (
@@ -169,7 +181,18 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
                   <p className="nmt">{r.nome}</p>
                   <p className="ds">{[r.parentesco, r.telefone].filter(Boolean).join(" · ")}</p>
                 </div>
-                {r.telefone && <a className="btn sec" style={{ padding: "7px 12px", fontSize: 12.5 }} href={`tel:${r.telefone.replace(/\s/g, "")}`}>Ligar</a>}
+                {r.telefone && (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <a className="btn sec" style={{ padding: "7px 12px", fontSize: 12.5 }} href={`tel:${r.telefone.replace(/\s/g, "")}`}>Ligar</a>
+                    <a
+                      className="btn sec" aria-label={`WhatsApp para ${r.nome}`} title="WhatsApp"
+                      style={{ padding: "7px 10px", display: "flex", alignItems: "center" }}
+                      href={linkWhatsApp(r.telefone)} target="_blank" rel="noreferrer"
+                    >
+                      <IconeWhatsApp />
+                    </a>
+                  </div>
+                )}
               </div>
             ))}
             {familia.autorizados?.length > 0 && (
