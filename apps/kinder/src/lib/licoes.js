@@ -1,18 +1,15 @@
 /**
- * Lições do Kinder. Chegam como vídeo novo numa área de membros da
- * Kiwify — a Kiwify não avisa ninguém de fora (os webhooks dela são só
- * de pagamentos, e a conta do Kinder é de aluna, não de produtora),
- * por isso não há automação: a líder cola o link e escolhe a(s)
- * sala(s). Uma lição pode servir mais do que uma sala (muitas vezes
- * Fun e Júnior usam a mesma).
- *
- * O link só abre para quem tem login na Kiwify — por isso a lição traz
- * o essencial cá dentro: resumo para os voluntários, materiais a
- * preparar e um resumo para os pais (aparece no link da família).
+ * Lições do Kinder. Chegam da Kiwify (área de membros) como um
+ * documento — geralmente um PDF, às vezes a foto de uma página
+ * impressa ou um .docx — que a líder descarrega e sobe aqui, sem
+ * link nenhum: a Kiwify não tem webhook de conteúdo (só de
+ * pagamento) e a conta do Kinder é de aluna, não de produtora, por
+ * isso não há como isto chegar sozinho. Uma lição pode servir mais
+ * do que uma sala (muitas vezes Fun e Júnior usam a mesma).
  *
  *   bases/kinder/licoes/{id}
- *     titulo, categorias[], kiwifyUrl|null, resumo, materiais[],
- *     resumoPais, eventoId|null, arquivoUrl|null, arquivoNome|null,
+ *     titulo, categorias[], resumo, materiais[], resumoPais,
+ *     eventoId|null, arquivoUrl|null, arquivoNome|null,
  *     enviadoPor, criadoEm, ativo
  *
  * Só as líderes escrevem (firestore.rules → licoes, souLiderBase).
@@ -33,12 +30,24 @@ export function ouvirLicoes(cb) {
 
 export const novoIdLicao = () => doc(cLicoes()).id;
 
-/** Cria ou atualiza. `ficheiro` (opcional) é sempre .docx — a regra do
- *  Storage recusa outro tipo. */
-export async function guardarLicao(id, uid, { titulo, categorias, kiwifyUrl, resumo, materiais, resumoPais, eventoId, ficheiro }, nova) {
+/** Nome do ficheiro no Storage com a extensão real do que foi
+ *  enviado (a regra do Storage é que decide o que é aceite: pdf,
+ *  imagem ou .docx) — nunca fixo, ao contrário do molde da New. */
+function extensaoDe(ficheiro) {
+  const m = /\.[a-z0-9]+$/i.exec(ficheiro.name);
+  return m ? m[0] : "";
+}
+
+/** Cria ou atualiza. `ficheiro` é o documento da lição em si —
+ *  geralmente um PDF. Substituir apaga o ficheiro antigo do Storage
+ *  sozinho? Não: o nome inclui a extensão, por isso um PDF a
+ *  substituir uma foto antiga deixa a foto antiga órfã no Storage —
+ *  raro (trocar de tipo de ficheiro na mesma lição), aceitável por
+ *  agora; reconsiderar se vier a ser frequente. */
+export async function guardarLicao(id, uid, { titulo, categorias, resumo, materiais, resumoPais, eventoId, ficheiro }, nova) {
   const extra = {};
   if (ficheiro) {
-    const destino = refStorage(storage, `bases/${BASE_ID}/licoes/${id}.docx`);
+    const destino = refStorage(storage, `bases/${BASE_ID}/licoes/${id}${extensaoDe(ficheiro)}`);
     await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
     extra.arquivoUrl = await getDownloadURL(destino);
     extra.arquivoNome = ficheiro.name;
@@ -46,7 +55,6 @@ export async function guardarLicao(id, uid, { titulo, categorias, kiwifyUrl, res
   await setDoc(doc(cLicoes(), id), {
     titulo: titulo.trim(),
     categorias,
-    kiwifyUrl: kiwifyUrl?.trim() || null,
     resumo: resumo?.trim() || "",
     materiais: (materiais || []).map((m) => m.trim()).filter(Boolean),
     resumoPais: resumoPais?.trim() || "",

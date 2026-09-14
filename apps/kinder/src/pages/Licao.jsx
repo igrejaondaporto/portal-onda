@@ -8,8 +8,9 @@ import SheetLicao from "../components/licao/SheetLicao";
 import Capacitacoes from "../components/licao/Capacitacoes";
 
 /**
- * Lições (por sala, com a cor de cada uma) e Capacitações. As lições
- * vêm da Kiwify pela mão da líder — ver o porquê em lib/licoes.js.
+ * Lições (por sala, com a cor de cada uma) e Capacitações. O
+ * documento (geralmente um PDF) vem da Kiwify pela mão da líder —
+ * ver o porquê em lib/licoes.js.
  */
 export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, licoes, abaInicial, onLicaoVista }) {
   const torrada = useTorrada();
@@ -75,7 +76,7 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
             {visiveis.length === 0 && (
               <div className="vaz" style={{ marginTop: 12 }}>
                 {sala ? `Ainda não há lições da sala ${nomeCategoria(sala)}.` : "Ainda não há lições."}
-                {lider && <><br />Quando sair um vídeo novo na Kiwify, cola aqui o link.</>}
+                {lider && <><br />Descarrega o documento novo da Kiwify e sobe-o aqui.</>}
               </div>
             )}
             {visiveis.map((l) => (
@@ -94,7 +95,7 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
               </div>
             ))}
           </div>
-          <p className="nota">Os vídeos estão na área de membros da Kiwify. O que é preciso para preparar a aula fica aqui.</p>
+          <p className="nota">O documento é o que a líder descarregou da Kiwify. O resto (materiais, resumo) é para preparar a aula.</p>
         </>
       )}
 
@@ -108,13 +109,10 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
               {(licaoAberta.categorias || []).map((c) => <span key={c} className="kin-tagcat" style={varsCategoria(c)}>{nomeCategoria(c)}</span>)}
             </div>
-            {licaoAberta.kiwifyUrl && (
-              <>
-                <a className="btn full" style={{ marginTop: 16, display: "block", textAlign: "center" }} href={licaoAberta.kiwifyUrl} target="_blank" rel="noreferrer">
-                  Ver o vídeo na Kiwify
-                </a>
-                <p className="ds" style={{ textAlign: "center", marginTop: 6 }}>Abre com a conta do Kinder na Kiwify.</p>
-              </>
+            {licaoAberta.arquivoUrl && (
+              <a className="btn full" style={{ marginTop: 16, display: "block", textAlign: "center" }} href={licaoAberta.arquivoUrl} target="_blank" rel="noreferrer">
+                Abrir documento ({licaoAberta.arquivoNome})
+              </a>
             )}
             {licaoAberta.resumo && (
               <>
@@ -127,11 +125,6 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
                 <p className="rot">Materiais a preparar</p>
                 {licaoAberta.materiais.map((m, i) => <div className="linha" key={i}><p className="nmt" style={{ fontSize: 14.5 }}>• {m}</p></div>)}
               </>
-            )}
-            {licaoAberta.arquivoUrl && (
-              <a className="btn sec full" style={{ marginTop: 12, display: "block", textAlign: "center" }} href={licaoAberta.arquivoUrl} target="_blank" rel="noreferrer">
-                Abrir documento ({licaoAberta.arquivoNome})
-              </a>
             )}
             {licaoAberta.resumoPais && (
               <>

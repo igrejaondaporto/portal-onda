@@ -71,7 +71,7 @@ bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← feitaEm, validaAte (registo cr
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…
-bases/kinder/licoes/{id}              ← categorias[], kiwifyUrl, resumo, resumoPais
+bases/kinder/licoes/{id}              ← categorias[], arquivoUrl (PDF/foto/.docx), resumo, resumoPais
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
 bases/kinder/ocorrencias/{o}          ← autor lê as suas, líder lê todas
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
@@ -113,17 +113,20 @@ de ser validado pela igreja antes de ir para os pais a sério (editar
 em Painel → Salas e consentimento). Retenção (crianças sem check-in
 há X tempo) ainda não está automatizada — decisão pendente.
 
-## Lição — sem automação da Kiwify, de propósito
+## Lição — documento subido à mão, sem automação da Kiwify
 
-As lições chegam como vídeo novo numa área de membros da Kiwify. A
-API da Kiwify só tem webhooks de pagamento (nenhum de conteúdo), e a
-conta do Kinder é de aluna, não de produtora — não há como saber
-"saiu vídeo novo" por fora. Por isso é sempre a líder a colar o link
-(`SheetLicao.jsx`, `lib/licoes.js`) e escolher a(s) sala(s) — muitas
-vezes Fun e Júnior partilham a mesma lição. Como o link só abre para
-quem tem login na Kiwify, a lição traz o essencial cá dentro: resumo
-para os voluntários, materiais a preparar, e um resumo curto para os
-pais que aparece no link da família (`resumoPais`).
+As lições chegam da área de membros da Kiwify como um documento —
+geralmente um PDF, às vezes a foto de uma página impressa ou um
+.docx. A API da Kiwify só tem webhooks de pagamento (nenhum de
+conteúdo), e a conta do Kinder é de aluna, não de produtora — não há
+como saber "saiu documento novo" por fora, nem ligar direto à
+Kiwify. Por isso é sempre a líder a descarregar o documento e a
+subi-lo aqui (`SheetLicao.jsx`, `lib/licoes.js`, para `bases/kinder/
+licoes/{id}.<extensão real>` no Storage — nunca um link) e escolher
+a(s) sala(s) — muitas vezes Fun e Júnior partilham a mesma lição.
+Além do documento, a lição traz resumo para os voluntários,
+materiais a preparar, e um resumo curto para os pais que aparece no
+link da família (`resumoPais`).
 
 ## O que este base tem, que nenhuma outra tem
 

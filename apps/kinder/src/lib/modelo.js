@@ -7,7 +7,7 @@
  *   bases/kinder/capacitacoes/{cap}                ← catálogo (a líder mantém)
  *   bases/kinder/familias/{f}                      ← só por Cloud Function (functions/kinder.js)
  *   bases/kinder/criancas/{c}                      ← idem
- *   bases/kinder/licoes/{id}                       ← categorias[], link Kiwify, resumo, materiais…
+ *   bases/kinder/licoes/{id}                       ← categorias[], documento (PDF/foto/.docx), resumo, materiais…
  *   bases/kinder/checklistSala/{item}              ← texto, categoria, fase abrir|fechar
  *   bases/kinder/ocorrencias/{o}                   ← queda, febre… (autor + líderes leem)
  *   bases/kinder/definicoes/{categorias|consentimento}
