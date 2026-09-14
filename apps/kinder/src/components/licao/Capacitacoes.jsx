@@ -91,14 +91,26 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
           </div>
           <button className="btn sec full" onClick={verEquipa}>{daEquipa ? "Esconder" : "Ver quem falta"}</button>
           {daEquipa && caps.map((c) => {
+            const emDia = equipaVisivel.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) === "ok");
             const emFalta = equipaVisivel.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) !== "ok");
             return (
-              <div className="linha" key={c.id}>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt" style={{ fontSize: 14.5 }}>{c.titulo}</p>
-                  <p className="ds">{emFalta.length ? `Faltam: ${emFalta.map((p) => p.nome).join(", ")}` : "Toda a equipa em dia"}</p>
+              <div className="linha" key={c.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <p className="nmt" style={{ flex: 1, fontSize: 14.5 }}>{c.titulo}</p>
+                  <span className="tag cinz">{emDia.length}/{equipaVisivel.length}</span>
                 </div>
-                <span className="tag cinz">{equipaVisivel.length - emFalta.length}/{equipaVisivel.length}</span>
+                {emDia.length > 0 && (
+                  <p className="ds" style={{ marginTop: 3 }}>
+                    Comprovativo:{" "}
+                    {emDia.map((p, i) => (
+                      <span key={p.id}>
+                        {i > 0 && ", "}
+                        <a href={daEquipa[p.id]?.[c.id]?.comprovanteUrl} target="_blank" rel="noreferrer">{p.nome}</a>
+                      </span>
+                    ))}
+                  </p>
+                )}
+                {emFalta.length > 0 && <p className="ds" style={{ marginTop: 3 }}>Faltam: {emFalta.map((p) => p.nome).join(", ")}</p>}
               </div>
             );
           })}

@@ -147,7 +147,10 @@ uma foto do certificado do curso…) — `enviarComprovanteCapacitacao`
 `comprovanteUrl`, não pelo `feitaEm` — sem comprovativo, está em
 falta, mesmo que alguém tenha marcado a data à mão antes. "Remover"
 limpa o campo (fica o documento em `capacitacoes/{p}/{cap}`, com
-quem mexeu — nunca um delete a sério).
+quem mexeu — nunca um delete a sério). Em "A equipa" (só líder), "Ver
+quem falta" mostra também o nome de quem já entregou como link direto
+para o ficheiro — sem isso, exigir comprovativo não serviria de nada
+se a líder não pudesse mesmo abri-lo.
 
 ## Check-in — paridade com o My Kids (app usada antes)
 
