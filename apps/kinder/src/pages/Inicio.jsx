@@ -4,7 +4,7 @@ import { cEscala, souLider, souLiderGeral, minhaSalaRestrita, categoria, nomeCat
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
-import { ouvirInventario } from "../lib/inventario";
+import { ouvirInventario, ouvirListaCompraFechada } from "../lib/inventario";
 import { licoesDaSala, licoesVistas } from "../lib/licoes";
 import {
   hojeLocal, ouvirFamilias, ouvirCriancas, ouvirCheckins,
@@ -54,6 +54,7 @@ export default function Inicio({
   const [capacitacoes, setCapacitacoes] = useState([]);
   const [minhasCaps, setMinhasCaps] = useState({});
   const [inventario, setInventario] = useState([]);
+  const [listaComprasFechada, setListaComprasFechada] = useState(null);
   const [pendentesReembolso, setPendentesReembolso] = useState([]);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
@@ -69,6 +70,11 @@ export default function Inicio({
   useEffect(() => ouvirCapacitacoes(setCapacitacoes), []);
   useEffect(() => ouvirCapacitacoesDe(uid, setMinhasCaps), [uid]);
   useEffect(() => ouvirInventario(setInventario), []);
+  useEffect(() => {
+    // a lista de compras não tem sala — é sempre a líder geral quem compra
+    if (!liderGeral) return;
+    return ouvirListaCompraFechada(setListaComprasFechada);
+  }, [liderGeral]);
   useEffect(() => {
     // reembolsos não têm sala — aprovar é sempre da líder geral
     if (!liderGeral) return;
@@ -157,6 +163,13 @@ export default function Inicio({
           detalhe={capsEmFalta.map((c) => c.titulo).slice(0, 2).join(" · ")} onClick={() => onIrLicao?.("capacitacoes")}
         />
       )}
+      {liderGeral && listaComprasFechada && (
+        <Destaque
+          rotulo="A precisar de ti" titulo="Lista de compras para rever"
+          detalhe={`${(listaComprasFechada.itens || []).length} ${(listaComprasFechada.itens || []).length === 1 ? "item" : "itens"}`}
+          onClick={() => onIrCulto?.("inventario")}
+        />
+      )}
       {liderGeral && pendentesReembolso.length > 0 && (
         <Destaque
           rotulo="A precisar de ti" titulo={`${pendentesReembolso.length} ${pendentesReembolso.length === 1 ? "pedido" : "pedidos"} de reembolso`}
@@ -229,7 +242,7 @@ export default function Inicio({
             <div className="cabecalho"><h3>A tua sala</h3></div>
             {[
               ["checklist", "Checklist da sala", "Abrir e fechar a sala", () => onIrCulto?.("checklist"), null],
-              ["inventario", "Inventário", "Materiais das salas", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
+              ["inventario", "Compras", "Materiais e lista de compras", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
               ["contagem", "Contagem e ocorrências", "Quantas crianças, o que aconteceu", () => onIrCulto?.("contagem"), null],
               ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
               ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),

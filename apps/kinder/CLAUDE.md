@@ -85,10 +85,20 @@ listener do Firestore (`ouvirOcorrencias`, por exemplo), o filtro
 entra na própria query — nunca só na UI — para uma sala restrita
 nunca ter os dados de outra na cache local. Já aplicado em: Início,
 Check-in (famílias/crianças só da sala, `FormFamilia` com
-`salaFixa`), Culto → Chamadas/Checklist/Inventário/Contagem e
+`salaFixa`), Culto → Chamadas/Checklist/Compras/Contagem e
 Ocorrências, e Lição (lições visíveis e "para que salas" ao publicar
 uma nova). `PainelLider.jsx` filtra a lista de voluntários da mesma
 forma — uma líder de sala só vê e edita a sua própria equipa.
+
+A aba "Compras" (`Inventario.jsx` — o nome do ficheiro ficou, só o
+rótulo mudou) é a única exceção a "sem sala não vê nada": a lista de
+compras (`bases/kinder/listasCompras/{id}`) não tem `categoria`
+nenhuma — é sempre a líder geral (Maria) quem compra, para as três
+salas. Por isso `ouvirListaCompraFechada` (`lib/inventario.js`) só é
+escutado por ela, e um aviso "Lista de compras para rever" aparece no
+Início dela sempre que alguém (qualquer líder) fecha uma lista — some
+sozinho quando ela a marca como enviada (botão "Enviar para compras",
+que abre o WhatsApp sem número fixo, ver `linkListaComprasWhatsApp`).
 
 ## Modelo de dados
 
