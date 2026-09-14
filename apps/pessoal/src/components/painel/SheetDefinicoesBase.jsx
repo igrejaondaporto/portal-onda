@@ -2,19 +2,23 @@ import { useState } from "react";
 import { definirBase } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
-export default function SheetDefinicoesBase({ base, onFechar, onGuardado }) {
+export default function SheetDefinicoesBase({ base, contactoPastor, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [horaChegada, setHoraChegada] = useState(base?.horaChegada ?? "08:00");
   const [horaCulto, setHoraCulto] = useState(base?.horaCulto ?? "10:30");
+  const [whatsappPastor, setWhatsappPastor] = useState(contactoPastor ?? "");
   const [aEnviar, setAEnviar] = useState(false);
 
   async function guardar() {
     if (!/^\d{1,2}:\d{2}$/.test(horaChegada) || !/^\d{1,2}:\d{2}$/.test(horaCulto)) {
       return torrada("Usa o formato HH:MM, ex.: 08:00");
     }
+    if (whatsappPastor.replace(/\D/g, "").length < 9) {
+      return torrada("O WhatsApp do pastor precisa de 9 dígitos.");
+    }
     setAEnviar(true);
     try {
-      await definirBase({ horaChegada, horaCulto });
+      await definirBase({ horaChegada, horaCulto, whatsappPastor });
       onGuardado("Definições da base atualizadas");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -35,6 +39,14 @@ export default function SheetDefinicoesBase({ base, onFechar, onGuardado }) {
         <input className="campo" value={horaCulto} onChange={(e) => setHoraCulto(e.target.value)} placeholder="10:30" />
         <p className="ds" style={{ marginTop: 10 }}>
           Um culto especial pode ter horas próprias — isto só define o padrão dos domingos.
+        </p>
+        <label className="rot" style={{ marginTop: 14 }}>WhatsApp do pastor</label>
+        <input
+          className="campo" type="tel" inputMode="numeric" value={whatsappPastor}
+          onChange={(e) => setWhatsappPastor(e.target.value)} placeholder="9XXXXXXXX"
+        />
+        <p className="ds" style={{ marginTop: 6 }}>
+          Para onde vai o botão "Enviar para o pastor" de cada visitante.
         </p>
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>

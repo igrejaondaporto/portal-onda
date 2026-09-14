@@ -3,6 +3,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { FASES } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
+import { ouvirContactoPastor } from "../lib/contactos";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -24,6 +25,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
   const [base, setBase] = useState(null);
+  const [contactoPastor, setContactoPastor] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
@@ -75,6 +77,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   }
 
   useEffect(() => ouvirBase(setBase), []);
+  useEffect(() => ouvirContactoPastor(setContactoPastor), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
 
@@ -382,6 +385,7 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
       {sheet?.tipo === "definicoesBase" && (
         <SheetDefinicoesBase
           base={base}
+          contactoPastor={contactoPastor}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}
         />

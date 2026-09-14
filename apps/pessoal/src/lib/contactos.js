@@ -18,12 +18,15 @@
  */
 import { addDoc, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { dataPorExtenso, linkWhatsApp } from "@portal/shared/lib/data.js";
-import { cContactos, cContacto, cGDs } from "./modelo";
+import { cContactos, cContacto, cContactoPastor, cGDs } from "./modelo";
 
-// Número da líder para o pastor Jonathas — débito consciente: fixo no
-// código por agora, não editável pela líder. Ver "Débitos conscientes"
-// no CLAUDE.md desta base. Mudar aqui (e fazer deploy) se o número mudar.
-export const WHATSAPP_PASTOR = "911969268";
+/** O WhatsApp do pastor — editável pela líder em "Definições da base"
+ *  (`definirBase`, guardado em bases/pessoal/config/contactoPastor,
+ *  nunca no código: é dado pessoal dele, não algo para ir no
+ *  repositório). `null` enquanto ninguém o tiver definido ainda. */
+export function ouvirContactoPastor(cb) {
+  return onSnapshot(cContactoPastor(), (s) => cb(s.exists() ? s.data().whatsapp : null));
+}
 
 /**
  * Geografia dos concelhos servidos — freguesias oficiais (pós-
@@ -297,5 +300,5 @@ export function textoParaPastor(contacto, eventoId) {
   ].filter(Boolean).join("\n");
 }
 
-export const linkParaPastor = (contacto, eventoId) =>
-  linkWhatsApp(WHATSAPP_PASTOR, textoParaPastor(contacto, eventoId));
+export const linkParaPastor = (contacto, eventoId, whatsappPastor) =>
+  linkWhatsApp(whatsappPastor, textoParaPastor(contacto, eventoId));

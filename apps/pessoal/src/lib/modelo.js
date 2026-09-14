@@ -24,12 +24,15 @@
  *   bases/{base}/enquetes/{AAAA-MM}                  ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/enquetes/{AAAA-MM}/respostas/{pessoa}
  *   bases/{base}/gds/{gd}                            ← catálogo de GDs, sugerido no Formulário
+ *   bases/{base}/config/contactoPastor               ← whatsapp do pastor (não vai no doc bases/{base},
+ *                                                       que é lido por autenticado() de QUALQUER base)
  *   contactos/{contacto}                             ← GLOBAL (fora de bases/) — Formulário de contacto
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
 
 export const cBase        = () => doc(db, "bases", BASE_ID);
+export const cContactoPastor = () => doc(db, `bases/${BASE_ID}/config/contactoPastor`);
 export const cPessoas     = () => collection(db, `bases/${BASE_ID}/pessoas`);
 export const cFuncoes     = () => collection(db, `bases/${BASE_ID}/funcoes`);
 export const cInventario  = () => collection(db, `bases/${BASE_ID}/inventario`);

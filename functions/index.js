@@ -2146,11 +2146,20 @@ export const definirNotasCulto = onCall(async (req) => {
  * bases/{b} é write:false para o cliente (ver firestore.rules). */
 export const definirBase = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { horaChegada, horaCulto } = req.data || {};
+  const { horaChegada, horaCulto, whatsappPastor } = req.data || {};
   if (!/^\d{1,2}:\d{2}$/.test(String(horaChegada || "")) || !/^\d{1,2}:\d{2}$/.test(String(horaCulto || ""))) {
     throw new HttpsError("invalid-argument", "Hora inválida.");
   }
   await db.doc(`bases/${baseId}`).set({ horaChegada, horaCulto }, { merge: true });
+
+  // o contacto do pastor não é nome/cor/horário — não pode ir no doc
+  // acima, que autenticado() de QUALQUER base lê (ver firestore.rules).
+  // Fica num documento à parte, só legível por quem é da própria base.
+  if (baseId === "pessoal" && whatsappPastor !== undefined) {
+    const digitos = String(whatsappPastor || "").replace(/\D/g, "");
+    if (digitos && digitos.length < 9) throw new HttpsError("invalid-argument", "Número de WhatsApp inválido.");
+    await db.doc(`bases/${baseId}/config/contactoPastor`).set({ whatsapp: digitos || null }, { merge: true });
+  }
   return { ok: true };
 });
 
