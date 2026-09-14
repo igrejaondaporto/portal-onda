@@ -1,0 +1,33 @@
+{
+  "name": "Portal do Voluntário — igrejaonda",
+  "user": "ubuntu",
+  "install": "npm install && for a in apoio tecnica backstage comunicacao; do [ -f apps/$a/.env ] || cp apps/$a/.env.production apps/$a/.env; done",
+  "terminals": [
+    {
+      "name": "apoio (5173)",
+      "command": "npm run dev --workspace=apps/apoio",
+      "description": "Dev server da Base de Apoio — http://localhost:5173"
+    },
+    {
+      "name": "tecnica (5174)",
+      "command": "npm run dev --workspace=apps/tecnica",
+      "description": "Dev server da Base Técnica — http://localhost:5174"
+    },
+    {
+      "name": "backstage (5175)",
+      "command": "npm run dev --workspace=apps/backstage",
+      "description": "Dev server da Backstage — http://localhost:5175"
+    },
+    {
+      "name": "comunicacao (5176)",
+      "command": "npm run dev --workspace=apps/comunicacao",
+      "description": "Dev server da Comunicação — http://localhost:5176"
+    }
+  ],
+  "ports": [
+    { "name": "apoio", "port": 5173 },
+    { "name": "tecnica", "port": 5174 },
+    { "name": "backstage", "port": 5175 },
+    { "name": "comunicacao", "port": 5176 }
+  ]
+}
