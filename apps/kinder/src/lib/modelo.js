@@ -9,7 +9,6 @@
  *   bases/kinder/criancas/{c}                      ← idem
  *   bases/kinder/licoes/{id}                       ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo…
  *   bases/kinder/checklistSala/{item}              ← texto, categoria, fase abrir|fechar
- *   bases/kinder/ocorrencias/{o}                   ← queda, febre… (autor + líderes leem)
  *   bases/kinder/definicoes/{categorias|consentimento}
  *   bases/kinder/inventario/{item}                 ← + sala (baby|fun|junior|partilhado)
  *   eventos/{e}/escalas/kinder                     ← pessoas[] + liderEscala (lista simples)
@@ -37,7 +36,6 @@ export const cCapacitacoesPessoa = (uid) => collection(db, `bases/${BASE_ID}/pes
 export const cChecklistSala = () => collection(db, `bases/${BASE_ID}/checklistSala`);
 export const cFamilias    = () => collection(db, `bases/${BASE_ID}/familias`);
 export const cCriancas    = () => collection(db, `bases/${BASE_ID}/criancas`);
-export const cOcorrencias = () => collection(db, `bases/${BASE_ID}/ocorrencias`);
 export const cDefinicao   = (nome) => doc(db, `bases/${BASE_ID}/definicoes/${nome}`);
 export const cCheckins    = (ev) => collection(db, `eventos/${ev}/checkinKinder`);
 export const cCodigos     = (ev) => collection(db, `eventos/${ev}/codigosKinder`);

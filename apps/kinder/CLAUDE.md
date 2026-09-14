@@ -81,14 +81,20 @@ De resto, o padrão em cada tela é sempre o mesmo: quando
 `minhaSalaRestrita` devolve uma sala, esconde o seletor de 3 chips e
 mostra uma etiqueta fixa (`<p className="kin-tagcat">`); quando
 devolve `null` (líder geral), mostra o seletor normal. Onde há
-listener do Firestore (`ouvirOcorrencias`, por exemplo), o filtro
-entra na própria query — nunca só na UI — para uma sala restrita
-nunca ter os dados de outra na cache local. Já aplicado em: Início,
-Check-in (famílias/crianças só da sala, `FormFamilia` com
-`salaFixa`), Culto → Chamadas/Checklist/Compras/Contagem e
-Ocorrências, e Lição (lições visíveis e "para que salas" ao publicar
-uma nova). `PainelLider.jsx` filtra a lista de voluntários da mesma
-forma — uma líder de sala só vê e edita a sua própria equipa.
+listener do Firestore, o filtro entra na própria query — nunca só na
+UI — para uma sala restrita nunca ter os dados de outra na cache
+local. Já aplicado em: Início, Check-in (famílias/crianças só da
+sala, `FormFamilia` com `salaFixa`, e a visão geral da contagem),
+Chamadas, Culto → Checklist/Compras, e Lição (lições visíveis e "para
+que salas" ao publicar uma nova). `PainelLider.jsx` filtra a lista de
+voluntários da mesma forma — uma líder de sala só vê e edita a sua
+própria equipa.
+
+**Escala é a exceção com quadro próprio**: o quadro grande do mês
+mostra os três blocos (Baby/Fun/Júnior) sempre coloridos na cor cheia
+da sala, um divisor por bloco (`salasQuadro` em `Escala.jsx`) — e o
+nome de quem serve fica sempre em branco, nunca tingido pela sala
+(a cor já está no fundo do bloco; só quem és tu fica sublinhado).
 
 A aba "Compras" (`Inventario.jsx` — o nome do ficheiro ficou, só o
 rótulo mudou) é a única exceção a "sem sala não vê nada": a lista de
@@ -117,9 +123,8 @@ bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← feitaEm, validaAte (registo cr
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…
-bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo, resumoPais
+bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo, resumoPais, louvor
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
-bases/kinder/ocorrencias/{o}          ← autor lê as suas, líder lê todas
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
 bases/kinder/definicoes/consentimento ← texto + versão, a líder edita
 bases/kinder/inventario/{item}        ← + sala: "baby"|"fun"|"junior"|"partilhado"
@@ -147,9 +152,13 @@ resto tem equivalente:
 - **Saída**: o código tem de bater certo. Sem código, só uma líder
   (`souLider`), e com o motivo — fica registado em
   `saidaForcada.motivo`, nunca em silêncio.
-- **Chamar os pais**: telão da sala (aba Chamadas do Culto — o mesmo
-  `PainelChamadas` partilhado) e/ou WhatsApp com `linkWhatsApp` (sem
-  API paga).
+- **Chamar os pais**: telão da sala (menu Chamadas, próprio na barra
+  de baixo — o mesmo `PainelChamadas` partilhado, ver `Chamadas.jsx`)
+  e/ou WhatsApp com `linkWhatsApp` (sem API paga).
+- **Contagem**: a "visão geral" (quantas crianças em cada sala,
+  corrigível à mão) vive direto no Check-in, sempre visível — deixou
+  de ter aba própria dentro do Culto. As "Ocorrências" (queda, febre…)
+  saíram de propósito: chamar os pais já é o menu Chamadas.
 - **Relatórios**: só líderes, em Check-in → Relatórios — presenças
   por sala/mês, famílias novas, tempo médio na sala, quem tem
   alergias/restrições/necessidades.
@@ -182,8 +191,11 @@ voluntário (`Licao.jsx`), cada documento presente ganha o seu botão
 uma lição preserva os documentos não trocados (`atividadesAtuais` em
 `guardarLicao`, `lib/licoes.js`) — a líder só sobe o que mudou.
 Além dos documentos, a lição traz resumo para os voluntários,
-materiais a preparar, e um resumo curto para os pais que aparece no
-link da família (`resumoPais`).
+materiais a preparar, um campo de Louvor (músicas/bandas que a líder
+indica para o culto, texto livre) e um resumo curto para os pais que
+aparece no link da família (`resumoPais`). Os botões do detalhe têm
+cor própria: Lição do dia em verde (`var(--verde)`), Recurso em azul
+(`var(--azul)`), Atividades no estilo secundário de sempre.
 
 ## Entrada e cartaz de impressão
 
@@ -194,11 +206,14 @@ em vez de uma lista só. É a única tela do Portal (fora do login) sem
 sessão nenhuma, por isso não usa `minhaSalaRestrita` — é só ordenação
 para achar o próprio nome mais rápido, não isolamento de dados.
 
-`ImprimirRegisto.jsx` (`/registo/imprimir`) tem cabeçalho "KINDER" e
-um seletor de sala embaixo (Baby/Fun/Júnior) para a líder escolher
-qual cartaz imprimir; para a líder geral aparecem as três opções,
-para uma líder de sala só a sua (`?sala=` na URL, montado em
-`PainelLider.jsx` a partir de `minhaSalaRestrita`).
+`ImprimirRegisto.jsx` (`/registo/imprimir`) tem cabeçalho "KINDER -
+BABY/FUN/JÚNIOR" (o nome da sala ao lado do "KINDER", não mais numa
+etiqueta em baixo) e, quando não vem `?sala=` fixo na URL, um
+seletor para a líder geral escolher qual cartaz imprimir; uma líder
+de sala cai direto na sua (`?sala=`, montado em `PainelLider.jsx` a
+partir de `minhaSalaRestrita`). O nome da sala "BABY" fica sempre num
+verde-água (`#5be7c4`) — pedido do líder; as outras salas ficam a
+branco, como o resto do cabeçalho.
 
 ## O que este base tem, que nenhuma outra tem
 

@@ -18,20 +18,25 @@ import Escala from "./Escala";
 import Checkin from "./Checkin";
 import Licao from "./Licao";
 import Culto from "./Culto";
+import Chamadas from "./Chamadas";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
 
 // ícone "user-check" da lucide, em SVG cru como os do NavBar partilhado
 const ICONE_CHECKIN = '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>';
+// ícone "megaphone" da lucide — Chamadas (chamar os pais pelo telão)
+const ICONE_CHAMADAS = '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>';
 
-// Cinco no máximo — o resto (Inventário, Chamadas, Contagem, Ordem do
-// culto…) vive em sub-abas do Culto, para a barra caber num polegar.
+// O resto (Compras, Ordem do culto, Feedbacks…) vive em sub-abas do
+// Culto, para a barra caber num polegar; Chamadas ganhou menu próprio
+// — fica sempre por último, depois de Culto.
 const ABAS = [
   ["inicio", "Início"],
   ["escala", "Escala"],
   ["checkin", "Check-in", ICONE_CHECKIN],
   ["licao", "Lição"],
   ["culto", "Culto"],
+  ["chamadas", "Chamadas", ICONE_CHAMADAS],
 ];
 
 /** Ponte pequena: MenuEu precisa de "Rever tour", mas `useReverTour`
@@ -185,6 +190,9 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               podePublicarCulto={podePublicarCulto} aoVivoGravando={aoVivoGravando}
               onIrReembolsos={() => irPara("reembolsos")}
             />
+          </div>
+          <div style={{ display: pagina === "chamadas" ? "" : "none" }}>
+            <Chamadas papel={papel} pessoa={pessoa} ativo={pagina === "chamadas"} definirCabecalho={setCab} />
           </div>
           {pagina === "reembolsos" && <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />}
           {pagina === "perfil" && (

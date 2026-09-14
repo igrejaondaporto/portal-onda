@@ -59,7 +59,9 @@ export default function ImprimirRegisto() {
             <div className="lin">
               <span className="logo"><i>igreja</i><b>onda</b></span>
             </div>
-            <p className="kin-cartaz-kinder">KINDER</p>
+            <p className="kin-cartaz-kinder">
+              KINDER <span style={{ color: sala === "baby" ? "#5be7c4" : "#fff", opacity: 1 }}>- {nomeCategoria(sala).toUpperCase()}</span>
+            </p>
             <h1 style={{ marginTop: 2 }}>
               Regista a <em>família</em>
             </h1>
@@ -75,7 +77,6 @@ export default function ImprimirRegisto() {
               <IconeSite />
               <span>{link.replace(/^https?:\/\//, "")}</span>
             </div>
-            <p className="kin-cartaz-sala" style={varsCategoria(sala)}>{nomeCategoria(sala).toUpperCase()}</p>
             <p className="kin-cartaz-nota">Kinder · Igreja Onda</p>
           </div>
         </div>

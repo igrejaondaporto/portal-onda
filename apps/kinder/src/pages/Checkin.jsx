@@ -6,6 +6,7 @@ import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategor
 import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
+  ouvirContagem, corrigirContagem,
 } from "../lib/kinder";
 import SeletorCategoria from "../components/SeletorCategoria";
 import LeitorQR from "../components/LeitorQR";
@@ -54,11 +55,14 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   const [sheet, setSheet] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [escalaHoje, setEscalaHoje] = useState(null);
+  const [correcoes, setCorrecoes] = useState({});
+  const [aCorrigir, setACorrigir] = useState(null); // { sala, valor }
 
   useEffect(() => ouvirFamilias(setFamilias), []);
   useEffect(() => ouvirCriancas(setCriancas), []);
   useEffect(() => ouvirCheckins(hoje, setCheckins), [hoje]);
   useEffect(() => ouvirCodigos(hoje, setCodigos), [hoje]);
+  useEffect(() => ouvirContagem(hoje, setCorrecoes), [hoje]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => onSnapshot(cEscala(hoje), (s) => setEscalaHoje(s.exists() ? s.data() : null)), [hoje]);
   useEffect(() => onSnapshot(doc(db, `eventos/${hoje}`), (s) => setHaCultoHoje(s.exists() && s.data().ativo !== false)), [hoje]);
@@ -87,6 +91,21 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   // registos por confirmar cruzam salas (uma família pode ter filhos
   // em mais do que uma) — só a líder geral trata disso
   const pendentes = liderGeral ? familias.filter((f) => f.estado === "pendente") : [];
+
+  // visão geral da contagem, sempre à vista aqui (a Contagem deixou
+  // de ter aba própria — as ocorrências saíram, o telão de Chamadas
+  // já cobre "chamar os pais"). Conta sozinha pelos check-ins;
+  // corrigível à mão, tal como era na aba antiga.
+  const categoriasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
+  const valorContagem = (id) => correcoes[id]?.valor ?? contagens[id];
+
+  async function guardarCorrecaoContagem() {
+    const n = aCorrigir.valor === "" ? null : Number(aCorrigir.valor);
+    if (n != null && (!Number.isInteger(n) || n < 0)) return torrada("Tem de ser um número.", true);
+    // sem await: fica na cache local e sincroniza quando houver rede
+    corrigirContagem(hoje, aCorrigir.sala, n, uid).catch((e) => torrada(e.message, true));
+    setACorrigir(null);
+  }
 
   const resultados = useMemo(() => {
     const q = normalizar(procura.trim());
@@ -156,6 +175,38 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
           className="campo" value={procura} onChange={(e) => setProcura(e.target.value)}
           placeholder="Procurar criança, pai/mãe ou telemóvel" type="search"
         />
+      </div>
+
+      <div className="sect" style={{ marginTop: 12 }}>
+        <div className="cabecalho"><h3>Visão geral</h3><span className="cap">{categoriasVisiveis.reduce((a, c) => a + valorContagem(c.id), 0)} crianças</span></div>
+        <div className="kin-grelha" style={{ gridTemplateColumns: `repeat(${categoriasVisiveis.length}, 1fr)` }}>
+          {categoriasVisiveis.map((c) => (
+            <button
+              key={c.id} type="button" className="kin-num" style={{ ...varsCategoria(c.id), border: 0, cursor: "pointer" }}
+              onClick={() => setACorrigir({ sala: c.id, valor: String(valorContagem(c.id)) })}
+            >
+              <b>{valorContagem(c.id)}</b>
+              <span>{c.nome}{correcoes[c.id] ? " · corrigido" : ""}</span>
+            </button>
+          ))}
+        </div>
+        <p className="ds" style={{ marginTop: 8 }}>Conta sozinha pelos check-ins. Toca num número para corrigir.</p>
+        {aCorrigir && (
+          <div className="caixa" style={{ marginTop: 10 }}>
+            <p className="nmt" style={{ fontSize: 14 }}>Sala {nomeCategoria(aCorrigir.sala)} · check-ins: {contagens[aCorrigir.sala]}</p>
+            <input
+              className="campo" type="number" min="0" inputMode="numeric" value={aCorrigir.valor} autoFocus
+              onChange={(e) => setACorrigir((a) => ({ ...a, valor: e.target.value }))}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button className="btn" style={{ flex: 1 }} onClick={guardarCorrecaoContagem}>Guardar</button>
+              {correcoes[aCorrigir.sala] && (
+                <button className="btn sec" style={{ flex: 1 }} onClick={() => { corrigirContagem(hoje, aCorrigir.sala, null, uid); setACorrigir(null); }}>Voltar ao automático</button>
+              )}
+              <button className="btn sec" style={{ flex: 1 }} onClick={() => setACorrigir(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {procura.trim().length >= 2 ? (

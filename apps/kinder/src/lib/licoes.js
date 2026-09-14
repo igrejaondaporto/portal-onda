@@ -14,7 +14,7 @@
  *   - atividades → "Abrir atividade 1/2/…" — 0 ou mais
  *
  *   bases/kinder/licoes/{id}
- *     titulo, categorias[], resumo, resumoPais, eventoId|null,
+ *     titulo, categorias[], resumo, resumoPais, louvor, eventoId|null,
  *     licao: {url, nome}|null, recurso: {url, nome}|null,
  *     atividades: [{url, nome}, …],
  *     enviadoPor, criadoEm, ativo
@@ -58,7 +58,7 @@ async function subir(id, sufixo, ficheiro) {
  * estava lá naquele índice, para dar para trocar só uma atividade
  * sem reenviar as outras).
  */
-export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumoPais, eventoId, licaoFicheiro, recursoFicheiro, atividadesFicheiros, atividadesAtuais }, nova) {
+export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumoPais, louvor, eventoId, licaoFicheiro, recursoFicheiro, atividadesFicheiros, atividadesAtuais }, nova) {
   const [licao, recurso] = await Promise.all([
     licaoFicheiro ? subir(id, "licao", licaoFicheiro) : null,
     recursoFicheiro ? subir(id, "recurso", recursoFicheiro) : null,
@@ -72,6 +72,7 @@ export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumo
     categorias,
     resumo: resumo?.trim() || "",
     resumoPais: resumoPais?.trim() || "",
+    louvor: louvor?.trim() || "",
     eventoId: eventoId || null,
     ...(licao ? { licao } : {}),
     ...(recursoFicheiro !== undefined ? { recurso: recurso ?? null } : {}),

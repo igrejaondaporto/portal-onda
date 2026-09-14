@@ -46,6 +46,7 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, onFechar
   const [eventoId, setEventoId] = useState(licao?.eventoId ?? "");
   const [resumo, setResumo] = useState(licao?.resumo ?? "");
   const [resumoPais, setResumoPais] = useState(licao?.resumoPais ?? "");
+  const [louvor, setLouvor] = useState(licao?.louvor ?? "");
   const [licaoFicheiro, setLicaoFicheiro] = useState(null);
   const [recursoFicheiro, setRecursoFicheiro] = useState(null);
   // uma entrada por atividade já guardada + as que a líder for
@@ -103,7 +104,7 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, onFechar
     setAEnviar(true);
     try {
       await guardarLicao(idRef.current, uid, {
-        titulo, categorias, resumo, resumoPais, eventoId,
+        titulo, categorias, resumo, resumoPais, louvor, eventoId,
         licaoFicheiro, recursoFicheiro,
         atividadesFicheiros, atividadesAtuais,
       }, !licao);
@@ -168,6 +169,8 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, onFechar
         <textarea className="campo" rows={4} value={resumo} onChange={(e) => setResumo(e.target.value)} placeholder="A história, o versículo, a dinâmica…" />
         <label className="rot">Resumo para os pais (opcional)</label>
         <textarea className="campo" rows={3} value={resumoPais} onChange={(e) => setResumoPais(e.target.value)} placeholder="O que aprenderam hoje — aparece no link da família" />
+        <label className="rot">Louvor (opcional)</label>
+        <textarea className="campo" rows={3} value={louvor} onChange={(e) => setLouvor(e.target.value)} placeholder="Músicas e bandas que indicas para este culto" />
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={guardar}>
           {aEnviar ? "A publicar…" : licao ? "Guardar" : "Publicar para a base"}
         </button>

@@ -119,12 +119,12 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
             </div>
             <div style={{ marginTop: 16 }}>
               {licaoAberta.licao && (
-                <a className="btn full" style={{ display: "block", textAlign: "center" }} href={licaoAberta.licao.url} target="_blank" rel="noreferrer">
+                <a className="btn full" style={{ display: "block", textAlign: "center", background: "var(--verde)" }} href={licaoAberta.licao.url} target="_blank" rel="noreferrer">
                   ABRIR LIÇÃO DO DIA
                 </a>
               )}
               {licaoAberta.recurso && (
-                <a className="btn sec full" style={{ marginTop: 9, display: "block", textAlign: "center" }} href={licaoAberta.recurso.url} target="_blank" rel="noreferrer">
+                <a className="btn full" style={{ marginTop: 9, display: "block", textAlign: "center", background: "var(--azul)" }} href={licaoAberta.recurso.url} target="_blank" rel="noreferrer">
                   ABRIR RECURSO
                 </a>
               )}
@@ -145,6 +145,12 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
                 <p className="rot">Para os pais</p>
                 <div className="caixa"><p style={{ fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-line" }}>{licaoAberta.resumoPais}</p></div>
                 <p className="ds" style={{ marginTop: 6 }}>Aparece no link da família de quem é desta sala.</p>
+              </>
+            )}
+            {licaoAberta.louvor && (
+              <>
+                <p className="rot">Louvor</p>
+                <p style={{ fontSize: 14.5, lineHeight: 1.6, whiteSpace: "pre-line" }}>{licaoAberta.louvor}</p>
               </>
             )}
             {lider && (
