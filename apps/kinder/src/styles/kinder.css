@@ -278,17 +278,6 @@
   letter-spacing: 0.22em;
   opacity: 0.85;
 }
-.kin-cartaz-sala {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 8px 22px;
-  border-radius: 100px;
-  background: var(--c-suave);
-  color: var(--c-texto-suave);
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-}
 .kin-cartaz-escolha {
   width: 100%;
   max-width: 480px;

@@ -1,21 +1,21 @@
 /**
  * Famílias, crianças, check-in, checklist de sala, contagem,
- * ocorrências, capacitações e definições — o que é só da Kinder.
+ * capacitações e definições — o que é só da Kinder.
  *
  * Famílias/crianças/check-in escrevem-se SEMPRE por Cloud Function
  * (functions/kinder.js): são dados de menores, e os pais escrevem
  * sem conta, pelo link da família. O resto (checklist, contagem,
- * ocorrências, capacitações) é escrita direta — as regras chegam, e
- * assim funciona sem rede ao domingo.
+ * capacitações) é escrita direta — as regras chegam, e assim
+ * funciona sem rede ao domingo.
  */
 import {
-  addDoc, deleteField, getDocs, onSnapshot, orderBy, query, limit,
+  addDoc, deleteField, getDocs, onSnapshot, query,
   serverTimestamp, setDoc, updateDoc, where, doc,
 } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import {
   cFamilias, cCriancas, cCheckins, cCodigos, cChecklistSala, cChecklistKinder,
-  cContagemKinder, cOcorrencias, cCapacitacoes, cCapacitacoesPessoa, cDefinicao,
+  cContagemKinder, cCapacitacoes, cCapacitacoesPessoa, cDefinicao,
 } from "./modelo";
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -112,25 +112,6 @@ export const corrigirContagem = (eventoId, sala, valor, uid) =>
   setDoc(cContagemKinder(eventoId), {
     [sala]: valor == null ? deleteField() : { valor: Number(valor), por: uid, em: serverTimestamp() },
   }, { merge: true });
-
-/* ── ocorrências ──────────────────────────────────────────── */
-
-/** A líder geral vê todas; a líder de sala vê as da sua sala, de
- *  qualquer voluntário; um voluntário simples só as que ele próprio
- *  registou. `escopo`: "geral" | "sala" | "propria"; `valor`: null
- *  (geral), a sala (sala) ou o uid (propria). */
-export function ouvirOcorrencias(escopo, valor, cb) {
-  const q = escopo === "geral"
-    ? query(cOcorrencias(), orderBy("criadoEm", "desc"), limit(100))
-    : escopo === "sala"
-      ? query(cOcorrencias(), where("categoria", "==", valor))
-      : query(cOcorrencias(), where("registadoPor", "==", valor));
-  return onSnapshot(q, (s) => cb(lista(s).sort((a, b) => (b.criadoEm?.toMillis?.() ?? Date.now()) - (a.criadoEm?.toMillis?.() ?? Date.now()))));
-}
-export const registarOcorrencia = (uid, d) =>
-  addDoc(cOcorrencias(), { ...d, registadoPor: uid, paisAvisados: !!d.paisAvisados, resolvida: false, criadoEm: serverTimestamp() });
-export const atualizarOcorrencia = (id, campos) =>
-  updateDoc(doc(db, `bases/${BASE_ID}/ocorrencias/${id}`), campos);
 
 /* ── capacitações ─────────────────────────────────────────── */
 

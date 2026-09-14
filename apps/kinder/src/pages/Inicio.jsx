@@ -243,7 +243,6 @@ export default function Inicio({
             {[
               ["checklist", "Checklist da sala", "Abrir e fechar a sala", () => onIrCulto?.("checklist"), null],
               ["inventario", "Compras", "Materiais e lista de compras", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
-              ["contagem", "Contagem e ocorrências", "Quantas crianças, o que aconteceu", () => onIrCulto?.("contagem"), null],
               ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
               ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),
             ].map(([k, t, d, ir, tag]) => (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
-import { CATEGORIAS, categoria, categoriaInicial, nomeCategoria, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, categoriaInicial, nomeCategoria, varsCategoria } from "../lib/modelo";
 import { hojeLocal } from "../lib/kinder";
 import { MESES, dataCurta } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
@@ -52,6 +52,7 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
   const temEscala = eventosMes.some((e) => e.escala.pessoas.length);
+  const salasQuadro = sala ? CATEGORIAS.filter((c) => c.id === sala) : CATEGORIAS;
 
   useEffect(() => {
     if (!ativo) return;
@@ -65,29 +66,43 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
 
   const salasVisiveis = sala ? CATEGORIAS.filter((c) => c.id === sala) : CATEGORIAS;
 
-  // quadro do mês: uma linha "Líder de escala" + uma linha por lugar,
-  // igual ao resto das bases (Apoio/New) — a cor do nome é a da sala
-  // da pessoa, para ler o quadro inteiro sem abrir nenhum cartão.
-  const corDe = (id) => categoria(pessoaPorId(id)?.categoria)?.cor;
-  const maxLin = Math.max(0, ...eventosMes.map((e) => e.escala.pessoas.filter((id) => id !== e.escala.liderEscala).length));
-  const linhas = [];
-  for (let i = 0; i < maxLin; i++) {
-    linhas.push(
-      <tr key={i}>
-        <td className="papel">{i === 0 ? "Voluntários" : ""}</td>
-        {eventosMes.map((ev) => {
-          const outros = ev.escala.pessoas.filter((id) => id !== ev.escala.liderEscala);
-          const id = outros[i];
-          const p = id ? pessoaPorId(id) : null;
-          return (
-            <td key={ev.id} className={id === uid ? "mim" : ""} style={id !== uid ? { color: corDe(id) } : undefined}>
-              {p ? p.nome : "—"}
-            </td>
-          );
-        })}
-      </tr>
-    );
-  }
+  // quadro do mês: uma linha "Líder de escala" + um bloco por sala
+  // (divisor colorido + uma linha por lugar) — igual ao espírito da
+  // tabela por ministério da Técnica, mas dividindo por Baby/Fun/
+  // Júnior em vez de por ministério. Cada bloco fica na cor cheia da
+  // sala, com o nome sempre em branco — a cor já diz a sala, não
+  // precisa também de tingir a letra.
+  const pessoasDaSalaSemLider = (ev, catId) =>
+    ev.escala.pessoas.filter((id) => id !== ev.escala.liderEscala && pessoaPorId(id)?.categoria === catId);
+  const blocos = salasQuadro.map((c) => {
+    const maxLin = Math.max(0, ...eventosMes.map((ev) => pessoasDaSalaSemLider(ev, c.id).length));
+    const linhas = [
+      // divisor — uma barra da cor da sala, a separar claramente o
+      // bloco do Baby, do Fun e do Júnior no meio da tabela
+      <tr key={`${c.id}-div`}>
+        <td colSpan={1 + eventosMes.length} style={{ background: c.cor, color: "#fff", fontWeight: 800, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "8px 12px" }}>
+          {c.nome}
+        </td>
+      </tr>,
+    ];
+    for (let i = 0; i < maxLin; i++) {
+      linhas.push(
+        <tr key={`${c.id}-${i}`}>
+          <td className="papel" style={{ background: c.cor, color: "#fff" }} />
+          {eventosMes.map((ev) => {
+            const id = pessoasDaSalaSemLider(ev, c.id)[i];
+            const p = id ? pessoaPorId(id) : null;
+            return (
+              <td key={ev.id} style={{ background: c.cor, color: "#fff", fontWeight: id === uid ? 800 : 500, textDecoration: id === uid ? "underline" : "none" }}>
+                {p ? p.nome : "—"}
+              </td>
+            );
+          })}
+        </tr>
+      );
+    }
+    return { categoria: c, linhas };
+  });
 
   return (
     <>
@@ -121,17 +136,17 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
                       const id = ev.escala.liderEscala;
                       const p = id ? pessoaPorId(id) : null;
                       return (
-                        <td key={ev.id} className={id === uid ? "mim" : ""} style={id && id !== uid ? { color: corDe(id) } : undefined}>
+                        <td key={ev.id} className={id === uid ? "mim" : ""}>
                           {p ? p.nome : "por definir"}
                         </td>
                       );
                     })}
                   </tr>
-                  {linhas}
+                  {blocos.map((b) => b.linhas)}
                 </tbody>
               </table>
             </div>
-            <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul; os outros, na cor da sala. Desliza a tabela se não couber.</p>
+            <p className="ds" style={{ marginTop: 12 }}>Cada bloco é a cor da sala; o teu nome aparece sublinhado. Desliza a tabela se não couber.</p>
           </>
         ) : (
           <div className="semescala" style={{ marginTop: 16 }}>

@@ -1,32 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { podeDistribuir, souLider, minhaSalaRestrita } from "../lib/modelo";
+import { podeDistribuir, souLider } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { hojeLocal } from "../lib/kinder";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
-import PainelChamadas from "@portal/shared/components/PainelChamadas.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import ChecklistSala from "../components/sala/ChecklistSala";
-import Contagem from "../components/sala/Contagem";
 import Inventario from "./Inventario";
 
 const ABAS = [
   ["checklist", "Checklist", "Abrir e fechar a sala"],
   ["inventario", "Compras", "Os materiais e a lista de compras de cada sala"],
-  ["chamadas", "Chamadas", "Chamar os pais pelo telão"],
-  ["contagem", "Contagem", "Quantas crianças e o que aconteceu"],
   ["ordem", "Ordem do culto", "A ordem do culto que o pastor envia"],
   ["feedbacks", "Feedbacks", "O que ficou registado de cada domingo"],
 ];
-const SALAS = ["baby", "fun", "junior"];
 
-/** O domingo em si, em sub-abas — seis, porque a barra de baixo só leva
- *  cinco e o check-in precisava de lá estar. */
+/** O domingo em si, em sub-abas. Chamadas tem menu próprio (era
+ *  sub-aba daqui); Contagem/Ocorrências saiu — a contagem já aparece
+ *  direto no Check-in, chamar os pais já é o menu Chamadas. */
 export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando, onIrReembolsos }) {
   const lider = souLider(papel);
-  const restrita = minhaSalaRestrita(papel, pessoa);
   const podePublicar = lider && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "checklist");
   const [eventosMes, setEventosMes] = useState([]);
@@ -65,11 +60,6 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes]);
 
-  // Chamadas: presa à sala, como tudo o resto (aqui até para a líder
-  // de sala) — só a líder geral chama e vê o histórico das três.
-  const canaisChamar = restrita ? [restrita] : SALAS;
-  const canaisHistorico = restrita ? [restrita] : SALAS;
-
   return (
     <>
       <div className="subtabs kin-subtabs">
@@ -85,13 +75,6 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
       {aba === "inventario" && (
         <Inventario uid={uid} papel={papel} pessoa={pessoa} ativo={false} definirCabecalho={() => {}} onIrReembolsos={onIrReembolsos} />
       )}
-      {aba === "chamadas" && (
-        <div style={{ marginTop: 12 }}>
-          <PainelChamadas canaisPermitidos={canaisChamar} canaisHistorico={canaisHistorico} />
-        </div>
-      )}
-      {aba === "contagem" && <Contagem uid={uid} papel={papel} pessoa={pessoa} />}
-
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
           {eventosMes.map((ev) => (
