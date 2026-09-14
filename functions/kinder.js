@@ -189,12 +189,12 @@ export const dadosRegistoKinder = onCall(async () => {
   };
 });
 
-/** Duas portas de entrada, a mesma função:
- *   - pais pelo QR (sem sessão) → família `pendente`, confirmada à porta
- *     no primeiro check-in;
- *   - voluntário na receção (sessão da Kinder) → já `confirmada`.
- *  Devolve o token do link da família UMA vez — não fica legível em
- *  lado nenhum depois (só o hash). */
+/** Duas portas de entrada, a mesma função — pais pelo QR (sem sessão)
+ *  ou voluntário na receção (sessão da Kinder); os dois ficam `estado:
+ *  "confirmada"` logo ao registar, sem passo de confirmação nenhum
+ *  (decisão de 2026-09: registo livre, sem fricção). Devolve o token
+ *  do link da família UMA vez — não fica legível em lado nenhum
+ *  depois (só o hash). */
 export const registarFamiliaKinder = onCall(async (req) => {
   const voluntario = req.auth?.token?.baseId === BASE ? req.auth.uid : null;
   const d = req.data || {};
@@ -228,7 +228,7 @@ export const registarFamiliaKinder = onCall(async (req) => {
       aceiteEm: agora(),
       origem: voluntario ? `voluntario:${voluntario}` : "qr",
     },
-    estado: voluntario ? "confirmada" : "pendente",
+    estado: "confirmada",
     tokenHash: hashToken(token),
     ativo: true,
     criadoEm: agora(),
@@ -251,15 +251,6 @@ export const novoLinkFamiliaKinder = onCall(async (req) => {
   const token = randomBytes(18).toString("base64url");
   await snap.ref.update({ tokenHash: hashToken(token), linkRenovadoEm: agora() });
   return { token };
-});
-
-export const confirmarFamiliaKinder = onCall(async (req) => {
-  const uid = exigeKinder(req);
-  const { familiaId } = req.data || {};
-  const snap = familiaId ? await refFamilia(familiaId).get() : null;
-  if (!snap?.exists) throw new HttpsError("not-found", "Família não encontrada.");
-  await snap.ref.update({ estado: "confirmada", confirmadaPor: uid, confirmadaEm: agora() });
-  return { ok: true };
 });
 
 /** "Nada é apagado, é desativado" (regra 5) — a anonimização por
@@ -376,8 +367,10 @@ function gerarCodigo() {
 /** Entrada de uma ou mais crianças (irmãos entram juntos). Um código
  *  por FAMÍLIA por culto — quem vem buscar os três irmãos diz um
  *  código só. Idempotente: quem já está na sala fica como está.
- *  Uma família `pendente` (registo pelo QR) fica confirmada aqui — o
- *  voluntário acabou de a ver à porta. */
+ *  O bloco abaixo que confirma uma família `pendente` é só para dados
+ *  antigos (2026-09: o registo deixou de ter passo de confirmação —
+ *  `registarFamiliaKinder` já grava sempre `confirmada`) — nunca
+ *  apagado (regra 5), só deixa de ser gerado. */
 export const checkinKinder = onCall(async (req) => {
   const uid = exigeKinder(req);
   const ids = [...new Set((req.data?.criancaIds || []).filter((x) => typeof x === "string"))].slice(0, 12);

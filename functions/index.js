@@ -30,7 +30,7 @@ import { CATEGORIAS_KINDER } from "./kinder.js";
 // não afogar este (ver o comentário no topo de kinder.js).
 export {
   dadosRegistoKinder, registarFamiliaKinder, novoLinkFamiliaKinder,
-  confirmarFamiliaKinder, desativarFamiliaKinder, editarFamiliaKinder,
+  desativarFamiliaKinder, editarFamiliaKinder,
   dadosFamiliaKinder, checkinKinder, checkoutKinder, anularCheckinKinder,
   guardarLicaoKinder, desativarLicaoKinder,
 } from "./kinder.js";

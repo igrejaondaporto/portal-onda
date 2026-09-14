@@ -3,7 +3,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { linkWhatsApp } from "@portal/shared/lib/data.js";
 import { nomeCategoria, varsCategoria } from "../../lib/modelo";
 import {
-  fazerCheckin, editarFamilia, confirmarFamilia, novoLinkFamilia, desativarFamilia, linkFamilia, hora,
+  fazerCheckin, editarFamilia, novoLinkFamilia, desativarFamilia, linkFamilia, hora,
 } from "../../lib/kinder";
 import FormFamilia from "../FormFamilia";
 import { Cuidados } from "../../pages/Checkin";
@@ -136,10 +136,7 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
         ) : (
           <>
             <h2>{nomes || "Família"}</h2>
-            <p className="sb2">
-              {(familia.responsaveis || []).map((r) => r.nome).join(" · ")}
-              {familia.estado === "pendente" ? " · registo por confirmar" : ""}
-            </p>
+            <p className="sb2">{(familia.responsaveis || []).map((r) => r.nome).join(" · ")}</p>
 
             <div style={{ marginTop: 12 }}>
               {criancas.map((c) => {
@@ -218,11 +215,6 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
             {!token && <p className="ds" style={{ marginTop: 6 }}>O link antigo deixa de funcionar.</p>}
 
             <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setAEditar(true)}>Corrigir ficha</button>
-            {familia.estado === "pendente" && (
-              <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => confirmarFamilia(familia.id).then(() => torrada("Registo confirmado")).catch((e) => torrada(e.message, true))}>
-                Confirmar registo sem check-in
-              </button>
-            )}
             {lider && (aConfirmarRemover ? (
               <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 9 }}>
                 <p style={{ fontSize: 13, fontWeight: 600 }}>Remover esta família?</p>

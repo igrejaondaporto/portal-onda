@@ -61,7 +61,6 @@ export const dadosRegisto = () => chamar("dadosRegistoKinder")({}).then(dados);
 export const registarFamilia = (d) => chamar("registarFamiliaKinder")(d).then(dados);
 export const editarFamilia = (d) => chamar("editarFamiliaKinder")(d).then(dados);
 export const dadosFamilia = (token) => chamar("dadosFamiliaKinder")({ token }).then(dados);
-export const confirmarFamilia = (familiaId) => chamar("confirmarFamiliaKinder")({ familiaId }).then(dados);
 export const novoLinkFamilia = (familiaId) => chamar("novoLinkFamiliaKinder")({ familiaId }).then(dados);
 export const desativarFamilia = (familiaId) => chamar("desativarFamiliaKinder")({ familiaId }).then(dados);
 

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, souMestra, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souMestra, varsCategoria } from "../lib/modelo";
 import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
-  ouvirContagem, corrigirContagem, obterFamiliaDoServidor,
+  ouvirContagem, corrigirContagem, obterFamiliaDoServidor, anularCheckin,
 } from "../lib/kinder";
 import SeletorCategoria from "../components/SeletorCategoria";
 import LeitorQR from "../components/LeitorQR";
@@ -37,7 +37,6 @@ export function Cuidados({ crianca }) {
 export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
-  const liderGeral = souLiderGeral(papel);
   // presa à sua sala em tudo aqui — nunca vê criança, família nem
   // ocorrência de outra (a única excepção do Portal é a Escala).
   const restrita = minhaSalaRestrita(papel, pessoa);
@@ -49,7 +48,6 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   const [sala, setSala] = useState(restrita);
   const [procura, setProcura] = useState("");
   const [verSaidos, setVerSaidos] = useState(false);
-  const [verPendentes, setVerPendentes] = useState(false);
   const [verTodas, setVerTodas] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
@@ -90,9 +88,6 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
     [escalaHoje, voluntarios],
   );
   const salaNoLimite = sala && capacidades[sala] > 0 && contagens[sala] >= capacidades[sala];
-  // registos por confirmar cruzam salas (uma família pode ter filhos
-  // em mais do que uma) — só a líder geral trata disso
-  const pendentes = liderGeral ? familias.filter((f) => f.estado === "pendente") : [];
   // todas as famílias registadas (não só quem já entrou hoje) — uma
   // sala restrita só vê quem tem criança na própria sala, mesmo
   // filtro do resto do ecrã.
@@ -133,10 +128,10 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
     definirCabecalho({
       titulo: <em>Check-in</em>,
       subtitulo: "Entrada e saída das crianças",
-      chips: [`${naSala.length} na sala`, `${saidos.length} já saíram`, ...(pendentes.length ? [`${pendentes.length} por confirmar`] : [])],
+      chips: [`${naSala.length} na sala`, `${saidos.length} já saíram`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, naSala.length, saidos.length, pendentes.length]);
+  }, [ativo, naSala.length, saidos.length]);
 
   async function aoLerQR(texto) {
     const lido = lerConteudoQR(texto);
@@ -167,10 +162,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
       <div className="linha" key={f.id} style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "familia", familiaId: f.id })}>
         <div style={{ flex: 1 }}>
           <p className="nmt">{cs.map((c) => c.nome).join(", ") || "Sem crianças"}</p>
-          <p className="ds">
-            {(f.responsaveis || []).map((r) => r.nome).join(" · ")}
-            {f.estado === "pendente" ? " · por confirmar" : ""}
-          </p>
+          <p className="ds">{(f.responsaveis || []).map((r) => r.nome).join(" · ")}</p>
           <div>{cs.map((c) => <Cuidados key={c.id} crianca={c} />)}</div>
         </div>
         {cs.some((c) => checkinPorCrianca[c.id] && !checkinPorCrianca[c.id].saidaEm)
@@ -192,7 +184,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
         />
       </div>
 
-      <div className="sect" style={{ marginTop: 12 }}>
+      <div className="sect kin-atencao" style={{ marginTop: 12 }}>
         <div className="cabecalho"><h3>Visão geral</h3><span className="cap">{categoriasVisiveis.reduce((a, c) => a + valorContagem(c.id), 0)} crianças</span></div>
         <div className="kin-grelha" style={{ gridTemplateColumns: `repeat(${categoriasVisiveis.length}, 1fr)` }}>
           {categoriasVisiveis.map((c) => (
@@ -237,18 +229,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
         </div>
       ) : (
         <>
-          {pendentes.length > 0 && (
-            <div className="sect">
-              <div className="cabecalho" style={{ cursor: "pointer" }} onClick={() => setVerPendentes((v) => !v)}>
-                <h3>Registos pelo QR por confirmar</h3>
-                <span className="tag">{pendentes.length}</span>
-              </div>
-              {verPendentes && pendentes.map(linhaFamilia)}
-              {!verPendentes && <p className="ds">Confirmam-se no primeiro check-in. Toca para ver.</p>}
-            </div>
-          )}
-
-          <div className="sect">
+          <div className="sect kin-atencao">
             <div className="cabecalho"><h3>Na sala agora</h3></div>
             {restrita ? (
               <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
@@ -293,6 +274,14 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
                     </p>
                   </div>
                   {c.categoria && <span className="kin-tagcat" style={varsCategoria(c.categoria)}>{nomeCategoria(c.categoria)}</span>}
+                  {(lider || c.entradaPor === uid) && (
+                    <button
+                      type="button" className="oc-icobt mag" aria-label={`Anular check-in de ${c.nome}`}
+                      onClick={() => anularCheckin(c.criancaId).then(() => torrada(`Check-in de ${c.nome.split(" ")[0]} anulado`)).catch((e) => torrada(e.message || "Não foi possível anular.", true))}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

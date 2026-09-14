@@ -26,10 +26,10 @@ export function CabecalhoPublico({ titulo, subtitulo }) {
 
 /**
  * /registo — o QR na porta do Kinder abre isto. Os pais registam a
- * família sem conta nenhuma; o registo fica "pendente" e é confirmado
- * pelo voluntário no primeiro check-in (ver functions/kinder.js). No
- * fim recebem o link da família — é por ele que veem o código de
- * levantamento de cada domingo.
+ * família sem conta nenhuma; o cadastro já fica pronto na hora, sem
+ * passo de confirmação nenhum (ver `registarFamiliaKinder` em
+ * functions/kinder.js). No fim recebem o link da família — é por ele
+ * que veem o código de levantamento de cada domingo.
  */
 export default function RegistoFamilia() {
   return (

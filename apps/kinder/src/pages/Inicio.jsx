@@ -7,7 +7,7 @@ import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario, ouvirListaCompraFechada } from "../lib/inventario";
 import { licoesDaSala, licoesVistas } from "../lib/licoes";
 import {
-  hojeLocal, ouvirFamilias, ouvirCriancas, ouvirCheckins,
+  hojeLocal, ouvirCriancas, ouvirCheckins,
   ouvirCapacitacoes, ouvirCapacitacoesDe, estadoCapacitacao,
 } from "../lib/kinder";
 import { dataPorExtenso, eur, nomeCurto, nomeEvento } from "@portal/shared/lib/data.js";
@@ -48,7 +48,6 @@ export default function Inicio({
   const [meuEvento, setMeuEvento] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
-  const [familias, setFamilias] = useState([]);
   const [criancas, setCriancas] = useState([]);
   const [checkins, setCheckins] = useState([]);
   const [capacitacoes, setCapacitacoes] = useState([]);
@@ -64,7 +63,6 @@ export default function Inicio({
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
-  useEffect(() => ouvirFamilias(setFamilias), []);
   useEffect(() => ouvirCriancas(setCriancas), []);
   useEffect(() => ouvirCheckins(hoje, setCheckins), [hoje]);
   useEffect(() => ouvirCapacitacoes(setCapacitacoes), []);
@@ -102,7 +100,6 @@ export default function Inicio({
   const eventoHoje = eventosMes.find((ev) => ev.data === hoje) ?? null;
   const proximoCulto = eventosMes.find((ev) => ev.data >= hoje) ?? null;
 
-  const pendentes = familias.filter((f) => f.estado === "pendente");
   const naSala = checkins.filter((c) => !c.anulado && !c.saidaEm);
   const salasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
   const naSalaVisivel = restrita ? naSala.filter((c) => c.categoria === restrita) : naSala;
@@ -149,12 +146,6 @@ export default function Inicio({
 
   return (
     <>
-      {liderGeral && pendentes.length > 0 && (
-        <Destaque
-          rotulo="Registos pelo QR" titulo={`${pendentes.length} ${pendentes.length === 1 ? "família à espera" : "famílias à espera"} de confirmação`}
-          detalhe="Confirmam-se sozinhas no primeiro check-in" onClick={onIrCheckin}
-        />
-      )}
       {salasSemLicao.length > 0 && (
         <Destaque
           rotulo="A precisar de ti" titulo={`Falta a lição de ${salasSemLicao.map((c) => c.nome).join(", ")}`}
