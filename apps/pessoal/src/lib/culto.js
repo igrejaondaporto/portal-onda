@@ -134,6 +134,26 @@ export async function obterMeuEvento(uid) {
   return meu ?? futuros[0] ?? null;
 }
 
+/** O próximo culto, seja quem for que sirva nele — para lembretes do
+ *  Painel do líder que não dependem de uma pessoa específica (ex.:
+ *  funções por distribuir). Mesma lógica de `obterMeuEvento`, sem a
+ *  preferência por um uid. */
+export async function obterProximoEvento() {
+  const hoje = new Date();
+  const hojeISO = hoje.toISOString().slice(0, 10);
+  const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+
+  const [esteMes, proxMes] = await Promise.all([
+    obterEventosDoMes(hoje.getFullYear(), hoje.getMonth()),
+    obterEventosDoMes(proximo.getFullYear(), proximo.getMonth()),
+  ]);
+  const futuros = [...esteMes, ...proxMes]
+    .filter((ev) => ev.data >= hojeISO)
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  return futuros[0] ?? null;
+}
+
 /** Todos os cultos em que a pessoa serve, este mês e o próximo — para o Perfil. */
 export async function obterMeusProximosDomingos(uid) {
   const hoje = new Date();
