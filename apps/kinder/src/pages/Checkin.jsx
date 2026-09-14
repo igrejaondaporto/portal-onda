@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@portal/shared/lib/firebase.js";
+import { onSnapshot } from "firebase/firestore";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
 import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
-  ouvirContagem, corrigirContagem,
+  ouvirContagem, corrigirContagem, obterFamiliaDoServidor,
 } from "../lib/kinder";
 import SeletorCategoria from "../components/SeletorCategoria";
 import LeitorQR from "../components/LeitorQR";
@@ -47,11 +46,11 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   const [criancas, setCriancas] = useState([]);
   const [checkins, setCheckins] = useState([]);
   const [codigos, setCodigos] = useState({});
-  const [haCultoHoje, setHaCultoHoje] = useState(null);
   const [sala, setSala] = useState(restrita);
   const [procura, setProcura] = useState("");
   const [verSaidos, setVerSaidos] = useState(false);
   const [verPendentes, setVerPendentes] = useState(false);
+  const [verTodas, setVerTodas] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [voluntarios, setVoluntarios] = useState([]);
   const [escalaHoje, setEscalaHoje] = useState(null);
@@ -65,7 +64,6 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   useEffect(() => ouvirContagem(hoje, setCorrecoes), [hoje]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => onSnapshot(cEscala(hoje), (s) => setEscalaHoje(s.exists() ? s.data() : null)), [hoje]);
-  useEffect(() => onSnapshot(doc(db, `eventos/${hoje}`), (s) => setHaCultoHoje(s.exists() && s.data().ativo !== false)), [hoje]);
   // presa à sua sala — mesmo que `pessoa` só carregue depois do
   // primeiro render, a sala fica sempre trancada quando restrita.
   useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
@@ -91,6 +89,12 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   // registos por confirmar cruzam salas (uma família pode ter filhos
   // em mais do que uma) — só a líder geral trata disso
   const pendentes = liderGeral ? familias.filter((f) => f.estado === "pendente") : [];
+  // todas as famílias registadas (não só quem já entrou hoje) — uma
+  // sala restrita só vê quem tem criança na própria sala, mesmo
+  // filtro do resto do ecrã.
+  const todasAsFamilias = familias
+    .filter((f) => criancasDaFamilia(f.id).length > 0)
+    .sort((a, b) => (criancasDaFamilia(a.id)[0]?.nome ?? "").localeCompare(criancasDaFamilia(b.id)[0]?.nome ?? "", "pt"));
 
   // visão geral da contagem, sempre à vista aqui (a Contagem deixou
   // de ter aba própria — as ocorrências saíram, o telão de Chamadas
@@ -124,16 +128,26 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Check-in</em>,
-      subtitulo: haCultoHoje === false ? "Hoje não há culto — o check-in abre em dia de culto" : "Entrada e saída das crianças",
+      subtitulo: "Entrada e saída das crianças",
       chips: [`${naSala.length} na sala`, `${saidos.length} já saíram`, ...(pendentes.length ? [`${pendentes.length} por confirmar`] : [])],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, naSala.length, saidos.length, pendentes.length, haCultoHoje]);
+  }, [ativo, naSala.length, saidos.length, pendentes.length]);
 
-  function aoLerQR(texto) {
+  async function aoLerQR(texto) {
     const lido = lerConteudoQR(texto);
     if (!lido) { setSheet(null); torrada("Este QR não é de uma família do Kinder.", true); return; }
-    if (!familiaPorId[lido.familiaId]) { setSheet(null); torrada("Família não encontrada — pode ter sido removida.", true); return; }
+    // a família pode ter acabado de se registar — a escuta local
+    // (ouvirFamilias) só vê o que já sincronizou; antes de dizer "não
+    // encontrada", confirma a sério no servidor (visto ao vivo: uma
+    // família registada agora mesmo podia demorar a aparecer aqui).
+    if (!familiaPorId[lido.familiaId]) {
+      const confirmada = await obterFamiliaDoServidor(lido.familiaId);
+      if (!confirmada) { setSheet(null); torrada("Família não encontrada — pode ter sido removida.", true); return; }
+      // a escuta ao vivo ainda não chegou a esta — entra já, sem
+      // esperar pela próxima sincronização.
+      setFamilias((fs) => (fs.some((f) => f.id === confirmada.id) ? fs : [...fs, confirmada]));
+    }
     const naSalaDaFamilia = naSala.filter((c) => c.familiaId === lido.familiaId);
     // com código e crianças na sala → é a saída; senão → é a entrada
     if (naSalaDaFamilia.length && lido.codigo) {
@@ -163,9 +177,6 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
 
   return (
     <>
-      {haCultoHoje === false && (
-        <p className="nota" style={{ marginTop: 4 }}>Hoje não há culto marcado. Podes registar famílias e ver dados; a entrada só abre em dia de culto.</p>
-      )}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
         <button className="btn" style={{ flex: 1 }} onClick={() => setSheet({ tipo: "leitor" })} data-tour="checkin-qr">Ler QR</button>
         <button className="btn sec" style={{ flex: 1 }} onClick={() => setSheet({ tipo: "nova" })}>Nova família</button>
@@ -283,6 +294,13 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
             </div>
           )}
 
+          <div className="sect">
+            <div className="cabecalho" style={{ cursor: "pointer" }} onClick={() => setVerTodas((v) => !v)}>
+              <h3>Todas as famílias</h3><span className="cap">{todasAsFamilias.length} {verTodas ? "▾" : "▸"}</span>
+            </div>
+            {verTodas && (todasAsFamilias.length ? todasAsFamilias.map(linhaFamilia) : <div className="vaz">Ainda nenhuma família registada.</div>)}
+          </div>
+
           {liderGeral && (
             <button className="btn sec full" style={{ marginTop: 18 }} onClick={() => setSheet({ tipo: "relatorios" })}>Relatórios</button>
           )}
@@ -295,7 +313,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
         <SheetFamilia
           familia={familiaPorId[sheet.familiaId]} criancas={criancasDaFamilia(sheet.familiaId)}
           checkinPorCrianca={checkinPorCrianca} codigo={codigos[sheet.familiaId]}
-          haCultoHoje={haCultoHoje} lider={lider} restrita={restrita} tokenAcabado={sheet.token}
+          lider={lider} restrita={restrita} tokenAcabado={sheet.token}
           onFechar={() => setSheet(null)}
           onSaida={() => setSheet({ tipo: "saida", familiaId: sheet.familiaId })}
         />

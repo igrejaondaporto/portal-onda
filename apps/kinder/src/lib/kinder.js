@@ -9,12 +9,12 @@
  * funciona sem rede ao domingo.
  */
 import {
-  addDoc, deleteField, getDocs, onSnapshot, query,
+  addDoc, deleteField, getDocFromServer, getDocs, onSnapshot, query,
   serverTimestamp, setDoc, updateDoc, where, doc,
 } from "firebase/firestore";
 import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import {
-  cFamilias, cCriancas, cCheckins, cCodigos, cChecklistSala, cChecklistKinder,
+  cFamilia, cFamilias, cCriancas, cCheckins, cCodigos, cChecklistSala, cChecklistKinder,
   cContagemKinder, cCapacitacoes, cCapacitacoesPessoa, cDefinicao,
 } from "./modelo";
 
@@ -41,6 +41,17 @@ const dados = (r) => r.data;
 
 export const ouvirFamilias = (cb) =>
   onSnapshot(query(cFamilias(), where("ativo", "==", true)), (s) => cb(lista(s)));
+
+/** Confirma no servidor (nunca na cache local) se uma família existe
+ *  — usado quando o QR diz "não encontrada" pela escuta ao vivo, que
+ *  só vê o que já sincronizou: uma família registada agora mesmo
+ *  (pelo `/registo`, sem sessão) pode ainda não ter chegado à cache
+ *  deste aparelho. `null` se mesmo assim não existir (ou já não
+ *  estiver ativa). */
+export async function obterFamiliaDoServidor(id) {
+  const s = await getDocFromServer(cFamilia(id));
+  return s.exists() && s.data().ativo !== false ? { id: s.id, ...s.data() } : null;
+}
 export const ouvirCriancas = (cb) =>
   onSnapshot(query(cCriancas(), where("ativo", "==", true)), (s) => cb(lista(s)));
 

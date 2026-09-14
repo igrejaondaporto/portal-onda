@@ -35,6 +35,7 @@ export const cCapacitacoes = () => collection(db, `bases/${BASE_ID}/capacitacoes
 export const cCapacitacoesPessoa = (uid) => collection(db, `bases/${BASE_ID}/pessoas/${uid}/capacitacoes`);
 export const cChecklistSala = () => collection(db, `bases/${BASE_ID}/checklistSala`);
 export const cFamilias    = () => collection(db, `bases/${BASE_ID}/familias`);
+export const cFamilia     = (id) => doc(db, `bases/${BASE_ID}/familias/${id}`);
 export const cCriancas    = () => collection(db, `bases/${BASE_ID}/criancas`);
 export const cDefinicao   = (nome) => doc(db, `bases/${BASE_ID}/definicoes/${nome}`);
 export const cCheckins    = (ev) => collection(db, `eventos/${ev}/checkinKinder`);

@@ -149,6 +149,16 @@ resto tem equivalente:
   demanda) ou procurar pelo nome/telefone. Um código por **família**,
   não por criança — irmãos entram e saem juntos com o mesmo código
   (`checkinKinder`, transação, gera uma vez por família por culto).
+  Funciona a qualquer hora, mesmo sem `eventos/{AAAA-MM-DD}` criado
+  para hoje (de propósito, decisão de 2026-09: testar/ensaiar fora de
+  domingo não deve ficar bloqueado). Se o QR disser "não encontrada"
+  mas a família tiver acabado de se registar, `aoLerQR` (Checkin.jsx)
+  confirma no servidor (`obterFamiliaDoServidor`, `getDocFromServer`)
+  antes de desistir — a escuta ao vivo local pode não ter sincronizado
+  ainda.
+- **Todas as famílias**: secção colapsável no fim do Check-in (mesmo
+  filtro por sala de tudo o resto) — é onde se vê quem já está
+  registado, sem precisar de procurar pelo nome.
 - **Saída**: o código tem de bater certo. Sem código, só uma líder
   (`souLider`), e com o motivo — fica registado em
   `saidaForcada.motivo`, nunca em silêncio.
