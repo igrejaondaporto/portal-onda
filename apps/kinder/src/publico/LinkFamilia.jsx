@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { TorradaProvider, useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
+import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import FormFamilia from "../components/FormFamilia";
 import CodigoQR from "../components/CodigoQR";
 import { CabecalhoPublico, CHAVE_TOKEN_FAMILIA } from "./RegistoFamilia";
@@ -148,7 +149,10 @@ function Conteudo({ token }) {
             <div className="cabecalho"><h3>O que aprenderam</h3></div>
             {f.licoes.map((l) => (
               <div className="kin-faixa" key={l.id} style={varsCategoria(l.categorias?.[0])}>
-                <p className="nmt">{l.titulo}</p>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <p className="nmt">{l.titulo}</p>
+                  {l.eventoId && <p className="ds" style={{ whiteSpace: "nowrap" }}>{dataPorExtenso(l.eventoId)}</p>}
+                </div>
                 <p style={{ fontSize: 14, lineHeight: 1.55, marginTop: 6, whiteSpace: "pre-line" }}>{l.resumoPais}</p>
               </div>
             ))}
