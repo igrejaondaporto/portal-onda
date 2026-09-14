@@ -99,7 +99,7 @@ await teste("dadosRegistoKinder sem sessão devolve consentimento e faixas", asy
 await teste("registo sem consentimento é recusado", () =>
   falha(chamar("registarFamiliaKinder", { responsaveis: [{ nome: "Ana", telefone: "912345678" }], criancas: [{ nome: "Rui", dataNascimento: nascidaHa(5) }] }), "invalid-argument"));
 
-await teste("registo pelos pais (sem sessão) fica pendente e sugere a sala pela idade", async () => {
+await teste("registo pelos pais (sem sessão) fica logo confirmada e sugere a sala pela idade", async () => {
   const r = await chamar("registarFamiliaKinder", {
     responsaveis: [{ nome: "Ana Teste", telefone: "912 345 678", parentesco: "Mãe" }],
     autorizados: [{ nome: "Avó Teste", parentesco: "Avó" }],
@@ -109,7 +109,7 @@ await teste("registo pelos pais (sem sessão) fica pendente e sugere a sala pela
   });
   token = r.token; familiaId = r.familiaId;
   const f = (await adb.doc(`bases/kinder/familias/${familiaId}`).get()).data();
-  afirmar(f.estado === "pendente", `estado=${f.estado}`);
+  afirmar(f.estado === "confirmada", `estado=${f.estado} — registo pelo QR não devia ficar pendente`);
   afirmar(f.tokenHash && f.tokenHash !== token, "token guardado em claro");
   afirmar(f.consentimento.origem === "qr", "origem do consentimento errada");
   const cs = await adb.collection("bases/kinder/criancas").where("familiaId", "==", familiaId).get();
@@ -200,6 +200,16 @@ await teste("check-in dos dois irmãos: um código por família, família confir
   const cs = await Promise.all(irmaos.map((id) => adb.doc(`eventos/${HOJE}/checkinKinder/${id}`).get()));
   afirmar(cs.every((c) => c.data().codigo === codigo), "irmãos com códigos diferentes");
   afirmar((await adb.doc(`bases/kinder/familias/${familiaId}`).get()).data().estado === "confirmada", "família continua pendente");
+});
+await teste("confirmarFamiliaKinder já não existe — registo não passa mais por confirmação", () =>
+  falha(chamar("confirmarFamiliaKinder", { familiaId })));
+await teste("check-in confirma sozinho uma família antiga que ainda estivesse pendente", async () => {
+  await adb.doc("bases/kinder/familias/fam-legado-pendente").set({
+    responsaveis: [{ nome: "Legado Teste", telefone: "919000000" }], autorizados: [], ativo: true, estado: "pendente",
+  });
+  await adb.doc("bases/kinder/criancas/crianca-legado-pendente").set({ nome: "Legado Jr", familiaId: "fam-legado-pendente", categoria: "fun", ativo: true });
+  await chamar("checkinKinder", { criancaIds: ["crianca-legado-pendente"] });
+  afirmar((await adb.doc("bases/kinder/familias/fam-legado-pendente").get()).data().estado === "confirmada", "família antiga não confirmou sozinha no check-in");
 });
 await teste("check-in repetido é idempotente (mesmo código)", async () => {
   const r = await chamar("checkinKinder", { criancaIds: [criancaId] });

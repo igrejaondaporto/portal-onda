@@ -191,9 +191,13 @@ Sem impressora (hoje não imprimem etiqueta/pulseira) e sem cartas
 colecionáveis (fora da v1, de propósito — ver plano original). O
 resto tem equivalente:
 
-- **Registo**: `/registo` (QR na porta, sem sessão) → `pendente`,
-  confirmada sozinha no primeiro check-in; ou na receção, por um
-  voluntário (`SheetNovaFamilia`) → já `confirmada`.
+- **Registo**: `/registo` (QR na porta, sem sessão) ou na receção,
+  por um voluntário (`SheetNovaFamilia`) — os dois ficam `estado:
+  "confirmada"` já ao registar, sem passo de confirmação nenhum
+  (decisão de 2026-09: registo livre, sem fricção — antes ficava
+  `pendente` até ao primeiro check-in). `confirmarFamiliaKinder` foi
+  removida; o bloco em `checkinKinder` que confirmava uma família
+  `pendente` sozinha fica só para dados antigos, nunca apagado.
 - **Entrada**: ler o QR do link da família (`LeitorQR.jsx`, câmara —
   `BarcodeDetector` quando existe, senão `jsqr` carregado sob
   demanda) ou procurar pelo nome/telefone. Um código por **família**,
@@ -212,7 +216,14 @@ resto tem equivalente:
 - **Saída**: o código tem de bater certo. Sem código, só uma líder
   (`souLider`) — ou a Mestra da sala dessa criança nesse culto (ver
   "Mestra" acima) —, e com o motivo — fica registado em
-  `saidaForcada.motivo`, nunca em silêncio.
+  `saidaForcada.motivo`, nunca em silêncio. Já saída, um ✕ ao lado
+  do nome (`.oc-icobt.mag`) chama `anularCheckinKinder` direto da
+  lista "Já saíram" — mesma permissão de sempre (líder ou quem fez o
+  check-in).
+- **"Visão geral" e "Na sala agora"** têm fundo verde-água
+  (`.kin-atencao`, `kinder.css`) — as duas únicas secções que mostram
+  quem está NA SALA agora, de propósito diferentes do resto do ecrã
+  (histórico, procura…), que fica sem fundo nenhum.
 - **Chamar os pais**: telão da sala (menu Chamadas, próprio na barra
   de baixo — o mesmo `PainelChamadas` partilhado, ver `Chamadas.jsx`)
   e/ou WhatsApp com `linkWhatsApp` (sem API paga).

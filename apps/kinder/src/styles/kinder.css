@@ -15,6 +15,18 @@
   vertical-align: middle;
 }
 
+/* Fundo verde-água nas duas secções do Check-in que mostram quem
+ * está NA SALA agora ("Visão geral", "Na sala agora") — pedido do
+ * líder, para saltar à vista que é um campo de atenção (crianças
+ * presentes de facto), diferente do resto do ecrã (histórico,
+ * procura…), que fica sem fundo nenhum. */
+.kin-atencao {
+  background: #eafcf5;
+  border: 1px solid #bdeedc;
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+
 /* ── As três salas ───────────────────────────────────────────── */
 .kin-cats {
   display: flex;
