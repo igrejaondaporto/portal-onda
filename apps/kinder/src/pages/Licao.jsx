@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
+import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 import { minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
 import { licoesDaSala, licoesVistas, marcarLicaoVista, desativarLicao } from "../lib/licoes";
+import { ouvirEventosDoMes } from "../lib/painel";
+import { hojeLocal } from "../lib/kinder";
 import SeletorCategoria from "../components/SeletorCategoria";
 import SheetLicao from "../components/licao/SheetLicao";
 import Capacitacoes from "../components/licao/Capacitacoes";
@@ -12,17 +15,20 @@ import Capacitacoes from "../components/licao/Capacitacoes";
  * documento (geralmente um PDF) vem da Kiwify pela mão da líder —
  * ver o porquê em lib/licoes.js.
  */
-export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, licoes, abaInicial, onLicaoVista }) {
+export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, licoes, abaInicial, onLicaoVista }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
   const liderGeral = souLiderGeral(papel);
   const restrita = minhaSalaRestrita(papel, pessoa);
+  const hoje = hojeLocal();
   const [aba, setAba] = useState(abaInicial ?? "licoes");
   const [sala, setSala] = useState(null);
   const [salaDefinida, setSalaDefinida] = useState(false);
   const [aberta, setAberta] = useState(null);
   const [aEditar, setAEditar] = useState(null); // { licao } — licao null = nova
   const [aRemover, setARemover] = useState(false);
+  const [eventosMes, setEventosMes] = useState([]);
+  const [abertos, setAbertos] = useState({});
 
   useEffect(() => { setAba(abaInicial ?? "licoes"); }, [abaInicial]);
   useEffect(() => {
@@ -31,11 +37,17 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
     setSalaDefinida(true);
   }, [pessoa, liderGeral, restrita, salaDefinida]);
   useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
 
   const vistas = licoesVistas(uid);
   const visiveis = licoesDaSala(licoes, sala);
   const novas = visiveis.filter((l) => !vistas.has(l.id)).length;
   const licaoAberta = licoes.find((l) => l.id === aberta) ?? null;
+  // um bloco por culto do mês (estilo Escala) — dentro de cada um, as
+  // lições desse dia; quem não tiver eventoId (ou for de outro mês)
+  // cai na secção "sem culto marcado" abaixo, para nunca desaparecer.
+  const idsEventosMes = new Set(eventosMes.map((e) => e.id));
+  const semCultoMarcado = visiveis.filter((l) => !l.eventoId || !idsEventosMes.has(l.eventoId));
 
   useEffect(() => {
     if (!ativo) return;
@@ -50,6 +62,25 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
     setARemover(false);
     marcarLicaoVista(uid, l.id);
     onLicaoVista?.();
+  }
+
+  function linha(l) {
+    return (
+      <div key={l.id} className="kin-faixa" style={{ ...varsCategoria(l.categorias?.length === 1 ? l.categorias[0] : (sala ?? l.categorias?.[0])), cursor: "pointer" }} onClick={() => abrir(l)}>
+        <div className="kin-faixa-cab">
+          <h4>{l.titulo}</h4>
+          {!vistas.has(l.id) && <span className="tag lim">Nova</span>}
+        </div>
+        <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {(l.categorias || []).map((c) => <span key={c} className="kin-tagcat" style={varsCategoria(c)}>{nomeCategoria(c)}</span>)}
+        </div>
+        <p className="ds" style={{ marginTop: 6 }}>
+          {l.eventoId ? `Para ${dataPorExtenso(l.eventoId)}` : "Sem culto marcado"}
+          {l.recurso ? " · com recurso" : ""}
+          {l.atividades?.length ? ` · ${l.atividades.length} ${l.atividades.length === 1 ? "atividade" : "atividades"}` : ""}
+        </p>
+      </div>
+    );
   }
 
   async function remover() {
@@ -80,29 +111,44 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
             {lider && (
               <button className="btn full" style={{ marginTop: 10 }} onClick={() => setAEditar({ licao: null })}>Nova lição</button>
             )}
-            {visiveis.length === 0 && (
-              <div className="vaz" style={{ marginTop: 12 }}>
-                {sala ? `Ainda não há lições da sala ${nomeCategoria(sala)}.` : "Ainda não há lições."}
-                {lider && <><br />Descarrega o documento novo da Kiwify e sobe-o aqui.</>}
-              </div>
-            )}
-            {visiveis.map((l) => (
-              <div key={l.id} className="kin-faixa" style={{ ...varsCategoria(l.categorias?.length === 1 ? l.categorias[0] : (sala ?? l.categorias?.[0])), cursor: "pointer" }} onClick={() => abrir(l)}>
-                <div className="kin-faixa-cab">
-                  <h4>{l.titulo}</h4>
-                  {!vistas.has(l.id) && <span className="tag lim">Nova</span>}
-                </div>
-                <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {(l.categorias || []).map((c) => <span key={c} className="kin-tagcat" style={varsCategoria(c)}>{nomeCategoria(c)}</span>)}
-                </div>
-                <p className="ds" style={{ marginTop: 6 }}>
-                  {l.eventoId ? `Para ${dataPorExtenso(l.eventoId)}` : "Sem culto marcado"}
-                  {l.recurso ? " · com recurso" : ""}
-                  {l.atividades?.length ? ` · ${l.atividades.length} ${l.atividades.length === 1 ? "atividade" : "atividades"}` : ""}
-                </p>
-              </div>
-            ))}
           </div>
+
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>{MESES[mes]} {ano}</h3>
+              <span className="calnav">
+                <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+                <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+              </span>
+            </div>
+            {eventosMes.length === 0 && <div className="vaz">Sem cultos criados neste mês.</div>}
+            {eventosMes.map((ev) => {
+              const doEvento = visiveis.filter((l) => l.eventoId === ev.id);
+              const semVer = doEvento.filter((l) => !vistas.has(l.id)).length;
+              return (
+                <CartaoCulto
+                  key={ev.id} evento={ev} hoje={hoje} sirvo={semVer > 0} aberto={!!abertos[ev.id]}
+                  onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
+                  resumo={doEvento.length
+                    ? `${doEvento.length} ${doEvento.length === 1 ? "lição" : "lições"}${semVer ? ` · ${semVer} nova${semVer === 1 ? "" : "s"}` : ""}`
+                    : "Ainda sem lição"}
+                >
+                  {doEvento.length === 0 ? (
+                    <div className="vaz">
+                      {sala ? `Ainda não há lição da sala ${nomeCategoria(sala)} para este culto.` : "Ainda não há lição para este culto."}
+                    </div>
+                  ) : doEvento.map(linha)}
+                </CartaoCulto>
+              );
+            })}
+          </div>
+
+          {semCultoMarcado.length > 0 && (
+            <div className="sect">
+              <div className="cabecalho"><h3>Sem culto marcado</h3></div>
+              {semCultoMarcado.map(linha)}
+            </div>
+          )}
           <p className="nota">Os documentos são o que a líder descarregou da Kiwify. O resumo é para preparar a aula.</p>
         </>
       )}

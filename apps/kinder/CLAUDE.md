@@ -191,6 +191,15 @@ licoes/{id}-<licao|recurso|atividade-N>.<extensão real>` no Storage
 — nunca um link) e escolher a(s) sala(s) — muitas vezes Fun e Júnior
 partilham a mesma lição.
 
+A aba "Lições" mostra um bloco por culto do mês (estilo Escala —
+`CartaoCulto` partilhado, com navegação de mês `‹ ›`), fechado por
+omissão, com as lições desse dia lá dentro; quem não tiver
+`eventoId` (ou for de um culto fora do mês visível) cai numa secção
+"Sem culto marcado" à parte, sempre visível, para nunca desaparecer.
+`Licao.jsx` recebe `mes`/`ano`/`mudarMes` de `Sessao.jsx` — o mesmo
+"mês atual" partilhado com Início/Escala/Culto, não um estado à
+parte.
+
 Até quatro documentos por lição, cada um com o seu botão em
 `SheetLicao.jsx`: `licao` (o documento do dia, obrigatório),
 `recurso` (opcional) e `atividades[]` (zero ou mais, "+ Atividade").

@@ -180,7 +180,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "licao" ? "" : "none" }}>
             <Licao
-              {...comum} ativo={pagina === "licao"} licoes={licoes} abaInicial={abaLicao}
+              {...comum} mes={mes} ano={ano} mudarMes={mudarMes} ativo={pagina === "licao"} licoes={licoes} abaInicial={abaLicao}
               onLicaoVista={() => setVistasSeq((s) => s + 1)}
             />
           </div>
