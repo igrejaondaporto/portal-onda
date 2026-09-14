@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
-import { obterCatalogoChecklistDeTodasAsBases, ouvirChecklistDoEvento, obterProximoEvento } from "../lib/painel";
-import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { obterCatalogoChecklistDeTodasAsBases, ouvirChecklistDoEvento, ouvirEventosDoMes } from "../lib/painel";
+import { MESES, dataPorExtenso, dataCurta } from "@portal/shared/lib/data.js";
+
+// getter local, nunca toISOString: à meia-noite em hora de verão
+// (Portugal, UTC+1) o UTC já é o dia anterior, e .slice(0,10) lia
+// "hoje" errado — só importa aqui para escolher a aba inicial, mas
+// fazer bem desde o início evita copiar o bug para outro sítio.
+const hojeISOLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 // [chave, título da aba, mensagem de "tudo pronto" desta categoria] —
 // pedido explícito do líder: cada categoria tem a sua própria frase
@@ -39,14 +48,31 @@ function listaComE(nomes) {
  *  direta. Só leitura: marcar a checklist continua a ser sempre da
  *  própria base (rules já exigem estar na escala dela para escrever
  *  ali). */
-export default function Checklists({ ativo, definirCabecalho }) {
+export default function Checklists({ mes, ano, mudarMes, ativo, definirCabecalho }) {
   const [categoria, setCategoria] = useState("pre");
-  const [evento, setEvento] = useState(undefined); // undefined = a carregar, null = nenhum
+  const [eventoId, setEventoId] = useState(null);
+  const [eventosMes, setEventosMes] = useState([]);
   const [catalogo, setCatalogo] = useState(null); // null = a carregar
   const [checklist, setChecklist] = useState({});
   const [abertos, setAbertos] = useState({});
 
-  useEffect(() => { obterProximoEvento().then(setEvento); }, []);
+  useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
+
+  // troca de mês (ou primeira carga) sem perder a seleção quando o
+  // culto escolhido continua na lista nova; senão cai no primeiro
+  // ainda por vir este mês, ou no último já passado se não houver
+  // nenhum pela frente — nunca fica sem nada selecionado.
+  useEffect(() => {
+    if (!eventosMes.length) { setEventoId(null); return; }
+    setEventoId((atual) => {
+      if (eventosMes.some((e) => e.id === atual)) return atual;
+      const hojeStr = hojeISOLocal();
+      return (eventosMes.find((e) => e.data >= hojeStr) ?? eventosMes[eventosMes.length - 1]).id;
+    });
+  }, [eventosMes]);
+
+  const evento = eventosMes.find((e) => e.id === eventoId) ?? null;
+
   useEffect(() => {
     if (!evento) { setCatalogo(null); return; }
     setCatalogo(null);
@@ -99,6 +125,24 @@ export default function Checklists({ ativo, definirCabecalho }) {
 
   return (
     <div className="sect">
+      <div className="cabecalho" style={{ paddingTop: 14 }}>
+        <h3>{MESES[mes]} {ano}</h3>
+        <span className="calnav">
+          <button className="calbt" onClick={() => mudarMes(-1)}>‹</button>
+          <button className="calbt" onClick={() => mudarMes(1)}>›</button>
+        </span>
+      </div>
+      {!eventosMes.length && <div className="vaz">Sem cultos marcados neste mês.</div>}
+      {eventosMes.length > 0 && (
+        <div className="menu" style={{ position: "static", border: 0, padding: "4px 0 4px", background: "none", backdropFilter: "none" }}>
+          {eventosMes.map((e) => (
+            <button key={e.id} data-on={e.id === eventoId ? 1 : 0} onClick={() => setEventoId(e.id)}>
+              {e.tipo ? "✦ " : ""}{dataCurta(e.data)}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="subtabs" style={{ marginBottom: 4 }}>
         {CATEGORIAS.map(([chave, titulo]) => (
           <button key={chave} data-on={categoria === chave ? 1 : 0} onClick={() => setCategoria(chave)}>
@@ -106,9 +150,6 @@ export default function Checklists({ ativo, definirCabecalho }) {
           </button>
         ))}
       </div>
-
-      {evento === undefined && <div className="vaz">A carregar…</div>}
-      {evento === null && <div className="vaz">Sem cultos marcados.</div>}
 
       {evento && (
         <>
