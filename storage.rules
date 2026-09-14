@@ -15,6 +15,18 @@ service firebase.storage {
       allow read:  if minhaBase(base);
       allow write: if (request.auth.uid == pessoa || lider(base)) && imagem();
     }
+    // Comprovativo de capacitação (Base Kinder) — o documento que a
+    // pessoa sobe para provar que entregou (o certificado de registo
+    // criminal, uma foto do certificado do curso…). Mais sensível do
+    // que a foto de perfil ao lado — nunca minhaBase(base) sozinho,
+    // só a própria pessoa e a líder.
+    match /bases/{base}/pessoas/{pessoa}/capacitacoes/{ficheiro} {
+      allow read:  if request.auth.uid == pessoa || lider(base);
+      allow write: if (request.auth.uid == pessoa || lider(base))
+                   && request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
     match /bases/{base}/funcoes/{ficheiro} {
       allow read:  if minhaBase(base);
       allow write: if lider(base) && imagem();

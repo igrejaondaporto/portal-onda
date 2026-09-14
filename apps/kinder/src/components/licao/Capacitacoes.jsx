@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { minhaSalaRestrita, souLider } from "../../lib/modelo";
 import { ouvirVoluntarios } from "../../lib/painel";
 import {
-  ouvirCapacitacoes, ouvirCapacitacoesDe, marcarCapacitacao, estadoCapacitacao, hojeLocal,
-  criarCapacitacao, guardarCapacitacao, desativarCapacitacao, obterCapacitacoesDeTodos,
+  ouvirCapacitacoes, ouvirCapacitacoesDe, marcarCapacitacao, estadoCapacitacao,
+  enviarComprovanteCapacitacao, criarCapacitacao, guardarCapacitacao, desativarCapacitacao,
+  obterCapacitacoesDeTodos,
 } from "../../lib/kinder";
+
+const ACEITA = "image/*,application/pdf";
 
 const ESTADO = {
   ok: { texto: "Feita", classe: "tag lim" },
@@ -29,6 +32,7 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
   const [voluntarios, setVoluntarios] = useState([]);
   const [daEquipa, setDaEquipa] = useState(null);
   const [aEditar, setAEditar] = useState(null); // { cap } — null = nova
+  const [aEnviar, setAEnviar] = useState(null); // id da capacitação a subir agora
 
   useEffect(() => ouvirCapacitacoes(setCaps), []);
   useEffect(() => ouvirCapacitacoesDe(uid, setMinhas), [uid]);
@@ -45,14 +49,25 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
     }
   }
 
-  function alternarFeita(cap) {
-    const feita = !!minhas[cap.id]?.feitaEm;
-    marcarCapacitacao(uid, cap.id, { feitaEm: feita ? null : hojeLocal() })
+  async function enviar(cap, ficheiro) {
+    if (!ficheiro) return;
+    setAEnviar(cap.id);
+    try {
+      await enviarComprovanteCapacitacao(uid, cap.id, ficheiro);
+    } catch (e) {
+      torrada(e.message || "Não foi possível enviar o comprovativo.", true);
+    } finally {
+      setAEnviar(null);
+    }
+  }
+
+  function remover(cap) {
+    marcarCapacitacao(uid, cap.id, { comprovanteUrl: null, comprovanteNome: null, feitaEm: null, validaAte: null })
       .catch((e) => torrada(e.message || "Não foi possível guardar.", true));
   }
 
   function guardarValidade(cap, validaAte) {
-    marcarCapacitacao(uid, cap.id, { feitaEm: minhas[cap.id]?.feitaEm || hojeLocal(), validaAte: validaAte || null })
+    marcarCapacitacao(uid, cap.id, { validaAte: validaAte || null })
       .catch((e) => torrada(e.message || "Não foi possível guardar.", true));
   }
 
@@ -61,36 +76,11 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
       <div className="sect">
         <div className="cabecalho"><h3>As tuas</h3></div>
         {caps.length === 0 && <div className="vaz">Ainda não há capacitações.</div>}
-        {caps.map((c) => {
-          const estado = estadoCapacitacao(c, minhas[c.id]);
-          const feita = minhas[c.id];
-          return (
-            <div className="caixa" key={c.id} style={{ marginTop: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <p className="nmt" style={{ flex: 1 }}>{c.titulo}</p>
-                <span className={ESTADO[estado].classe}>{ESTADO[estado].texto}</span>
-              </div>
-              {c.descricao && <p className="ds" style={{ marginTop: 4 }}>{c.descricao}</p>}
-              <p className="ds" style={{ marginTop: 4 }}>
-                {c.obrigatoria ? "Obrigatória" : "Recomendada"}
-                {feita?.feitaEm ? ` · feita a ${dataCurta(feita.feitaEm)}` : ""}
-              </p>
-              {c.temValidade && (
-                <>
-                  <label className="rot">Válido até</label>
-                  <input className="campo" type="date" defaultValue={feita?.validaAte ?? ""} onBlur={(e) => guardarValidade(c, e.target.value)} />
-                </>
-              )}
-              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                {c.url && <a className="btn sec" style={{ flex: 1, textAlign: "center" }} href={c.url} target="_blank" rel="noreferrer">Abrir</a>}
-                <button className={`btn${feita?.feitaEm ? " sec" : ""}`} style={{ flex: 1 }} onClick={() => alternarFeita(c)}>
-                  {feita?.feitaEm ? "Desmarcar" : c.temValidade ? "Já entreguei" : "Já fiz"}
-                </button>
-              </div>
-              {lider && <button className="btn sec full" style={{ marginTop: 8, padding: "7px", fontSize: 12.5 }} onClick={() => setAEditar({ cap: c })}>Editar</button>}
-            </div>
-          );
-        })}
+        {caps.map((c) => (
+          <CartaoCapacitacao key={c.id} cap={c} feita={minhas[c.id]} lider={lider}
+            aEnviar={aEnviar === c.id} onEnviar={(f) => enviar(c, f)} onRemover={() => remover(c)}
+            onValidade={(v) => guardarValidade(c, v)} onEditar={() => setAEditar({ cap: c })} />
+        ))}
       </div>
 
       {lider && (
@@ -117,6 +107,47 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
 
       {aEditar && <SheetCapacitacao cap={aEditar.cap} onFechar={() => setAEditar(null)} onGuardado={(m) => { setAEditar(null); torrada(m); }} />}
     </>
+  );
+}
+
+function CartaoCapacitacao({ cap: c, feita, lider, aEnviar, onEnviar, onRemover, onValidade, onEditar }) {
+  const inputRef = useRef(null);
+  const estado = estadoCapacitacao(c, feita);
+  return (
+    <div className="caixa" style={{ marginTop: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <p className="nmt" style={{ flex: 1 }}>{c.titulo}</p>
+        <span className={ESTADO[estado].classe}>{ESTADO[estado].texto}</span>
+      </div>
+      {c.descricao && <p className="ds" style={{ marginTop: 4 }}>{c.descricao}</p>}
+      <p className="ds" style={{ marginTop: 4 }}>
+        {c.obrigatoria ? "Obrigatória" : "Recomendada"}
+        {feita?.feitaEm ? ` · comprovado a ${dataCurta(feita.feitaEm)}` : ""}
+      </p>
+      {c.temValidade && (
+        <>
+          <label className="rot">Válido até</label>
+          <input className="campo" type="date" defaultValue={feita?.validaAte ?? ""} onBlur={(e) => onValidade(e.target.value)} />
+        </>
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        {c.url && <a className="btn sec" style={{ flex: 1, textAlign: "center" }} href={c.url} target="_blank" rel="noreferrer">Abrir</a>}
+        {feita?.comprovanteUrl && (
+          <a className="btn sec" style={{ flex: 1, textAlign: "center" }} href={feita.comprovanteUrl} target="_blank" rel="noreferrer">
+            Ver comprovativo
+          </a>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept={ACEITA} style={{ display: "none" }}
+        onChange={(e) => { onEnviar(e.target.files[0] ?? null); e.target.value = ""; }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button className="btn" style={{ flex: 1 }} disabled={aEnviar} onClick={() => inputRef.current?.click()}>
+          {aEnviar ? "A enviar…" : feita?.comprovanteUrl ? "Trocar comprovativo" : "Enviar comprovativo"}
+        </button>
+        {feita?.comprovanteUrl && <button className="btn sec" style={{ flex: 1 }} onClick={onRemover}>Remover</button>}
+      </div>
+      {lider && <button className="btn sec full" style={{ marginTop: 8, padding: "7px", fontSize: 12.5 }} onClick={onEditar}>Editar</button>}
+    </div>
   );
 }
 
