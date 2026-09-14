@@ -465,7 +465,7 @@ export const dadosFamiliaKinder = onCall(async (req) => {
     .map((l) => ({ id: l.id, ...l.data() }))
     .filter((l) => l.resumoPais && (l.categorias || []).some((c) => categorias.has(c)))
     .slice(0, 3)
-    .map((l) => ({ id: l.id, titulo: l.titulo, resumoPais: l.resumoPais, categorias: l.categorias, criadoEm: ms(l.criadoEm) }));
+    .map((l) => ({ id: l.id, titulo: l.titulo, resumoPais: l.resumoPais, categorias: l.categorias, eventoId: l.eventoId ?? null, criadoEm: ms(l.criadoEm) }));
 
   return {
     familiaId: fam.id,
