@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { CATEGORIAS, capacidadesPorSala, categoriaInicial, cEscala, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
 import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
@@ -37,14 +37,17 @@ export function Cuidados({ crianca }) {
 export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const liderGeral = souLiderGeral(papel);
+  // presa à sua sala em tudo aqui — nunca vê criança, família nem
+  // ocorrência de outra (a única excepção do Portal é a Escala).
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const hoje = hojeLocal();
   const [familias, setFamilias] = useState([]);
   const [criancas, setCriancas] = useState([]);
   const [checkins, setCheckins] = useState([]);
   const [codigos, setCodigos] = useState({});
   const [haCultoHoje, setHaCultoHoje] = useState(null);
-  const [sala, setSala] = useState(null);
-  const [salaDefinida, setSalaDefinida] = useState(false);
+  const [sala, setSala] = useState(restrita);
   const [procura, setProcura] = useState("");
   const [verSaidos, setVerSaidos] = useState(false);
   const [verPendentes, setVerPendentes] = useState(false);
@@ -59,39 +62,44 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => onSnapshot(cEscala(hoje), (s) => setEscalaHoje(s.exists() ? s.data() : null)), [hoje]);
   useEffect(() => onSnapshot(doc(db, `eventos/${hoje}`), (s) => setHaCultoHoje(s.exists() && s.data().ativo !== false)), [hoje]);
-  useEffect(() => {
-    if (salaDefinida || !pessoa) return;
-    setSala(categoriaInicial(papel, pessoa));
-    setSalaDefinida(true);
-  }, [pessoa, papel, salaDefinida]);
+  // presa à sua sala — mesmo que `pessoa` só carregue depois do
+  // primeiro render, a sala fica sempre trancada quando restrita.
+  useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
 
   const criancaPorId = useMemo(() => Object.fromEntries(criancas.map((c) => [c.id, c])), [criancas]);
   const familiaPorId = useMemo(() => Object.fromEntries(familias.map((f) => [f.id, f])), [familias]);
   const checkinPorCrianca = useMemo(() => Object.fromEntries(checkins.filter((c) => !c.anulado).map((c) => [c.criancaId, c])), [checkins]);
-  const criancasDaFamilia = (familiaId) => criancas.filter((c) => c.familiaId === familiaId);
+  // nunca as crianças de outra sala — mesmo dentro da mesma família
+  // (irmãos em salas diferentes): a líder de uma sala só vê e só
+  // regista entrada/saída de quem é da sua.
+  const criancasDaFamilia = (familiaId) => criancas.filter((c) => c.familiaId === familiaId && (!restrita || c.categoria === restrita));
 
-  const validos = checkins.filter((c) => !c.anulado);
+  const validos = checkins.filter((c) => !c.anulado && (!restrita || c.categoria === restrita));
   const naSala = validos.filter((c) => !c.saidaEm);
   const saidos = validos.filter((c) => c.saidaEm);
   const naSalaFiltrados = naSala.filter((c) => !sala || c.categoria === sala);
-  const contagens = Object.fromEntries(CATEGORIAS.map((c) => [c.id, naSala.filter((k) => k.categoria === c.id).length]));
+  const contagens = Object.fromEntries(CATEGORIAS.map((c) => [c.id, checkins.filter((k) => !k.anulado && !k.saidaEm && k.categoria === c.id).length]));
   const capacidades = useMemo(
     () => capacidadesPorSala(escalaHoje?.pessoas ?? [], voluntarios),
     [escalaHoje, voluntarios],
   );
   const salaNoLimite = sala && capacidades[sala] > 0 && contagens[sala] >= capacidades[sala];
-  const pendentes = familias.filter((f) => f.estado === "pendente");
+  // registos por confirmar cruzam salas (uma família pode ter filhos
+  // em mais do que uma) — só a líder geral trata disso
+  const pendentes = liderGeral ? familias.filter((f) => f.estado === "pendente") : [];
 
   const resultados = useMemo(() => {
     const q = normalizar(procura.trim());
     if (q.length < 2) return [];
     const qDigitos = procura.replace(/\D/g, "");
     return familias.filter((f) => {
-      const nomes = [...(f.responsaveis || []).map((r) => r.nome), ...criancasDaFamilia(f.id).map((c) => c.nome)];
+      const filhosVisiveis = criancasDaFamilia(f.id);
+      if (!filhosVisiveis.length) return false; // sem filho na tua sala — não é para ti
+      const nomes = [...(f.responsaveis || []).map((r) => r.nome), ...filhosVisiveis.map((c) => c.nome)];
       return nomes.some((n) => normalizar(n).includes(q)) || (qDigitos.length >= 3 && (f.telefones || []).some((t) => t.includes(qDigitos)));
     }).slice(0, 12);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [procura, familias, criancas]);
+  }, [procura, familias, criancas, restrita]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -176,7 +184,11 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
 
           <div className="sect">
             <div className="cabecalho"><h3>Na sala agora</h3></div>
-            <SeletorCategoria valor={sala} onMudar={setSala} contagens={contagens} capacidades={capacidades} />
+            {restrita ? (
+              <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
+            ) : (
+              <SeletorCategoria valor={sala} onMudar={setSala} contagens={contagens} capacidades={capacidades} />
+            )}
             {salaNoLimite && (
               <p className="ds" style={{ marginTop: 4 }}>
                 <span className="kin-alerta">
@@ -220,7 +232,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
             </div>
           )}
 
-          {lider && (
+          {liderGeral && (
             <button className="btn sec full" style={{ marginTop: 18 }} onClick={() => setSheet({ tipo: "relatorios" })}>Relatórios</button>
           )}
         </>
@@ -232,7 +244,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
         <SheetFamilia
           familia={familiaPorId[sheet.familiaId]} criancas={criancasDaFamilia(sheet.familiaId)}
           checkinPorCrianca={checkinPorCrianca} codigo={codigos[sheet.familiaId]}
-          haCultoHoje={haCultoHoje} lider={lider} tokenAcabado={sheet.token}
+          haCultoHoje={haCultoHoje} lider={lider} restrita={restrita} tokenAcabado={sheet.token}
           onFechar={() => setSheet(null)}
           onSaida={() => setSheet({ tipo: "saida", familiaId: sheet.familiaId })}
         />
@@ -247,6 +259,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
       )}
       {sheet?.tipo === "nova" && (
         <SheetNovaFamilia
+          restrita={restrita}
           onFechar={() => setSheet(null)}
           onRegistada={({ familiaId, token }) => { setProcura(""); setSheet({ tipo: "familia", familiaId, token }); }}
         />

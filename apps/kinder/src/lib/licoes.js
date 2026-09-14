@@ -1,15 +1,22 @@
 /**
- * Lições do Kinder. Chegam da Kiwify (área de membros) como um
- * documento — geralmente um PDF, às vezes a foto de uma página
- * impressa ou um .docx — que a líder descarrega e sobe aqui, sem
- * link nenhum: a Kiwify não tem webhook de conteúdo (só de
- * pagamento) e a conta do Kinder é de aluna, não de produtora, por
- * isso não há como isto chegar sozinho. Uma lição pode servir mais
- * do que uma sala (muitas vezes Fun e Júnior usam a mesma).
+ * Lições do Kinder. Chegam da Kiwify (área de membros) como
+ * documentos — geralmente PDF, às vezes a foto de uma página impressa
+ * ou um .docx — que a líder descarrega e sobe aqui, sem link nenhum: a
+ * Kiwify não tem webhook de conteúdo (só de pagamento) e a conta do
+ * Kinder é de aluna, não de produtora, por isso não há como isto
+ * chegar sozinho. Uma lição pode servir mais do que uma sala (muitas
+ * vezes Fun e Júnior usam a mesma).
+ *
+ * Quatro tipos de documento, cada um com o seu botão no envio e a sua
+ * ação no detalhe (ver Licao.jsx / SheetLicao.jsx):
+ *   - licao      → "Abrir lição do dia" — o documento principal, 1 só
+ *   - recurso    → "Abrir recurso" — opcional, 1 só
+ *   - atividades → "Abrir atividade 1/2/…" — 0 ou mais
  *
  *   bases/kinder/licoes/{id}
- *     titulo, categorias[], resumo, materiais[], resumoPais,
- *     eventoId|null, arquivoUrl|null, arquivoNome|null,
+ *     titulo, categorias[], resumo, resumoPais, eventoId|null,
+ *     licao: {url, nome}|null, recurso: {url, nome}|null,
+ *     atividades: [{url, nome}, …],
  *     enviadoPor, criadoEm, ativo
  *
  * Só as líderes escrevem (firestore.rules → licoes, souLiderBase).
@@ -32,35 +39,47 @@ export const novoIdLicao = () => doc(cLicoes()).id;
 
 /** Nome do ficheiro no Storage com a extensão real do que foi
  *  enviado (a regra do Storage é que decide o que é aceite: pdf,
- *  imagem ou .docx) — nunca fixo, ao contrário do molde da New. */
+ *  imagem ou .docx) — nunca fixo. */
 function extensaoDe(ficheiro) {
   const m = /\.[a-z0-9]+$/i.exec(ficheiro.name);
   return m ? m[0] : "";
 }
 
-/** Cria ou atualiza. `ficheiro` é o documento da lição em si —
- *  geralmente um PDF. Substituir apaga o ficheiro antigo do Storage
- *  sozinho? Não: o nome inclui a extensão, por isso um PDF a
- *  substituir uma foto antiga deixa a foto antiga órfã no Storage —
- *  raro (trocar de tipo de ficheiro na mesma lição), aceitável por
- *  agora; reconsiderar se vier a ser frequente. */
-export async function guardarLicao(id, uid, { titulo, categorias, resumo, materiais, resumoPais, eventoId, ficheiro }, nova) {
-  const extra = {};
-  if (ficheiro) {
-    const destino = refStorage(storage, `bases/${BASE_ID}/licoes/${id}${extensaoDe(ficheiro)}`);
-    await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
-    extra.arquivoUrl = await getDownloadURL(destino);
-    extra.arquivoNome = ficheiro.name;
-  }
+async function subir(id, sufixo, ficheiro) {
+  const destino = refStorage(storage, `bases/${BASE_ID}/licoes/${id}-${sufixo}${extensaoDe(ficheiro)}`);
+  await uploadBytes(destino, ficheiro, { contentType: ficheiro.type });
+  return { url: await getDownloadURL(destino), nome: ficheiro.name };
+}
+
+/**
+ * Cria ou atualiza. `licaoFicheiro`/`recursoFicheiro` (opcionais na
+ * edição — só sobem se a líder tiver escolhido um novo) e
+ * `atividadesFicheiros` (array; `null` num lugar = manter o que já
+ * estava lá naquele índice, para dar para trocar só uma atividade
+ * sem reenviar as outras).
+ */
+export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumoPais, eventoId, licaoFicheiro, recursoFicheiro, atividadesFicheiros, atividadesAtuais }, nova) {
+  const [licao, recurso] = await Promise.all([
+    licaoFicheiro ? subir(id, "licao", licaoFicheiro) : null,
+    recursoFicheiro ? subir(id, "recurso", recursoFicheiro) : null,
+  ]);
+  const atividades = await Promise.all(
+    (atividadesFicheiros || []).map((f, i) => (f ? subir(id, `atividade-${i}`, f) : atividadesAtuais?.[i] ?? null))
+  );
+
   await setDoc(doc(cLicoes(), id), {
     titulo: titulo.trim(),
     categorias,
     resumo: resumo?.trim() || "",
-    materiais: (materiais || []).map((m) => m.trim()).filter(Boolean),
     resumoPais: resumoPais?.trim() || "",
     eventoId: eventoId || null,
-    ...extra,
-    ...(nova ? { enviadoPor: uid, criadoEm: serverTimestamp(), ativo: true, arquivoUrl: extra.arquivoUrl ?? null, arquivoNome: extra.arquivoNome ?? null } : {}),
+    ...(licao ? { licao } : {}),
+    ...(recursoFicheiro !== undefined ? { recurso: recurso ?? null } : {}),
+    atividades: atividades.filter(Boolean),
+    ...(nova ? {
+      enviadoPor: uid, criadoEm: serverTimestamp(), ativo: true,
+      licao: licao ?? null, recurso: recurso ?? null,
+    } : {}),
   }, { merge: true });
 }
 

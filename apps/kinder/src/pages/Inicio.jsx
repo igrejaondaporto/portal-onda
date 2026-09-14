@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, souLider, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO } from "../lib/modelo";
+import { cEscala, souLider, souLiderGeral, minhaSalaRestrita, categoria, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
@@ -38,7 +38,11 @@ export default function Inicio({
 }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const liderGeral = souLiderGeral(papel);
   const minhaSala = pessoa?.categoria ?? null;
+  // presa à sua sala em tudo, exceto Escala (a única excepção — ver
+  // lib/modelo.js) — só a líder geral vê as três.
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const hoje = hojeLocal();
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
@@ -66,9 +70,10 @@ export default function Inicio({
   useEffect(() => ouvirCapacitacoesDe(uid, setMinhasCaps), [uid]);
   useEffect(() => ouvirInventario(setInventario), []);
   useEffect(() => {
-    if (!lider) return;
+    // reembolsos não têm sala — aprovar é sempre da líder geral
+    if (!liderGeral) return;
     return ouvirReembolsos(true, uid, (l) => setPendentesReembolso(l.filter((r) => r.estado === "submetido")));
-  }, [lider, uid]);
+  }, [liderGeral, uid]);
   useEffect(() => { if (lider) return ouvirMinhasSolicitacoes(setMinhasSolicitacoes); }, [lider]);
 
   // a escala do culto em que sirvo tem de ser ao vivo
@@ -89,20 +94,24 @@ export default function Inicio({
 
   const pendentes = familias.filter((f) => f.estado === "pendente");
   const naSala = checkins.filter((c) => !c.anulado && !c.saidaEm);
+  const salasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
+  const naSalaVisivel = restrita ? naSala.filter((c) => c.categoria === restrita) : naSala;
   const porSala = Object.fromEntries(CATEGORIAS.map((c) => [c.id, naSala.filter((k) => k.categoria === c.id).length]));
   const capacidades = capacidadesPorSala(eventoHoje?.escala.pessoas ?? [], voluntarios);
   const criancaPorId = Object.fromEntries(criancas.map((c) => [c.id, c]));
-  const comCuidados = naSala
-    .filter((k) => lider || !minhaSala || k.categoria === minhaSala)
+  const comCuidados = naSalaVisivel
     .map((k) => criancaPorId[k.criancaId])
     .filter((c) => c && (c.alergias || c.restricoesAlimentares || c.necessidades));
 
   const vistas = licoesVistas(uid);
-  const minhasLicoes = licoesDaSala(licoes, lider ? null : minhaSala);
+  const minhasLicoes = licoesDaSala(licoes, restrita);
   const licaoSemana = minhasLicoes[0] ?? null;
-  const salasSemLicao = lider && proximoCulto
-    ? CATEGORIAS.filter((c) => !licoes.some((l) => l.eventoId === proximoCulto.id && (l.categorias || []).includes(c.id)))
-    : [];
+  const semLicaoHoje = (c) => proximoCulto && !licoes.some((l) => l.eventoId === proximoCulto.id && (l.categorias || []).includes(c));
+  const salasSemLicao = !lider || !proximoCulto
+    ? []
+    : liderGeral
+      ? CATEGORIAS.filter((c) => semLicaoHoje(c.id))
+      : (restrita && semLicaoHoje(restrita) ? [categoria(restrita)] : []);
   const capsEmFalta = capacitacoes.filter((c) => c.obrigatoria && estadoCapacitacao(c, minhasCaps[c.id]) !== "ok");
   const faltaInventario = inventario.filter((i) => i.quantidade <= i.minimo).length;
 
@@ -116,7 +125,7 @@ export default function Inicio({
         ? `Serves no ${meuEvento.tipo || "domingo"}, ${dataPorExtenso(meuEvento.data)}`
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: [
-        minhaSala ? `Sala ${nomeCategoria(minhaSala)}` : lider ? "As três salas" : "Sem sala definida",
+        minhaSala ? `Sala ${nomeCategoria(minhaSala)}` : liderGeral ? "As três salas" : "Sem sala definida",
         ...(sirvo ? [`Chegada ${chegada}`, `Líder de escala · ${liderEscalaNome ?? "por definir"}`] : []),
       ],
     });
@@ -126,11 +135,11 @@ export default function Inicio({
   const servemComigo = (meuEvento?.escala.pessoas || [])
     .filter((id) => id !== uid)
     .map((id) => voluntarios.find((p) => p.id === id))
-    .filter((p) => p && (lider || !minhaSala || !p.categoria || p.categoria === minhaSala));
+    .filter((p) => p && (liderGeral || !minhaSala || !p.categoria || p.categoria === minhaSala));
 
   return (
     <>
-      {lider && pendentes.length > 0 && (
+      {liderGeral && pendentes.length > 0 && (
         <Destaque
           rotulo="Registos pelo QR" titulo={`${pendentes.length} ${pendentes.length === 1 ? "família à espera" : "famílias à espera"} de confirmação`}
           detalhe="Confirmam-se sozinhas no primeiro check-in" onClick={onIrCheckin}
@@ -148,7 +157,7 @@ export default function Inicio({
           detalhe={capsEmFalta.map((c) => c.titulo).slice(0, 2).join(" · ")} onClick={() => onIrLicao?.("capacitacoes")}
         />
       )}
-      {lider && pendentesReembolso.length > 0 && (
+      {liderGeral && pendentesReembolso.length > 0 && (
         <Destaque
           rotulo="A precisar de ti" titulo={`${pendentesReembolso.length} ${pendentesReembolso.length === 1 ? "pedido" : "pedidos"} de reembolso`}
           detalhe={`${voluntarios.find((p) => p.id === pendentesReembolso[0].pessoaId)?.nome ?? ""} · ${eur(pendentesReembolso[0].valor)}`}
@@ -160,9 +169,9 @@ export default function Inicio({
         <div>
           {eventoHoje && (
             <div className="sect" data-tour="hoje-bloco">
-              <div className="cabecalho"><h3>Hoje nas salas</h3><span className="cap">{naSala.length} crianças</span></div>
-              <div className="kin-grelha">
-                {CATEGORIAS.map((c) => {
+              <div className="cabecalho"><h3>Hoje nas salas</h3><span className="cap">{naSalaVisivel.length} crianças</span></div>
+              <div className="kin-grelha" style={{ gridTemplateColumns: `repeat(${salasVisiveis.length}, 1fr)` }}>
+                {salasVisiveis.map((c) => {
                   const cap = capacidades[c.id];
                   const noLimite = cap > 0 && porSala[c.id] >= cap;
                   return (
@@ -172,12 +181,12 @@ export default function Inicio({
                   );
                 })}
               </div>
-              {CATEGORIAS.some((c) => capacidades[c.id] > 0 && porSala[c.id] >= capacidades[c.id]) && (
+              {salasVisiveis.some((c) => capacidades[c.id] > 0 && porSala[c.id] >= capacidades[c.id]) && (
                 <p className="ds" style={{ marginTop: 8 }}>Capacidade: {CRIANCAS_POR_VOLUNTARIO} crianças por voluntário na sala.</p>
               )}
               {comCuidados.length > 0 && (
                 <div style={{ marginTop: 12 }}>
-                  <p className="rot" style={{ marginTop: 0 }}>Atenção{minhaSala && !lider ? ` na sala ${nomeCategoria(minhaSala)}` : ""}</p>
+                  <p className="rot" style={{ marginTop: 0 }}>Atenção{restrita ? ` na sala ${nomeCategoria(restrita)}` : ""}</p>
                   {comCuidados.map((c) => (
                     <div className="linha" key={c.id}>
                       <div style={{ flex: 1 }}>
@@ -207,8 +216,8 @@ export default function Inicio({
                     <span key={c} className="kin-tagcat" style={{ ...varsCategoria(c), marginRight: 6 }}>{nomeCategoria(c)}</span>
                   ))}
                 </div>
-                {licaoSemana.materiais?.length > 0 && (
-                  <p className="ds" style={{ marginTop: 8 }}>Materiais: {licaoSemana.materiais.join(", ")}</p>
+                {licaoSemana.atividades?.length > 0 && (
+                  <p className="ds" style={{ marginTop: 8 }}>{licaoSemana.atividades.length} {licaoSemana.atividades.length === 1 ? "atividade" : "atividades"}{licaoSemana.recurso ? " · com recurso" : ""}</p>
                 )}
               </div>
             ) : (

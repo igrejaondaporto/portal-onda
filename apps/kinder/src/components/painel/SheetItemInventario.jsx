@@ -9,7 +9,7 @@ import { CATEGORIAS as SALAS, varsCategoria } from "../../lib/modelo";
 const TAMANHO_MAX = 6 * 1024 * 1024;
 const CATEGORIAS = ["Utensílios", "Produtos", "Insumos", "Decoração", "Extras"];
 
-export default function SheetItemInventario({ item, salaInicial, podeFoto = true, onFechar, onGuardado }) {
+export default function SheetItemInventario({ item, salaInicial, restrita, podeFoto = true, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(item?.id ?? novoItemInventarioId());
   const inputFotoRef = useRef(null);
@@ -93,7 +93,7 @@ export default function SheetItemInventario({ item, salaInicial, podeFoto = true
         </div>
         <label className="rot">Sala</label>
         <div className="kin-cats" style={{ marginBottom: 4 }}>
-          {SALAS.map((s) => (
+          {SALAS.filter((s) => !restrita || s.id === restrita).map((s) => (
             <button key={s.id} type="button" className="kin-cat" style={varsCategoria(s.id)} data-on={sala === s.id ? 1 : 0} onClick={() => setSala(s.id)}>
               {s.nome}
             </button>

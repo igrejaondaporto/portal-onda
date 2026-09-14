@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ouvirVoluntarios, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
-import { CATEGORIAS, nomeCategoria, rotuloPapel, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, minhaSalaRestrita, nomeCategoria, rotuloPapel, varsCategoria } from "../lib/modelo";
 import { linkRegisto } from "../lib/kinder";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -27,7 +27,7 @@ import CodigoQR from "../components/CodigoQR";
  *  de outra sala. */
 export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
-  const minhaSala = papel === "auxiliar" ? (pessoa?.categoria ?? null) : null;
+  const minhaSala = minhaSalaRestrita(papel, pessoa);
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
@@ -83,13 +83,14 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
     definirCabecalho({
       titulo: <em>Painel do líder</em>,
       subtitulo: "Escalas, voluntários e definições",
-      chips: CATEGORIAS.map((c) => `${c.nome} ${voluntarios.filter((p) => p.categoria === c.id).length}`),
+      chips: (minhaSala ? CATEGORIAS.filter((c) => c.id === minhaSala) : CATEGORIAS)
+        .map((c) => `${c.nome} ${voluntarios.filter((p) => p.categoria === c.id).length}`),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voluntarios]);
+  }, [voluntarios, minhaSala]);
 
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
-  const grupos = [...CATEGORIAS.map((c) => ({ id: c.id, nome: c.nome })), { id: null, nome: "Sem sala" }];
+  const gruposVisiveis = minhaSala ? CATEGORIAS.filter((c) => c.id === minhaSala) : [...CATEGORIAS, { id: null, nome: "Sem sala" }];
 
   return (
     <>
@@ -129,7 +130,7 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
               <h3>Voluntários</h3>
               <button className="btn sec" style={{ padding: "8px 15px", fontSize: 13 }} onClick={() => setSheet({ tipo: "perguntaLigacao" })}>Adicionar</button>
             </div>
-            {grupos.map((g) => {
+            {gruposVisiveis.map((g) => {
               const doGrupo = voluntarios.filter((p) => (p.categoria ?? null) === g.id);
               if (!doGrupo.length) return null;
               return (
@@ -169,7 +170,11 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
             <p className="ds">Imprime este QR e cola-o na porta do Kinder. Os pais registam-se sozinhos, sem conta.</p>
             <CodigoQR texto={linkRegisto()} rotulo="QR do registo" />
             <p className="ds" style={{ textAlign: "center", wordBreak: "break-all" }}>{linkRegisto()}</p>
-            <a className="btn sec full" style={{ marginTop: 10, display: "block", textAlign: "center" }} href="/registo/imprimir" target="_blank" rel="noreferrer">
+            <a
+              className="btn sec full" style={{ marginTop: 10, display: "block", textAlign: "center" }}
+              href={minhaSala ? `/registo/imprimir?sala=${minhaSala}` : "/registo/imprimir"}
+              target="_blank" rel="noreferrer"
+            >
               Abrir cartaz para imprimir
             </a>
           </div>

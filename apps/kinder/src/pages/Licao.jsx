@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import { categoriaInicial, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
+import { minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
 import { licoesDaSala, licoesVistas, marcarLicaoVista, desativarLicao } from "../lib/licoes";
 import SeletorCategoria from "../components/SeletorCategoria";
 import SheetLicao from "../components/licao/SheetLicao";
@@ -15,6 +15,8 @@ import Capacitacoes from "../components/licao/Capacitacoes";
 export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, licoes, abaInicial, onLicaoVista }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const liderGeral = souLiderGeral(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const [aba, setAba] = useState(abaInicial ?? "licoes");
   const [sala, setSala] = useState(null);
   const [salaDefinida, setSalaDefinida] = useState(false);
@@ -25,9 +27,10 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
   useEffect(() => { setAba(abaInicial ?? "licoes"); }, [abaInicial]);
   useEffect(() => {
     if (salaDefinida || !pessoa) return;
-    setSala(categoriaInicial(papel, pessoa));
+    setSala(restrita ?? (liderGeral ? null : pessoa?.categoria ?? null));
     setSalaDefinida(true);
-  }, [pessoa, papel, salaDefinida]);
+  }, [pessoa, liderGeral, restrita, salaDefinida]);
+  useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
 
   const vistas = licoesVistas(uid);
   const visiveis = licoesDaSala(licoes, sala);
@@ -66,10 +69,14 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
         <button data-on={aba === "capacitacoes" ? 1 : 0} onClick={() => setAba("capacitacoes")}>Capacitações</button>
       </div>
 
-      {aba === "capacitacoes" ? <Capacitacoes uid={uid} papel={papel} /> : (
+      {aba === "capacitacoes" ? <Capacitacoes uid={uid} papel={papel} pessoa={pessoa} /> : (
         <>
           <div className="sect">
-            <SeletorCategoria valor={sala} onMudar={setSala} />
+            {restrita ? (
+              <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
+            ) : (
+              <SeletorCategoria valor={sala} onMudar={setSala} />
+            )}
             {lider && (
               <button className="btn full" style={{ marginTop: 10 }} onClick={() => setAEditar({ licao: null })}>Nova lição</button>
             )}
@@ -90,12 +97,13 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
                 </div>
                 <p className="ds" style={{ marginTop: 6 }}>
                   {l.eventoId ? `Para ${dataPorExtenso(l.eventoId)}` : "Sem culto marcado"}
-                  {l.materiais?.length ? ` · ${l.materiais.length} materiais` : ""}
+                  {l.recurso ? " · com recurso" : ""}
+                  {l.atividades?.length ? ` · ${l.atividades.length} ${l.atividades.length === 1 ? "atividade" : "atividades"}` : ""}
                 </p>
               </div>
             ))}
           </div>
-          <p className="nota">O documento é o que a líder descarregou da Kiwify. O resto (materiais, resumo) é para preparar a aula.</p>
+          <p className="nota">Os documentos são o que a líder descarregou da Kiwify. O resumo é para preparar a aula.</p>
         </>
       )}
 
@@ -109,21 +117,27 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
               {(licaoAberta.categorias || []).map((c) => <span key={c} className="kin-tagcat" style={varsCategoria(c)}>{nomeCategoria(c)}</span>)}
             </div>
-            {licaoAberta.arquivoUrl && (
-              <a className="btn full" style={{ marginTop: 16, display: "block", textAlign: "center" }} href={licaoAberta.arquivoUrl} target="_blank" rel="noreferrer">
-                Abrir documento ({licaoAberta.arquivoNome})
-              </a>
-            )}
+            <div style={{ marginTop: 16 }}>
+              {licaoAberta.licao && (
+                <a className="btn full" style={{ display: "block", textAlign: "center" }} href={licaoAberta.licao.url} target="_blank" rel="noreferrer">
+                  ABRIR LIÇÃO DO DIA
+                </a>
+              )}
+              {licaoAberta.recurso && (
+                <a className="btn sec full" style={{ marginTop: 9, display: "block", textAlign: "center" }} href={licaoAberta.recurso.url} target="_blank" rel="noreferrer">
+                  ABRIR RECURSO
+                </a>
+              )}
+              {(licaoAberta.atividades || []).map((a, i) => (
+                <a key={i} className="btn sec full" style={{ marginTop: 9, display: "block", textAlign: "center" }} href={a.url} target="_blank" rel="noreferrer">
+                  {`ABRIR ATIVIDADE ${i + 1}`}
+                </a>
+              ))}
+            </div>
             {licaoAberta.resumo && (
               <>
                 <p className="rot">Resumo</p>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, whiteSpace: "pre-line" }}>{licaoAberta.resumo}</p>
-              </>
-            )}
-            {licaoAberta.materiais?.length > 0 && (
-              <>
-                <p className="rot">Materiais a preparar</p>
-                {licaoAberta.materiais.map((m, i) => <div className="linha" key={i}><p className="nmt" style={{ fontSize: 14.5 }}>• {m}</p></div>)}
               </>
             )}
             {licaoAberta.resumoPais && (
@@ -153,7 +167,7 @@ export default function Licao({ uid, papel, pessoa, ativo, definirCabecalho, lic
 
       {aEditar && (
         <SheetLicao
-          licao={aEditar.licao} uid={uid} salaInicial={sala}
+          licao={aEditar.licao} uid={uid} salaInicial={sala} restrita={restrita}
           onFechar={() => setAEditar(null)}
           onGuardado={(msg) => { setAEditar(null); torrada(msg); }}
         />

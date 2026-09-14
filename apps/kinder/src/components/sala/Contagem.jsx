@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento } from "@portal/shared/lib/data.js";
-import { CATEGORIAS, nomeCategoria, souLider, varsCategoria } from "../../lib/modelo";
+import { CATEGORIAS, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../../lib/modelo";
 import { obterEventosDoMes, ouvirVoluntarios } from "../../lib/painel";
 import {
   hojeLocal, hora, ouvirCheckins, ouvirContagem, corrigirContagem,
@@ -19,6 +19,9 @@ const TIPOS = ["Queda", "Febre ou doente", "Choro prolongado", "Alergia", "Confl
 export default function Contagem({ uid, papel, pessoa }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const liderGeral = souLiderGeral(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
+  const escopoOcorrencias = liderGeral ? "geral" : restrita ? "sala" : "propria";
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
   const [checkins, setCheckins] = useState([]);
@@ -41,15 +44,16 @@ export default function Contagem({ uid, papel, pessoa }) {
   }, []);
   useEffect(() => { if (eventoId) return ouvirCheckins(eventoId, setCheckins); }, [eventoId]);
   useEffect(() => { if (eventoId) return ouvirContagem(eventoId, setCorrecoes); }, [eventoId]);
-  useEffect(() => ouvirOcorrencias(lider, uid, setOcorrencias), [lider, uid]);
+  useEffect(() => ouvirOcorrencias(escopoOcorrencias, escopoOcorrencias === "sala" ? restrita : uid, setOcorrencias), [escopoOcorrencias, restrita, uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
 
   if (!eventoId) return <div className="vaz" style={{ marginTop: 16 }}>Ainda não houve cultos para contar.</div>;
 
-  const validos = checkins.filter((c) => !c.anulado);
-  const auto = Object.fromEntries(CATEGORIAS.map((c) => [c.id, validos.filter((k) => k.categoria === c.id).length]));
+  const categoriasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
+  const validos = checkins.filter((c) => !c.anulado && (!restrita || c.categoria === restrita));
+  const auto = Object.fromEntries(CATEGORIAS.map((c) => [c.id, checkins.filter((k) => !k.anulado && k.categoria === c.id).length]));
   const valor = (s) => correcoes[s]?.valor ?? auto[s];
-  const total = CATEGORIAS.reduce((a, c) => a + valor(c.id), 0);
+  const total = categoriasVisiveis.reduce((a, c) => a + valor(c.id), 0);
   const doCulto = ocorrencias.filter((o) => o.eventoId === eventoId);
 
   async function guardarCorrecao() {
@@ -67,8 +71,8 @@ export default function Contagem({ uid, papel, pessoa }) {
         <select className="campo" value={eventoId} onChange={(e) => setEventoId(e.target.value)}>
           {eventos.map((e) => <option key={e.id} value={e.id}>{nomeEvento(e)}</option>)}
         </select>
-        <div className="kin-grelha">
-          {CATEGORIAS.map((c) => (
+        <div className="kin-grelha" style={{ gridTemplateColumns: `repeat(${categoriasVisiveis.length}, 1fr)` }}>
+          {categoriasVisiveis.map((c) => (
             <button key={c.id} type="button" className="kin-num" style={{ ...varsCategoria(c.id), border: 0, cursor: "pointer" }}
               onClick={() => setACorrigir({ sala: c.id, valor: String(valor(c.id)) })}>
               <b>{valor(c.id)}</b>
@@ -129,7 +133,7 @@ export default function Contagem({ uid, papel, pessoa }) {
 
       {aRegistar && (
         <SheetOcorrencia
-          uid={uid} eventoId={eventoId} salaInicial={pessoa?.categoria ?? CATEGORIAS[0].id} checkins={validos}
+          uid={uid} eventoId={eventoId} salaInicial={restrita ?? pessoa?.categoria ?? CATEGORIAS[0].id} restrita={restrita} checkins={validos}
           onFechar={() => setARegistar(false)} onGuardado={() => { setARegistar(false); torrada("Ocorrência registada"); }}
         />
       )}
@@ -137,7 +141,7 @@ export default function Contagem({ uid, papel, pessoa }) {
   );
 }
 
-function SheetOcorrencia({ uid, eventoId, salaInicial, checkins, onFechar, onGuardado }) {
+function SheetOcorrencia({ uid, eventoId, salaInicial, restrita, checkins, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const [tipo, setTipo] = useState(TIPOS[0]);
   const [sala, setSala] = useState(salaInicial);
@@ -168,7 +172,11 @@ function SheetOcorrencia({ uid, eventoId, salaInicial, checkins, onFechar, onGua
           {TIPOS.map((t) => <button key={t} data-on={tipo === t ? 1 : 0} onClick={() => setTipo(t)}>{t}</button>)}
         </div>
         <label className="rot">Sala</label>
-        <SeletorCategoria valor={sala} onMudar={(v) => { setSala(v); setCriancaId(""); }} comTodas={false} />
+        {restrita ? (
+          <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
+        ) : (
+          <SeletorCategoria valor={sala} onMudar={(v) => { setSala(v); setCriancaId(""); }} comTodas={false} />
+        )}
         <label className="rot">Criança (opcional)</label>
         <select className="campo" value={criancaId} onChange={(e) => setCriancaId(e.target.value)}>
           <option value="">—</option>

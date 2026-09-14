@@ -115,12 +115,16 @@ export const corrigirContagem = (eventoId, sala, valor, uid) =>
 
 /* ── ocorrências ──────────────────────────────────────────── */
 
-/** A líder vê todas; o voluntário só as que registou (as regras
- *  obrigam o `where` — sem ele a leitura é recusada). */
-export function ouvirOcorrencias(lider, uid, cb) {
-  const q = lider
+/** A líder geral vê todas; a líder de sala vê as da sua sala, de
+ *  qualquer voluntário; um voluntário simples só as que ele próprio
+ *  registou. `escopo`: "geral" | "sala" | "propria"; `valor`: null
+ *  (geral), a sala (sala) ou o uid (propria). */
+export function ouvirOcorrencias(escopo, valor, cb) {
+  const q = escopo === "geral"
     ? query(cOcorrencias(), orderBy("criadoEm", "desc"), limit(100))
-    : query(cOcorrencias(), where("registadoPor", "==", uid));
+    : escopo === "sala"
+      ? query(cOcorrencias(), where("categoria", "==", valor))
+      : query(cOcorrencias(), where("registadoPor", "==", valor));
   return onSnapshot(q, (s) => cb(lista(s).sort((a, b) => (b.criadoEm?.toMillis?.() ?? Date.now()) - (a.criadoEm?.toMillis?.() ?? Date.now()))));
 }
 export const registarOcorrencia = (uid, d) =>

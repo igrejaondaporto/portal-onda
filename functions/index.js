@@ -199,7 +199,9 @@ export const dadosEntrada = onCall(async (req) => {
       const p = d.data();
       const s = segredos[i];
       const digitos = s.exists ? s.data().pinDigitos ?? (p.papel === "lider_base" ? 6 : 4) : 4;
-      return { id: d.id, nome: p.nome, papel: p.papel, foto: p.foto ?? null, digitos };
+      // categoria: só a Kinder usa (agrupar Baby/Fun/Júnior na grelha de
+      // entrada) — nas outras bases nunca existe, fica sempre null.
+      return { id: d.id, nome: p.nome, papel: p.papel, foto: p.foto ?? null, digitos, categoria: p.categoria ?? null };
     }),
   };
 });

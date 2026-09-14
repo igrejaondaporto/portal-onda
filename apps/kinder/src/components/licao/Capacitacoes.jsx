@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataCurta } from "@portal/shared/lib/data.js";
-import { souLider } from "../../lib/modelo";
+import { minhaSalaRestrita, souLider } from "../../lib/modelo";
 import { ouvirVoluntarios } from "../../lib/painel";
 import {
   ouvirCapacitacoes, ouvirCapacitacoesDe, marcarCapacitacao, estadoCapacitacao, hojeLocal,
@@ -20,9 +20,10 @@ const ESTADO = {
  * trabalha com menores, e com validade. Cada um marca as suas; a
  * líder vê quem falta na equipa.
  */
-export default function Capacitacoes({ uid, papel }) {
+export default function Capacitacoes({ uid, papel, pessoa }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const [caps, setCaps] = useState([]);
   const [minhas, setMinhas] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
@@ -32,11 +33,13 @@ export default function Capacitacoes({ uid, papel }) {
   useEffect(() => ouvirCapacitacoes(setCaps), []);
   useEffect(() => ouvirCapacitacoesDe(uid, setMinhas), [uid]);
   useEffect(() => { if (lider) return ouvirVoluntarios(setVoluntarios); }, [lider]);
+  // a líder de sala só vê a equipa da sua própria sala
+  const equipaVisivel = restrita ? voluntarios.filter((p) => p.categoria === restrita) : voluntarios;
 
   async function verEquipa() {
     if (daEquipa) { setDaEquipa(null); return; }
     try {
-      setDaEquipa(await obterCapacitacoesDeTodos(voluntarios));
+      setDaEquipa(await obterCapacitacoesDeTodos(equipaVisivel));
     } catch (e) {
       torrada(e.message || "Não foi possível carregar.", true);
     }
@@ -98,14 +101,14 @@ export default function Capacitacoes({ uid, papel }) {
           </div>
           <button className="btn sec full" onClick={verEquipa}>{daEquipa ? "Esconder" : "Ver quem falta"}</button>
           {daEquipa && caps.map((c) => {
-            const emFalta = voluntarios.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) !== "ok");
+            const emFalta = equipaVisivel.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) !== "ok");
             return (
               <div className="linha" key={c.id}>
                 <div style={{ flex: 1 }}>
                   <p className="nmt" style={{ fontSize: 14.5 }}>{c.titulo}</p>
                   <p className="ds">{emFalta.length ? `Faltam: ${emFalta.map((p) => p.nome).join(", ")}` : "Toda a equipa em dia"}</p>
                 </div>
-                <span className="tag cinz">{voluntarios.length - emFalta.length}/{voluntarios.length}</span>
+                <span className="tag cinz">{equipaVisivel.length - emFalta.length}/{equipaVisivel.length}</span>
               </div>
             );
           })}
