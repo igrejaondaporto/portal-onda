@@ -159,6 +159,7 @@ bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
 bases/kinder/definicoes/consentimento ← texto + versão, a líder edita
+bases/kinder/definicoes/grupoPais     ← link do grupo dos pais, a líder edita
 bases/kinder/inventario/{item}        ← + sala: "baby"|"fun"|"junior"|"partilhado"
 eventos/{e}/escalas/kinder            ← lista simples (guardarEscalaApoio)
 eventos/{e}/checkinKinder/{crianca}   ← só por Cloud Function
@@ -209,7 +210,8 @@ resto tem equivalente:
   filtro por sala de tudo o resto) — é onde se vê quem já está
   registado, sem precisar de procurar pelo nome.
 - **Saída**: o código tem de bater certo. Sem código, só uma líder
-  (`souLider`), e com o motivo — fica registado em
+  (`souLider`) — ou a Mestra da sala dessa criança nesse culto (ver
+  "Mestra" acima) —, e com o motivo — fica registado em
   `saidaForcada.motivo`, nunca em silêncio.
 - **Chamar os pais**: telão da sala (menu Chamadas, próprio na barra
   de baixo — o mesmo `PainelChamadas` partilhado, ver `Chamadas.jsx`)
@@ -218,9 +220,28 @@ resto tem equivalente:
   corrigível à mão) vive direto no Check-in, sempre visível — deixou
   de ter aba própria dentro do Culto. As "Ocorrências" (queda, febre…)
   saíram de propósito: chamar os pais já é o menu Chamadas.
-- **Relatórios**: só líderes, em Check-in → Relatórios — presenças
-  por sala/mês, famílias novas, tempo médio na sala, quem tem
-  alergias/restrições/necessidades.
+- **Relatórios**: qualquer líder abre (Check-in → Relatórios, botão
+  gate `souLider` — não `souLiderGeral`; era só a líder geral e uma
+  líder de sala ficava sem ver o histórico de nenhum culto passado,
+  corrigido 2026-09) — presenças por sala/mês (de qualquer domingo já
+  passado, não só o de hoje), famílias novas, tempo médio na sala,
+  quem tem alergias/restrições/necessidades. Uma líder de sala
+  (`restrita`) só vê a própria sala em tudo isto, mesmo isolamento do
+  resto do Check-in; só a líder geral vê as três.
+
+## Membro da Onda e grupo dos pais
+
+No registo (`/registo`, e na receção por um voluntário —
+`SheetNovaFamilia`), além de "primeira vez na Onda" há um checkbox
+"Somos membros da Igreja Onda" (`FormFamilia.jsx`, campo `membro` na
+família — nunca tocado depois por uma edição, mesmo padrão do
+`visitante`: só a Cloud Function de registo o grava). Quem se disser
+membro vê, no fim do registo, um botão para entrar no grupo dos pais
+do Kinder — só aparece se a líder tiver definido o link (Painel →
+Salas e consentimento → "Link do grupo dos pais", `definicoes/
+grupoPais`, devolvido por `dadosRegistoKinder`); vazio = o botão nem
+aparece. Sem grupo nenhum criado ainda por omissão — é a líder que
+cola o link quando o grupo existir.
 
 RGPD: o texto de `definicoes/consentimento` é **placeholder** — tem
 de ser validado pela igreja antes de ir para os pais a sério (editar

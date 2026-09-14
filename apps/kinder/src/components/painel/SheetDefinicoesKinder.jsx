@@ -14,6 +14,7 @@ export default function SheetDefinicoesKinder({ onFechar, onGuardado }) {
   const [faixas, setFaixas] = useState(null);
   const [texto, setTexto] = useState("");
   const [original, setOriginal] = useState(null);
+  const [linkGrupo, setLinkGrupo] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function SheetDefinicoesKinder({ onFechar, onGuardado }) {
         setFaixas(d.faixas);
         setTexto(d.consentimento.texto);
         setOriginal(d.consentimento);
+        setLinkGrupo(d.grupoPais?.link || "");
       })
       .catch(() => { setFaixas(FAIXAS_PADRAO); torrada("Não foi possível carregar as definições.", true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -34,6 +36,7 @@ export default function SheetDefinicoesKinder({ onFechar, onGuardado }) {
     const invalida = CATEGORIAS.find((c) => !Number.isInteger(faixas[c.id].min) || !Number.isInteger(faixas[c.id].max) || faixas[c.id].min > faixas[c.id].max);
     if (invalida) return torrada(`As idades de ${invalida.nome} não estão certas.`, true);
     if (!texto.trim()) return torrada("O consentimento não pode ficar vazio.", true);
+    if (linkGrupo.trim() && !/^https:\/\//.test(linkGrupo.trim())) return torrada("O link do grupo tem de começar por https://", true);
     setAEnviar(true);
     try {
       await guardarDefinicao("categorias", { faixas });
@@ -41,6 +44,7 @@ export default function SheetDefinicoesKinder({ onFechar, onGuardado }) {
         const n = Number(String(original?.versao || "").replace(/\D/g, "")) || 0;
         await guardarDefinicao("consentimento", { texto: texto.trim(), versao: `v${n + 1}` });
       }
+      await guardarDefinicao("grupoPais", { link: linkGrupo.trim() });
       onGuardado("Definições guardadas");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.", true);
@@ -69,6 +73,11 @@ export default function SheetDefinicoesKinder({ onFechar, onGuardado }) {
             <textarea className="campo" rows={8} value={texto} onChange={(e) => setTexto(e.target.value)} />
             <p className="ds" style={{ marginTop: 6 }}>
               <span className="kin-alerta">Validar este texto com a igreja antes de o usar com os pais.</span>
+            </p>
+            <label className="rot" style={{ marginTop: 14 }}>Link do grupo dos pais do Kinder (opcional)</label>
+            <input className="campo" type="url" value={linkGrupo} onChange={(e) => setLinkGrupo(e.target.value)} placeholder="https://chat.whatsapp.com/…" />
+            <p className="ds" style={{ marginTop: 6 }}>
+              Mostrado no fim do registo a quem se disser membro da Onda. Vazio = não aparece nada.
             </p>
             <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
           </>

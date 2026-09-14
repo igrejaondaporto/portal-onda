@@ -4,14 +4,21 @@ import { obterCheckinsDe, hojeLocal } from "../../lib/kinder";
 import { CATEGORIAS, nomeCategoria, varsCategoria } from "../../lib/modelo";
 import { MESES, dataCurta } from "@portal/shared/lib/data.js";
 
-/** Relatórios das líderes: presenças por culto e por sala, famílias
- *  novas, tempo médio na sala, e quem tem alergias/restrições/
- *  necessidades (para preparar lanches e atividades). */
-export default function Relatorios({ criancas, familias, onFechar }) {
+/** Relatórios: presenças por culto (de outros domingos, não só o de
+ *  hoje) e por sala, famílias novas, tempo médio na sala, e quem tem
+ *  alergias/restrições/necessidades (para preparar lanches e
+ *  atividades). Qualquer líder abre — uma líder de sala (`restrita`)
+ *  só vê a própria sala em tudo aqui, mesmo isolamento do resto do
+ *  Check-in; só a líder geral vê as três. */
+export default function Relatorios({ criancas, familias, restrita, onFechar }) {
   const agora = new Date();
   const [ano, setAno] = useState(agora.getFullYear());
   const [mes, setMes] = useState(agora.getMonth());
   const [linhas, setLinhas] = useState(null);
+  const categoriasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
+  const criancasVisiveis = restrita ? criancas.filter((c) => c.categoria === restrita) : criancas;
+  const idsFamiliasVisiveis = new Set(criancasVisiveis.map((c) => c.familiaId));
+  const familiasVisiveis = restrita ? familias.filter((f) => idsFamiliasVisiveis.has(f.id)) : familias;
 
   useEffect(() => {
     let cancelado = false;
@@ -22,22 +29,23 @@ export default function Relatorios({ criancas, familias, onFechar }) {
       const porEvento = await obterCheckinsDe(eventos.map((e) => e.id));
       if (cancelado) return;
       setLinhas(eventos.map((ev) => {
-        const cs = (porEvento[ev.id] || []).filter((c) => !c.anulado);
+        const cs = (porEvento[ev.id] || []).filter((c) => !c.anulado && (!restrita || c.categoria === restrita));
         const durações = cs.filter((c) => c.saidaEm && c.entradaEm).map((c) => c.saidaEm.toMillis() - c.entradaEm.toMillis());
         const media = durações.length ? Math.round(durações.reduce((a, b) => a + b, 0) / durações.length / 60000) : null;
-        const novas = familias.filter((f) => {
+        const novas = familiasVisiveis.filter((f) => {
           const d = f.criadoEm?.toDate?.();
           return d && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` === ev.data;
         }).length;
         return {
           ev, total: cs.length, novas, media,
-          porSala: Object.fromEntries(CATEGORIAS.map((c) => [c.id, cs.filter((k) => k.categoria === c.id).length])),
+          porSala: Object.fromEntries(categoriasVisiveis.map((c) => [c.id, cs.filter((k) => k.categoria === c.id).length])),
           semCodigo: cs.filter((c) => c.saidaForcada).length,
         };
       }));
     })();
     return () => { cancelado = true; };
-  }, [ano, mes, familias]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ano, mes, restrita, familiasVisiveis.length]);
 
   function mudarMes(delta) {
     let m = mes + delta, a = ano;
@@ -45,7 +53,7 @@ export default function Relatorios({ criancas, familias, onFechar }) {
     setMes(m); setAno(a);
   }
 
-  const comCuidados = criancas.filter((c) => c.alergias || c.restricoesAlimentares || c.necessidades);
+  const comCuidados = criancasVisiveis.filter((c) => c.alergias || c.restricoesAlimentares || c.necessidades);
 
   return (
     <>
@@ -66,7 +74,7 @@ export default function Relatorios({ criancas, familias, onFechar }) {
               <thead>
                 <tr>
                   <th>Culto</th>
-                  {CATEGORIAS.map((c) => <th key={c.id}>{c.nome}</th>)}
+                  {categoriasVisiveis.map((c) => <th key={c.id}>{c.nome}</th>)}
                   <th>Total</th><th>Novas</th><th>Tempo</th>
                 </tr>
               </thead>
@@ -74,7 +82,7 @@ export default function Relatorios({ criancas, familias, onFechar }) {
                 {linhas.map((l) => (
                   <tr key={l.ev.id}>
                     <td className="papel">{dataCurta(l.ev.data)}</td>
-                    {CATEGORIAS.map((c) => <td key={c.id}>{l.porSala[c.id]}</td>)}
+                    {categoriasVisiveis.map((c) => <td key={c.id}>{l.porSala[c.id]}</td>)}
                     <td><b>{l.total}</b></td>
                     <td>{l.novas}</td>
                     <td>{l.media != null ? `${l.media} min` : "—"}</td>
@@ -101,7 +109,7 @@ export default function Relatorios({ criancas, familias, onFechar }) {
             {c.categoria && <span className="kin-tagcat" style={varsCategoria(c.categoria)}>{nomeCategoria(c.categoria)}</span>}
           </div>
         ))}
-        <p className="ds" style={{ marginTop: 12 }}>{familias.length} famílias registadas · {criancas.length} crianças.</p>
+        <p className="ds" style={{ marginTop: 12 }}>{familiasVisiveis.length} famílias registadas · {criancasVisiveis.length} crianças.</p>
         <button className="btn sec full" style={{ marginTop: 14 }} onClick={onFechar}>Fechar</button>
       </div>
     </>

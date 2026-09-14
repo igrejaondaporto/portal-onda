@@ -176,14 +176,16 @@ async function criancasDaFamilia(familiaId) {
 /** Texto do consentimento e faixas etárias — o formulário público
  *  precisa disto antes de haver sessão nenhuma. Nada sensível. */
 export const dadosRegistoKinder = onCall(async () => {
-  const [faixas, cons] = await Promise.all([
+  const [faixas, cons, grupo] = await Promise.all([
     lerFaixas(),
     db().doc(`bases/${BASE}/definicoes/consentimento`).get(),
+    db().doc(`bases/${BASE}/definicoes/grupoPais`).get(),
   ]);
   const c = cons.exists ? cons.data() : {};
   return {
     faixas,
     consentimento: { texto: c.texto || CONSENTIMENTO_PADRAO, versao: c.versao || "rascunho-1" },
+    grupoPais: { link: grupo.exists ? grupo.data().link || "" : "" },
   };
 });
 
@@ -220,6 +222,7 @@ export const registarFamiliaKinder = onCall(async (req) => {
     telefones: responsaveis.map((r) => soDigitos(r.telefone)),
     fotoAutorizada: d.fotoAutorizada === true,
     visitante: d.visitante === true,
+    membro: d.membro === true,
     consentimento: {
       versao: texto(d.consentimento.versao, 30) || "rascunho-1",
       aceiteEm: agora(),
