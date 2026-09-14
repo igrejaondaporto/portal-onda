@@ -139,9 +139,16 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
 
 /** Passa pela Cloud Function (antes era setDoc direto) — só assim dá
  *  para validar no servidor que quem serve em mais do que uma base
- *  não fica escalado nas duas no mesmo culto. */
+ *  não fica escalado nas duas no mesmo culto. `liderEscala` fica
+ *  sempre null na Kinder — usa `guardarMestraKinder` abaixo. */
 export const guardarEscala = (eventoId, { pessoas, liderEscala }) =>
   chamar("guardarEscalaApoio")({ eventoId, pessoas, liderEscala }).then((r) => r.data);
+
+/** A Mestra de uma sala, no culto — ver o porquê em
+ *  functions/index.js (guardarMestraKinder). `pessoaId` null tira a
+ *  mestra dessa sala. */
+export const guardarMestraKinder = (eventoId, sala, pessoaId) =>
+  chamar("guardarMestraKinder")({ eventoId, sala, pessoaId }).then((r) => r.data);
 
 /** uid → Set(domingoId) para quem está escalado/indisponível noutra
  *  base nesses domingos — mesmo formato de construirIndisponibilidades

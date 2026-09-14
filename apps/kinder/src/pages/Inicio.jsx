@@ -86,14 +86,18 @@ export default function Inicio({
   useEffect(() => {
     if (!meuEvento?.id) return;
     return onSnapshot(cEscala(meuEvento.id), (esc) => {
-      const escala = esc.exists() ? esc.data() : { pessoas: [], liderEscala: null };
+      const escala = esc.exists() ? esc.data() : { pessoas: [], mestras: {} };
       setMeuEvento((ev) => (ev && ev.id === meuEvento.id ? { ...ev, escala } : ev));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meuEvento?.id]);
 
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
-  const liderEscalaNome = meuEvento?.escala.liderEscala ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome : null;
+  // a Kinder não tem líder de escala único — cada sala tem a sua
+  // Mestra (ver SheetEscala/guardarMestraKinder); aqui só interessa a
+  // da minha própria sala.
+  const mestraDaMinhaSalaId = minhaSala ? meuEvento?.escala.mestras?.[minhaSala] : null;
+  const mestraDaMinhaSalaNome = mestraDaMinhaSalaId ? voluntarios.find((p) => p.id === mestraDaMinhaSalaId)?.nome : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:30";
   const eventoHoje = eventosMes.find((ev) => ev.data === hoje) ?? null;
   const proximoCulto = eventosMes.find((ev) => ev.data >= hoje) ?? null;
@@ -132,11 +136,11 @@ export default function Inicio({
         : `Ainda não estás escalado — próximo culto: ${dataPorExtenso(meuEvento.data)}`,
       chips: [
         minhaSala ? `Sala ${nomeCategoria(minhaSala)}` : liderGeral ? "As três salas" : "Sem sala definida",
-        ...(sirvo ? [`Chegada ${chegada}`, `Líder de escala · ${liderEscalaNome ?? "por definir"}`] : []),
+        ...(sirvo ? [`Chegada ${chegada}`, ...(minhaSala ? [`Mestra · ${mestraDaMinhaSalaNome ?? "por definir"}`] : [])] : []),
       ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, meuEvento, pessoa, sirvo, liderEscalaNome, chegada, minhaSala]);
+  }, [ativo, meuEvento, pessoa, sirvo, mestraDaMinhaSalaNome, chegada, minhaSala]);
 
   const servemComigo = (meuEvento?.escala.pessoas || [])
     .filter((id) => id !== uid)
@@ -267,7 +271,7 @@ export default function Inicio({
                   key={p.id} pessoa={p}
                   resumo={p.categoria ? `Sala ${nomeCategoria(p.categoria)}` : "Geral"}
                   funcoesDaPessoa={[]}
-                  tagExtra={meuEvento.escala.liderEscala === p.id ? <span className="tag lim">Líder de escala</span> : null}
+                  tagExtra={p.categoria && meuEvento.escala.mestras?.[p.categoria] === p.id ? <span className="tag lim">Mestra</span> : null}
                   aberta={contactoAberto === p.id}
                   onToggle={() => setContactoAberto((a) => (a === p.id ? null : p.id))}
                 />
