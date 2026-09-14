@@ -245,15 +245,16 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
             )}
 
             {souLiderBase && (
-              c.enviadoPastorEm ? (
-                <p className="ds" style={{ color: "var(--verde)", marginTop: 8 }}>
-                  Enviado ao pastor · {haAtras(c.enviadoPastorEm)}
-                </p>
-              ) : (
-                <button className="btn sec" style={{ marginTop: 8, fontSize: 12.5 }} onClick={() => enviarParaPastor(c)}>
-                  Enviar para o pastor
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                <button className="btn sec" style={{ fontSize: 12.5 }} onClick={() => enviarParaPastor(c)}>
+                  {c.enviadoPastorEm ? "Enviar de novo" : "Enviar para o pastor"}
                 </button>
-              )
+                {c.enviadoPastorEm && (
+                  <p className="ds" style={{ color: "var(--verde)" }}>
+                    Enviado {haAtras(c.enviadoPastorEm)}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )) : (

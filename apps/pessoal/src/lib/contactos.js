@@ -235,6 +235,15 @@ export function ouvirContactosDoMes(ano, mesIndex, cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+/** Visitantes ainda por enviar ao pastor — sem filtro de mês de
+ *  propósito: enquanto o painel dele não existe, é a líder que envia
+ *  à mão (ver topo do ficheiro), e um lead esquecido de um culto
+ *  antigo continua a precisar do lembrete tanto quanto um de ontem. */
+export function ouvirContactosPorEnviar(cb) {
+  const q = query(cContactos(), where("arquivado", "==", false), where("enviadoPastorEm", "==", null));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
 export function ouvirGDs(cb) {
   return onSnapshot(query(cGDs(), orderBy("nome")), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }

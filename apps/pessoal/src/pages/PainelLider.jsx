@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
-import { FASES } from "../lib/modelo";
+import { FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
-import { ouvirContactoPastor } from "../lib/contactos";
-import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
+import { ouvirContactoPastor, ouvirContactosPorEnviar } from "../lib/contactos";
+import { obterProximoEvento, ouvirAtribuicoes } from "../lib/culto";
+import { MESES, dataPorExtenso, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import Avatares from "@portal/shared/components/Avatares.jsx";
@@ -19,7 +20,7 @@ import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 
-export default function PainelLider({ definirCabecalho, aoVoltar }) {
+export default function PainelLider({ definirCabecalho, aoVoltar, onIrFormulario, onVerFuncoes }) {
   const torrada = useTorrada();
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -29,6 +30,9 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   const [voluntarios, setVoluntarios] = useState([]);
   const [funcoes, setFuncoes] = useState([]);
   const [eventosMes, setEventosMes] = useState([]);
+  const [contactosPorEnviar, setContactosPorEnviar] = useState([]);
+  const [proximoEvento, setProximoEvento] = useState(null);
+  const [atribuicoesProximoEvento, setAtribuicoesProximoEvento] = useState({});
   const [eventosRef, setEventosRef] = useState({});
   const [sheet, setSheet] = useState(null);
   const [aConfirmarRepor, setAConfirmarRepor] = useState(false);
@@ -80,6 +84,18 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   useEffect(() => ouvirContactoPastor(setContactoPastor), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirFuncoes(setFuncoes), []);
+  useEffect(() => ouvirContactosPorEnviar(setContactosPorEnviar), []);
+
+  // lembrete de funções por distribuir — o próximo culto, não o mês em
+  // exibição no ecrã (a líder pode estar a navegar por outro mês).
+  useEffect(() => { obterProximoEvento().then(setProximoEvento); }, []);
+  useEffect(() => {
+    if (!proximoEvento) { setAtribuicoesProximoEvento({}); return; }
+    return ouvirAtribuicoes(proximoEvento.id, setAtribuicoesProximoEvento);
+  }, [proximoEvento]);
+  const funcoesPorDistribuir = proximoEvento
+    ? funcoesDoCulto(funcoes, proximoEvento.id).filter((f) => !(atribuicoesProximoEvento[f.id] || []).length).length
+    : 0;
 
   const recarregarMes = useCallback(() => {
     obterEventosDoMes(ano, mes).then(setEventosMes);
@@ -122,6 +138,32 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
   return (
     <>
       <button className="sair" style={{ marginTop: 0 }} onClick={aoVoltar}>‹ Início</button>
+
+      {contactosPorEnviar.length > 0 && (
+        <div className="destaque" style={{ background: "var(--laranja)" }} onClick={() => onIrFormulario?.()}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Lembrete</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {contactosPorEnviar.length} {contactosPorEnviar.length === 1 ? "visitante" : "visitantes"} por enviar ao pastor
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Enquanto não há painel do pastor, envia pelo Formulário</p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+
+      {funcoesPorDistribuir > 0 && (
+        <div className="destaque" style={{ background: "var(--laranja)" }} onClick={() => onVerFuncoes?.(proximoEvento.id)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Lembrete</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {funcoesPorDistribuir} {funcoesPorDistribuir === 1 ? "função" : "funções"} por distribuir
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Próximo culto · {dataPorExtenso(proximoEvento.data)}</p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
 
       <div className="duas">
         <div>
