@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { obterEventosDoMes } from "../../lib/painel";
-import { obterCheckinsDe, hojeLocal } from "../../lib/kinder";
+import { obterCheckinsDe, hojeLocal, hora } from "../../lib/kinder";
 import { CATEGORIAS, nomeCategoria, varsCategoria } from "../../lib/modelo";
 import { MESES, dataCurta } from "@portal/shared/lib/data.js";
 
@@ -9,12 +9,16 @@ import { MESES, dataCurta } from "@portal/shared/lib/data.js";
  *  alergias/restrições/necessidades (para preparar lanches e
  *  atividades). Qualquer líder abre — uma líder de sala (`restrita`)
  *  só vê a própria sala em tudo aqui, mesmo isolamento do resto do
- *  Check-in; só a líder geral vê as três. */
+ *  Check-in; só a líder geral vê as três. Cada culto abre (toca na
+ *  linha) para a lista de registos — quem entrou, a que horas, quem
+ *  levantou, se saiu sem código e com que motivo, e os check-ins
+ *  anulados — nunca só os números agregados. */
 export default function Relatorios({ criancas, familias, restrita, onFechar }) {
   const agora = new Date();
   const [ano, setAno] = useState(agora.getFullYear());
   const [mes, setMes] = useState(agora.getMonth());
   const [linhas, setLinhas] = useState(null);
+  const [abertos, setAbertos] = useState({});
   const categoriasVisiveis = restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
   const criancasVisiveis = restrita ? criancas.filter((c) => c.categoria === restrita) : criancas;
   const idsFamiliasVisiveis = new Set(criancasVisiveis.map((c) => c.familiaId));
@@ -23,13 +27,15 @@ export default function Relatorios({ criancas, familias, restrita, onFechar }) {
   useEffect(() => {
     let cancelado = false;
     setLinhas(null);
+    setAbertos({});
     (async () => {
       const hoje = hojeLocal();
       const eventos = (await obterEventosDoMes(ano, mes)).filter((e) => e.data <= hoje);
       const porEvento = await obterCheckinsDe(eventos.map((e) => e.id));
       if (cancelado) return;
       setLinhas(eventos.map((ev) => {
-        const cs = (porEvento[ev.id] || []).filter((c) => !c.anulado && (!restrita || c.categoria === restrita));
+        const todos = (porEvento[ev.id] || []).filter((c) => !restrita || c.categoria === restrita);
+        const cs = todos.filter((c) => !c.anulado);
         const durações = cs.filter((c) => c.saidaEm && c.entradaEm).map((c) => c.saidaEm.toMillis() - c.entradaEm.toMillis());
         const media = durações.length ? Math.round(durações.reduce((a, b) => a + b, 0) / durações.length / 60000) : null;
         const novas = familiasVisiveis.filter((f) => {
@@ -40,6 +46,9 @@ export default function Relatorios({ criancas, familias, restrita, onFechar }) {
           ev, total: cs.length, novas, media,
           porSala: Object.fromEntries(categoriasVisiveis.map((c) => [c.id, cs.filter((k) => k.categoria === c.id).length])),
           semCodigo: cs.filter((c) => c.saidaForcada).length,
+          // todos os registos do culto, entrada por entrada — inclui os
+          // anulados (marcados), para nunca esconder o que aconteceu.
+          registos: [...todos].sort((a, b) => (a.entradaEm?.toMillis() ?? 0) - (b.entradaEm?.toMillis() ?? 0)),
         };
       }));
     })();
@@ -80,13 +89,34 @@ export default function Relatorios({ criancas, familias, restrita, onFechar }) {
               </thead>
               <tbody>
                 {linhas.map((l) => (
-                  <tr key={l.ev.id}>
-                    <td className="papel">{dataCurta(l.ev.data)}</td>
-                    {categoriasVisiveis.map((c) => <td key={c.id}>{l.porSala[c.id]}</td>)}
-                    <td><b>{l.total}</b></td>
-                    <td>{l.novas}</td>
-                    <td>{l.media != null ? `${l.media} min` : "—"}</td>
-                  </tr>
+                  <Fragment key={l.ev.id}>
+                    <tr style={{ cursor: "pointer" }} onClick={() => setAbertos((a) => ({ ...a, [l.ev.id]: !a[l.ev.id] }))}>
+                      <td className="papel">{dataCurta(l.ev.data)} {abertos[l.ev.id] ? "▾" : "▸"}</td>
+                      {categoriasVisiveis.map((c) => <td key={c.id}>{l.porSala[c.id]}</td>)}
+                      <td><b>{l.total}</b></td>
+                      <td>{l.novas}</td>
+                      <td>{l.media != null ? `${l.media} min` : "—"}</td>
+                    </tr>
+                    {abertos[l.ev.id] && (
+                      <tr>
+                        <td colSpan={categoriasVisiveis.length + 4} style={{ padding: "8px 0" }}>
+                          {l.registos.length === 0 ? <div className="vaz">Sem check-ins neste culto.</div> : l.registos.map((r) => (
+                            <div className="linha" key={r.criancaId}>
+                              <div style={{ flex: 1 }}>
+                                <p className="nmt">{r.nome}{r.anulado ? " · anulado" : ""}</p>
+                                <p className="ds">
+                                  Entrou às {hora(r.entradaEm)}
+                                  {r.saidaEm ? ` · saiu às ${hora(r.saidaEm)} com ${r.levantadoPor}` : r.anulado ? "" : " · ainda na sala"}
+                                  {r.saidaForcada ? ` · sem código: ${r.saidaForcada.motivo}` : ""}
+                                </p>
+                              </div>
+                              {!restrita && r.categoria && <span className="kin-tagcat" style={varsCategoria(r.categoria)}>{nomeCategoria(r.categoria)}</span>}
+                            </div>
+                          ))}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

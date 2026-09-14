@@ -227,7 +227,12 @@ resto tem equivalente:
   passado, não só o de hoje), famílias novas, tempo médio na sala,
   quem tem alergias/restrições/necessidades. Uma líder de sala
   (`restrita`) só vê a própria sala em tudo isto, mesmo isolamento do
-  resto do Check-in; só a líder geral vê as três.
+  resto do Check-in; só a líder geral vê as três. Cada linha de culto
+  abre (toca) para a lista de registos desse domingo — cada criança,
+  a que horas entrou/saiu, quem a levantou, se saiu sem código e o
+  motivo, e os check-ins anulados (marcados, nunca escondidos); os
+  números da linha (Total, por sala…) continuam a excluir os
+  anulados, só a lista aberta os mostra.
 
 ## Membro da Onda e grupo dos pais
 
