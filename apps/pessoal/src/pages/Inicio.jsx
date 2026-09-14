@@ -254,7 +254,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
       )}
       {souLiderBase && funcoesPorDistribuirGeral > 0 && (
-        <div className="destaque" style={{ background: "var(--laranja)" }} onClick={() => onVerFuncoes?.(proximoEventoGeral.id)}>
+        <div className="destaque" onClick={() => onVerFuncoes?.(proximoEventoGeral.id)}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Lembrete</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
