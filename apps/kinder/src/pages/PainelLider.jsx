@@ -18,9 +18,16 @@ import SheetDefinicoesKinder from "../components/painel/SheetDefinicoesKinder";
 import CodigoQR from "../components/CodigoQR";
 
 /** Painel das líderes (a geral e as três de sala — as mesmas
- *  permissões). Escala do mês, voluntários por sala, definições. */
-export default function PainelLider({ definirCabecalho, aoVoltar }) {
+ *  permissões). Escala do mês, voluntários por sala, definições.
+ *
+ *  Restrição por sala: a líder geral (`lider_base`) monta a escala
+ *  das três salas; a líder de sala (`auxiliar`) só vê e só monta a
+ *  sua — `minhaSala` filtra a lista de voluntários que entra no
+ *  SheetEscala, para nunca lhe aparecer (nem deixá-la tocar) gente
+ *  de outra sala. */
+export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar }) {
   const torrada = useTorrada();
+  const minhaSala = papel === "auxiliar" ? (pessoa?.categoria ?? null) : null;
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
@@ -162,7 +169,9 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
             <p className="ds">Imprime este QR e cola-o na porta do Kinder. Os pais registam-se sozinhos, sem conta.</p>
             <CodigoQR texto={linkRegisto()} rotulo="QR do registo" />
             <p className="ds" style={{ textAlign: "center", wordBreak: "break-all" }}>{linkRegisto()}</p>
-            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "qrPorta" })}>Mostrar em grande para imprimir</button>
+            <a className="btn sec full" style={{ marginTop: 10, display: "block", textAlign: "center" }} href="/registo/imprimir" target="_blank" rel="noreferrer">
+              Abrir cartaz para imprimir
+            </a>
           </div>
 
           <div className="sect">
@@ -193,7 +202,9 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
 
       {sheet?.tipo === "escala" && (
         <SheetEscala
-          evento={eventosMes.find((e) => e.id === sheet.eventoId)} voluntarios={voluntarios}
+          evento={eventosMes.find((e) => e.id === sheet.eventoId)}
+          voluntarios={minhaSala ? voluntarios.filter((v) => v.categoria === minhaSala) : voluntarios}
+          sala={minhaSala}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
           onExcluir={(eventoId) => setSheet({ tipo: "excluirCulto", eventoId })}
@@ -237,20 +248,6 @@ export default function PainelLider({ definirCabecalho, aoVoltar }) {
       )}
       {sheet?.tipo === "definicoesKinder" && (
         <SheetDefinicoesKinder onFechar={() => setSheet(null)} onGuardado={(msg) => { setSheet(null); torrada(msg); }} />
-      )}
-      {sheet?.tipo === "qrPorta" && (
-        <>
-          <div className="veu on" onClick={() => setSheet(null)} />
-          <div className="pin on" role="dialog" aria-modal="true" style={{ textAlign: "center" }}>
-            <div className="pux" />
-            <h2>Registo da família</h2>
-            <p className="sb2">Aponta a câmara do telemóvel</p>
-            <div style={{ transform: "scale(1.3)", margin: "40px 0" }}><CodigoQR texto={linkRegisto()} rotulo="QR do registo" /></div>
-            <p className="ds">{linkRegisto()}</p>
-            <button className="btn full" style={{ marginTop: 16 }} onClick={() => window.print()}>Imprimir</button>
-            <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setSheet(null)}>Fechar</button>
-          </div>
-        </>
       )}
     </>
   );

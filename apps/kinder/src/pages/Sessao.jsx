@@ -194,7 +194,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               onIrCapacitacoes={() => irParaLicao("capacitacoes")}
             />
           )}
-          {pagina === "painel" && <PainelLider definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />}
+          {pagina === "painel" && <PainelLider papel={papel} pessoa={pessoa} definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />}
           <p className="assinatura">
             Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
           </p>

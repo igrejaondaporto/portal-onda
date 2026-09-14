@@ -224,3 +224,79 @@
 .kin-kiosk .crista .lin {
   min-height: 40px;
 }
+
+/* ── Cartaz de registo (/registo/imprimir) — uma folha A4 só ──────
+ * Sem casca de app (sem menu, sem NavBar): é a única tela do Kinder
+ * pensada para SAIR da tela, não para ser usada nela. O botão
+ * "Imprimir" desaparece no papel (@media print); o resto — cabeçalho,
+ * QR, link — cabe tudo numa folha só de propósito (regra do pedido:
+ * "tem que ser tudo em uma página só"). */
+.kin-cartaz {
+  min-height: 100vh;
+  background: var(--agua, #f4f5fa);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 16px 40px;
+}
+.kin-cartaz-btn {
+  max-width: 320px;
+  margin-bottom: 18px;
+}
+.kin-cartaz-folha {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(10, 15, 46, 0.12);
+}
+.kin-cartaz-cab {
+  padding: 34px 22px 0;
+  text-align: center;
+}
+.kin-cartaz-cab .lin {
+  justify-content: center;
+}
+.kin-cartaz-corpo {
+  padding: 8px 28px 36px;
+  text-align: center;
+}
+.kin-cartaz-qr {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  margin: 4px auto 22px;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px;
+  box-shadow: 0 0 0 1px var(--fio);
+}
+.kin-cartaz-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  border-radius: 100px;
+  background: var(--agua, #f4f5fa);
+  color: var(--azul);
+  font-weight: 700;
+  font-size: 15px;
+  word-break: break-all;
+}
+.kin-cartaz-nota {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--cinza);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html, body { background: #fff !important; }
+  .kin-cartaz { min-height: 0; padding: 0; background: #fff; }
+  .kin-cartaz-btn { display: none; }
+  .kin-cartaz-folha { max-width: 100%; box-shadow: none; border-radius: 0; page-break-after: avoid; }
+  .kin-cartaz-qr { box-shadow: none; }
+}
