@@ -27,6 +27,21 @@ service firebase.storage {
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
     }
+    // Foto da criança e de cada responsável/autorizado (Base Kinder) —
+    // sempre processada por guardarFotoPessoa (registarFamiliaKinder/
+    // editarFamiliaKinder, Admin SDK) nunca escrita direta: os pais
+    // não têm sessão nenhuma para passar por aqui (registo/link são
+    // sem conta), a foto viaja em base64 dentro da própria função. O
+    // link devolvido já leva o token de leitura — a app nunca precisa
+    // de ler este caminho a sério; fica só como documentação/defesa.
+    match /bases/kinder/criancas/{ficheiro} {
+      allow read:  if minhaBase('kinder');
+      allow write: if false;
+    }
+    match /bases/kinder/familias/{familia}/pessoas/{ficheiro} {
+      allow read:  if minhaBase('kinder');
+      allow write: if false;
+    }
     match /bases/{base}/funcoes/{ficheiro} {
       allow read:  if minhaBase(base);
       allow write: if lider(base) && imagem();

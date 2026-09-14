@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souMestra, varsCategoria } from "../lib/modelo";
 import { ouvirVoluntarios } from "../lib/painel";
 import {
@@ -249,6 +250,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
               .sort((a, b) => a.nome.localeCompare(b.nome, "pt"))
               .map((c) => (
                 <div className="linha" key={c.criancaId} style={{ cursor: "pointer" }} onClick={() => setSheet({ tipo: "saida", familiaId: c.familiaId, criancaId: c.criancaId })}>
+                  <FotoRedonda src={criancaPorId[c.criancaId]?.foto?.url} alt={c.nome} />
                   <div style={{ flex: 1 }}>
                     <p className="nmt">{c.nome}</p>
                     <p className="ds">Entrou às {hora(c.entradaEm)} · código {c.codigo}</p>
@@ -266,6 +268,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
               </div>
               {verSaidos && saidos.map((c) => (
                 <div className="linha" key={c.criancaId}>
+                  <FotoRedonda src={criancaPorId[c.criancaId]?.foto?.url} alt={c.nome} />
                   <div style={{ flex: 1 }}>
                     <p className="nmt">{c.nome}</p>
                     <p className="ds">

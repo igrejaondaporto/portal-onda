@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { linkWhatsApp } from "@portal/shared/lib/data.js";
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 import { darSaida, anularCheckin, lerConteudoQR, hora } from "../../lib/kinder";
 import LeitorQR from "../LeitorQR";
 import { Cuidados } from "../../pages/Checkin";
@@ -86,6 +87,7 @@ export default function SheetSaida({ familia, criancas, checkinPorCrianca, crian
         <div style={{ marginTop: 12 }}>
           {naSala.map((c) => (
             <div className="opcao" key={c.id} style={{ cursor: "pointer" }} onClick={() => alternar(c.id)}>
+              <FotoRedonda src={c.foto?.url} alt={c.nome} />
               <span style={{ flex: 1 }}>
                 <b style={{ fontSize: 15.5, fontWeight: 700 }}>{c.nome}</b>
                 <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>Entrou às {hora(checkinPorCrianca[c.id].entradaEm)}</span>
@@ -101,7 +103,8 @@ export default function SheetSaida({ familia, criancas, checkinPorCrianca, crian
             <label className="rot">Quem veio buscar</label>
             <div className="subtabs" style={{ flexWrap: "wrap" }}>
               {pessoas.map((p, i) => (
-                <button key={i} data-on={quem === p.nome ? 1 : 0} onClick={() => setQuem(p.nome)}>
+                <button key={i} data-on={quem === p.nome ? 1 : 0} style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={() => setQuem(p.nome)}>
+                  <FotoRedonda src={p.foto?.url} alt={p.nome} tamanho={22} />
                   {p.nome}{p.parentesco ? ` · ${p.parentesco}` : ""}
                 </button>
               ))}

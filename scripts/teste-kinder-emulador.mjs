@@ -1,20 +1,29 @@
 /**
  * Teste da Base Kinder contra os EMULADORES (nunca produção): registo
  * de família pelos pais (sem sessão), link da família, check-in,
- * código de levantamento, saída, papel "auxiliar" e as regras que
- * guardam os dados das crianças.
+ * código de levantamento, saída, papel "auxiliar", a foto da criança/
+ * responsável/autorizado, e as regras que guardam os dados das
+ * crianças.
+ *
+ * IMPORTANTE desde que existe foto: `registarFamiliaKinder`/
+ * `editarFamiliaKinder` sobem a foto pelo Admin SDK (`admin.storage()`
+ * — guardarFotoPessoa, functions/kinder.js). SEM o emulador de Storage
+ * no ar, essa chamada escreve na Storage A SÉRIO (produção) mesmo a
+ * correr contra os outros emuladores — nunca esquecer `storage` no
+ * `--only`.
  *
  * Uso (dois terminais — ver memória "Gotchas do Firebase local": os
  * emuladores precisam de JDK 21+):
- *   JAVA_HOME=/opt/homebrew/opt/openjdk@21 firebase emulators:start --only firestore,auth,functions --project painel-onda
+ *   JAVA_HOME=/opt/homebrew/opt/openjdk@21 firebase emulators:start --only firestore,auth,functions,storage --project painel-onda
  *   node scripts/teste-kinder-emulador.mjs
  */
 // Portas por omissão = firebase.json. Se já houver outros emuladores
 // no ar (outra sessão), arrancar com outra config e passar as portas:
-//   PORTA_FIRESTORE=8180 PORTA_AUTH=9199 PORTA_FUNCTIONS=5101 node scripts/teste-kinder-emulador.mjs
+//   PORTA_FIRESTORE=8180 PORTA_AUTH=9199 PORTA_FUNCTIONS=5101 PORTA_STORAGE=9299 node scripts/teste-kinder-emulador.mjs
 const PORTA_FIRESTORE = Number(process.env.PORTA_FIRESTORE || 8080);
 const PORTA_AUTH = Number(process.env.PORTA_AUTH || 9099);
 const PORTA_FUNCTIONS = Number(process.env.PORTA_FUNCTIONS || 5001);
+const PORTA_STORAGE = Number(process.env.PORTA_STORAGE || 9199);
 process.env.FIRESTORE_EMULATOR_HOST = `127.0.0.1:${PORTA_FIRESTORE}`;
 process.env.FIREBASE_AUTH_EMULATOR_HOST = `127.0.0.1:${PORTA_AUTH}`;
 
@@ -37,6 +46,18 @@ connectFirestoreEmulator(db, "127.0.0.1", PORTA_FIRESTORE);
 const fns = getFunctions(app, "europe-west1");
 connectFunctionsEmulator(fns, "127.0.0.1", PORTA_FUNCTIONS);
 const chamar = (nome, dados) => httpsCallable(fns, nome)(dados).then((r) => r.data);
+
+// 1×1 PNG válido (constante conhecida) — só para testar o pipeline de
+// foto (comprime/converte no cliente de verdade; aqui já vai pronto).
+const PNG_TESTE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+/** O url devolvido é sempre o de produção (firebasestorage.googleapis.
+ *  com) — troca para o emulador local antes de ir buscar os bytes a
+ *  sério, para confirmar que a foto ficou mesmo lá (e não em produção). */
+async function descarregarFoto(url) {
+  const local = url.replace("https://firebasestorage.googleapis.com", `http://127.0.0.1:${PORTA_STORAGE}`);
+  const r = await fetch(local);
+  return { status: r.status, bytes: r.ok ? (await r.arrayBuffer()).byteLength : 0 };
+}
 
 let passou = 0, falhou = 0;
 async function teste(nome, fn) {
@@ -141,6 +162,54 @@ await teste("registo de família membro grava membro:true", async () => {
   });
   const f = (await adb.doc(`bases/kinder/familias/${r.familiaId}`).get()).data();
   afirmar(f.membro === true, `membro=${f.membro}`);
+});
+
+// ── Foto da criança e de cada responsável/autorizado — os pais não
+// têm sessão nenhuma, por isso viaja em base64 e é a função (Admin
+// SDK) que sobe ao Storage (guardarFotoPessoa). Sem tocar, mantém-se;
+// removerFoto:true tira.
+let familiaFotoId, familiaFotoToken, criancaFotoId;
+await teste("registo com foto: sobe a foto da criança e do responsável a sério", async () => {
+  const r = await chamar("registarFamiliaKinder", {
+    responsaveis: [{ id: "resp-foto-teste", nome: "Foto Responsavel", telefone: "914000000", fotoBase64: PNG_TESTE }],
+    criancas: [{ nome: "Foto Crianca", dataNascimento: nascidaHa(3), fotoBase64: PNG_TESTE }],
+    consentimento: { aceite: true, versao: "rascunho-1" },
+  });
+  familiaFotoId = r.familiaId; familiaFotoToken = r.token;
+  const f = (await adb.doc(`bases/kinder/familias/${familiaFotoId}`).get()).data();
+  const cs = await adb.collection("bases/kinder/criancas").where("familiaId", "==", familiaFotoId).get();
+  criancaFotoId = cs.docs[0].id;
+  afirmar(!!f.responsaveis[0].foto?.url, "responsável sem foto.url");
+  afirmar(!!cs.docs[0].data().foto?.url, "criança sem foto.url");
+  const [rd, cd] = await Promise.all([descarregarFoto(f.responsaveis[0].foto.url), descarregarFoto(cs.docs[0].data().foto.url)]);
+  afirmar(rd.status === 200 && rd.bytes > 0, `foto do responsável não descarregou (status=${rd.status})`);
+  afirmar(cd.status === 200 && cd.bytes > 0, `foto da criança não descarregou (status=${cd.status})`);
+});
+await teste("editar sem tocar na foto mantém a mesma foto", async () => {
+  const antes = (await adb.doc(`bases/kinder/familias/${familiaFotoId}`).get()).data();
+  await chamar("editarFamiliaKinder", {
+    token: familiaFotoToken,
+    responsaveis: [{ id: "resp-foto-teste", nome: "Foto Responsavel Editado", telefone: "914000000" }],
+    autorizados: [],
+    criancas: [{ id: criancaFotoId, nome: "Foto Crianca Editada", dataNascimento: nascidaHa(3) }],
+  });
+  const depois = (await adb.doc(`bases/kinder/familias/${familiaFotoId}`).get()).data();
+  const criancaDepois = (await adb.doc(`bases/kinder/criancas/${criancaFotoId}`).get()).data();
+  afirmar(depois.responsaveis[0].foto.url === antes.responsaveis[0].foto.url, "foto do responsável mudou sem ninguém tocar");
+  afirmar(depois.responsaveis[0].nome === "Foto Responsavel Editado", "nome não atualizou");
+  afirmar(criancaDepois.foto.url, "foto da criança desapareceu sem ninguém tocar");
+});
+await teste("removerFoto tira a foto do responsável e da criança", async () => {
+  await chamar("editarFamiliaKinder", {
+    token: familiaFotoToken,
+    responsaveis: [{ id: "resp-foto-teste", nome: "Foto Responsavel Editado", telefone: "914000000", removerFoto: true }],
+    autorizados: [],
+    criancas: [{ id: criancaFotoId, nome: "Foto Crianca Editada", dataNascimento: nascidaHa(3), removerFoto: true }],
+  });
+  const f = (await adb.doc(`bases/kinder/familias/${familiaFotoId}`).get()).data();
+  const c = (await adb.doc(`bases/kinder/criancas/${criancaFotoId}`).get()).data();
+  afirmar(f.responsaveis[0].foto === null, `responsável.foto=${JSON.stringify(f.responsaveis[0].foto)}`);
+  afirmar(c.foto === null, `criança.foto=${JSON.stringify(c.foto)}`);
 });
 
 await teste("regras: sem sessão não lê crianças", () => falha(getDoc(doc(db, `bases/kinder/criancas/${criancaId}`)), "permission-denied"));
