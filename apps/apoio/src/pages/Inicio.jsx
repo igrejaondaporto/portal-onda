@@ -103,7 +103,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return () => { p1(); p2(); };
   }, [meuEvento?.id]);
 
-  useEffect(() => { setFrase(meuEvento?.frase ?? ""); }, [meuEvento?.id, meuEvento?.frase]);
+  useEffect(() => { setFrase(meuEvento?.escala?.frase ?? ""); }, [meuEvento?.id, meuEvento?.escala?.frase]);
 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
   const sirvo = !!meuEvento && meuEvento.escala.pessoas.includes(uid);
@@ -169,7 +169,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     try {
       const fraseGuardada = frase.trim();
       await definirFrase(meuEvento.id, fraseGuardada);
-      setMeuEvento((ev) => ({ ...ev, frase: fraseGuardada }));
+      setMeuEvento((ev) => ({ ...ev, escala: { ...ev.escala, frase: fraseGuardada } }));
       setAEditarFrase(false);
       torrada("A tua equipa vai ver isto no Início");
     } catch (e) {
@@ -242,14 +242,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 placeholder="Uma frase curta que os anima antes de começar"
               />
               <button className="btn full" style={{ marginTop: 12 }} disabled={aEnviarFrase} onClick={guardarFrase}>Guardar</button>
-              <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { setAEditarFrase(false); setFrase(meuEvento.frase ?? ""); }}>
+              <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { setAEditarFrase(false); setFrase(meuEvento.escala.frase ?? ""); }}>
                 Cancelar
               </button>
             </div>
-          ) : meuEvento.frase ? (
+          ) : meuEvento.escala.frase ? (
             <div className="frase">
               <p className="cap" style={{ color: "rgba(10,15,46,.6)" }}>A tua palavra para a equipa</p>
-              <p className="txt" style={{ marginTop: 8 }}>{meuEvento.frase}</p>
+              <p className="txt" style={{ marginTop: 8 }}>{meuEvento.escala.frase}</p>
               <button
                 className="btn sec" style={{ marginTop: 14, padding: "9px 16px", fontSize: 13, background: "rgba(10,15,46,.09)", color: "var(--tinta)" }}
                 onClick={() => setAEditarFrase(true)}
@@ -264,9 +264,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               <p className="ds" style={{ marginTop: 5 }}>Aparece no Início de todos os que servem contigo.</p>
             </div>
           )
-        ) : meuEvento.frase ? (
+        ) : meuEvento.escala.frase ? (
           <div className="frase">
-            <p className="txt">“{meuEvento.frase}”</p>
+            <p className="txt">“{meuEvento.escala.frase}”</p>
             <p className="aut">{liderNome ?? "líder de escala"} · líder de escala de {dataPorExtenso(meuEvento.data)}</p>
           </div>
         ) : null}

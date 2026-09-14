@@ -5,7 +5,7 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
 export default function SheetFeedback({ evento, onFechar, onGuardado }) {
   const torrada = useTorrada();
-  const [texto, setTexto] = useState(evento?.feedback?.texto ?? "");
+  const [texto, setTexto] = useState(evento?.escala?.feedback?.texto ?? "");
   const [aEnviar, setAEnviar] = useState(false);
   if (!evento) return null;
 
@@ -48,7 +48,7 @@ export default function SheetFeedback({ evento, onFechar, onGuardado }) {
         />
         <p className="ds" style={{ marginTop: 10 }}>Todos os voluntários da base vão conseguir ler isto.</p>
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={guardar}>Publicar</button>
-        {evento.feedback?.texto && (
+        {evento.escala?.feedback?.texto && (
           <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={apagar}>Apagar</button>
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>

@@ -1702,14 +1702,34 @@ export const checklistCrossBase = onCall(async (req) => {
 });
 
 /* ── FRASE DO LÍDER DE ESCALA ──────────────────────────────
- * O documento do evento é global (a igreja toda) e write:false para o
- * cliente — só assim é que a data e o tipo do culto não podem ser
- * mexidos por engano. A frase passa por aqui por causa disso. */
+ * O documento do evento é global (a igreja toda) — a frase e o
+ * feedback NÃO são: são da base de quem serve, por isso vivem em
+ * eventos/{e}/escalas/{baseId} (já só essa base lê, ver firestore.rules
+ * — vejoTodasEscalas() é a única exceção, igual ao resto da escala),
+ * nunca no documento do evento em si. Já viveram lá (write:false para
+ * o cliente, só por isso passavam por aqui) — bug real, corrigido
+ * 2026-09: qualquer base escrevia a MESMA frase/feedback global, e
+ * cada base via a de quem tivesse escrito por último, fosse de que
+ * base fosse. Sem migração dos valores antigos: estavam misturados
+ * entre bases, sem como saber a quem pertencia cada um. */
+async function upsertCampoEscala(eventoId, baseId, campo, valor) {
+  const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
+  const snap = await ref.get();
+  if (snap.exists) {
+    await ref.set({ [campo]: valor }, { merge: true });
+  } else {
+    // só o feedback_aberto (ver definirFeedback) pode chegar aqui sem a
+    // escala já existir — os defaults evitam que o resto do sistema
+    // (Início, Escala…) rebente ao ler pessoas/liderEscala inexistentes.
+    await ref.set({ baseId, liderEscala: null, pessoas: [], [campo]: valor });
+  }
+}
+
 export const definirFrase = onCall(async (req) => {
   const { eventoId, frase } = req.data || {};
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
-  await exigeLiderDoCulto(req, eventoId);
-  await db.doc(`eventos/${eventoId}`).set({ frase: String(frase ?? "").trim() }, { merge: true });
+  const { baseId } = await exigeLiderDoCulto(req, eventoId);
+  await upsertCampoEscala(eventoId, baseId, "frase", String(frase ?? "").trim());
   return { ok: true };
 });
 
@@ -1720,17 +1740,14 @@ export const definirFeedback = onCall(async (req) => {
   // bases/{b}.feedbackAberto (hoje só a Backstage) — qualquer voluntário
   // da base escreve, não só o líder de escala do culto. Nas outras
   // bases o comportamento não muda: só líder de escala/líder da base.
-  let uid = req.auth?.uid;
+  let uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (req.auth?.token?.feedback_aberto === true) {
-    if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+    if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   } else {
-    ({ uid } = await exigeLiderDoCulto(req, eventoId));
+    ({ uid, baseId } = await exigeLiderDoCulto(req, eventoId));
   }
   const limpo = String(texto ?? "").trim();
-  await db.doc(`eventos/${eventoId}`).set(
-    limpo ? { feedback: { texto: limpo, autorUid: uid } } : { feedback: null },
-    { merge: true }
-  );
+  await upsertCampoEscala(eventoId, baseId, "feedback", limpo ? { texto: limpo, autorUid: uid } : null);
   return { ok: true };
 });
 
