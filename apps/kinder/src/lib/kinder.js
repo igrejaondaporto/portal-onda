@@ -12,7 +12,9 @@ import {
   addDoc, deleteField, getDocFromServer, getDocs, onSnapshot, query,
   serverTimestamp, setDoc, updateDoc, where, doc,
 } from "firebase/firestore";
-import { db, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
+import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 import {
   cFamilia, cFamilias, cCriancas, cCheckins, cCodigos, cChecklistSala, cChecklistKinder,
   cContagemKinder, cCapacitacoes, cCapacitacoesPessoa, cDefinicao,
@@ -135,9 +137,25 @@ export const desativarCapacitacao = (id) => updateDoc(doc(db, `bases/${BASE_ID}/
 
 export const ouvirCapacitacoesDe = (uid, cb) =>
   onSnapshot(cCapacitacoesPessoa(uid), (s) => cb(Object.fromEntries(s.docs.map((d) => [d.id, d.data()]))));
-/** `feitaEm: null` = desmarcar (fica o documento, com quem mexeu). */
+/** `comprovanteUrl: null` = desmarcar (fica o documento, com quem mexeu). */
 export const marcarCapacitacao = (uid, capId, d) =>
   setDoc(doc(cCapacitacoesPessoa(uid), capId), { ...d, atualizadoEm: serverTimestamp() }, { merge: true });
+
+/** Sobe o comprovativo (certificado, foto da conclusão…) para
+ *  `bases/kinder/pessoas/{uid}/capacitacoes/{capId}` e marca a
+ *  capacitação como feita hoje. Imagem comprime antes de subir; PDF
+ *  vai como está (ver limites em storage.rules). */
+export async function enviarComprovanteCapacitacao(uid, capId, ficheiro) {
+  const comprimido = await comprimirImagem(ficheiro);
+  const ext = comprimido.type === "application/pdf" ? "pdf" : "jpg";
+  const caminho = refStorage(storage, `bases/${BASE_ID}/pessoas/${uid}/capacitacoes/${capId}.${ext}`);
+  await uploadBytes(caminho, comprimido, { contentType: comprimido.type });
+  const url = await getDownloadURL(caminho);
+  await marcarCapacitacao(uid, capId, {
+    comprovanteUrl: url, comprovanteNome: ficheiro.name, feitaEm: hojeLocal(),
+  });
+  return url;
+}
 
 /** Grelha da líder: capacitações de toda a gente, lidas uma vez. */
 export async function obterCapacitacoesDeTodos(pessoas) {
@@ -151,7 +169,7 @@ export async function obterCapacitacoesDeTodos(pessoas) {
 /** Uma capacitação está em dia? O certificado de registo criminal
  *  tem validade; as outras basta terem sido feitas. */
 export function estadoCapacitacao(cap, feita, hoje = hojeLocal()) {
-  if (!feita?.feitaEm) return "falta";
+  if (!feita?.comprovanteUrl) return "falta";
   if (cap.temValidade && (!feita.validaAte || feita.validaAte < hoje)) return "caducada";
   return "ok";
 }

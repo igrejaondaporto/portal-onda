@@ -119,7 +119,7 @@ condutor: **nunca** ler nada sensível atrás de `autenticado()` sozinho
 ```
 bases/kinder
 bases/kinder/pessoas/{p}              ← + categoria: "baby"|"fun"|"junior"|null
-bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← feitaEm, validaAte (registo criminal)
+bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← comprovanteUrl/comprovanteNome, feitaEm, validaAte (registo criminal)
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…
@@ -134,6 +134,20 @@ eventos/{e}/codigosKinder/{familia}   ← idem
 eventos/{e}/checklistKinder/{sala}    ← itens marcados, escrita direta
 eventos/{e}/contagemKinder/geral      ← correção manual por sala
 ```
+
+**Capacitações — comprovativo, não um "marquei que fiz".** Em vez de
+um toggle "Já fiz"/"Já entreguei", a pessoa sobe o próprio documento
+que prova a entrega (o certificado de registo criminal digitalizado,
+uma foto do certificado do curso…) — `enviarComprovanteCapacitacao`
+(`lib/kinder.js`) comprime se for imagem e sobe para
+`bases/kinder/pessoas/{uid}/capacitacoes/{capId}.<jpg|pdf>`
+(`storage.rules`, só a própria pessoa e a líder da base, nunca
+`minhaBase` sozinho — mais sensível que a foto de perfil ao lado).
+`estadoCapacitacao` passa a decidir "falta"/"ok"/"caducada" pelo
+`comprovanteUrl`, não pelo `feitaEm` — sem comprovativo, está em
+falta, mesmo que alguém tenha marcado a data à mão antes. "Remover"
+limpa o campo (fica o documento em `capacitacoes/{p}/{cap}`, com
+quem mexeu — nunca um delete a sério).
 
 ## Check-in — paridade com o My Kids (app usada antes)
 
