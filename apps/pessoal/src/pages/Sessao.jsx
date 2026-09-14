@@ -196,6 +196,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
               onIrEscala={irParaEscala}
               onIrCulto={irParaCulto} onIrAcomodacao={() => irPara("acomodacao")}
               onIrReembolsos={() => irPara("reembolsos")}
+              onIrFormulario={() => irPara("formulario")} onVerFuncoes={irParaFuncoes}
             />
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
@@ -243,10 +244,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           )}
           {pagina === "painel" && (
-            <PainelLider
-              definirCabecalho={setCab} aoVoltar={() => irPara("inicio")}
-              onIrFormulario={() => irPara("formulario")} onVerFuncoes={irParaFuncoes}
-            />
+            <PainelLider definirCabecalho={setCab} aoVoltar={() => irPara("inicio")} />
           )}
           <p className="assinatura">
             Feito por <a href="https://instagram.com/geniai.pt" target="_blank" rel="noreferrer">@geniai.pt</a>
