@@ -4,12 +4,18 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
+import { nomeCategoria } from "../../lib/modelo";
 
 /**
  * Cada toque grava logo no Firestore — não há "guardar" no fim.
  * "Concluir" só fecha a folha.
+ *
+ * `voluntarios` já vem filtrado pela sala de quem está a montar (ver
+ * PainelLider — a líder geral vê as três, a líder de sala só a sua);
+ * `sala` (o id, só quando restrita) é só para o texto do cabeçalho —
+ * a restrição em si já está feita na lista que chega aqui.
  */
-export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
+export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
@@ -85,8 +91,14 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
-        <p className="sb2">{pessoas.length} pessoas · chegada {evento.horaChegada || "08:00"}</p>
+        <p className="sb2">
+          {sala ? `Sala ${nomeCategoria(sala)} · ` : ""}
+          {pessoas.filter((id) => voluntarios.some((v) => v.id === id)).length} pessoas · chegada {evento.horaChegada || "08:00"}
+        </p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
+          {sala
+            ? `Só a sala ${nomeCategoria(sala)} aparece aqui. `
+            : ""}
           Toca no nome para juntar ou tirar da escala. A estrela define quem é o líder de escala.
         </p>
         <div className="subtabs" style={{ marginTop: 14 }}>

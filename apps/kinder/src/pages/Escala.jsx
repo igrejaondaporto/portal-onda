@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
-import { CATEGORIAS, categoriaInicial, nomeCategoria, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, categoria, categoriaInicial, nomeCategoria, varsCategoria } from "../lib/modelo";
 import { hojeLocal } from "../lib/kinder";
-import { MESES } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 import SeletorCategoria from "../components/SeletorCategoria";
@@ -65,6 +65,30 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
 
   const salasVisiveis = sala ? CATEGORIAS.filter((c) => c.id === sala) : CATEGORIAS;
 
+  // quadro do mês: uma linha "Líder de escala" + uma linha por lugar,
+  // igual ao resto das bases (Apoio/New) — a cor do nome é a da sala
+  // da pessoa, para ler o quadro inteiro sem abrir nenhum cartão.
+  const corDe = (id) => categoria(pessoaPorId(id)?.categoria)?.cor;
+  const maxLin = Math.max(0, ...eventosMes.map((e) => e.escala.pessoas.filter((id) => id !== e.escala.liderEscala).length));
+  const linhas = [];
+  for (let i = 0; i < maxLin; i++) {
+    linhas.push(
+      <tr key={i}>
+        <td className="papel">{i === 0 ? "Voluntários" : ""}</td>
+        {eventosMes.map((ev) => {
+          const outros = ev.escala.pessoas.filter((id) => id !== ev.escala.liderEscala);
+          const id = outros[i];
+          const p = id ? pessoaPorId(id) : null;
+          return (
+            <td key={ev.id} className={id === uid ? "mim" : ""} style={id !== uid ? { color: corDe(id) } : undefined}>
+              {p ? p.nome : "—"}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  }
+
   return (
     <>
       <div className="sect">
@@ -76,6 +100,44 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
           </span>
         </div>
         <SeletorCategoria valor={sala} onMudar={setSala} />
+        {temEscala ? (
+          <>
+            <div className="tabwrap">
+              <table className="tab">
+                <thead>
+                  <tr>
+                    <th>Kinder</th>
+                    {eventosMes.map((ev) => (
+                      <th key={ev.id} className={ev.data === hoje ? "hj" : ""}>
+                        {dataCurta(ev.data)}{ev.data === hoje ? " · hoje" : ev.data < hoje ? " ✅" : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="lid">
+                    <td className="papel">Líder de escala</td>
+                    {eventosMes.map((ev) => {
+                      const id = ev.escala.liderEscala;
+                      const p = id ? pessoaPorId(id) : null;
+                      return (
+                        <td key={ev.id} className={id === uid ? "mim" : ""} style={id && id !== uid ? { color: corDe(id) } : undefined}>
+                          {p ? p.nome : "por definir"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {linhas}
+                </tbody>
+              </table>
+            </div>
+            <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul; os outros, na cor da sala. Desliza a tabela se não couber.</p>
+          </>
+        ) : (
+          <div className="semescala" style={{ marginTop: 16 }}>
+            Os {eventosMes.length} cultos já existem, falta dizer quem serve.
+          </div>
+        )}
       </div>
 
       <div className="sect">
