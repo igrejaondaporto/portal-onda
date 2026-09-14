@@ -147,7 +147,7 @@ export default function Culto({
           </p>
           {eventosMes.map((ev) => {
             const pode = podeDistribuir(papel, uid, ev.escala);
-            const autorPessoa = ev.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.feedback.autorUid) : null;
+            const autorPessoa = ev.escala.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.escala.feedback.autorUid) : null;
             return (
               <div className="sect" key={ev.id}>
                 <div className="cabecalho">
@@ -157,9 +157,9 @@ export default function Culto({
                   </h3>
                   {ev.escala.liderEscala && <span className="cap">{voluntarios.find((p) => p.id === ev.escala.liderEscala)?.nome}</span>}
                 </div>
-                {ev.feedback?.texto ? (
+                {ev.escala.feedback?.texto ? (
                   <div className="caixa">
-                    <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.feedback.texto}</p>
+                    <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.escala.feedback.texto}</p>
                     <div className="linha" style={{ border: 0, padding: "14px 0 0" }}>
                       {autorPessoa && <Avatar pessoa={autorPessoa} tamanho={34} fonte={14} />}
                       <div style={{ flex: 1 }}><p className="ds">{autorPessoa?.nome ?? "responsável"} · responsável</p></div>
@@ -212,7 +212,7 @@ export default function Culto({
           onFechar={() => setSheetFeedback(null)}
           onGuardado={(novoTexto) => {
             setEventosMes((lista) => lista.map((e) => (
-              e.id === sheetFeedback ? { ...e, feedback: novoTexto ? { texto: novoTexto, autorUid: uid } : null } : e
+              e.id === sheetFeedback ? { ...e, escala: { ...e.escala, feedback: novoTexto ? { texto: novoTexto, autorUid: uid } : null } } : e
             )));
             setSheetFeedback(null);
           }}

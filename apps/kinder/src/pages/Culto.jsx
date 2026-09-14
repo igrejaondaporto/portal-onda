@@ -112,7 +112,7 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
           </p>
           {eventosMes.map((ev) => {
             const pode = podeDistribuir(papel, uid, ev.escala);
-            const autor = ev.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.feedback.autorUid) : null;
+            const autor = ev.escala.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.escala.feedback.autorUid) : null;
             return (
               <div className="sect" key={ev.id}>
                 <div className="cabecalho">
@@ -122,9 +122,9 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
                   </h3>
                   {ev.escala.liderEscala && <span className="cap">{voluntarios.find((p) => p.id === ev.escala.liderEscala)?.nome}</span>}
                 </div>
-                {ev.feedback?.texto ? (
+                {ev.escala.feedback?.texto ? (
                   <div className="caixa">
-                    <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.feedback.texto}</p>
+                    <p style={{ fontSize: 15, lineHeight: 1.6 }}>{ev.escala.feedback.texto}</p>
                     <div className="linha" style={{ border: 0, padding: "14px 0 0" }}>
                       {autor && <Avatar pessoa={autor} tamanho={34} fonte={14} />}
                       <div style={{ flex: 1 }}><p className="ds">{autor?.nome ?? "líder de escala"} · líder de escala</p></div>
@@ -148,7 +148,7 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
           evento={eventosMes.find((e) => e.id === sheetFeedback)}
           onFechar={() => setSheetFeedback(null)}
           onGuardado={(novoTexto) => {
-            setEventosMes((l) => l.map((e) => (e.id === sheetFeedback ? { ...e, feedback: novoTexto ? { texto: novoTexto, autorUid: uid } : null } : e)));
+            setEventosMes((l) => l.map((e) => (e.id === sheetFeedback ? { ...e, escala: { ...e.escala, feedback: novoTexto ? { texto: novoTexto, autorUid: uid } : null } } : e)));
             setSheetFeedback(null);
           }}
         />
