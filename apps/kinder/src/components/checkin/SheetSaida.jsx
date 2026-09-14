@@ -7,11 +7,13 @@ import { Cuidados } from "../../pages/Checkin";
 
 /**
  * Saída: quem veio buscar (responsáveis e autorizados da ficha, ou
- * outra pessoa) + o código do dia. Sem código, só uma líder — e com o
- * motivo, que fica registado. Daqui também se chama os pais (WhatsApp
- * ou telefone) quando é preciso irem buscar a criança mais cedo.
+ * outra pessoa) + o código do dia. Sem código, só uma líder — ou a
+ * Mestra da sala neste culto (`podeForcarSaida`, ver Checkin.jsx) — e
+ * com o motivo, que fica registado. Daqui também se chama os pais
+ * (WhatsApp ou telefone) quando é preciso irem buscar a criança mais
+ * cedo.
  */
-export default function SheetSaida({ familia, criancas, checkinPorCrianca, criancaInicial, codigoInicial, uid, lider, onFechar }) {
+export default function SheetSaida({ familia, criancas, checkinPorCrianca, criancaInicial, codigoInicial, uid, lider, podeForcarSaida, onFechar }) {
   const torrada = useTorrada();
   const naSala = criancas.filter((c) => checkinPorCrianca[c.id] && !checkinPorCrianca[c.id].saidaEm);
   const [escolhidas, setEscolhidas] = useState(() => new Set(criancaInicial ? [criancaInicial] : naSala.map((c) => c.id)));
@@ -130,9 +132,9 @@ export default function SheetSaida({ familia, criancas, checkinPorCrianca, crian
                 <input className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: mãe sem bateria, confirmei por telefone" />
               </>
             )}
-            {lider && (
+            {podeForcarSaida && (
               <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setSemCodigo((v) => !v)}>
-                {semCodigo ? "Afinal tem código" : "Saída sem código (líder)"}
+                {semCodigo ? "Afinal tem código" : "Saída sem código"}
               </button>
             )}
 

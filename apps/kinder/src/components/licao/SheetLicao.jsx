@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento } from "@portal/shared/lib/data.js";
-import { CATEGORIAS, nomeCategoria, varsCategoria } from "../../lib/modelo";
+import { CATEGORIAS, nomeCategoria, souMestra, varsCategoria } from "../../lib/modelo";
 import { guardarLicao, novoIdLicao } from "../../lib/licoes";
 import { obterEventosDoMes } from "../../lib/painel";
 import { hojeLocal } from "../../lib/kinder";
@@ -38,7 +38,7 @@ function LinhaDocumento({ rotulo, nomeAtual, ficheiro, onEscolher, onRemover }) 
  *  Lição do dia (o principal), Recurso, e Atividades (0 ou mais,
  *  "+ Atividade" para adicionar). Sem link nenhum da Kiwify — o
  *  ficheiro em si é o que chega ao voluntário. */
-export default function SheetLicao({ licao, uid, salaInicial, restrita, onFechar, onGuardado }) {
+export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, onFechar, onGuardado }) {
   const torrada = useTorrada();
   const idRef = useRef(licao?.id ?? novoIdLicao());
   const [titulo, setTitulo] = useState(licao?.titulo ?? "");
@@ -64,7 +64,11 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, onFechar
       obterEventosDoMes(agora.getFullYear(), agora.getMonth()),
       obterEventosDoMes(seguinte.getFullYear(), seguinte.getMonth()),
     ]).then(([a, b]) => {
-      const futuros = [...a, ...b].filter((e) => e.data >= hoje);
+      let futuros = [...a, ...b].filter((e) => e.data >= hoje);
+      // sem ser líder, só pode escolher um culto onde é mesmo Mestra
+      // da sua sala — o servidor (guardarLicaoKinder) confirma de
+      // novo, isto é só para não deixar escolher algo que ia falhar.
+      if (!lider && restrita) futuros = futuros.filter((e) => souMestra(e.escala, restrita, uid));
       setEventos(futuros);
       if (!licao && futuros[0]) setEventoId((v) => v || futuros[0].id);
     });

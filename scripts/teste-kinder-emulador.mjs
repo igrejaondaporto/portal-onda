@@ -206,6 +206,59 @@ await teste("auxiliar dá saída sem código, com motivo registado", async () =>
   afirmar(c.saidaForcada?.motivo === "Mãe sem bateria", "motivo não registado");
 });
 
+// ── Mestra: mesma permissão da líder, só na própria sala e só neste
+// culto (eventos/{HOJE}/escalas/kinder.mestras.fun) — nunca um papel.
+await adb.doc("bases/kinder/familias/fam-mestra-teste").set({
+  responsaveis: [{ nome: "Rita Teste", telefone: "911111111" }], autorizados: [], ativo: true, estado: "confirmada",
+});
+await adb.doc("bases/kinder/criancas/crianca-fun-teste").set({ nome: "Fun Teste", familiaId: "fam-mestra-teste", categoria: "fun", ativo: true });
+await adb.doc("bases/kinder/criancas/crianca-baby-teste").set({ nome: "Baby Teste", familiaId: "fam-mestra-teste", categoria: "baby", ativo: true });
+await como("vol-a", VOL);
+await chamar("checkinKinder", { criancaIds: ["crianca-fun-teste", "crianca-baby-teste"] });
+await adb.doc(`eventos/${HOJE}/escalas/kinder`).set({ pessoas: [], mestras: { fun: "mestra-fun-teste" } }, { merge: true });
+
+await teste("mestra da sala força saída sem código — só na própria sala", async () => {
+  await como("mestra-fun-teste", VOL);
+  await falha(chamar("checkoutKinder", { criancaIds: ["crianca-baby-teste"], levantadoPor: "Avó Teste", motivo: "teste" }), "permission-denied");
+  const r = await chamar("checkoutKinder", { criancaIds: ["crianca-fun-teste"], levantadoPor: "Avó Teste", motivo: "teste" });
+  afirmar(r.saidas === 1, `saidas=${r.saidas}`);
+  const c = (await adb.doc(`eventos/${HOJE}/checkinKinder/crianca-fun-teste`).get()).data();
+  afirmar(c.saidaForcada?.motivo === "teste", "motivo não gravado (mestra)");
+});
+await teste("voluntário comum (não mestra) não força saída de ninguém", async () => {
+  await como("vol-b", VOL);
+  await falha(chamar("checkoutKinder", { criancaIds: ["crianca-baby-teste"], levantadoPor: "Avó Teste", motivo: "teste" }), "permission-denied");
+});
+
+// ── Mestra publica/edita/remove a lição — mesma permissão da líder,
+// confirmada contra a Escala do culto (guardarLicaoKinder/desativarLicaoKinder).
+const LICAO_BASE = { atividades: [], licao: { url: "https://example.com/a.pdf", nome: "a.pdf" }, recurso: null, eventoId: HOJE };
+await teste("mestra publica a lição da própria sala", async () => {
+  await como("mestra-fun-teste", VOL);
+  const r = await chamar("guardarLicaoKinder", { id: "licao-teste-fun", novo: true, dados: { ...LICAO_BASE, titulo: "Teste Fun", categorias: ["fun"] } });
+  afirmar(r.ok, "não guardou");
+  const d = (await adb.doc("bases/kinder/licoes/licao-teste-fun").get()).data();
+  afirmar(d.enviadoPor === "mestra-fun-teste", "enviadoPor errado");
+});
+await teste("mestra não publica lição de outra sala", () =>
+  falha(chamar("guardarLicaoKinder", { id: "licao-teste-baby", novo: true, dados: { ...LICAO_BASE, titulo: "Teste Baby", categorias: ["baby"] } }), "permission-denied"));
+await teste("voluntário comum não publica lição nenhuma", async () => {
+  await como("vol-b", VOL);
+  await falha(chamar("guardarLicaoKinder", { id: "licao-teste-x", novo: true, dados: { ...LICAO_BASE, titulo: "Teste X", categorias: ["fun"] } }), "permission-denied");
+});
+await teste("líder (auxiliar) publica lição de qualquer sala", async () => {
+  await como("aux-teste", AUX);
+  const r = await chamar("guardarLicaoKinder", { id: "licao-teste-lider", novo: true, dados: { ...LICAO_BASE, titulo: "Teste Líder", categorias: ["junior"] } });
+  afirmar(r.ok, "líder não conseguiu publicar");
+});
+await teste("mestra remove a própria lição; não remove a de outra sala", async () => {
+  await como("mestra-fun-teste", VOL);
+  await chamar("desativarLicaoKinder", { id: "licao-teste-fun" });
+  const d = (await adb.doc("bases/kinder/licoes/licao-teste-fun").get()).data();
+  afirmar(d.ativo === false, "não desativou");
+  await falha(chamar("desativarLicaoKinder", { id: "licao-teste-lider" }), "permission-denied");
+});
+
 await teste("auxiliar da Kinder entra por PIN com papel auxiliar no token", async () => {
   await signOut(auth);
   const r = await chamar("entrar", { baseId: "kinder", pessoaId: "aux-teste", pin: "135790" });

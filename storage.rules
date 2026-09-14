@@ -65,13 +65,18 @@ service firebase.storage {
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
     }
-    // Lição — só o líder sobe. Base New: sempre .docx. Base Kinder: o
+    // Lição — Base New: só o líder sobe, sempre .docx. Base Kinder: o
     // documento da lição em si, geralmente um PDF (às vezes foto de
-    // página impressa, ou .docx) — ver lib/licoes.js de cada app e a
-    // regra irmã em firestore.rules.
+    // página impressa, ou .docx) — ver lib/licoes.js de cada app.
+    // Na Kinder qualquer pessoa da base pode subir o FICHEIRO aqui —
+    // quem pode mesmo PUBLICAR a lição (líder, ou a Mestra da sala
+    // nesse culto) é decidido a sério por guardarLicaoKinder
+    // (functions/kinder.js), que confirma contra a Escala; as rules
+    // não têm como olhar para isso ficheiro a ficheiro. Um upload sem
+    // publicação fica só um ficheiro solto, sem efeito nenhum na app.
     match /bases/{base}/licoes/{ficheiro} {
       allow read:  if minhaBase(base);
-      allow write: if lider(base)
+      allow write: if (lider(base) || (base == 'kinder' && minhaBase(base)))
                    && request.resource.size < 20 * 1024 * 1024
                    && (request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                        || request.resource.contentType == 'application/pdf'

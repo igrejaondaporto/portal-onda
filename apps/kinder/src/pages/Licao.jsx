@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
-import { minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
+import { minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, souMestra, varsCategoria } from "../lib/modelo";
 import { licoesDaSala, licoesVistas, marcarLicaoVista, desativarLicao } from "../lib/licoes";
 import { ouvirEventosDoMes } from "../lib/painel";
 import { hojeLocal } from "../lib/kinder";
@@ -48,6 +48,16 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
   // cai na secção "sem culto marcado" abaixo, para nunca desaparecer.
   const idsEventosMes = new Set(eventosMes.map((e) => e.id));
   const semCultoMarcado = visiveis.filter((l) => !l.eventoId || !idsEventosMes.has(l.eventoId));
+  // Mestra da própria sala ganha a mesma permissão da líder para
+  // publicar/editar a lição do dia — mas só nesse culto específico
+  // (o servidor, guardarLicaoKinder, confirma contra a Escala de
+  // novo). Sem culto marcado, ou fora do mês visível, só a líder.
+  const mestraNoEvento = (eventoId) => {
+    const ev = eventosMes.find((e) => e.id === eventoId);
+    return !!ev && souMestra(ev.escala, restrita, uid);
+  };
+  const podeCriarLicao = lider || (restrita && eventosMes.some((ev) => souMestra(ev.escala, restrita, uid)));
+  const podeGerirLicaoAberta = lider || (restrita && mestraNoEvento(licaoAberta?.eventoId));
 
   useEffect(() => {
     if (!ativo) return;
@@ -108,7 +118,7 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
             ) : (
               <SeletorCategoria valor={sala} onMudar={setSala} />
             )}
-            {lider && (
+            {podeCriarLicao && (
               <button className="btn full" style={{ marginTop: 10 }} onClick={() => setAEditar({ licao: null })}>Nova lição</button>
             )}
           </div>
@@ -199,7 +209,7 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, whiteSpace: "pre-line" }}>{licaoAberta.louvor}</p>
               </>
             )}
-            {lider && (
+            {podeGerirLicaoAberta && (
               <>
                 <button className="btn sec full" style={{ marginTop: 16 }} onClick={() => setAEditar({ licao: licaoAberta })}>Editar</button>
                 {aRemover ? (
@@ -219,7 +229,7 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
 
       {aEditar && (
         <SheetLicao
-          licao={aEditar.licao} uid={uid} salaInicial={sala} restrita={restrita}
+          licao={aEditar.licao} uid={uid} salaInicial={sala} restrita={restrita} lider={lider}
           onFechar={() => setAEditar(null)}
           onGuardado={(msg) => { setAEditar(null); torrada(msg); }}
         />

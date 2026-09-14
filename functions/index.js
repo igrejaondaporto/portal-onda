@@ -32,6 +32,7 @@ export {
   dadosRegistoKinder, registarFamiliaKinder, novoLinkFamiliaKinder,
   confirmarFamiliaKinder, desativarFamiliaKinder, editarFamiliaKinder,
   dadosFamiliaKinder, checkinKinder, checkoutKinder, anularCheckinKinder,
+  guardarLicaoKinder, desativarLicaoKinder,
 } from "./kinder.js";
 
 admin.initializeApp();
