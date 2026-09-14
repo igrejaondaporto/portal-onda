@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, FASES, funcoesDoCulto } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirFuncoes, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
-import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento } from "../lib/culto";
+import { ouvirChecklist, ouvirAtribuicoes, marcarFeito, desmarcarFeito, definirFrase, obterMeuEvento, obterProximoEvento } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirInventario } from "../lib/inventario";
+import { ouvirContactosPorEnviar } from "../lib/contactos";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds } from "../lib/enquetes";
 import { dataPorExtenso, eur, nomeCurto, MESES } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -29,7 +30,7 @@ function ordenarPorAtribuicao(lista, checklist) {
   return [...lista].sort((a, b) => (checklist[a.id] ? 1 : 0) - (checklist[b.id] ? 1 : 0));
 }
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrAcomodacao, onIrReembolsos }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrAcomodacao, onIrReembolsos, onIrFormulario, onVerFuncoes }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -43,6 +44,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [aEditarFrase, setAEditarFrase] = useState(false);
   const [aEnviarFrase, setAEnviarFrase] = useState(false);
   const [pendentes, setPendentes] = useState([]);
+  const [contactosPorEnviar, setContactosPorEnviar] = useState([]);
+  const [proximoEventoGeral, setProximoEventoGeral] = useState(null);
+  const [atribuicoesProximoEventoGeral, setAtribuicoesProximoEventoGeral] = useState({});
   const [meusReembolsos, setMeusReembolsos] = useState([]);
   const [inventario, setInventario] = useState([]);
   const [checklistAberta, setChecklistAberta] = useState(false);
@@ -76,6 +80,22 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     return ouvirReembolsos(true, uid, (lista) => setPendentes(lista.filter((r) => r.estado === "submetido")));
   }, [souLiderBase, uid]);
   useEffect(() => ouvirInventario(setInventario), []);
+
+  // dois lembretes só da líder — enquanto o painel do pastor não existe,
+  // é aqui no Início que ela vê logo ao entrar, sem precisar de navegar
+  // para o Painel do líder (mesmo padrão dos reembolsos pendentes acima).
+  useEffect(() => {
+    if (!souLiderBase) return;
+    return ouvirContactosPorEnviar(setContactosPorEnviar);
+  }, [souLiderBase]);
+  useEffect(() => {
+    if (!souLiderBase) return;
+    obterProximoEvento().then(setProximoEventoGeral);
+  }, [souLiderBase]);
+  useEffect(() => {
+    if (!souLiderBase || !proximoEventoGeral) { setAtribuicoesProximoEventoGeral({}); return; }
+    return ouvirAtribuicoes(proximoEventoGeral.id, setAtribuicoesProximoEventoGeral);
+  }, [souLiderBase, proximoEventoGeral]);
   useEffect(() => {
     if (!souLiderBase) return;
     return ouvirMinhasSolicitacoes(setMinhasSolicitacoes);
@@ -117,6 +137,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
   const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+  const funcoesPorDistribuirGeral = proximoEventoGeral
+    ? funcoesDoCulto(funcoes, proximoEventoGeral.id).filter((f) => !(atribuicoesProximoEventoGeral[f.id] || []).length).length
+    : 0;
 
   function fecharAvisoReembolso() {
     marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
@@ -214,6 +237,30 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
               {voluntarios.find((p) => p.id === pendentes[0].pessoaId)?.nome} · {eur(pendentes[0].valor)}
             </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {souLiderBase && contactosPorEnviar.length > 0 && (
+        <div className="destaque" style={{ background: "var(--laranja)" }} onClick={() => onIrFormulario?.()}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Lembrete</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {contactosPorEnviar.length} {contactosPorEnviar.length === 1 ? "visitante" : "visitantes"} por enviar ao pastor
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Enquanto não há painel do pastor, envia pelo Formulário</p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+      {souLiderBase && funcoesPorDistribuirGeral > 0 && (
+        <div className="destaque" style={{ background: "var(--laranja)" }} onClick={() => onVerFuncoes?.(proximoEventoGeral.id)}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Lembrete</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              {funcoesPorDistribuirGeral} {funcoesPorDistribuirGeral === 1 ? "função" : "funções"} por distribuir
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Próximo culto · {dataPorExtenso(proximoEventoGeral.data)}</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>
