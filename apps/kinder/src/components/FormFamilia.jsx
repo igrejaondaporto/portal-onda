@@ -1,5 +1,6 @@
 import { useState } from "react";
 import SeletorCategoria from "./SeletorCategoria";
+import { nomeCategoria, varsCategoria } from "../lib/modelo";
 
 const vazioResponsavel = () => ({ nome: "", telefone: "", parentesco: "" });
 const vazioCrianca = () => ({ nome: "", dataNascimento: "", alergias: "", restricoesAlimentares: "", necessidades: "", categoria: null });
@@ -12,9 +13,13 @@ const digitos = (t) => String(t || "").replace(/\D/g, "");
  *   - `consentimento` → só no registo (texto + caixa a marcar);
  *   - `podeEscolherSala` → só voluntários (os pais nunca escolhem a
  *     sala; fica a sugerida pela idade — ver functions/kinder.js).
+ *   - `salaFixa` → uma líder de sala restrita à sua: sem escolha
+ *     nenhuma, todas as crianças registadas por ela ficam na sala
+ *     dela, sem hipótese de a trocar (nunca é ela a decidir a idade
+ *     de uma criança de outra sala).
  */
 export default function FormFamilia({
-  inicial, consentimento, podeEscolherSala = false, mostrarVisitante = false,
+  inicial, consentimento, podeEscolherSala = false, salaFixa = null, mostrarVisitante = false,
   aEnviar = false, textoBotao = "Guardar", onSubmeter, onCancelar, avisar,
 }) {
   const [responsaveis, setResponsaveis] = useState(inicial?.responsaveis?.length ? inicial.responsaveis : [vazioResponsavel()]);
@@ -48,7 +53,7 @@ export default function FormFamilia({
     onSubmeter({
       responsaveis: resp,
       autorizados: autorizados.filter((a) => a.nome.trim()),
-      criancas: cs,
+      criancas: salaFixa ? cs.map((c) => ({ ...c, categoria: salaFixa })) : cs,
       removidas,
       fotoAutorizada,
       visitante,
@@ -66,7 +71,12 @@ export default function FormFamilia({
             <input className="campo" value={c.nome} onChange={(e) => mudar(criancas, setCriancas, i, "nome", e.target.value)} placeholder="Nome e apelido" autoComplete="off" />
             <label className="rot">Data de nascimento</label>
             <input className="campo" type="date" value={c.dataNascimento} onChange={(e) => mudar(criancas, setCriancas, i, "dataNascimento", e.target.value)} />
-            {podeEscolherSala && (
+            {salaFixa ? (
+              <>
+                <label className="rot">Sala</label>
+                <span className="kin-tagcat" style={varsCategoria(salaFixa)}>{nomeCategoria(salaFixa)}</span>
+              </>
+            ) : podeEscolherSala && (
               <>
                 <label className="rot">Sala</label>
                 <SeletorCategoria valor={c.categoria ?? null} comTodas={false} onMudar={(v) => mudar(criancas, setCriancas, i, "categoria", v)} />

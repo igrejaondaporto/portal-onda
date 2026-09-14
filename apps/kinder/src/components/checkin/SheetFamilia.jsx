@@ -16,7 +16,7 @@ const primeiroNome = (n) => String(n || "").split(" ")[0];
  * Também: corrigir a ficha, enviar (outra vez) o link da família e,
  * só líderes, remover a família.
  */
-export default function SheetFamilia({ familia, criancas, checkinPorCrianca, codigo, haCultoHoje, lider, tokenAcabado, onFechar, onSaida }) {
+export default function SheetFamilia({ familia, criancas, checkinPorCrianca, codigo, haCultoHoje, lider, restrita, tokenAcabado, onFechar, onSaida }) {
   const torrada = useTorrada();
   const foraDaSala = criancas.filter((c) => !checkinPorCrianca[c.id] || checkinPorCrianca[c.id].saidaEm);
   const [escolhidas, setEscolhidas] = useState(() => new Set(foraDaSala.map((c) => c.id)));
@@ -90,7 +90,7 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
           <div className="pux" />
           <h2>Corrigir ficha</h2>
           <FormFamilia
-            inicial={{ ...familia, criancas }} podeEscolherSala aEnviar={aEnviar}
+            inicial={{ ...familia, criancas }} podeEscolherSala salaFixa={restrita} aEnviar={aEnviar}
             onSubmeter={guardarFicha} onCancelar={() => setAEditar(false)} avisar={(m) => torrada(m, true)}
           />
         </div>

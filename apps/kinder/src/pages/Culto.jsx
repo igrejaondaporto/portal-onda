@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { podeDistribuir, souLider } from "../lib/modelo";
+import { podeDistribuir, souLider, minhaSalaRestrita } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { hojeLocal } from "../lib/kinder";
@@ -26,6 +26,7 @@ const SALAS = ["baby", "fun", "junior"];
  *  cinco e o check-in precisava de lá estar. */
 export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando, onIrReembolsos }) {
   const lider = souLider(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const podePublicar = lider && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "checklist");
   const [eventosMes, setEventosMes] = useState([]);
@@ -64,9 +65,10 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, aba, mes]);
 
-  // Chamadas: cada voluntário chama só pela sua sala (como o kiosk);
-  // as líderes — e quem ainda não tem sala — pelas três
-  const canaisChamar = !lider && pessoa?.categoria ? [pessoa.categoria] : SALAS;
+  // Chamadas: presa à sala, como tudo o resto (aqui até para a líder
+  // de sala) — só a líder geral chama e vê o histórico das três.
+  const canaisChamar = restrita ? [restrita] : SALAS;
+  const canaisHistorico = restrita ? [restrita] : SALAS;
 
   return (
     <>
@@ -85,7 +87,7 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
       )}
       {aba === "chamadas" && (
         <div style={{ marginTop: 12 }}>
-          <PainelChamadas canaisPermitidos={canaisChamar} canaisHistorico={SALAS} />
+          <PainelChamadas canaisPermitidos={canaisChamar} canaisHistorico={canaisHistorico} />
         </div>
       )}
       {aba === "contagem" && <Contagem uid={uid} papel={papel} pessoa={pessoa} />}

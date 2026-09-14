@@ -12,9 +12,11 @@ O ministério infantil da Onda, dividido em três salas fixas — **Baby**
 cada uma com a sua cor em todos os menus. Líder geral **Maria**
 (`lider_base`); uma líder por sala — **Thamirys** (Baby), **Carol**
 (Fun), **Larissa** (Júnior) — papel `auxiliar`, com exatamente as
-mesmas permissões da líder geral (ver `souLider` em `lib/modelo.js`).
-Chegada 09:00. Uso real: telemóvel na mão, criança ao colo, com
-pressa — se um ecrã pede mais de três toques, está mal desenhado.
+mesmas permissões da líder geral (ver `souLider` em `lib/modelo.js`),
+mas presa à sua sala em tudo o que é visibilidade (ver "Isolamento
+por sala" abaixo). Chegada 09:00. Uso real: telemóvel na mão, criança
+ao colo, com pressa — se um ecrã pede mais de três toques, está mal
+desenhado.
 
 Chamadas ("kinder.igrejaonda.pt") já existiam como kiosk sem login
 antes desta base nascer — ver "Quatro rotas, um domínio" abaixo.
@@ -54,6 +56,40 @@ login do Portal.
 | **Link da família** | `/familia/<token>` — o que os pais têm em vez de conta |
 | **Código de levantamento** | 4 caracteres, por família, por culto — confere na saída |
 
+## Isolamento por sala
+
+Permissão (`souLider`) e visibilidade são coisas diferentes aqui. Uma
+líder de sala tem as mesmas permissões da líder geral — mas em
+**visibilidade**, fica presa à sua sala como um voluntário: Baby não
+vê nada do Fun, Fun não vê nada do Júnior, etc. Só a líder geral
+(Maria) vê e mexe nas três. Duas funções em `lib/modelo.js`:
+
+- `souLiderGeral(papel)` — só `lider_base`. É permissão, não
+  visibilidade (não confundir com `souLider`, que também inclui
+  `auxiliar`).
+- `minhaSalaRestrita(papel, pessoa)` — a sala a que a pessoa fica
+  limitada em todo o Portal; `null` só para a líder geral.
+
+**ÚNICA EXCEÇÃO: a Escala** (`Escala.jsx`, tela e quadro do mês) —
+mostra as três salas a qualquer pessoa, de propósito, e por isso
+nunca usa `minhaSalaRestrita`. (A montagem da escala, em
+`SheetEscala`/`PainelLider.jsx`, continua a restringir quem cada
+líder pode escalar à sua própria sala — isso é uma regra diferente,
+já existia antes desta, sobre "montar", não sobre "ver".)
+
+De resto, o padrão em cada tela é sempre o mesmo: quando
+`minhaSalaRestrita` devolve uma sala, esconde o seletor de 3 chips e
+mostra uma etiqueta fixa (`<p className="kin-tagcat">`); quando
+devolve `null` (líder geral), mostra o seletor normal. Onde há
+listener do Firestore (`ouvirOcorrencias`, por exemplo), o filtro
+entra na própria query — nunca só na UI — para uma sala restrita
+nunca ter os dados de outra na cache local. Já aplicado em: Início,
+Check-in (famílias/crianças só da sala, `FormFamilia` com
+`salaFixa`), Culto → Chamadas/Checklist/Inventário/Contagem e
+Ocorrências, e Lição (lições visíveis e "para que salas" ao publicar
+uma nova). `PainelLider.jsx` filtra a lista de voluntários da mesma
+forma — uma líder de sala só vê e edita a sua própria equipa.
+
 ## Modelo de dados
 
 Ver `src/lib/modelo.js` (a app) e `functions/kinder.js` (famílias/
@@ -71,7 +107,7 @@ bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← feitaEm, validaAte (registo cr
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…
-bases/kinder/licoes/{id}              ← categorias[], arquivoUrl (PDF/foto/.docx), resumo, resumoPais
+bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo, resumoPais
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
 bases/kinder/ocorrencias/{o}          ← autor lê as suas, líder lê todas
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
@@ -115,18 +151,44 @@ há X tempo) ainda não está automatizada — decisão pendente.
 
 ## Lição — documento subido à mão, sem automação da Kiwify
 
-As lições chegam da área de membros da Kiwify como um documento —
+As lições chegam da área de membros da Kiwify como documento(s) —
 geralmente um PDF, às vezes a foto de uma página impressa ou um
 .docx. A API da Kiwify só tem webhooks de pagamento (nenhum de
 conteúdo), e a conta do Kinder é de aluna, não de produtora — não há
 como saber "saiu documento novo" por fora, nem ligar direto à
-Kiwify. Por isso é sempre a líder a descarregar o documento e a
-subi-lo aqui (`SheetLicao.jsx`, `lib/licoes.js`, para `bases/kinder/
-licoes/{id}.<extensão real>` no Storage — nunca um link) e escolher
-a(s) sala(s) — muitas vezes Fun e Júnior partilham a mesma lição.
-Além do documento, a lição traz resumo para os voluntários,
+Kiwify. Por isso é sempre a líder a descarregar o(s) documento(s) e a
+subi-los aqui (`SheetLicao.jsx`, `lib/licoes.js`, para `bases/kinder/
+licoes/{id}-<licao|recurso|atividade-N>.<extensão real>` no Storage
+— nunca um link) e escolher a(s) sala(s) — muitas vezes Fun e Júnior
+partilham a mesma lição.
+
+Até quatro documentos por lição, cada um com o seu botão em
+`SheetLicao.jsx`: `licao` (o documento do dia, obrigatório),
+`recurso` (opcional) e `atividades[]` (zero ou mais, "+ Atividade").
+Cada um é `{url, nome}` ou `null`/`[]`. Na visualização do
+voluntário (`Licao.jsx`), cada documento presente ganha o seu botão
+— "ABRIR LIÇÃO DO DIA", "ABRIR RECURSO", "ABRIR ATIVIDADE 1",
+"ABRIR ATIVIDADE 2" etc. — nunca um botão genérico "Abrir". Editar
+uma lição preserva os documentos não trocados (`atividadesAtuais` em
+`guardarLicao`, `lib/licoes.js`) — a líder só sobe o que mudou.
+Além dos documentos, a lição traz resumo para os voluntários,
 materiais a preparar, e um resumo curto para os pais que aparece no
 link da família (`resumoPais`).
+
+## Entrada e cartaz de impressão
+
+`Entrada.jsx` agrupa a lista de voluntários por sala (Baby → Fun →
+Júnior, com a líder geral e outras pessoas sem sala num grupo
+"Liderança" no topo) — quem vai logar já vê primeiro a sua categoria,
+em vez de uma lista só. É a única tela do Portal (fora do login) sem
+sessão nenhuma, por isso não usa `minhaSalaRestrita` — é só ordenação
+para achar o próprio nome mais rápido, não isolamento de dados.
+
+`ImprimirRegisto.jsx` (`/registo/imprimir`) tem cabeçalho "KINDER" e
+um seletor de sala embaixo (Baby/Fun/Júnior) para a líder escolher
+qual cartaz imprimir; para a líder geral aparecem as três opções,
+para uma líder de sala só a sua (`?sala=` na URL, montado em
+`PainelLider.jsx` a partir de `minhaSalaRestrita`).
 
 ## O que este base tem, que nenhuma outra tem
 

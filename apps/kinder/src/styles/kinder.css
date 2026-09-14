@@ -3,6 +3,18 @@
  * outras"). As cores das salas vêm de lib/modelo.js (CATEGORIAS) por
  * variáveis CSS locais: `style={varsCategoria(id)}` no elemento. */
 
+/* bolinha colorida antes do nome da sala nos cabeçalhos de secção
+ * (ecrã de entrada, agrupado por sala) */
+.kin-pontosala {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 /* ── As três salas ───────────────────────────────────────────── */
 .kin-cats {
   display: flex;
@@ -252,11 +264,38 @@
   box-shadow: 0 10px 30px rgba(10, 15, 46, 0.12);
 }
 .kin-cartaz-cab {
-  padding: 34px 22px 0;
+  padding: 30px 22px 0;
   text-align: center;
+  color: var(--c-texto, #fff);
 }
 .kin-cartaz-cab .lin {
   justify-content: center;
+}
+.kin-cartaz-kinder {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  opacity: 0.85;
+}
+.kin-cartaz-sala {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 8px 22px;
+  border-radius: 100px;
+  background: var(--c-suave);
+  color: var(--c-texto-suave);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.kin-cartaz-escolha {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 14px;
+}
+.kin-cartaz-vazio {
+  margin-top: 40px;
 }
 .kin-cartaz-corpo {
   padding: 8px 28px 36px;
@@ -296,7 +335,7 @@
   @page { size: A4; margin: 12mm; }
   html, body { background: #fff !important; }
   .kin-cartaz { min-height: 0; padding: 0; background: #fff; }
-  .kin-cartaz-btn { display: none; }
+  .kin-cartaz-btn, .kin-cartaz-escolha { display: none; }
   .kin-cartaz-folha { max-width: 100%; box-shadow: none; border-radius: 0; page-break-after: avoid; }
   .kin-cartaz-qr { box-shadow: none; }
 }

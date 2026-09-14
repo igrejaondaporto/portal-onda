@@ -11,7 +11,7 @@ import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import SheetItemInventario from "../components/painel/SheetItemInventario";
 import ListasComprasSalvas from "../components/ListasComprasSalvas";
 import SeletorCategoria from "../components/SeletorCategoria";
-import { categoriaInicial, nomeCategoria, souLider } from "../lib/modelo";
+import { categoriaInicial, minhaSalaRestrita, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
 
 /** Estado de stock de um item — dá o texto, a cor e se mostra o
  *  atalho para a lista de compras, num sítio só. */
@@ -25,6 +25,7 @@ function estadoStock(item) {
 export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho, onIrReembolsos }) {
   const torrada = useTorrada();
   const souLiderBase = souLider(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const [itens, setItens] = useState([]);
   const [expandida, setExpandida] = useState(null);
   const [sheet, setSheet] = useState(null);
@@ -40,6 +41,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
     setSala(categoriaInicial(papel, pessoa));
     setSalaDefinida(true);
   }, [pessoa, papel, salaDefinida]);
+  useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
 
   useEffect(() => ouvirInventario(setItens), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
@@ -129,7 +131,11 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   return (
     <>
       <div className="sect" style={{ marginBottom: 0 }}>
-        <SeletorCategoria valor={sala} onMudar={setSala} rotuloTodas="Todas as salas" />
+        {restrita ? (
+          <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
+        ) : (
+          <SeletorCategoria valor={sala} onMudar={setSala} rotuloTodas="Todas as salas" />
+        )}
       </div>
       {podeGerir && (
         <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "item", item: null, sala })}>
@@ -275,6 +281,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
         <SheetItemInventario
           item={sheet.item}
           salaInicial={sheet.sala}
+          restrita={restrita}
           podeFoto={souLiderBase}
           onFechar={() => setSheet(null)}
           onGuardado={(msg) => { setSheet(null); torrada(msg); }}

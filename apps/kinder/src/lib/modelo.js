@@ -7,7 +7,7 @@
  *   bases/kinder/capacitacoes/{cap}                ← catálogo (a líder mantém)
  *   bases/kinder/familias/{f}                      ← só por Cloud Function (functions/kinder.js)
  *   bases/kinder/criancas/{c}                      ← idem
- *   bases/kinder/licoes/{id}                       ← categorias[], documento (PDF/foto/.docx), resumo, materiais…
+ *   bases/kinder/licoes/{id}                       ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo…
  *   bases/kinder/checklistSala/{item}              ← texto, categoria, fase abrir|fechar
  *   bases/kinder/ocorrencias/{o}                   ← queda, febre… (autor + líderes leem)
  *   bases/kinder/definicoes/{categorias|consentimento}
@@ -71,6 +71,20 @@ export function varsCategoria(id) {
 /** Líder geral (lider_base) e líderes de sala (auxiliar) têm as mesmas
  *  permissões — usar sempre isto, nunca `papel === "lider_base"`. */
 export const souLider = (papel) => papel === "lider_base" || papel === "auxiliar";
+
+/** Só a líder geral — nem as líderes de sala. Usar quando o que está
+ *  em jogo não é uma permissão (isso continua a ser `souLider`), mas
+ *  sim VISIBILIDADE entre salas: só a líder geral vê as três; as
+ *  líderes de sala têm as mesmas permissões de uma líder, mas
+ *  continuam presas à sua própria sala, como um voluntário. */
+export const souLiderGeral = (papel) => papel === "lider_base";
+
+/** A sala a que a pessoa fica limitada em TODO o Portal — nunca vê
+ *  nem mexe em nada de outra sala. `null` = sem limite (só a líder
+ *  geral). ÚNICA EXCEÇÃO: a Escala (tela e quadro do mês) continua a
+ *  mostrar as três salas a qualquer pessoa, de propósito — ver
+ *  Escala.jsx, que por isso nunca usa isto. */
+export const minhaSalaRestrita = (papel, pessoa) => (souLiderGeral(papel) ? null : pessoa?.categoria ?? null);
 
 export function rotuloPapel(papel, cat) {
   if (papel === "lider_base") return "Líder geral";

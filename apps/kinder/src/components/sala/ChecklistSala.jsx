@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento } from "@portal/shared/lib/data.js";
-import { CATEGORIAS, nomeCategoria, souLider, varsCategoria } from "../../lib/modelo";
+import { CATEGORIAS, minhaSalaRestrita, nomeCategoria, souLider, varsCategoria } from "../../lib/modelo";
 import { obterEventosDoMes, ouvirVoluntarios } from "../../lib/painel";
 import {
   hojeLocal, ouvirItensChecklist, ouvirMarcasChecklist, marcarItem, desmarcarItem,
@@ -20,8 +20,9 @@ const FASES = [["abrir", "Ao abrir a sala"], ["fechar", "Ao fechar a sala"]];
 export default function ChecklistSala({ uid, papel, pessoa }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
+  const restrita = minhaSalaRestrita(papel, pessoa);
   const [evento, setEvento] = useState(null);
-  const [sala, setSala] = useState(pessoa?.categoria ?? CATEGORIAS[0].id);
+  const [sala, setSala] = useState(restrita ?? pessoa?.categoria ?? CATEGORIAS[0].id);
   const [itens, setItens] = useState([]);
   const [marcas, setMarcas] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
@@ -37,6 +38,7 @@ export default function ChecklistSala({ uid, papel, pessoa }) {
   useEffect(() => ouvirItensChecklist(setItens), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => { if (evento) return ouvirMarcasChecklist(evento.id, sala, setMarcas); }, [evento, sala]);
+  useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
 
   const daSala = itens.filter((i) => i.categoria === sala || i.categoria === "todas");
   const feitos = daSala.filter((i) => marcas[i.id]).length;
@@ -64,7 +66,11 @@ export default function ChecklistSala({ uid, papel, pessoa }) {
   return (
     <div className="sect" style={{ marginTop: 12 }}>
       <div className="cabecalho"><h3>{nomeEvento(evento)}</h3><span className="cap">{feitos} de {daSala.length}</span></div>
-      <SeletorCategoria valor={sala} onMudar={setSala} comTodas={false} />
+      {restrita ? (
+        <p className="kin-tagcat" style={varsCategoria(restrita)}>{nomeCategoria(restrita)}</p>
+      ) : (
+        <SeletorCategoria valor={sala} onMudar={setSala} comTodas={false} />
+      )}
       <div className="barra" style={{ marginTop: 10 }}><i style={{ width: `${pct}%`, background: varsCategoria(sala)["--c"] }} /></div>
       {FASES.map(([fase, titulo]) => {
         const lista = daSala.filter((i) => i.fase === fase);
