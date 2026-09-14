@@ -85,6 +85,15 @@ export const souLiderGeral = (papel) => papel === "lider_base";
  *  Escala.jsx, que por isso nunca usa isto. */
 export const minhaSalaRestrita = (papel, pessoa) => (souLiderGeral(papel) ? null : pessoa?.categoria ?? null);
 
+/** A Mestra da sala NESSE culto (escala.mestras[sala] === uid) —
+ *  ganha, só para esse culto e só nessa sala, a mesma permissão da
+ *  líder em dois pontos: publicar a lição do dia (guardarLicaoKinder)
+ *  e forçar saída sem código (checkoutKinder). Não é permissão geral
+ *  — para o resto (montar a escala, etc.) continua só `souLider`. O
+ *  servidor confirma sempre de novo (nunca confiar só nisto no
+ *  cliente). */
+export const souMestra = (escala, sala, uid) => !!sala && !!uid && escala?.mestras?.[sala] === uid;
+
 export function rotuloPapel(papel, cat) {
   if (papel === "lider_base") return "Líder geral";
   if (papel === "auxiliar") return cat ? `Líder ${nomeCategoria(cat)}` : "Líder de sala";
@@ -96,8 +105,9 @@ export function rotuloPapel(papel, cat) {
 export const categoriaInicial = (papel, pessoa) => (souLider(papel) ? null : pessoa?.categoria ?? null);
 
 /** Quem pode escrever o feedback do culto — a Kinder não tem líder de
- *  escala único (cada sala tem a sua Mestra, uma etiqueta, não uma
- *  permissão), por isso é sempre só a líder. */
+ *  escala único (cada sala tem a sua Mestra); a Mestra ganhou
+ *  permissão da líder em dois pontos específicos (ver `souMestra`),
+ *  mas não neste — o feedback do culto continua sempre só a líder. */
 export const podeDistribuir = (papel) => souLider(papel);
 
 /** Idade em anos completos a partir de "AAAA-MM-DD" — datas locais,

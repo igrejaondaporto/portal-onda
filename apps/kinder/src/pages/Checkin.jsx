@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, capacidadesPorSala, cEscala, minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, souMestra, varsCategoria } from "../lib/modelo";
 import { ouvirVoluntarios } from "../lib/painel";
 import {
   hojeLocal, hora, ouvirFamilias, ouvirCriancas, ouvirCheckins, ouvirCodigos, lerConteudoQR,
@@ -67,6 +67,10 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
   // presa à sua sala — mesmo que `pessoa` só carregue depois do
   // primeiro render, a sala fica sempre trancada quando restrita.
   useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
+  // Mestra da própria sala hoje ganha a mesma permissão da líder para
+  // forçar saída sem código — só na sua sala (souMestra já confirma
+  // isso); o servidor (checkoutKinder) confirma tudo de novo.
+  const podeForcarSaida = lider || souMestra(escalaHoje, restrita, uid);
 
   const criancaPorId = useMemo(() => Object.fromEntries(criancas.map((c) => [c.id, c])), [criancas]);
   const familiaPorId = useMemo(() => Object.fromEntries(familias.map((f) => [f.id, f])), [familias]);
@@ -322,7 +326,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
         <SheetSaida
           familia={familiaPorId[sheet.familiaId]} criancas={criancasDaFamilia(sheet.familiaId)}
           checkinPorCrianca={checkinPorCrianca} criancaInicial={sheet.criancaId} codigoInicial={sheet.codigo}
-          uid={uid} lider={lider}
+          uid={uid} lider={lider} podeForcarSaida={podeForcarSaida}
           onFechar={() => setSheet(null)}
         />
       )}

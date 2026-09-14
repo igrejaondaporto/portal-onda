@@ -19,12 +19,15 @@
  *     atividades: [{url, nome}, …],
  *     enviadoPor, criadoEm, ativo
  *
- * Só as líderes escrevem (firestore.rules → licoes, souLiderBase).
- * "Excluir" é ativo:false (regra 5).
+ * Escrita e remoção: líder ou Mestra da sala nesse culto — por Cloud
+ * Function (guardarLicaoKinder/desativarLicaoKinder,
+ * functions/kinder.js), não por setDoc/updateDoc direto: é o único
+ * jeito de confirmar a Mestra a sério (não é um papel, é um campo na
+ * Escala do culto). "Excluir" é ativo:false (regra 5).
  */
-import { doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { doc, onSnapshot, query, where } from "firebase/firestore";
 import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, BASE_ID } from "@portal/shared/lib/firebase.js";
+import { storage, chamar, BASE_ID } from "@portal/shared/lib/firebase.js";
 import { cLicoes } from "./modelo";
 
 const ms = (ts) => ts?.toMillis?.() ?? Date.now(); // pendente de escrita = agora
@@ -67,7 +70,7 @@ export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumo
     (atividadesFicheiros || []).map((f, i) => (f ? subir(id, `atividade-${i}`, f) : atividadesAtuais?.[i] ?? null))
   );
 
-  await setDoc(doc(cLicoes(), id), {
+  const dados = {
     titulo: titulo.trim(),
     categorias,
     resumo: resumo?.trim() || "",
@@ -77,14 +80,12 @@ export async function guardarLicao(id, uid, { titulo, categorias, resumo, resumo
     ...(licao ? { licao } : {}),
     ...(recursoFicheiro !== undefined ? { recurso: recurso ?? null } : {}),
     atividades: atividades.filter(Boolean),
-    ...(nova ? {
-      enviadoPor: uid, criadoEm: serverTimestamp(), ativo: true,
-      licao: licao ?? null, recurso: recurso ?? null,
-    } : {}),
-  }, { merge: true });
+    ...(nova ? { licao: licao ?? null, recurso: recurso ?? null } : {}),
+  };
+  await chamar("guardarLicaoKinder")({ id, dados, novo: !!nova });
 }
 
-export const desativarLicao = (id) => updateDoc(doc(cLicoes(), id), { ativo: false });
+export const desativarLicao = (id) => chamar("desativarLicaoKinder")({ id });
 
 /* ── "nova" até a pessoa abrir — por aparelho, no localStorage (é só
  *  uma conveniência; perder isto só volta a mostrar o ponto). ── */

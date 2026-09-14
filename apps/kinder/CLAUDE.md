@@ -55,6 +55,38 @@ login do Portal.
 | **Família** | `bases/kinder/familias/{f}` — responsáveis + autorizados a levantar |
 | **Link da família** | `/familia/<token>` — o que os pais têm em vez de conta |
 | **Código de levantamento** | 4 caracteres, por família, por culto — confere na saída |
+| **Mestra** | Voluntária escolhida por sala em cada culto (Escala) — não é um papel fixo, mas ganha a permissão da líder em dois pontos, só nesse culto e só na sua sala (ver abaixo) |
+
+## Mestra: permissão da líder, só nesse culto e nessa sala
+
+A Mestra (`eventos/{e}/escalas/kinder.mestras[sala] = pessoaId`,
+escolhida na Escala — ver `guardarMestraKinder`) começou como só uma
+etiqueta. Ganhou depois a mesma permissão da líder em dois pontos
+específicos (2026-09, pedido do líder) — **nunca** um papel geral:
+
+- **Forçar saída sem código** (`Checkin.jsx`/`SheetSaida.jsx`,
+  `checkoutKinder` em `functions/kinder.js`) — só na sala em que é
+  Mestra nesse culto; uma Mestra da Baby não força saída no Fun.
+- **Publicar/editar/remover a lição do dia** (`Licao.jsx`/
+  `SheetLicao.jsx`, `guardarLicaoKinder`/`desativarLicaoKinder` em
+  `functions/kinder.js`) — só para um culto em que é Mestra de pelo
+  menos uma das salas da lição (uma lição sem `eventoId`, ou de outro
+  culto, continua só-líder: não há como confirmar Mestra sem culto).
+
+`souMestra(escala, sala, uid)` em `lib/modelo.js` é o helper client-side
+(gate de UI, nunca a segurança a sério) — as duas Cloud Functions
+confirmam sempre de novo, lendo a Escala do culto no servidor, nunca
+confiando no token nem no que o cliente diz. Por isso a lição deixou
+de ser escrita direta (`setDoc`/`updateDoc`, como a firestore.rules →
+licoes ainda sugere) e passou por Cloud Function — é o único jeito de
+dar a mesma permissão da líder a alguém que não tem papel de líder
+nenhum, as rules não têm como confirmar isso ficheiro a ficheiro. O
+upload do FICHEIRO em si continua direto do cliente para o Storage
+(`storage.rules` aceita qualquer pessoa da Kinder nesse caminho — só
+o que fica mesmo publicado na app é que passa pela função); um
+ficheiro solto sem lição associada é inofensivo. Fora destes dois
+pontos (montar a escala, feedback do culto, etc.), Mestra continua
+sem permissão nenhuma — só `souLider`.
 
 ## Isolamento por sala
 

@@ -76,6 +76,21 @@ function exigeKinder(req) {
 }
 const souLider = (req) => PAPEIS_LIDER.has(req.auth?.token?.papel);
 
+/** A Mestra de uma sala é escolhida por culto, na Escala
+ *  (eventos/{e}/escalas/kinder.mestras[sala] = pessoaId) — não é um
+ *  papel fixo. Para os dois pontos em que ganha a permissão da líder
+ *  (saída sem código, publicar a lição do dia), o servidor confirma
+ *  aqui, nunca confiando no cliente. `categorias` pode ter mais do
+ *  que uma sala (uma lição pode ser de Fun+Júnior); basta ser mestra
+ *  de uma delas nesse culto. */
+async function souMestraDeAlgumaSala(uid, eventoId, categorias) {
+  if (!eventoId || !Array.isArray(categorias) || !categorias.length) return false;
+  const s = await db().doc(`eventos/${eventoId}/escalas/${BASE}`).get();
+  if (!s.exists) return false;
+  const mestras = s.data().mestras || {};
+  return categorias.some((c) => CATEGORIAS_KINDER.includes(c) && mestras[c] === uid);
+}
+
 const texto = (v, max = 120) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const textoLongo = (v) => String(v ?? "").trim().slice(0, 500);
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -409,9 +424,12 @@ export const checkinKinder = onCall(async (req) => {
   return { eventoId, codigos };
 });
 
-/** Saída: o código tem de bater certo. Sem código, só uma líder, e
- *  com o motivo registado (ex.: "avó autorizada, telemóvel sem
- *  bateria") — o My Kids também deixa, mas nunca em silêncio. */
+/** Saída: o código tem de bater certo. Sem código, só uma líder — ou
+ *  a Mestra da sala dessa criança neste culto, a mesma permissão da
+ *  líder — e com o motivo registado (ex.: "avó autorizada, telemóvel
+ *  sem bateria") — o My Kids também deixa, mas nunca em silêncio.
+ *  A verificação da Mestra é por criança (a sua `categoria`, gravada
+ *  no check-in): uma Mestra da Baby não força saída no Fun. */
 export const checkoutKinder = onCall(async (req) => {
   const uid = exigeKinder(req);
   const { criancaIds, codigo, levantadoPor, motivo } = req.data || {};
@@ -420,20 +438,24 @@ export const checkoutKinder = onCall(async (req) => {
   const quem = texto(levantadoPor);
   if (!quem) throw new HttpsError("invalid-argument", "Diz quem veio buscar.");
   const forcado = !texto(codigo);
-  if (forcado) {
-    if (!souLider(req)) throw new HttpsError("permission-denied", "Sem código, só uma líder pode dar a saída.");
-    if (!texto(motivo)) throw new HttpsError("invalid-argument", "Diz porque sai sem código.");
-  }
+  if (forcado && !texto(motivo)) throw new HttpsError("invalid-argument", "Diz porque sai sem código.");
   const eventoId = hojeEmLisboa();
   const snaps = await Promise.all(ids.map((id) => refCheckin(eventoId, id).get()));
+  let mestras = null;
+  if (forcado && !souLider(req)) {
+    const s = await db().doc(`eventos/${eventoId}/escalas/${BASE}`).get();
+    mestras = s.exists ? s.data().mestras || {} : {};
+  }
   const lote = db().batch();
   let saidas = 0;
   for (const s of snaps) {
     if (!s.exists || s.data().anulado) throw new HttpsError("failed-precondition", "Esta criança não fez check-in hoje.");
     const c = s.data();
     if (c.saidaEm) continue;
-    if (!forcado && texto(codigo).toUpperCase() !== c.codigo) {
-      throw new HttpsError("permission-denied", "O código não confere.");
+    if (!forcado) {
+      if (texto(codigo).toUpperCase() !== c.codigo) throw new HttpsError("permission-denied", "O código não confere.");
+    } else if (mestras && mestras[c.categoria] !== uid) {
+      throw new HttpsError("permission-denied", "Sem código, só a líder, ou a mestra da sala, pode dar a saída.");
     }
     lote.update(s.ref, {
       saidaEm: agora(), saidaPor: uid, levantadoPor: quem,
@@ -443,6 +465,77 @@ export const checkoutKinder = onCall(async (req) => {
   }
   await lote.commit();
   return { saidas };
+});
+
+/* ── LIÇÃO ────────────────────────────────────────────────────── */
+
+/** Publicar/editar a lição do dia — por Cloud Function (e não escrita
+ *  direta, como seria de esperar por firestore.rules → licoes) porque
+ *  é o único jeito de dar a mesma permissão da líder à Mestra: ela não
+ *  tem papel de líder, só está listada em eventos/{e}/escalas/kinder.
+ *  mestras[sala], e as rules não têm como olhar para isso ficheiro a
+ *  ficheiro. O upload dos documentos continua direto do cliente para
+ *  o Storage (bases/kinder/licoes/{id}-…, storage.rules aceita
+ *  qualquer pessoa da Kinder nesse caminho) — só o que fica
+ *  publicado na app é que passa por aqui, validado. */
+export const guardarLicaoKinder = onCall(async (req) => {
+  const uid = exigeKinder(req);
+  const { id, dados, novo } = req.data || {};
+  const idLimpo = texto(id, 40);
+  if (!idLimpo) throw new HttpsError("invalid-argument", "Falta o id da lição.");
+  if (!dados || typeof dados !== "object") throw new HttpsError("invalid-argument", "Dados inválidos.");
+
+  const categorias = Array.isArray(dados.categorias) ? dados.categorias.filter((c) => CATEGORIAS_KINDER.includes(c)) : [];
+  if (!categorias.length) throw new HttpsError("invalid-argument", "Escolhe pelo menos uma sala.");
+  const titulo = texto(dados.titulo, 120);
+  if (!titulo) throw new HttpsError("invalid-argument", "Falta o título.");
+  const eventoId = DATA_RE.test(dados.eventoId || "") ? dados.eventoId : null;
+
+  if (!souLider(req) && !(await souMestraDeAlgumaSala(uid, eventoId, categorias))) {
+    throw new HttpsError("permission-denied", "Só a líder, ou a mestra de uma destas salas neste culto, pode publicar a lição.");
+  }
+
+  const limparDocumento = (u) => {
+    if (!u) return null;
+    const url = texto(u.url, 600);
+    if (!url.startsWith("https://")) return null;
+    return { url, nome: texto(u.nome, 200) };
+  };
+  const escrita = {
+    titulo, categorias, eventoId,
+    resumo: textoLongo(dados.resumo),
+    resumoPais: textoLongo(dados.resumoPais),
+    louvor: textoLongo(dados.louvor),
+    atividades: (Array.isArray(dados.atividades) ? dados.atividades : []).slice(0, 12).map(limparDocumento).filter(Boolean),
+  };
+  if ("licao" in dados) escrita.licao = limparDocumento(dados.licao);
+  if ("recurso" in dados) escrita.recurso = limparDocumento(dados.recurso);
+  if (novo) {
+    escrita.enviadoPor = uid;
+    escrita.criadoEm = agora();
+    escrita.ativo = true;
+  }
+  await db().doc(`bases/${BASE}/licoes/${idLimpo}`).set(escrita, { merge: true });
+  return { ok: true };
+});
+
+/** "Excluir" é ativo:false (regra 5) — mesma permissão de
+ *  guardarLicaoKinder (líder ou Mestra de uma das salas dessa lição,
+ *  nesse culto). Lê o eventoId/categorias do próprio documento —
+ *  nunca do que o cliente diz que é. */
+export const desativarLicaoKinder = onCall(async (req) => {
+  const uid = exigeKinder(req);
+  const id = texto(req.data?.id, 40);
+  if (!id) throw new HttpsError("invalid-argument", "Falta o id da lição.");
+  const ref = db().doc(`bases/${BASE}/licoes/${id}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Lição não encontrada.");
+  const d = snap.data();
+  if (!souLider(req) && !(await souMestraDeAlgumaSala(uid, d.eventoId, d.categorias || []))) {
+    throw new HttpsError("permission-denied", "Só a líder, ou a mestra de uma destas salas neste culto, pode remover a lição.");
+  }
+  await ref.update({ ativo: false, removidaPor: uid, removidaEm: agora() });
+  return { ok: true };
 });
 
 /** Check-in feito por engano (criança errada, toque a mais). Fica no
