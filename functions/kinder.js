@@ -21,7 +21,8 @@
 import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import admin from "firebase-admin";
-import { createHash, randomBytes, randomInt } from "node:crypto";
+import sharp from "sharp";
+import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 
 const BASE = "kinder";
 export const CATEGORIAS_KINDER = ["baby", "fun", "junior"];
@@ -96,11 +97,36 @@ const textoLongo = (v) => String(v ?? "").trim().slice(0, 500);
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const soDigitos = (t) => String(t ?? "").replace(/\D/g, "");
 
+const RE_ID_PESSOA = /^[A-Za-z0-9_-]{6,60}$/;
+
+/** `id` é o que dá um caminho estável à foto de um responsável/
+ *  autorizado — não existem como documentos próprios (são só um
+ *  array na família), por isso o cliente gera o id (crypto.randomUUID)
+ *  na primeira vez e devolve-o nas edições seguintes; sem um válido,
+ *  esta função gera um novo. `fotoBase64`/`removerFoto` passam por
+ *  aqui só em bruto — `resolverFotosPessoas` é que os processa. */
 function limparPessoas(lista, max, exigeTelefone) {
   if (!Array.isArray(lista)) return [];
   return lista.slice(0, max)
-    .map((p) => ({ nome: texto(p?.nome), telefone: texto(p?.telefone, 30), parentesco: texto(p?.parentesco, 40) }))
+    .map((p) => ({
+      id: RE_ID_PESSOA.test(p?.id || "") ? p.id : randomUUID(),
+      nome: texto(p?.nome), telefone: texto(p?.telefone, 30), parentesco: texto(p?.parentesco, 40),
+      ...(typeof p?.fotoBase64 === "string" ? { fotoBase64: p.fotoBase64 } : {}),
+      ...(p?.removerFoto === true ? { removerFoto: true } : {}),
+    }))
     .filter((p) => p.nome && (!exigeTelefone || soDigitos(p.telefone).length >= 9));
+}
+
+/** Foto de cada responsável/autorizado — sobe a nova, apaga (null) ou
+ *  mantém a que já lá estava (o array é sempre reescrito por inteiro,
+ *  nunca um merge por item — sem isto, editar um perdia a foto de
+ *  outro). `existentesPorId` vem do que já estava guardado. */
+async function resolverFotosPessoas(pessoas, existentesPorId, caminhoBase) {
+  return Promise.all(pessoas.map(async ({ fotoBase64, removerFoto, ...p }) => {
+    const resolvida = await fotoOpcional({ fotoBase64, removerFoto }, `${caminhoBase}/${p.id}.webp`);
+    const foto = resolvida !== undefined ? resolvida : (existentesPorId.get(p.id)?.foto ?? null);
+    return { ...p, foto };
+  }));
 }
 
 /** Idade em anos completos, contas em datas locais (nunca toISOString —
@@ -139,6 +165,41 @@ function limparCrianca(c, faixas, categoriaDada) {
     restricoesAlimentares: textoLongo(c?.restricoesAlimentares),
     necessidades: textoLongo(c?.necessidades),
   };
+}
+
+/* ── fotos (criança e responsável/autorizado) ────────────────────
+ * Os pais nunca têm sessão (registo/link são sem conta) — não há
+ * como um `storage.rules` deixá-los escrever direto no Storage. Por
+ * isso a foto viaja em base64 dentro do próprio pedido (comprimida
+ * no cliente antes) e é esta função, com o Admin SDK, que sobe o
+ * ficheiro — o único caminho que serve pais e voluntários da mesma
+ * forma, sem duplicar lógica. Redimensiona sempre para 480×480
+ * (rosto/retrato, não precisa de mais para reconhecer alguém). */
+const TAMANHO_MAX_FOTO = 6 * 1024 * 1024; // já comprimida — 6MB é uma margem larga
+const RE_FOTO_BASE64 = /^data:image\/(jpeg|png|webp);base64,([a-zA-Z0-9+/=]+)$/;
+
+async function guardarFotoPessoa(caminho, base64) {
+  const m = RE_FOTO_BASE64.exec(String(base64 || ""));
+  if (!m) throw new HttpsError("invalid-argument", "Foto inválida — tenta outra imagem.");
+  const entrada = Buffer.from(m[2], "base64");
+  if (entrada.length > TAMANHO_MAX_FOTO) throw new HttpsError("invalid-argument", "A foto é grande demais.");
+  const webp = await sharp(entrada).rotate().resize(480, 480, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
+  const token = randomUUID();
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(caminho);
+  await file.save(webp, { metadata: { contentType: "image/webp", metadata: { firebaseStorageDownloadTokens: token } } });
+  return { url: `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}`, nome: "foto.webp" };
+}
+
+/** Processa `fotoBase64`/`removerFoto` de UM item (criança, responsável
+ *  ou autorizado) contra o caminho onde a foto desse item vive.
+ *  Sem nenhum dos dois campos, devolve `undefined` — a chamadora não
+ *  toca no que já lá estava (mesmo padrão do `licao ? {licao} : {}`
+ *  usado em guardarLicaoKinder). */
+async function fotoOpcional(item, caminho) {
+  if (item?.fotoBase64) return guardarFotoPessoa(caminho, item.fotoBase64);
+  if (item?.removerFoto) return null;
+  return undefined;
 }
 
 async function limitarRegistoPublico(req) {
@@ -210,15 +271,26 @@ export const registarFamiliaKinder = onCall(async (req) => {
   }
   if (d.criancas.length > 8) throw new HttpsError("invalid-argument", "No máximo 8 crianças por família.");
   const faixas = await lerFaixas();
-  const criancas = d.criancas.map((c) => limparCrianca(c, faixas, voluntario ? c?.categoria : null));
+  const criancasLimpas = d.criancas.map((c) => ({ dados: limparCrianca(c, faixas, voluntario ? c?.categoria : null), origem: c }));
   if (!voluntario) await limitarRegistoPublico(req);
 
   const token = randomBytes(18).toString("base64url");
   const familiaRef = col("familias").doc();
+  const caminhoPessoas = `bases/${BASE}/familias/${familiaRef.id}/pessoas`;
+  const [responsaveisComFoto, autorizadosComFoto, criancasComFoto] = await Promise.all([
+    resolverFotosPessoas(responsaveis, new Map(), caminhoPessoas),
+    resolverFotosPessoas(limparPessoas(d.autorizados, 6, false), new Map(), caminhoPessoas),
+    Promise.all(criancasLimpas.map(async ({ dados, origem }) => {
+      const ref = col("criancas").doc();
+      const foto = await fotoOpcional(origem, `bases/${BASE}/criancas/${ref.id}.webp`);
+      return { ref, dados: { ...dados, foto: foto ?? null } };
+    })),
+  ]);
+
   const lote = db().batch();
   lote.set(familiaRef, {
-    responsaveis,
-    autorizados: limparPessoas(d.autorizados, 6, false),
+    responsaveis: responsaveisComFoto,
+    autorizados: autorizadosComFoto,
     telefones: responsaveis.map((r) => soDigitos(r.telefone)),
     fotoAutorizada: d.fotoAutorizada === true,
     visitante: d.visitante === true,
@@ -234,8 +306,8 @@ export const registarFamiliaKinder = onCall(async (req) => {
     criadoEm: agora(),
     criadoPor: voluntario,
   });
-  for (const c of criancas) {
-    lote.set(col("criancas").doc(), { ...c, familiaId: familiaRef.id, ativo: true, criadoEm: agora() });
+  for (const { ref, dados } of criancasComFoto) {
+    lote.set(ref, { ...dados, familiaId: familiaRef.id, ativo: true, criadoEm: agora() });
   }
   await lote.commit();
   return { token, familiaId: familiaRef.id };
@@ -284,30 +356,42 @@ export const editarFamiliaKinder = onCall(async (req) => {
   }
   const pelosPais = !!d.token;
   const familiaId = familiaSnap.id;
+  const dadosAtuais = familiaSnap.data();
   const responsaveis = limparPessoas(d.responsaveis, 4, true);
   if (!responsaveis.length) {
     throw new HttpsError("invalid-argument", "Falta pelo menos um responsável com telemóvel.");
   }
   const faixas = await lerFaixas();
   const existentes = new Map((await criancasDaFamilia(familiaId)).map((c) => [c.id, c]));
+  const caminhoPessoas = `bases/${BASE}/familias/${familiaId}/pessoas`;
+  const [responsaveisComFoto, autorizadosComFoto] = await Promise.all([
+    resolverFotosPessoas(responsaveis, new Map((dadosAtuais.responsaveis || []).map((p) => [p.id, p])), caminhoPessoas),
+    resolverFotosPessoas(limparPessoas(d.autorizados, 6, false), new Map((dadosAtuais.autorizados || []).map((p) => [p.id, p])), caminhoPessoas),
+  ]);
   const lote = db().batch();
   lote.update(familiaSnap.ref, {
-    responsaveis,
-    autorizados: limparPessoas(d.autorizados, 6, false),
+    responsaveis: responsaveisComFoto,
+    autorizados: autorizadosComFoto,
     telefones: responsaveis.map((r) => soDigitos(r.telefone)),
     fotoAutorizada: d.fotoAutorizada === true,
     atualizadoEm: agora(),
     atualizadoPor: req.auth?.uid ?? "familia",
   });
   const lista = Array.isArray(d.criancas) ? d.criancas.slice(0, 8) : [];
-  for (const c of lista) {
+  await Promise.all(lista.map(async (c) => {
     const atual = c?.id ? existentes.get(c.id) : null;
-    if (c?.id && !atual) continue;
+    if (c?.id && !atual) return;
     const categoriaDada = pelosPais ? atual?.data().categoria : c?.categoria;
     const limpa = limparCrianca(c, faixas, categoriaDada);
-    if (atual) lote.update(atual.ref, { ...limpa, atualizadoEm: agora() });
-    else lote.set(col("criancas").doc(), { ...limpa, familiaId, ativo: true, criadoEm: agora() });
-  }
+    if (atual) {
+      const foto = await fotoOpcional(c, `bases/${BASE}/criancas/${atual.id}.webp`);
+      lote.update(atual.ref, { ...limpa, ...(foto !== undefined ? { foto } : {}), atualizadoEm: agora() });
+    } else {
+      const ref = col("criancas").doc();
+      const foto = await fotoOpcional(c, `bases/${BASE}/criancas/${ref.id}.webp`);
+      lote.set(ref, { ...limpa, foto: foto ?? null, familiaId, ativo: true, criadoEm: agora() });
+    }
+  }));
   for (const id of Array.isArray(d.removidas) ? d.removidas : []) {
     const atual = existentes.get(id);
     if (atual) lote.update(atual.ref, { ativo: false });
@@ -344,6 +428,7 @@ export const dadosFamiliaKinder = onCall(async (req) => {
     criancas: criancas.map((c) => ({
       id: c.id, nome: c.nome, dataNascimento: c.dataNascimento, categoria: c.categoria ?? null,
       alergias: c.alergias || "", restricoesAlimentares: c.restricoesAlimentares || "", necessidades: c.necessidades || "",
+      foto: c.foto ?? null,
     })),
     hoje: {
       eventoId: hoje,

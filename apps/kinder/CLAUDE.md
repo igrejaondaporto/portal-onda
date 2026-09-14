@@ -153,8 +153,8 @@ bases/kinder
 bases/kinder/pessoas/{p}              ← + categoria: "baby"|"fun"|"junior"|null
 bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← comprovanteUrl/comprovanteNome, feitaEm, validaAte (registo criminal)
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
-bases/kinder/familias/{f}             ← só por Cloud Function
-bases/kinder/criancas/{c}             ← idem — familiaId, alergias…
+bases/kinder/familias/{f}             ← só por Cloud Function; responsaveis[]/autorizados[] com {id, foto}
+bases/kinder/criancas/{c}             ← idem — familiaId, alergias…, foto
 bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo, resumoPais, louvor
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
@@ -184,6 +184,36 @@ quem mexeu — nunca um delete a sério). Em "A equipa" (só líder), "Ver
 quem falta" mostra também o nome de quem já entregou como link direto
 para o ficheiro — sem isso, exigir comprovativo não serviria de nada
 se a líder não pudesse mesmo abri-lo.
+
+## Foto da criança e de cada responsável/autorizado
+
+Para o voluntário reconhecer quem é quem à entrada ("Na sala agora",
+`Checkin.jsx`) e confirmar quem vem buscar à saída (`SheetSaida.jsx`)
+— pedido do líder, 2026-09. `FormFamilia.jsx` é o ponto único onde se
+sobe (registo, receção, edição pelos pais ou pelo líder — as quatro
+situações ganham a foto de uma vez, é o mesmo componente).
+
+Os pais **não têm sessão nenhuma** (registo e link da família são
+sem conta) — não há como um `storage.rules` deixá-los escrever
+direto no Storage. Por isso a foto nunca sobe do cliente: comprime-se
+no browser (`comprimirImagem`) e viaja em base64 dentro do próprio
+pedido a `registarFamiliaKinder`/`editarFamiliaKinder`; é a função,
+com o Admin SDK (`guardarFotoPessoa`, `functions/kinder.js`, `sharp`
+redimensiona sempre para 480×480), que sobe ao Storage — o único
+caminho que serve pais e voluntários da mesma forma. `storage.rules`
+tem as duas regras (`bases/kinder/criancas/{f}`, `bases/kinder/
+familias/{fam}/pessoas/{f}`) só como documentação/defesa — o link
+devolvido já leva o próprio token de leitura, nunca passa pelas
+regras a sério.
+
+Criança tem um `foto` direto no documento; responsável e autorizado
+não têm documento próprio (são só um array na família) — por isso
+ganham um `id` (gerado no cliente, `crypto.randomUUID()`, na
+primeira vez; devolvido e reenviado nas edições seguintes) que dá um
+caminho estável à foto de cada um. Um item do payload sem
+`fotoBase64` nem `removerFoto` nunca é tocado — o servidor lê o que
+já lá estava (`resolverFotosPessoas`) antes de reescrever o array
+por inteiro, senão editar um perdia a foto de outro.
 
 ## Check-in — paridade com o My Kids (app usada antes)
 

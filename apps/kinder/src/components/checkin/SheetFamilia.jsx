@@ -5,6 +5,7 @@ import { nomeCategoria, varsCategoria } from "../../lib/modelo";
 import {
   fazerCheckin, editarFamilia, novoLinkFamilia, desativarFamilia, linkFamilia, hora,
 } from "../../lib/kinder";
+import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 import FormFamilia from "../FormFamilia";
 import { Cuidados } from "../../pages/Checkin";
 
@@ -144,6 +145,7 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
                 const dentro = ck && !ck.saidaEm;
                 return (
                   <div className="opcao" key={c.id} style={{ cursor: dentro ? "default" : "pointer" }} onClick={() => !dentro && alternar(c.id)}>
+                    <FotoRedonda src={c.foto?.url} alt={c.nome} />
                     <span style={{ flex: 1 }}>
                       <b style={{ fontSize: 15.5, fontWeight: 700 }}>{c.nome}</b>
                       <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
@@ -174,6 +176,7 @@ export default function SheetFamilia({ familia, criancas, checkinPorCrianca, cod
             <p className="rot" style={{ marginTop: 18 }}>Contactos</p>
             {(familia.responsaveis || []).map((r, i) => (
               <div className="linha" key={i}>
+                <FotoRedonda src={r.foto?.url} alt={r.nome} />
                 <div style={{ flex: 1 }}>
                   <p className="nmt">{r.nome}</p>
                   <p className="ds">{[r.parentesco, r.telefone].filter(Boolean).join(" · ")}</p>
