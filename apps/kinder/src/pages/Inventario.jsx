@@ -62,8 +62,8 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: <em>Inventário</em>,
-      subtitulo: "O material de cada sala, sempre atualizado",
+      titulo: <em>Compras</em>,
+      subtitulo: "O material de cada sala e a lista de compras, sempre atualizados",
       chips: [`${itensDaSala.length} itens`, falta.length ? `${falta.length} no mínimo ou esgotados` : "Tudo em ordem"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

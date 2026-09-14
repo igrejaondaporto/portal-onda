@@ -103,6 +103,18 @@ export function ouvirListaCompraAberta(cb) {
   }, (erro) => console.error("ouvirListaCompraAberta:", erro));
 }
 
+/** A lista mais recente já fechada, mas ainda não enviada — o aviso
+ *  "para rever" no Início da líder geral usa isto: assim que ela
+ *  enviar (ou reabrir), o aviso desaparece sozinho. */
+export function ouvirListaCompraFechada(cb) {
+  const q = query(cListasCompras(), where("estado", "==", "fechada"));
+  return onSnapshot(q, (snap) => {
+    const listas = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.criadaEm?.toMillis() ?? 0) - (a.criadaEm?.toMillis() ?? 0));
+    cb(listas[0] ?? null);
+  }, (erro) => console.error("ouvirListaCompraFechada:", erro));
+}
+
 /** Listas fechadas/enviadas de um mês — mesmo filtro de
  *  `HistoricoContagem`/Formulário, mas por `criadaEm` (Timestamp) em
  *  vez de `eventoId` (string). Igualdade/intervalo e `orderBy` no
