@@ -28,6 +28,7 @@ export default function FormFamilia({
   const [removidas, setRemovidas] = useState([]);
   const [fotoAutorizada, setFotoAutorizada] = useState(inicial?.fotoAutorizada ?? false);
   const [visitante, setVisitante] = useState(inicial?.visitante ?? false);
+  const [membro, setMembro] = useState(inicial?.membro ?? false);
   const [aceite, setAceite] = useState(false);
 
   const mudar = (lista, setLista, i, campo, valor) =>
@@ -57,6 +58,7 @@ export default function FormFamilia({
       removidas,
       fotoAutorizada,
       visitante,
+      membro,
       ...(consentimento ? { consentimento: { aceite: true, versao: consentimento.versao } } : {}),
     });
   }
@@ -158,13 +160,22 @@ export default function FormFamilia({
           </div>
         </label>
         {mostrarVisitante && (
-          <label className="linha" style={{ cursor: "pointer" }}>
-            <input type="checkbox" checked={visitante} onChange={(e) => setVisitante(e.target.checked)} style={{ width: 22, height: 22 }} />
-            <div style={{ flex: 1 }}>
-              <p className="nmt">É a primeira vez na Onda</p>
-              <p className="ds">Para vos darmos as boas-vindas.</p>
-            </div>
-          </label>
+          <>
+            <label className="linha" style={{ cursor: "pointer" }}>
+              <input type="checkbox" checked={visitante} onChange={(e) => setVisitante(e.target.checked)} style={{ width: 22, height: 22 }} />
+              <div style={{ flex: 1 }}>
+                <p className="nmt">É a primeira vez na Onda</p>
+                <p className="ds">Para vos darmos as boas-vindas.</p>
+              </div>
+            </label>
+            <label className="linha" style={{ cursor: "pointer" }}>
+              <input type="checkbox" checked={membro} onChange={(e) => setMembro(e.target.checked)} style={{ width: 22, height: 22 }} />
+              <div style={{ flex: 1 }}>
+                <p className="nmt">Somos membros da Igreja Onda</p>
+                <p className="ds">No fim, convidamos-vos para o grupo dos pais do Kinder.</p>
+              </div>
+            </label>
+          </>
         )}
       </div>
 

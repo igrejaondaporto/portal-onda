@@ -305,7 +305,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
             {verTodas && (todasAsFamilias.length ? todasAsFamilias.map(linhaFamilia) : <div className="vaz">Ainda nenhuma família registada.</div>)}
           </div>
 
-          {liderGeral && (
+          {lider && (
             <button className="btn sec full" style={{ marginTop: 18 }} onClick={() => setSheet({ tipo: "relatorios" })}>Relatórios</button>
           )}
         </>
@@ -337,7 +337,7 @@ export default function Checkin({ uid, papel, pessoa, ativo, definirCabecalho })
           onRegistada={({ familiaId, token }) => { setProcura(""); setSheet({ tipo: "familia", familiaId, token }); }}
         />
       )}
-      {sheet?.tipo === "relatorios" && <Relatorios criancas={criancas} familias={familias} onFechar={() => setSheet(null)} />}
+      {sheet?.tipo === "relatorios" && <Relatorios criancas={criancas} familias={familias} restrita={restrita} onFechar={() => setSheet(null)} />}
     </>
   );
 }

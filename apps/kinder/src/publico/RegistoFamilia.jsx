@@ -47,6 +47,7 @@ function Conteudo() {
   const [erro, setErro] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
   const [token, setToken] = useState(null);
+  const [foiMembro, setFoiMembro] = useState(false);
   const [jaRegistado] = useState(() => { try { return localStorage.getItem(CHAVE_TOKEN_FAMILIA); } catch { return null; } });
 
   useEffect(() => {
@@ -58,6 +59,7 @@ function Conteudo() {
     try {
       const r = await registarFamilia(dados);
       try { localStorage.setItem(CHAVE_TOKEN_FAMILIA, r.token); } catch { /* sem armazenamento */ }
+      setFoiMembro(dados.membro === true);
       setToken(r.token);
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -90,6 +92,11 @@ function Conteudo() {
           </div>
           <a className="btn full" style={{ marginTop: 14, display: "block", textAlign: "center" }} href={link}>Abrir o nosso link</a>
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => partilhar(link)}>Partilhar / copiar</button>
+          {foiMembro && config?.grupoPais?.link && (
+            <a className="btn sec full" style={{ marginTop: 9, display: "block", textAlign: "center" }} href={config.grupoPais.link} target="_blank" rel="noreferrer">
+              Entrar no grupo dos pais do Kinder
+            </a>
+          )}
           <p className="nota">No primeiro domingo, um voluntário confirma o registo na receção do Kinder.</p>
         </main>
       </>

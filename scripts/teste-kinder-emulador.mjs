@@ -115,6 +115,32 @@ await teste("registo pelos pais (sem sessão) fica pendente e sugere a sala pela
   const cs = await adb.collection("bases/kinder/criancas").where("familiaId", "==", familiaId).get();
   criancaId = cs.docs[0].id;
   afirmar(cs.docs[0].data().categoria === "fun", `pais escolheram a sala: ${cs.docs[0].data().categoria}`);
+  afirmar(f.membro === false, `membro por omissão devia ser false, veio ${f.membro}`);
+});
+
+// ── Grupo dos pais do Kinder: sem link nenhum por omissão; a líder
+// define, dadosRegistoKinder passa a devolver; quem se disser membro
+// fica com `membro:true` na família.
+await teste("dadosRegistoKinder sem link do grupo definido devolve vazio", async () => {
+  const r = await chamar("dadosRegistoKinder", {});
+  afirmar(r.grupoPais?.link === "", `esperava vazio, veio "${r.grupoPais?.link}"`);
+});
+await teste("líder define o link do grupo; dadosRegistoKinder passa a devolvê-lo", async () => {
+  await como("aux-teste", AUX);
+  await setDoc(doc(db, "bases/kinder/definicoes/grupoPais"), { link: "https://chat.whatsapp.com/exemplo" });
+  await signOut(auth);
+  const r = await chamar("dadosRegistoKinder", {});
+  afirmar(r.grupoPais?.link === "https://chat.whatsapp.com/exemplo", `link=${r.grupoPais?.link}`);
+});
+await teste("registo de família membro grava membro:true", async () => {
+  const r = await chamar("registarFamiliaKinder", {
+    responsaveis: [{ nome: "Membro Teste", telefone: "913 000 000" }],
+    criancas: [{ nome: "Filho Membro", dataNascimento: nascidaHa(4) }],
+    membro: true,
+    consentimento: { aceite: true, versao: "rascunho-1" },
+  });
+  const f = (await adb.doc(`bases/kinder/familias/${r.familiaId}`).get()).data();
+  afirmar(f.membro === true, `membro=${f.membro}`);
 });
 
 await teste("regras: sem sessão não lê crianças", () => falha(getDoc(doc(db, `bases/kinder/criancas/${criancaId}`)), "permission-denied"));
