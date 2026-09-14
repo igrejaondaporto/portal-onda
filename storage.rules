@@ -53,13 +53,17 @@ service firebase.storage {
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
     }
-    // Lição (Base New): só o líder sobe, sempre .docx — ver
-    // lib/licoes.js e a regra irmã em firestore.rules.
+    // Lição — só o líder sobe. Base New: sempre .docx. Base Kinder: o
+    // documento da lição em si, geralmente um PDF (às vezes foto de
+    // página impressa, ou .docx) — ver lib/licoes.js de cada app e a
+    // regra irmã em firestore.rules.
     match /bases/{base}/licoes/{ficheiro} {
       allow read:  if minhaBase(base);
       allow write: if lider(base)
                    && request.resource.size < 20 * 1024 * 1024
-                   && request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                   && (request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                       || request.resource.contentType == 'application/pdf'
+                       || request.resource.contentType.matches('image/.*'));
     }
     // Brand (Comunicação): foto de fundo do card de cada marca. Raiz,
     // não bases/comunicacao — a coleção marcas também é raiz (leitura
