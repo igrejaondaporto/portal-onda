@@ -236,9 +236,11 @@ o próprio lead, para o pastor abrir com um toque
 "cartão de contacto" nativo do WhatsApp — isso só existe partilhando
 um contacto a sério da agenda, não é algo que uma app web consiga
 acionar à distância; o link é o equivalente prático (um toque, abre
-a conversa certa). O número do pastor (`WHATSAPP_PASTOR` em
-`lib/contactos.js`) está fixo no código por agora — ver "Débitos
-conscientes".
+a conversa certa). O número do pastor é editável pela líder em
+"Definições da base" (`definirBase`, guardado em `bases/pessoal/
+config/contactoPastor` — nunca no código nem no doc `bases/pessoal`
+de sempre, que qualquer pessoa autenticada de QUALQUER base lê; ver
+`ouvirContactoPastor`/`linkParaPastor` em `lib/contactos.js`).
 
 ### Catálogo de GDs
 
@@ -283,11 +285,6 @@ Só a líder da base cria no catálogo.
 - **Ordem do culto**: só leitura na Base Pessoal — ninguém aqui tem
   `pode_publicar_culto` ligado ainda. Ver secção acima.
 - Inventário sem património por item (herdado da Backstage).
-- **`WHATSAPP_PASTOR` fixo no código** (`lib/contactos.js`), não
-  editável pela líder — se o número do pastor mudar, é mudar ali e
-  fazer deploy. Segue o padrão de `bases/pessoal.horaChegada`/
-  `horaCulto` (editável pela líder via "Definições da base") se um
-  dia valer a pena dar-lhe o mesmo tratamento.
 - **Sem UI para gerir GDs** — a lista e o formulário de "Gerir" que
   existiam por baixo do Formulário foram tirados (pedido explícito,
   ficava a repetir informação e ninguém geria dali). O catálogo

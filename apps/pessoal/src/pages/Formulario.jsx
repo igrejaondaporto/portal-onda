@@ -4,7 +4,7 @@ import { dataPorExtenso, haAtras, MESES } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
   ouvirContactosDoMes, ouvirGDs, verificarTelefoneDuplicado,
-  criarContacto, marcarEnviadoPastor, arquivarContacto, linkParaPastor,
+  criarContacto, marcarEnviadoPastor, arquivarContacto, linkParaPastor, ouvirContactoPastor,
 } from "../lib/contactos";
 import CamposLocalizacaoGD from "../components/CamposLocalizacaoGD";
 import SheetEditarContacto from "../components/SheetEditarContacto";
@@ -34,6 +34,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   const souLiderBase = papel === "lider_base";
   const [meuEvento, setMeuEvento] = useState(null);
   const [gds, setGds] = useState([]);
+  const [contactoPastor, setContactoPastor] = useState(null);
 
   const meses = useMemo(() => ultimosMeses(new Date()), []);
   const [mesFiltro, setMesFiltro] = useState(meses[0].valor);
@@ -55,6 +56,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
 
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => ouvirGDs(setGds), []);
+  useEffect(() => ouvirContactoPastor(setContactoPastor), []);
   useEffect(() => {
     const { ano, mesIndex } = meses.find((m) => m.valor === mesFiltro) ?? meses[0];
     return ouvirContactosDoMes(ano, mesIndex, setContactosDoMes);
@@ -116,7 +118,8 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   }
 
   async function enviarParaPastor(contacto) {
-    window.open(linkParaPastor(contacto, contacto.eventoId), "_blank", "noopener");
+    if (!contactoPastor) return torrada("Falta definir o WhatsApp do pastor em Definições da base.", true);
+    window.open(linkParaPastor(contacto, contacto.eventoId, contactoPastor), "_blank", "noopener");
     try { await marcarEnviadoPastor(contacto.id); } catch { /* o WhatsApp já abriu — o carimbo é só cosmético */ }
   }
 
