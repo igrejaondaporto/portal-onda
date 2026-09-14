@@ -241,7 +241,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
             />
           </div>
           {pagina === "checklists" && veTodasEscalas && (
-            <Checklists ativo={pagina === "checklists"} definirCabecalho={setCab} />
+            <Checklists mes={mes} ano={ano} mudarMes={mudarMes} ativo={pagina === "checklists"} definirCabecalho={setCab} />
           )}
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
