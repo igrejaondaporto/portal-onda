@@ -12,7 +12,7 @@ import Inventario from "./Inventario";
 
 const ABAS = [
   ["checklist", "Checklist", "Abrir e fechar a sala"],
-  ["inventario", "Compras", "Os materiais e a lista de compras de cada sala"],
+  ["inventario", "Inventário", "O material de cada sala — a lista de compras é dos líderes"],
   ["ordem", "Ordem do culto", "A ordem do culto que o pastor envia"],
   ["feedbacks", "Feedbacks", "O que ficou registado de cada domingo"],
 ];

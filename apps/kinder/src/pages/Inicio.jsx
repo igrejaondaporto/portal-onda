@@ -237,7 +237,7 @@ export default function Inicio({
             <div className="cabecalho"><h3>A tua sala</h3></div>
             {[
               ["checklist", "Checklist da sala", "Abrir e fechar a sala", () => onIrCulto?.("checklist"), null],
-              ["inventario", "Compras", "Materiais e lista de compras", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
+              ["inventario", "Inventário", lider ? "Materiais e lista de compras" : "Material da sala", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
               ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
               ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),
             ].map(([k, t, d, ir, tag]) => (
