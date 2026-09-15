@@ -344,6 +344,22 @@ aparece no link da família (`resumoPais`). Os botões do detalhe têm
 cor própria: Lição do dia em verde (`var(--verde)`), Recurso em azul
 (`var(--azul)`), Atividades no estilo secundário de sempre.
 
+**Sem compressão nenhuma** (nem de PDF nem de .docx — só imagem tem
+`comprimirImagem`, e mesmo essa não entra aqui) e até 20 MB por
+documento (`storage.rules` + `SheetLicao.jsx`), sem limite de
+atividades por lição — um culto sozinho pode chegar perto de 100 MB
+(lição + recurso + várias atividades). Decisão da igreja (2026-09):
+em vez de comprimir (arriscado para PDF, ganho pequeno), os ANEXOS
+(nunca a lição em si — título, resumo e resumo para os pais ficam) de
+lições com mais de `MESES_RETENCAO_LICOES` (3) são apagados a sério
+do Storage por `purgarAnexosLicoesAntigasKinder`
+(`functions/kinder.js`, `onSchedule`, corre todos os dias — mesmo
+padrão de `purgarFamiliasInativasKinder`); o documento fica com
+`licao`/`recurso`/`atividades` a `null`/`[]` e um `anexosExcluidosEm`.
+O caminho a apagar vem do próprio `url` guardado (nunca precisa de
+reconstruir o nome, que varia com a extensão real do ficheiro) —
+`caminhoDeUrlStorage()` extrai o caminho do download URL do Firebase.
+
 ## Entrada e cartaz de impressão
 
 `Entrada.jsx` agrupa a lista de voluntários por sala (Baby → Fun →
