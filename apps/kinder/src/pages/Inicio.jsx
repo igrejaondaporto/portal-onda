@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, souLider, souLiderGeral, minhaSalaRestrita, categoria, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO } from "../lib/modelo";
+import { cEscala, souLider, souLiderGeral, minhaSalaRestrita, categoria, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO, CHECKIN_ATIVO } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
@@ -175,7 +175,7 @@ export default function Inicio({
 
       <div className="duas">
         <div>
-          {eventoHoje && (
+          {CHECKIN_ATIVO && eventoHoje && (
             <div className="sect" data-tour="hoje-bloco">
               <div className="cabecalho"><h3>Hoje nas salas</h3><span className="cap">{naSalaVisivel.length} crianças</span></div>
               <div className="kin-grelha" style={{ gridTemplateColumns: `repeat(${salasVisiveis.length}, 1fr)` }}>
