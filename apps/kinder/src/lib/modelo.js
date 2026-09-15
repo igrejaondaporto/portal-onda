@@ -20,6 +20,14 @@
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
 
+/** A líder do Kinder pediu (2026-09) para não usar, por agora, o
+ *  check-in nem nada envolvendo dados de crianças (famílias, QR de
+ *  registo, contagem ao vivo por sala) — só escondido do menu, nunca
+ *  removido: o código, as regras e as Cloud Functions continuam
+ *  todos aqui, prontos a voltar mudando só esta constante para
+ *  `true` (Sessao.jsx, Inicio.jsx, PainelLider.jsx). */
+export const CHECKIN_ATIVO = false;
+
 export const cBase        = () => doc(db, "bases", BASE_ID);
 export const cPessoas     = () => collection(db, `bases/${BASE_ID}/pessoas`);
 export const cEventos     = () => collection(db, "eventos");

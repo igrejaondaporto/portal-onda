@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ouvirVoluntarios, ouvirBase, obterEventosDoMes, reporTodosPins, gerarDomingos, excluirCultoEspecial } from "../lib/painel";
-import { CATEGORIAS, minhaSalaRestrita, nomeCategoria, rotuloPapel, varsCategoria } from "../lib/modelo";
+import { CATEGORIAS, minhaSalaRestrita, nomeCategoria, rotuloPapel, varsCategoria, CHECKIN_ATIVO } from "../lib/modelo";
 import { linkRegisto } from "../lib/kinder";
 import { MESES, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -166,19 +166,21 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
         </div>
 
         <div>
-          <div className="sect">
-            <div className="cabecalho"><h3>Registo das famílias</h3></div>
-            <p className="ds">Imprime este QR e cola-o na porta do Kinder. Os pais registam-se sozinhos, sem conta.</p>
-            <CodigoQR texto={linkRegisto()} rotulo="QR do registo" />
-            <p className="ds" style={{ textAlign: "center", wordBreak: "break-all" }}>{linkRegisto()}</p>
-            <a
-              className="btn sec full" style={{ marginTop: 10, display: "block", textAlign: "center" }}
-              href={minhaSala ? `/registo/imprimir?sala=${minhaSala}` : "/registo/imprimir"}
-              target="_blank" rel="noreferrer"
-            >
-              Abrir cartaz para imprimir
-            </a>
-          </div>
+          {CHECKIN_ATIVO && (
+            <div className="sect">
+              <div className="cabecalho"><h3>Registo das famílias</h3></div>
+              <p className="ds">Imprime este QR e cola-o na porta do Kinder. Os pais registam-se sozinhos, sem conta.</p>
+              <CodigoQR texto={linkRegisto()} rotulo="QR do registo" />
+              <p className="ds" style={{ textAlign: "center", wordBreak: "break-all" }}>{linkRegisto()}</p>
+              <a
+                className="btn sec full" style={{ marginTop: 10, display: "block", textAlign: "center" }}
+                href={minhaSala ? `/registo/imprimir?sala=${minhaSala}` : "/registo/imprimir"}
+                target="_blank" rel="noreferrer"
+              >
+                Abrir cartaz para imprimir
+              </a>
+            </div>
+          )}
 
           <div className="sect">
             <div className="cabecalho">

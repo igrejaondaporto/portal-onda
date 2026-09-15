@@ -10,7 +10,7 @@ import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
-import { rotuloPapel, souLider } from "../lib/modelo";
+import { rotuloPapel, souLider, CHECKIN_ATIVO } from "../lib/modelo";
 import { ouvirLicoes, licoesDaSala, licoesVistas } from "../lib/licoes";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
@@ -33,7 +33,7 @@ const ICONE_CHAMADAS = '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 
 const ABAS = [
   ["inicio", "Início"],
   ["escala", "Escala"],
-  ["checkin", "Check-in", ICONE_CHECKIN],
+  ...(CHECKIN_ATIVO ? [["checkin", "Check-in", ICONE_CHECKIN]] : []),
   ["licao", "Lição"],
   ["culto", "Culto"],
   ["chamadas", "Chamadas", ICONE_CHAMADAS],
