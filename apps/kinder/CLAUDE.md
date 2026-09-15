@@ -155,7 +155,7 @@ bases/kinder/pessoas/{p}/capacitacoes/{cap}   ← comprovanteUrl/comprovanteNome
 bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function; responsaveis[]/autorizados[] com {id, foto}
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…, foto
-bases/kinder/licoes/{id}              ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo, resumoPais, louvor
+bases/kinder/licoes/{id}              ← categorias[], licao/recursos[]/atividades[] (PDF/foto/.docx), resumo, resumoPais, louvor
 bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
 bases/kinder/definicoes/consentimento ← texto + versão, a líder edita
@@ -315,7 +315,7 @@ conteúdo), e a conta do Kinder é de aluna, não de produtora — não há
 como saber "saiu documento novo" por fora, nem ligar direto à
 Kiwify. Por isso é sempre a líder a descarregar o(s) documento(s) e a
 subi-los aqui (`SheetLicao.jsx`, `lib/licoes.js`, para `bases/kinder/
-licoes/{id}-<licao|recurso|atividade-N>.<extensão real>` no Storage
+licoes/{id}-<licao|recurso-N|atividade-N>.<extensão real>` no Storage
 — nunca um link) e escolher a(s) sala(s) — muitas vezes Fun e Júnior
 partilham a mesma lição.
 
@@ -328,34 +328,37 @@ omissão, com as lições desse dia lá dentro; quem não tiver
 "mês atual" partilhado com Início/Escala/Culto, não um estado à
 parte.
 
-Até quatro documentos por lição, cada um com o seu botão em
-`SheetLicao.jsx`: `licao` (o documento do dia, obrigatório),
-`recurso` (opcional) e `atividades[]` (zero ou mais, "+ Atividade").
-Cada um é `{url, nome}` ou `null`/`[]`. Na visualização do
-voluntário (`Licao.jsx`), cada documento presente ganha o seu botão
-— "ABRIR LIÇÃO DO DIA", "ABRIR RECURSO", "ABRIR ATIVIDADE 1",
-"ABRIR ATIVIDADE 2" etc. — nunca um botão genérico "Abrir". Editar
-uma lição preserva os documentos não trocados (`atividadesAtuais` em
-`guardarLicao`, `lib/licoes.js`) — a líder só sobe o que mudou.
-Além dos documentos, a lição traz resumo para os voluntários,
-materiais a preparar, um campo de Louvor (músicas/bandas que a líder
-indica para o culto, texto livre) e um resumo curto para os pais que
-aparece no link da família (`resumoPais`). Os botões do detalhe têm
-cor própria: Lição do dia em verde (`var(--verde)`), Recurso em azul
-(`var(--azul)`), Atividades no estilo secundário de sempre.
+Documento da lição do dia (`licao`, obrigatório, 1 só) mais
+`recursos[]` e `atividades[]` — cada um zero ou mais, com o seu botão
+"+ Recurso"/"+ Atividade" em `SheetLicao.jsx` para acrescentar quantos
+precisar (ex.: mais de um PDF de recurso na mesma lição). Cada entrada
+é `{url, nome}`. Na visualização do voluntário (`Licao.jsx`), cada
+documento presente ganha o seu botão — "ABRIR LIÇÃO DO DIA", "ABRIR
+RECURSO" (ou "ABRIR RECURSO 1"/"2"/… quando há mais de um), "ABRIR
+ATIVIDADE 1"/"2" etc. — nunca um botão genérico "Abrir". Editar uma
+lição preserva os documentos não trocados (`recursosAtuais`/
+`atividadesAtuais` em `guardarLicao`, `lib/licoes.js`) — a líder só
+sobe o que mudou. Além dos documentos, a lição traz resumo para os
+voluntários, materiais a preparar, um campo de Louvor (músicas/bandas
+que a líder indica para o culto, texto livre) e um resumo curto para
+os pais que aparece no link da família (`resumoPais`). Os botões do
+detalhe têm cor própria: Lição do dia em verde (`var(--verde)`),
+Recursos em azul (`var(--azul)`), Atividades no estilo secundário de
+sempre.
 
 **Sem compressão nenhuma** (nem de PDF nem de .docx — só imagem tem
 `comprimirImagem`, e mesmo essa não entra aqui) e até 20 MB por
-documento (`storage.rules` + `SheetLicao.jsx`), sem limite de
-atividades por lição — um culto sozinho pode chegar perto de 100 MB
-(lição + recurso + várias atividades). Decisão da igreja (2026-09):
-em vez de comprimir (arriscado para PDF, ganho pequeno), os ANEXOS
-(nunca a lição em si — título, resumo e resumo para os pais ficam) de
-lições com mais de `MESES_RETENCAO_LICOES` (3) são apagados a sério
-do Storage por `purgarAnexosLicoesAntigasKinder`
-(`functions/kinder.js`, `onSchedule`, corre todos os dias — mesmo
-padrão de `purgarFamiliasInativasKinder`); o documento fica com
-`licao`/`recurso`/`atividades` a `null`/`[]` e um `anexosExcluidosEm`.
+documento (`storage.rules` + `SheetLicao.jsx`), sem limite de quantos
+recursos/atividades uma lição pode ter — um culto sozinho pode chegar
+perto de 100 MB (lição + vários recursos + várias atividades).
+Decisão da igreja (2026-09): em vez de comprimir (arriscado para PDF,
+ganho pequeno), os ANEXOS (nunca a lição em si — título, resumo e
+resumo para os pais ficam) de lições com mais de
+`MESES_RETENCAO_LICOES` (3) são apagados a sério do Storage por
+`purgarAnexosLicoesAntigasKinder` (`functions/kinder.js`,
+`onSchedule`, corre todos os dias — mesmo padrão de
+`purgarFamiliasInativasKinder`); o documento fica com
+`licao`/`recursos`/`atividades` a `null`/`[]` e um `anexosExcluidosEm`.
 O caminho a apagar vem do próprio `url` guardado (nunca precisa de
 reconstruir o nome, que varia com a extensão real do ficheiro) —
 `caminhoDeUrlStorage()` extrai o caminho do download URL do Firebase.

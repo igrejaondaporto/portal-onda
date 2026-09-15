@@ -224,8 +224,12 @@ export default function Inicio({
                     <span key={c} className="kin-tagcat" style={{ ...varsCategoria(c), marginRight: 6 }}>{nomeCategoria(c)}</span>
                   ))}
                 </div>
-                {licaoSemana.atividades?.length > 0 && (
-                  <p className="ds" style={{ marginTop: 8 }}>{licaoSemana.atividades.length} {licaoSemana.atividades.length === 1 ? "atividade" : "atividades"}{licaoSemana.recurso ? " · com recurso" : ""}</p>
+                {(licaoSemana.atividades?.length > 0 || licaoSemana.recursos?.length > 0) && (
+                  <p className="ds" style={{ marginTop: 8 }}>
+                    {licaoSemana.atividades?.length > 0 && `${licaoSemana.atividades.length} ${licaoSemana.atividades.length === 1 ? "atividade" : "atividades"}`}
+                    {licaoSemana.atividades?.length > 0 && licaoSemana.recursos?.length > 0 ? " · " : ""}
+                    {licaoSemana.recursos?.length > 0 && `${licaoSemana.recursos.length} ${licaoSemana.recursos.length === 1 ? "recurso" : "recursos"}`}
+                  </p>
                 )}
               </div>
             ) : (
