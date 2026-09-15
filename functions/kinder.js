@@ -388,6 +388,49 @@ export const purgarFamiliasInativasKinder = onSchedule("every 24 hours", async (
   }
 });
 
+/** O `url` guardado em `licao`/`recurso`/`atividades[]` é sempre um
+ *  download URL do Storage (nunca outra coisa — sobe sempre por
+ *  `subir()` em apps/kinder/src/lib/licoes.js), então o caminho real
+ *  do ficheiro está embutido nele; poupa ter de reconstruir o nome
+ *  (que varia com a extensão: pdf, imagem, .docx…). */
+function caminhoDeUrlStorage(url) {
+  const m = /\/o\/([^?]+)/.exec(String(url || ""));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function apagarAnexoUrlSeExistir(url) {
+  const caminho = caminhoDeUrlStorage(url);
+  if (caminho) await apagarFotoSeExistir(caminho);
+}
+
+/** Espaço no Storage, decisão da igreja (2026-09): um domingo pode ter
+ *  lição + recurso + várias atividades, até 20 MB cada — sem limite,
+ *  isso cresce sem parar. Os ANEXOS (não a lição em si: título, resumo
+ *  e resumo para os pais continuam no histórico) de lições com mais de
+ *  MESES_RETENCAO_LICOES são apagados a sério do Storage; o documento
+ *  fica com `licao`/`recurso`/`atividades` a null/vazio. Corre sozinha,
+ *  todos os dias. */
+const MESES_RETENCAO_LICOES = 3;
+
+export const purgarAnexosLicoesAntigasKinder = onSchedule("every 24 hours", async () => {
+  const limite = new Date();
+  limite.setMonth(limite.getMonth() - MESES_RETENCAO_LICOES);
+  const limiteMs = limite.getTime();
+  const todas = await col("licoes").get();
+  for (const snap of todas.docs) {
+    const l = snap.data();
+    const criadoMs = l.criadoEm?.toMillis?.();
+    if (!criadoMs || criadoMs >= limiteMs) continue;
+    if (!l.licao && !l.recurso && !(l.atividades || []).length) continue; // já sem anexos
+    await Promise.all([
+      apagarAnexoUrlSeExistir(l.licao?.url),
+      apagarAnexoUrlSeExistir(l.recurso?.url),
+      ...(l.atividades || []).map((a) => apagarAnexoUrlSeExistir(a?.url)),
+    ]);
+    await snap.ref.update({ licao: null, recurso: null, atividades: [], anexosExcluidosEm: agora() });
+  }
+});
+
 /** Editar a ficha — pelos pais (com o token do link) ou por um
  *  voluntário (sessão da Kinder, com `familiaId`). `criancas` traz as
  *  que ficam (com `id` = já existia, sem `id` = nova); `removidas` são
