@@ -8,19 +8,18 @@ import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetFeedback from "../components/culto/SheetFeedback";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import ChecklistSala from "../components/sala/ChecklistSala";
-import Inventario from "./Inventario";
 
 const ABAS = [
   ["checklist", "Checklist", "Abrir e fechar a sala"],
-  ["inventario", "Inventário", "O material de cada sala — a lista de compras é dos líderes"],
   ["ordem", "Ordem do culto", "A ordem do culto que o pastor envia"],
   ["feedbacks", "Feedbacks", "O que ficou registado de cada domingo"],
 ];
 
-/** O domingo em si, em sub-abas. Chamadas tem menu próprio (era
- *  sub-aba daqui); Contagem/Ocorrências saiu — a contagem já aparece
- *  direto no Check-in, chamar os pais já é o menu Chamadas. */
-export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando, onIrReembolsos }) {
+/** O domingo em si, em sub-abas. Chamadas e Inventário têm menu
+ *  próprio (eram sub-abas daqui); Contagem/Ocorrências saiu — a
+ *  contagem já aparece direto no Check-in, chamar os pais já é o
+ *  menu Chamadas. */
+export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo, definirCabecalho, podePublicarCulto, aoVivoGravando }) {
   const lider = souLider(papel);
   const podePublicar = lider && podePublicarCulto;
   const [aba, setAba] = useState(abaInicial ?? "checklist");
@@ -72,9 +71,6 @@ export default function Culto({ uid, papel, pessoa, mes, ano, abaInicial, ativo,
       </div>
 
       {aba === "checklist" && <ChecklistSala uid={uid} papel={papel} pessoa={pessoa} />}
-      {aba === "inventario" && (
-        <Inventario uid={uid} papel={papel} pessoa={pessoa} ativo={false} definirCabecalho={() => {}} onIrReembolsos={onIrReembolsos} />
-      )}
       {aba === "ordem" && (
         <div style={{ marginTop: 16 }}>
           {eventosMes.map((ev) => (
