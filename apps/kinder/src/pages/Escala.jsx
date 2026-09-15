@@ -68,16 +68,16 @@ export default function Escala({ uid, papel, pessoa, mes, ano, mudarMes, eventoI
 
   // quadro do mês: um bloco por sala, sem "Líder de escala" (a Kinder
   // não tem isso — cada sala tem a sua Mestra, ver a etiqueta ao lado
-  // do nome). Igual ao espírito da tabela por ministério da Técnica:
-  // linha simples, sem pintar o fundo — só um quadradinho da cor da
-  // sala junto ao nome dela, uma vez por bloco.
+  // do nome). Cada linha do bloco leva o fundo `suave` da sala (bem
+  // fraquinho, CATEGORIAS em lib/modelo.js) para dar para distinguir
+  // os blocos ao correr o olho pela tabela, sem competir com o texto.
   const pessoasDaSala = (ev, catId) => ev.escala.pessoas.filter((id) => pessoaPorId(id)?.categoria === catId);
   const blocos = salasQuadro.map((c) => {
     const maxLin = Math.max(0, ...eventosMes.map((ev) => pessoasDaSala(ev, c.id).length));
     const linhas = [];
     for (let i = 0; i < maxLin; i++) {
       linhas.push(
-        <tr key={`${c.id}-${i}`}>
+        <tr key={`${c.id}-${i}`} style={{ background: c.suave }}>
           <td className="papel">
             {i === 0 && <><span className="quadmin" style={{ background: c.cor }} />{c.nome}</>}
           </td>
