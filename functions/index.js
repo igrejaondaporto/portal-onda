@@ -2285,6 +2285,34 @@ export const fecharListaCompras = onCall(async (req) => {
   return { ok: true };
 });
 
+/** Apaga por engano (lista errada, teste, duplicada) — "excluida" em
+ *  vez de remover o documento a sério (regra 5: nada é apagado, é
+ *  desativado). Se a lista excluída era a "aberta", nasce já outra
+ *  vazia a seguir — nunca fica um momento sem lista aberta (mesma
+ *  garantia de fecharListaCompras acima). */
+export const excluirListaCompras = onCall(async (req) => {
+  const baseId = await exigeGestorInventario(req);
+  const { listaId } = req.data || {};
+  if (!listaId) throw new HttpsError("invalid-argument", "Falta a lista.");
+  const ref = db.doc(`bases/${baseId}/listasCompras/${listaId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Lista não encontrada.");
+  const eraAberta = snap.data().estado === "aberta";
+  const lote = db.batch();
+  lote.update(ref, {
+    estado: "excluida",
+    excluidaEm: admin.firestore.FieldValue.serverTimestamp(),
+    excluidaPor: req.auth.uid,
+  });
+  if (eraAberta) {
+    lote.set(db.collection(`bases/${baseId}/listasCompras`).doc(), {
+      estado: "aberta", itens: [], criadaEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await lote.commit();
+  return { ok: true };
+});
+
 export const enviarListaCompras = onCall(async (req) => {
   const baseId = await exigeGestorInventario(req);
   const { listaId } = req.data || {};
