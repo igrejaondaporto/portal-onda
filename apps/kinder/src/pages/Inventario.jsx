@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ouvirInventario, mexerQuantidade, definirQuantidade, ouvirListaCompraAberta,
   adicionarItemListaCompras, alterarQuantidadeItemListaCompras, removerItemListaCompras,
-  fecharListaCompras,
+  fecharListaCompras, excluirListaCompras,
 } from "../lib/inventario";
 import { singularizar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -32,6 +32,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   const [aProcessarLista, setAProcessarLista] = useState(false);
   const [aEditarQtd, setAEditarQtd] = useState(null);
   const [novoItemLivre, setNovoItemLivre] = useState("");
+  const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [sala, setSala] = useState(null);
   const [salaDefinida, setSalaDefinida] = useState(false);
 
@@ -128,6 +129,19 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
       torrada("Lista fechada");
     } catch (e) {
       torrada(e.message || "Não foi possível fechar.");
+    } finally {
+      setAProcessarLista(false);
+    }
+  }
+
+  async function excluirAberta(listaId) {
+    setAProcessarLista(true);
+    try {
+      await excluirListaCompras(listaId);
+      setAConfirmarExcluir(false);
+      torrada("Lista excluída");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
     } finally {
       setAProcessarLista(false);
     }
@@ -233,11 +247,35 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
 
           <div className="sect">
             <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>
-              <h3>Lista de compras</h3>
+              <h3 style={{ flex: 1 }}>Lista de compras</h3>
               {listaAberta && (
                 <span className="tag" style={{ background: "var(--azul)", color: "#fff" }}>Lista aberta</span>
               )}
+              {listaAberta && (
+                <button
+                  className="oc-icobt mag" aria-label="Excluir esta lista" title="Excluir esta lista"
+                  disabled={aProcessarLista} onClick={() => setAConfirmarExcluir(true)}
+                >
+                  ✕
+                </button>
+              )}
             </div>
+            {aConfirmarExcluir && (
+              <div className="caixa" style={{ marginTop: 8, background: "rgba(255,46,136,0.08)" }}>
+                <p className="ds">Excluir esta lista de compras? Os itens de lá não voltam.</p>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn sec" style={{ flex: 1 }} disabled={aProcessarLista} onClick={() => setAConfirmarExcluir(false)}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn" style={{ flex: 1, background: "var(--magenta)" }}
+                    disabled={aProcessarLista} onClick={() => excluirAberta(listaAberta.id)}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            )}
             {listaAberta?.itens?.length ? (
               listaAberta.itens.map((it) => (
                 <div className="linha" key={it.itemId}>

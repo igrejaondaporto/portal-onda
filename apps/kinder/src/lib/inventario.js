@@ -129,7 +129,8 @@ export function ouvirListasComprasDoMes(ano, mesIndex, cb) {
     where("criadaEm", ">=", inicio), where("criadaEm", "<", fim),
     orderBy("criadaEm", "desc"),
   );
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((l) => l.estado !== "aberta")),
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((l) => l.estado !== "aberta" && l.estado !== "excluida")),
     (erro) => console.error("ouvirListasComprasDoMes:", erro));
 }
 
@@ -179,6 +180,9 @@ export async function removerItemListaCompras(listaId, itemId) {
 
 export const fecharListaCompras = (listaId) =>
   chamar("fecharListaCompras")({ listaId }).then((r) => r.data);
+
+export const excluirListaCompras = (listaId) =>
+  chamar("excluirListaCompras")({ listaId }).then((r) => r.data);
 
 export const enviarListaCompras = (listaId) =>
   chamar("enviarListaCompras")({ listaId }).then((r) => r.data);

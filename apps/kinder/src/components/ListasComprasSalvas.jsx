@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MESES, dataTimestamp } from "@portal/shared/lib/data.js";
-import { ouvirListasComprasDoMes, linkListaComprasWhatsApp, enviarListaCompras } from "../lib/inventario";
+import { ouvirListasComprasDoMes, linkListaComprasWhatsApp, enviarListaCompras, excluirListaCompras } from "../lib/inventario";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const ROTULO_ESTADO = { fechada: "Lista fechada", enviada: "Lista enviada para compras" };
@@ -30,6 +30,7 @@ export default function ListasComprasSalvas({ podeGerir }) {
   const [listas, setListas] = useState([]);
   const [abertoId, setAbertoId] = useState(null);
   const [aProcessar, setAProcessar] = useState(false);
+  const [aConfirmarId, setAConfirmarId] = useState(null);
 
   useEffect(() => {
     const { ano, mesIndex } = meses.find((m) => m.valor === mesFiltro) ?? meses[0];
@@ -45,6 +46,19 @@ export default function ListasComprasSalvas({ podeGerir }) {
       torrada("Lista marcada como enviada");
     } catch (e) {
       torrada(e.message || "Não foi possível marcar como enviada.");
+    } finally {
+      setAProcessar(false);
+    }
+  }
+
+  async function excluir(listaId) {
+    setAProcessar(true);
+    try {
+      await excluirListaCompras(listaId);
+      setAConfirmarId(null);
+      torrada("Lista excluída");
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
     } finally {
       setAProcessar(false);
     }
@@ -86,7 +100,33 @@ export default function ListasComprasSalvas({ podeGerir }) {
               <span className="tag" style={{ background: COR_ESTADO[l.estado], color: "#fff", flex: "none" }}>
                 {ROTULO_ESTADO[l.estado] ?? l.estado}
               </span>
+              {podeGerir && (
+                <button
+                  className="oc-icobt mag" aria-label="Excluir esta lista" title="Excluir esta lista"
+                  style={{ flex: "none" }} disabled={aProcessar}
+                  onClick={(e) => { e.stopPropagation(); setAConfirmarId(l.id); }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
+
+            {aConfirmarId === l.id && (
+              <div style={{ marginTop: 10, background: "rgba(255,46,136,0.08)", borderRadius: 10, padding: 10 }}>
+                <p className="ds">Excluir esta lista de compras? Os itens de lá não voltam.</p>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn sec" style={{ flex: 1 }} disabled={aProcessar} onClick={(e) => { e.stopPropagation(); setAConfirmarId(null); }}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn" style={{ flex: 1, background: "var(--magenta)" }}
+                    disabled={aProcessar} onClick={(e) => { e.stopPropagation(); excluir(l.id); }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            )}
 
             {aberto && (
               <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,.06)", paddingTop: 10 }}>
