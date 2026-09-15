@@ -91,26 +91,41 @@ export default function Capacitacoes({ uid, papel, pessoa }) {
           </div>
           <button className="btn sec full" onClick={verEquipa}>{daEquipa ? "Esconder" : "Ver quem falta"}</button>
           {daEquipa && caps.map((c) => {
-            const emDia = equipaVisivel.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) === "ok");
-            const emFalta = equipaVisivel.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) !== "ok");
+            // "comDoc" é quem já enviou o comprovativo, mesmo que
+            // caducado ou (capacitações com validade) sem a data de
+            // validade preenchida — sem esta distinção, uma pessoa que
+            // enviou mas esqueceu de pôr a validade aparecia em
+            // "Faltam" sem sinal nenhum de que já tinha enviado algo.
+            const comDoc = equipaVisivel.filter((p) => daEquipa[p.id]?.[c.id]?.comprovanteUrl);
+            const semDoc = equipaVisivel.filter((p) => !daEquipa[p.id]?.[c.id]?.comprovanteUrl);
+            const emDia = comDoc.filter((p) => estadoCapacitacao(c, daEquipa[p.id]?.[c.id]) === "ok");
             return (
               <div className="linha" key={c.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <p className="nmt" style={{ flex: 1, fontSize: 14.5 }}>{c.titulo}</p>
                   <span className="tag cinz">{emDia.length}/{equipaVisivel.length}</span>
                 </div>
-                {emDia.length > 0 && (
+                {comDoc.length > 0 && (
                   <p className="ds" style={{ marginTop: 3 }}>
                     Comprovativo:{" "}
-                    {emDia.map((p, i) => (
-                      <span key={p.id}>
-                        {i > 0 && ", "}
-                        <a href={daEquipa[p.id]?.[c.id]?.comprovanteUrl} target="_blank" rel="noreferrer">{p.nome}</a>
-                      </span>
-                    ))}
+                    {comDoc.map((p, i) => {
+                      const feita = daEquipa[p.id]?.[c.id];
+                      const emDiaP = estadoCapacitacao(c, feita) === "ok";
+                      return (
+                        <span key={p.id}>
+                          {i > 0 && ", "}
+                          <a href={feita?.comprovanteUrl} target="_blank" rel="noreferrer">{p.nome}</a>
+                          {!emDiaP && (
+                            <span style={{ color: "var(--magenta)" }}>
+                              {" "}({feita?.validaAte ? "caducado" : "falta a validade"})
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                   </p>
                 )}
-                {emFalta.length > 0 && <p className="ds" style={{ marginTop: 3 }}>Faltam: {emFalta.map((p) => p.nome).join(", ")}</p>}
+                {semDoc.length > 0 && <p className="ds" style={{ marginTop: 3 }}>Faltam: {semDoc.map((p) => p.nome).join(", ")}</p>}
               </div>
             );
           })}
