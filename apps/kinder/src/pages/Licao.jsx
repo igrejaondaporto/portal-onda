@@ -86,7 +86,7 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
         </div>
         <p className="ds" style={{ marginTop: 6 }}>
           {l.eventoId ? `Para ${dataPorExtenso(l.eventoId)}` : "Sem culto marcado"}
-          {l.recurso ? " · com recurso" : ""}
+          {l.recursos?.length ? ` · ${l.recursos.length} ${l.recursos.length === 1 ? "recurso" : "recursos"}` : ""}
           {l.atividades?.length ? ` · ${l.atividades.length} ${l.atividades.length === 1 ? "atividade" : "atividades"}` : ""}
         </p>
       </div>
@@ -179,11 +179,11 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
                   ABRIR LIÇÃO DO DIA
                 </a>
               )}
-              {licaoAberta.recurso && (
-                <a className="btn full" style={{ marginTop: 9, display: "block", textAlign: "center", background: "var(--azul)" }} href={licaoAberta.recurso.url} target="_blank" rel="noreferrer">
-                  ABRIR RECURSO
+              {(licaoAberta.recursos || []).map((r, i) => (
+                <a key={i} className="btn full" style={{ marginTop: 9, display: "block", textAlign: "center", background: "var(--azul)" }} href={r.url} target="_blank" rel="noreferrer">
+                  {licaoAberta.recursos.length > 1 ? `ABRIR RECURSO ${i + 1}` : "ABRIR RECURSO"}
                 </a>
-              )}
+              ))}
               {(licaoAberta.atividades || []).map((a, i) => (
                 <a key={i} className="btn sec full" style={{ marginTop: 9, display: "block", textAlign: "center" }} href={a.url} target="_blank" rel="noreferrer">
                   {`ABRIR ATIVIDADE ${i + 1}`}

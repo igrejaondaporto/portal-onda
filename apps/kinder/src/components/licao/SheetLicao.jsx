@@ -34,8 +34,8 @@ function LinhaDocumento({ rotulo, nomeAtual, ficheiro, onEscolher, onRemover }) 
   );
 }
 
-/** Nova lição / editar. Quatro documentos, cada um com o seu botão:
- *  Lição do dia (o principal), Recurso, e Atividades (0 ou mais,
+/** Nova lição / editar. Documento da lição do dia (o principal, 1 só)
+ *  mais Recursos e Atividades, cada um 0 ou mais ("+ Recurso"/
  *  "+ Atividade" para adicionar). Sem link nenhum da Kiwify — o
  *  ficheiro em si é o que chega ao voluntário. */
 export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, onFechar, onGuardado }) {
@@ -48,9 +48,10 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, o
   const [resumoPais, setResumoPais] = useState(licao?.resumoPais ?? "");
   const [louvor, setLouvor] = useState(licao?.louvor ?? "");
   const [licaoFicheiro, setLicaoFicheiro] = useState(null);
-  const [recursoFicheiro, setRecursoFicheiro] = useState(null);
-  // uma entrada por atividade já guardada + as que a líder for
-  // acrescentando nesta sessão (começam sem ficheiro escolhido nenhum)
+  // uma entrada por recurso/atividade já guardada + as que a líder
+  // for acrescentando nesta sessão (começam sem ficheiro escolhido)
+  const [recursosAtuais, setRecursosAtuais] = useState(licao?.recursos ?? []);
+  const [recursosFicheiros, setRecursosFicheiros] = useState((licao?.recursos ?? []).map(() => null));
   const [atividadesAtuais, setAtividadesAtuais] = useState(licao?.atividades ?? []);
   const [atividadesFicheiros, setAtividadesFicheiros] = useState((licao?.atividades ?? []).map(() => null));
   const [eventos, setEventos] = useState([]);
@@ -85,6 +86,22 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, o
     setter(ficheiro);
   }
 
+  function adicionarRecurso() {
+    setRecursosAtuais((a) => [...a, null]);
+    setRecursosFicheiros((a) => [...a, null]);
+  }
+
+  function removerRecurso(i) {
+    setRecursosAtuais((a) => a.filter((_, j) => j !== i));
+    setRecursosFicheiros((a) => a.filter((_, j) => j !== i));
+  }
+
+  function escolherRecurso(i, ficheiro) {
+    const erro = validar(ficheiro);
+    if (erro) return torrada(erro, true);
+    setRecursosFicheiros((a) => a.map((f, j) => (j === i ? ficheiro : f)));
+  }
+
   function adicionarAtividade() {
     setAtividadesAtuais((a) => [...a, null]);
     setAtividadesFicheiros((a) => [...a, null]);
@@ -109,7 +126,8 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, o
     try {
       await guardarLicao(idRef.current, uid, {
         titulo, categorias, resumo, resumoPais, louvor, eventoId,
-        licaoFicheiro, recursoFicheiro,
+        licaoFicheiro,
+        recursosFicheiros, recursosAtuais,
         atividadesFicheiros, atividadesAtuais,
       }, !licao);
       onGuardado(licao ? "Lição atualizada" : "Lição publicada");
@@ -132,8 +150,16 @@ export default function SheetLicao({ licao, uid, salaInicial, restrita, lider, o
         <label className="rot" style={{ marginTop: 14 }}>Documento da lição do dia</label>
         <LinhaDocumento rotulo="Escolher PDF (ou foto, ou .docx)" nomeAtual={licao?.licao?.nome} ficheiro={licaoFicheiro} onEscolher={(f) => escolher(setLicaoFicheiro, f)} />
 
-        <label className="rot">Documento de recurso (opcional)</label>
-        <LinhaDocumento rotulo="Escolher documento" nomeAtual={licao?.recurso?.nome} ficheiro={recursoFicheiro} onEscolher={(f) => escolher(setRecursoFicheiro, f)} />
+        <label className="rot">Documentos de recurso</label>
+        {recursosAtuais.map((atual, i) => (
+          <LinhaDocumento
+            key={i} rotulo={`Escolher recurso ${i + 1}`} nomeAtual={atual?.nome}
+            ficheiro={recursosFicheiros[i]}
+            onEscolher={(f) => escolherRecurso(i, f)}
+            onRemover={() => removerRecurso(i)}
+          />
+        ))}
+        <button type="button" className="btn sec full" style={{ marginTop: 8 }} onClick={adicionarRecurso}>+ Recurso</button>
 
         <label className="rot">Documentos de atividade</label>
         {atividadesAtuais.map((atual, i) => (

@@ -421,13 +421,13 @@ export const purgarAnexosLicoesAntigasKinder = onSchedule("every 24 hours", asyn
     const l = snap.data();
     const criadoMs = l.criadoEm?.toMillis?.();
     if (!criadoMs || criadoMs >= limiteMs) continue;
-    if (!l.licao && !l.recurso && !(l.atividades || []).length) continue; // já sem anexos
+    if (!l.licao && !(l.recursos || []).length && !(l.atividades || []).length) continue; // já sem anexos
     await Promise.all([
       apagarAnexoUrlSeExistir(l.licao?.url),
-      apagarAnexoUrlSeExistir(l.recurso?.url),
+      ...(l.recursos || []).map((r) => apagarAnexoUrlSeExistir(r?.url)),
       ...(l.atividades || []).map((a) => apagarAnexoUrlSeExistir(a?.url)),
     ]);
-    await snap.ref.update({ licao: null, recurso: null, atividades: [], anexosExcluidosEm: agora() });
+    await snap.ref.update({ licao: null, recursos: [], atividades: [], anexosExcluidosEm: agora() });
   }
 });
 
@@ -681,10 +681,10 @@ export const guardarLicaoKinder = onCall(async (req) => {
     resumo: textoLongo(dados.resumo),
     resumoPais: textoLongo(dados.resumoPais),
     louvor: textoLongo(dados.louvor),
+    recursos: (Array.isArray(dados.recursos) ? dados.recursos : []).slice(0, 6).map(limparDocumento).filter(Boolean),
     atividades: (Array.isArray(dados.atividades) ? dados.atividades : []).slice(0, 12).map(limparDocumento).filter(Boolean),
   };
   if ("licao" in dados) escrita.licao = limparDocumento(dados.licao);
-  if ("recurso" in dados) escrita.recurso = limparDocumento(dados.recurso);
   if (novo) {
     escrita.enviadoPor = uid;
     escrita.criadoEm = agora();
