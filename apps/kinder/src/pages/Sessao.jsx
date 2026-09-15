@@ -18,6 +18,7 @@ import Escala from "./Escala";
 import Checkin from "./Checkin";
 import Licao from "./Licao";
 import Culto from "./Culto";
+import Inventario from "./Inventario";
 import Chamadas from "./Chamadas";
 import Reembolsos from "./Reembolsos";
 import Perfil from "./Perfil";
@@ -36,6 +37,7 @@ const ABAS = [
   ...(CHECKIN_ATIVO ? [["checkin", "Check-in", ICONE_CHECKIN]] : []),
   ["licao", "Lição"],
   ["culto", "Culto"],
+  ["inventario", "Inventário"],
   ["chamadas", "Chamadas", ICONE_CHAMADAS],
 ];
 
@@ -166,6 +168,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             <Inicio
               {...comum} mes={mes} ano={ano} mudarMes={mudarMes} ativo={pagina === "inicio"} licoes={licoes}
               onIrEscala={irParaEscala} onIrCheckin={() => irPara("checkin")} onIrCulto={irParaCulto}
+              onIrInventario={() => irPara("inventario")}
               onIrLicao={irParaLicao} onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
@@ -188,7 +191,11 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             <Culto
               {...comum} mes={mes} ano={ano} abaInicial={abaCulto} ativo={pagina === "culto"}
               podePublicarCulto={podePublicarCulto} aoVivoGravando={aoVivoGravando}
-              onIrReembolsos={() => irPara("reembolsos")}
+            />
+          </div>
+          <div style={{ display: pagina === "inventario" ? "" : "none" }}>
+            <Inventario
+              {...comum} ativo={pagina === "inventario"} onIrReembolsos={() => irPara("reembolsos")}
             />
           </div>
           <div style={{ display: pagina === "chamadas" ? "" : "none" }}>

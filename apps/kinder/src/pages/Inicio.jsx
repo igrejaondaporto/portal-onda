@@ -34,7 +34,7 @@ function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
 
 export default function Inicio({
   uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, licoes,
-  onIrEscala, onIrCheckin, onIrCulto, onIrLicao, onIrReembolsos,
+  onIrEscala, onIrCheckin, onIrCulto, onIrInventario, onIrLicao, onIrReembolsos,
 }) {
   const torrada = useTorrada();
   const lider = souLider(papel);
@@ -162,7 +162,7 @@ export default function Inicio({
         <Destaque
           rotulo="A precisar de ti" titulo="Lista de compras para rever"
           detalhe={`${(listaComprasFechada.itens || []).length} ${(listaComprasFechada.itens || []).length === 1 ? "item" : "itens"}`}
-          onClick={() => onIrCulto?.("inventario")}
+          onClick={() => onIrInventario?.()}
         />
       )}
       {liderGeral && pendentesReembolso.length > 0 && (
@@ -241,7 +241,7 @@ export default function Inicio({
             <div className="cabecalho"><h3>A tua sala</h3></div>
             {[
               ["checklist", "Checklist da sala", "Abrir e fechar a sala", () => onIrCulto?.("checklist"), null],
-              ["inventario", "Inventário", lider ? "Materiais e lista de compras" : "Material da sala", () => onIrCulto?.("inventario"), faltaInventario ? `${faltaInventario} em falta` : null],
+              ["inventario", "Inventário", lider ? "Materiais e lista de compras" : "Material da sala", () => onIrInventario?.(), faltaInventario ? `${faltaInventario} em falta` : null],
               ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
               ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),
             ].map(([k, t, d, ir, tag]) => (
