@@ -31,6 +31,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   const [listaAberta, setListaAberta] = useState(null);
   const [aProcessarLista, setAProcessarLista] = useState(false);
   const [aEditarQtd, setAEditarQtd] = useState(null);
+  const [novoItemLivre, setNovoItemLivre] = useState("");
   const [sala, setSala] = useState(null);
   const [salaDefinida, setSalaDefinida] = useState(false);
 
@@ -53,8 +54,8 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
-      titulo: <em>Compras</em>,
-      subtitulo: "O material de cada sala e a lista de compras, sempre atualizados",
+      titulo: <em>Inventário</em>,
+      subtitulo: podeGerir ? "O material de cada sala e a lista de compras, sempre atualizados" : "O material de cada sala, sempre atualizado",
       chips: [`${itensDaSala.length} itens`, falta.length ? `${falta.length} no mínimo ou esgotados` : "Tudo em ordem"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +85,19 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
     try {
       const { jaAdicionado } = await adicionarItemListaCompras(item, listaAberta?.id, uid);
       torrada(jaAdicionado ? "Já estava na lista de compras" : `${item.nome} adicionado à lista de compras`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível adicionar.");
+    }
+  }
+
+  /** Item que não está no inventário (ex.: algo pontual, só para essa
+   *  lista) — id gerado no cliente, sem ligação a nenhum item real. */
+  async function adicionarItemLivre() {
+    const nome = novoItemLivre.trim();
+    if (!nome) return;
+    try {
+      await adicionarItemListaCompras({ id: crypto.randomUUID(), nome }, listaAberta?.id, uid);
+      setNovoItemLivre("");
     } catch (e) {
       torrada(e.message || "Não foi possível adicionar.");
     }
@@ -153,7 +167,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <p className="nmt" style={{ minWidth: 0, flex: "0 1 auto" }}>{i.nome}</p>
-                    {estado.nivel !== "ok" && (
+                    {podeGerir && estado.nivel !== "ok" && (
                       jaNaLista ? (
                         <span
                           style={{
@@ -213,36 +227,50 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
         </div>
       ))}
 
-      <div style={{ height: 8, background: "var(--agua)", borderRadius: 6, margin: "26px -4px 0" }} />
+      {podeGerir && (
+        <>
+          <div style={{ height: 8, background: "var(--agua)", borderRadius: 6, margin: "26px -4px 0" }} />
 
-      <div className="sect">
-        <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>
-          <h3>Lista de compras</h3>
-          {listaAberta && (
-            <span className="tag" style={{ background: "var(--azul)", color: "#fff" }}>Lista aberta</span>
-          )}
-        </div>
-        {listaAberta?.itens?.length ? (
-          <>
-            {listaAberta.itens.map((it) => (
-              <div className="linha" key={it.itemId}>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{it.nome}</p>
+          <div className="sect">
+            <div className="cabecalho" style={{ alignItems: "center", gap: 8 }}>
+              <h3>Lista de compras</h3>
+              {listaAberta && (
+                <span className="tag" style={{ background: "var(--azul)", color: "#fff" }}>Lista aberta</span>
+              )}
+            </div>
+            {listaAberta?.itens?.length ? (
+              listaAberta.itens.map((it) => (
+                <div className="linha" key={it.itemId}>
+                  <div style={{ flex: 1 }}>
+                    <p className="nmt">{it.nome}</p>
+                  </div>
+                  <div className="qtd">
+                    <button className="qb" onClick={() => mexerQtdCompras(it.itemId, -1)}>−</button>
+                    <span className="qn">{it.quantidade ?? 1}</span>
+                    <button className="qb" onClick={() => mexerQtdCompras(it.itemId, 1)}>+</button>
+                  </div>
+                  <button
+                    className="oc-icobt mag" aria-label={`Remover ${it.nome}`} title="Remover"
+                    onClick={() => removerDeCompras(it.itemId)}
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div className="qtd">
-                  <button className="qb" onClick={() => mexerQtdCompras(it.itemId, -1)}>−</button>
-                  <span className="qn">{it.quantidade ?? 1}</span>
-                  <button className="qb" onClick={() => mexerQtdCompras(it.itemId, 1)}>+</button>
-                </div>
-                <button
-                  className="oc-icobt mag" aria-label={`Remover ${it.nome}`} title="Remover"
-                  onClick={() => removerDeCompras(it.itemId)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            {podeGerir && (
+              ))
+            ) : (
+              <div className="vaz">Aguardando itens.</div>
+            )}
+            <form
+              style={{ display: "flex", gap: 8, marginTop: 12 }}
+              onSubmit={(e) => { e.preventDefault(); adicionarItemLivre(); }}
+            >
+              <input
+                className="campo" style={{ flex: 1 }} placeholder="Outro item (não do inventário)"
+                value={novoItemLivre} onChange={(e) => setNovoItemLivre(e.target.value)}
+              />
+              <button className="btn sec" type="submit" disabled={!novoItemLivre.trim()}>Adicionar</button>
+            </form>
+            {listaAberta?.itens?.length > 0 && (
               <button
                 className="btn sec full" style={{ marginTop: 10 }} disabled={aProcessarLista}
                 onClick={() => fechar(listaAberta.id)}
@@ -250,13 +278,11 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
                 Fechar lista
               </button>
             )}
-          </>
-        ) : (
-          <div className="vaz">Aguardando itens.</div>
-        )}
-      </div>
+          </div>
 
-      <ListasComprasSalvas podeGerir={podeGerir} />
+          <ListasComprasSalvas podeGerir={podeGerir} />
+        </>
+      )}
 
       <div className="convite" onClick={onIrReembolsos} style={{ marginTop: 22 }}>
         <p className="cap">Compraste alguma coisa para a base?</p>
