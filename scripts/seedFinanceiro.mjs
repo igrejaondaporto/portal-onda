@@ -49,8 +49,19 @@ async function main() {
   await garantirIdSemColisao(db, PESSOA_ID, BASE);
   await db.doc(`bases/${BASE}/pessoas/${PESSOA_ID}`).set(
     { nome: NOME_RESPONSAVEL, papel: "lider_base", ativo: true, foto: null, telefone: "" }, { merge: true });
-  await db.doc(`bases/${BASE}/pessoas/${PESSOA_ID}/privado/auth`).set(
-    { pinHash: hash(PIN_PADRAO), provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null });
+
+  // identidade + PIN são GLOBAIS (pessoas/{id}, não bases/{b}/pessoas/{id}) —
+  // é aqui que `dadosEntrada`/`entrar` (functions/index.js, refGlobal/
+  // refSegredo) vão ler, não em bases/{b}/pessoas/{id}/privado/auth. Um
+  // seed anterior escreveu no caminho errado (copiado de scripts/seed.mjs,
+  // que tem o mesmo engano) — a pessoa ficava sem hash nenhum no sítio
+  // certo, `dadosEntrada` caía no default de 4 dígitos, e o PIN nunca
+  // batia certo. Isto corrige e limpa o documento a mais.
+  await db.doc(`pessoas/${PESSOA_ID}`).set(
+    { nome: NOME_RESPONSAVEL, foto: null, bases: { [BASE]: true } }, { merge: true });
+  await db.doc(`pessoas/${PESSOA_ID}/privado/auth`).set(
+    { pinHash: hash(PIN_PADRAO), pinDigitos: PIN_PADRAO.length, provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null });
+  await db.doc(`bases/${BASE}/pessoas/${PESSOA_ID}/privado/auth`).delete().catch(() => {});
   console.log(`pessoa ${PESSOA_ID} criada — PIN provisório ${PIN_PADRAO}`);
 }
 
