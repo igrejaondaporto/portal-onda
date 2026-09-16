@@ -308,7 +308,13 @@ service cloud.firestore {
                       && request.resource.data.valor > 0
                       && request.resource.data.pagamento.metodo in ['mbway', 'transferencia']
                       && request.resource.data.pagamento.destino is string
-                      && request.resource.data.pagamento.destino.size() > 0;
+                      && request.resource.data.pagamento.destino.size() > 0
+                      // mantém esta lista igual a CATEGORIAS_DESPESA em
+                      // packages/shared/src/lib/categoriasDespesa.js —
+                      // sem isso o Relatório do Financeiro não consegue
+                      // somar "gastámos quanto em quê".
+                      && request.resource.data.categoria in
+                         ['limpeza', 'equipamento', 'alimentacao', 'escritorio', 'decoracao', 'transporte', 'outro'];
         // o Financeiro NÃO escreve daqui — pagar e devolver passam pela
         // Cloud Function (CLAUDE.md raiz, regra 3: o que é de alguém
         // decidir nunca é escrita direta do cliente).

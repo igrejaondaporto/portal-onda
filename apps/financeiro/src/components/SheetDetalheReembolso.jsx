@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
+import { ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { marcarReembolsosPagos, devolverReembolso, subirComprovativoPagamento, mostrarDestino, ROTULO_METODO } from "../lib/reembolsosFinanceiro";
 
@@ -71,7 +72,10 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
         </p>
 
         <label className="rot" style={{ marginTop: 14 }}>O que foi</label>
-        <p className="ds">{pedido.descricao}</p>
+        <p className="ds">
+          {pedido.descricao}
+          {pedido.categoria ? ` · ${ROTULO_CATEGORIA_DESPESA[pedido.categoria] ?? pedido.categoria}` : ""}
+        </p>
 
         {pedido.anexo && (
           <>
