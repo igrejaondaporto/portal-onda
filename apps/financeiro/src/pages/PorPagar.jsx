@@ -89,7 +89,7 @@ export default function PorPagar({ definirCabecalho }) {
 
   return (
     <>
-      <div className="menu" style={{ margin: "0 -22px", position: "sticky", top: 0 }}>
+      <div className="menu" style={{ position: "static", border: 0, padding: "14px 0 4px", background: "none", backdropFilter: "none" }}>
         {FILTROS.map(([id, rotulo]) => (
           <button key={id} data-on={filtro === id ? "1" : "0"} onClick={() => { setFiltro(id); setModoLote(false); }}>
             {rotulo}
@@ -150,8 +150,12 @@ export default function PorPagar({ definirCabecalho }) {
         )}
       </div>
 
+      {/* fica ACIMA da NavBar (fixa no fundo, z-index 12) — nunca sobre
+          ela, senão tapa os separadores enquanto se escolhe o lote.
+          90px cobre a altura real da NavBar (padding + botão +
+          safe-area) com uma margem pequena. */}
       {modoLote && selecionados.size > 0 && (
-        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, background: "#fff", borderTop: "1px solid var(--fio)", padding: "14px 22px calc(20px + var(--sb))", zIndex: 15 }}>
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(90px + env(safe-area-inset-bottom, 0px))", background: "#fff", borderTop: "1px solid var(--fio)", borderRadius: "20px 20px 0 0", boxShadow: "0 -8px 24px rgba(10,15,46,.08)", padding: "14px 22px", zIndex: 11 }}>
           <button className="btn full" disabled={aPagarLote} onClick={pagarLote}>
             Marcar {selecionados.size} como pagos · {eur(totalEscolhidos)}
           </button>
