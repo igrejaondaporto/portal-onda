@@ -19,6 +19,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
   const [foto, setFoto] = useState(equipamento?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
+  const [valorCompra, setValorCompra] = useState(equipamento?.valorCompra ? String(equipamento.valorCompra) : "");
   const [fatura, setFatura] = useState(equipamento?.fatura ?? null);
   const [aEnviarFatura, setAEnviarFatura] = useState(false);
   const [aEnviar, setAEnviar] = useState(false);
@@ -62,7 +63,10 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
     if (!n) return torrada("O equipamento precisa de um nome");
     setAEnviar(true);
     try {
-      const dados = { itemId: idRef.current, nome: n, modelo, nSerie, local, ministerioId, foto, quantidade: Number(quantidade || 1), fatura };
+      const dados = {
+        itemId: idRef.current, nome: n, modelo, nSerie, local, ministerioId, foto,
+        quantidade: Number(quantidade || 1), fatura, valorCompra: valorCompra ? Number(valorCompra) : null,
+      };
       if (equipamento) {
         await guardarEquipamento(dados);
         onGuardado("Equipamento atualizado");
@@ -107,6 +111,12 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
         <input className="campo" value={nSerie} onChange={(e) => setNSerie(e.target.value)} placeholder="Opcional" />
         <label className="rot">Local</label>
         <input className="campo" value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex.: Armário do palco" />
+        {/* Só para o Relatório do Financeiro somar o património da
+          * base — não aparece em mais lado nenhum. Opcional: um
+          * equipamento antigo sem nota fiscal fica sem valor, não
+          * bloqueia nada. */}
+        <label className="rot">Valor de compra (opcional)</label>
+        <input className="campo" type="number" inputMode="decimal" value={valorCompra} onChange={(e) => setValorCompra(e.target.value)} placeholder="0,00" />
         {ministerios?.length > 0 && (
           <>
             <label className="rot">Ministério</label>

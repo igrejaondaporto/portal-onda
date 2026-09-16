@@ -82,6 +82,27 @@ as escalas já usam). Nunca lê `bases/{id}/pessoas` de outra base —
 isso continua fechado; o nome de quem pediu vem gravado no próprio
 reembolso (`pessoaNome`, denormalizado no `criarReembolso`).
 
+## Dinheiro que entra — dízimos e ofertas
+
+Ao contrário dos reembolsos (que nascem noutra base), quem regista
+dízimo/oferta é **sempre o próprio Financeiro** — nenhuma base tem
+esse dado. Coleção própria (`lib/entradas.js`):
+
+```js
+bases/financeiro/entradas/{id}
+  valor, fundo (dizimo|oferta|missoes|obras|outro),
+  metodo (dinheiro|mbway|transferencia), referencia?,
+  criadoPor, criadoEm
+```
+
+Um lançamento por fundo+método (não um total à mão) — é o que faz o
+"total por método + por fundo" bater certo sem depender de texto
+livre. Mesmo padrão de `despesasFixas`: escrita direta do cliente,
+imutável (só `create`), corrige-se com um lançamento novo. Aparece
+dentro da aba **Dinheiro** (não ganhou aba própria — é a mesma tela
+que já mostra "o que saiu"), com os totais do mês por fundo e por
+método e os últimos lançamentos.
+
 ## Fornecedores e despesas fixas
 
 Gastos recorrentes (renda, subscrições, contrato de limpeza…) que não
@@ -107,28 +128,16 @@ sem cruzamento com outra nem autoria mista, mesmo padrão de
 lançamento novo, não editando o antigo). "Excluir" um fornecedor é
 sempre `ativo:false`, nunca um delete a sério.
 
-## Dinheiro que entra — dízimos e ofertas
+## Valor de património nos equipamentos
 
-Ao contrário dos reembolsos (que nascem noutra base), quem regista
-dízimo/oferta é **sempre o próprio Financeiro** — nenhuma base tem
-esse dado. Coleção própria (`lib/entradas.js`):
+Não é dado desta base — vive em `bases/{tecnica|louvor}/inventario/{item}.valorCompra`
+(`criarEquipamento`/`guardarEquipamento`, `functions/index.js`), o
+mesmo campo opcional já usado para a fatura de compra, só para o
+futuro Relatório somar o valor de património de cada base sem abrir
+item a item. Nenhuma escrita nem leitura desta app ainda — entra
+quando o Relatório precisar de o ler entre bases.
 
-```js
-bases/financeiro/entradas/{id}
-  valor, fundo (dizimo|oferta|missoes|obras|outro),
-  metodo (dinheiro|mbway|transferencia), referencia?,
-  criadoPor, criadoEm
-```
-
-Um lançamento por fundo+método (não um total à mão) — é o que faz o
-"total por método + por fundo" bater certo sem depender de texto
-livre. Mesmo padrão de `despesasFixas`: escrita direta do cliente,
-imutável (só `create`), corrige-se com um lançamento novo. Aparece
-dentro da aba **Dinheiro** (não ganhou aba própria — é a mesma tela
-que já mostra "o que saiu"), com os totais do mês por fundo e por
-método e os últimos lançamentos.
-
-## Fornecedores e despesas fixas
+## Detalhes já decididos
 
 - **Nunca escrevas o nome do responsável financeiro na interface**
   (mesma regra da Apoio) — o cartão de aviso no Início das outras
@@ -149,6 +158,6 @@ método e os últimos lançamentos.
 - Sem orçamento mensal (decisão explícita — só se usa dinheiro quando
   precisa de algo, não há tecto a controlar) nem aprovação em dois
   níveis (também recusado).
-- Ainda por fazer, do plano combinado: valor de património nos
-  equipamentos, e o Relatório geral — painel visual com gráficos e
-  tabelas, pensado para virar o ecrã de abertura.
+- Ainda por fazer, do plano combinado: o Relatório geral — painel
+  visual com gráficos e tabelas, pensado para virar o ecrã de
+  abertura.
