@@ -641,6 +641,40 @@ const TOURS = {
       },
     ],
   },
+
+  // sem líder de escala nem checklist — a app inteira é só duas telas.
+  // Ordem: primeiro os dois botões do menu (não dependem de dados),
+  // depois "fechamento". Sem `passosLider` a sério — todo mundo aqui
+  // já trata reembolsos, não há um segundo papel para explicar.
+  financeiro: {
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Financeiro",
+        texto: "Aqui vês os reembolsos já aprovados por cada base, prontos para pagar.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-porpagar",
+        titulo: "Por pagar",
+        texto: "A fila de pagamento. Toca num pedido para ver a fatura e marcar como pago, ou seleciona vários para pagar de uma vez.",
+        alvo: "nav-porpagar", pagina: "porpagar",
+      },
+      {
+        chave: "nav-dinheiro",
+        titulo: "Dinheiro",
+        texto: "Totais por base e por mês, e a exportação para a contabilidade.",
+        alvo: "nav-dinheiro", pagina: "porpagar",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a começar",
+        texto: "Pronto. Qualquer dúvida, fala com o líder da base que enviou o pedido.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [],
+  },
 };
 
 async function main() {
