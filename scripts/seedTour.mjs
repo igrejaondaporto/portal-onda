@@ -655,6 +655,12 @@ const TOURS = {
         alvo: null, pagina: null,
       },
       {
+        chave: "nav-relatorio",
+        titulo: "Relatório",
+        texto: "A visão geral — o que entrou, o que saiu, por categoria e por fundo. É o ecrã de abertura.",
+        alvo: "nav-relatorio", pagina: "relatorio",
+      },
+      {
         chave: "nav-porpagar",
         titulo: "Por pagar",
         texto: "A fila de pagamento. Toca num pedido para ver a fatura e marcar como pago, ou seleciona vários para pagar de uma vez.",

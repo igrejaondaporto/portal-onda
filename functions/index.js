@@ -4518,3 +4518,34 @@ export const devolverReembolso = onCall(async (req) => {
   });
   return { ok: true };
 });
+
+/** Bases com inventário em modo património (item individual com
+ *  `valorCompra` opcional — ver criarEquipamento/guardarEquipamento).
+ *  Lista fixa em código: uma base nova em modo património entra aqui
+ *  manualmente, o mesmo custo que já existe para tudo o resto do
+ *  Painel Financeiro (ver CATEGORIAS_DESPESA, por exemplo). */
+const BASES_PATRIMONIO = ["tecnica", "louvor"];
+
+/**
+ * Soma o valor de compra dos equipamentos ativos de cada base em modo
+ * património, para o Relatório do Financeiro. `bases/{b}/inventario`
+ * é fechado por `minhaBase(b)` nas rules (ao contrário de reembolsos,
+ * que já eram por documento e por isso a collectionGroup do
+ * Financeiro serve) — aqui não há atalho de regra, por isso é Admin
+ * SDK, mesmo molde do `escalasCrossBase` da Backstage (ver
+ * MELHORIAS-ENTRE-BASES.md, "capacidade de base" cross-base #2).
+ */
+export const obterPatrimonioBases = onCall(async (req) => {
+  gateFinanceiro(req);
+  const porBase = {};
+  for (const baseId of BASES_PATRIMONIO) {
+    const snap = await db.collection(`bases/${baseId}/inventario`).where("ativo", "==", true).get();
+    let total = 0;
+    for (const doc of snap.docs) {
+      const v = doc.data().valorCompra;
+      if (typeof v === "number") total += v;
+    }
+    porBase[baseId] = total;
+  }
+  return { porBase };
+});
