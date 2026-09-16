@@ -10,6 +10,10 @@ service firebase.storage {
                                  && (request.auth.token.papel == 'lider_base' || request.auth.token.papel == 'auxiliar'); }
     function imagem()      { return request.resource.contentType.matches('image/.*')
                                  && request.resource.size < 6 * 1024 * 1024; }
+    // espelha vejoTodosReembolsos() do firestore.rules — só o
+    // Financeiro (bases/financeiro.veReembolsos == "todas") sobe o
+    // comprovativo de pagamento, numa base que não é a dele.
+    function vejoTodosReembolsos() { return autenticado() && request.auth.token.ve_todos_reembolsos == true; }
 
     match /bases/{base}/pessoas/{pessoa} {
       allow read:  if minhaBase(base);
@@ -74,8 +78,12 @@ service firebase.storage {
       allow write: if minhaBase(base) && imagem();  // qualquer voluntário reporta com foto
     }
     match /bases/{base}/reembolsos/{ficheiro} {
-      allow read:  if minhaBase(base);
-      allow write: if minhaBase(base)
+      allow read:  if minhaBase(base) || vejoTodosReembolsos();
+      // minhaBase(base) sobe a fatura (quem pede); vejoTodosReembolsos()
+      // sobe o comprovativo de pagamento (o Financeiro, noutra base) —
+      // a mesma pasta serve as duas coisas, distinguidas pelo sufixo do
+      // nome do ficheiro (ver criarReembolso/marcarReembolsosPagos).
+      allow write: if (minhaBase(base) || vejoTodosReembolsos())
                    && request.resource.size < 10 * 1024 * 1024
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');

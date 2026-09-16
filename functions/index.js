@@ -4420,7 +4420,7 @@ const METODOS_PAGAMENTO = new Set(["mbway", "transferencia", "numerario"]);
  *  vários pedidos que ela cobre. Ou passam todos, ou não passa nenhum. */
 export const marcarReembolsosPagos = onCall(async (req) => {
   const uid = gateFinanceiro(req);
-  const { pedidos, metodo, referencia = "" } = req.data || {};
+  const { pedidos, metodo, referencia = "", comprovativo = null } = req.data || {};
   if (!Array.isArray(pedidos) || !pedidos.length) {
     throw new HttpsError("invalid-argument", "Não veio nenhum pedido para pagar.");
   }
@@ -4456,6 +4456,11 @@ export const marcarReembolsosPagos = onCall(async (req) => {
       pagoPorId: uid,
       metodoPagamento: metodo,
       referenciaPagamento: referencia.trim() || null,
+      // opcional de propósito — nem todo pagamento gera um comprovativo
+      // fácil de subir na hora (MB Way às vezes só dá print depois).
+      // O mesmo comprovativo cobre todos os pedidos do lote: é uma
+      // transferência só, com um extrato só.
+      comprovativoPagamento: comprovativo || null,
       lotePagamentoId,
       vistoPeloVoluntario: false,
     });
