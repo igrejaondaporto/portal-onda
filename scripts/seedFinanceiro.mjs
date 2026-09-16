@@ -27,7 +27,7 @@ admin.initializeApp({ credential: admin.credential.cert(chave) });
 const db = admin.firestore();
 
 const BASE = "financeiro";
-const NOME_RESPONSAVEL = "NOME_RESPONSAVEL"; // ← trocar antes de correr
+const NOME_RESPONSAVEL = "Edgar";
 const PESSOA_ID = "financeiro-1";
 const PIN_PADRAO = "123456"; // 6 dígitos, como qualquer líder de base — força troca no primeiro acesso
 
