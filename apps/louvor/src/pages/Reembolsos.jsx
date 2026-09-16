@@ -5,6 +5,7 @@ import {
 } from "../lib/reembolsos";
 import { ouvirVoluntarios } from "../lib/painel";
 import { souLiderOuAuxiliar } from "../lib/modelo";
+import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -34,6 +35,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
   const [reembolsos, setReembolsos] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [descricao, setDescricao] = useState("");
+  const [categoria, setCategoria] = useState(CATEGORIAS_DESPESA[0][0]);
   const [valor, setValor] = useState("");
   const [ficheiro, setFicheiro] = useState(null);
   const [aEnviar, setAEnviar] = useState(false);
@@ -111,7 +113,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
     try {
       if (!usarGuardado) await guardarPagamento(uid, paraPagar);
       await criarReembolso(uid, {
-        descricao: descricao.trim(), valor: v, ficheiro,
+        descricao: descricao.trim(), valor: v, ficheiro, categoria,
         pessoaNome: eu?.nome ?? null, pagamento: paraPagar,
       });
       setDescricao(""); setValor(""); setFicheiro(null);
@@ -161,6 +163,12 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
           <div className="caixa">
             <label className="rot" style={{ marginTop: 0 }}>Descrição</label>
             <input className="campo" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: papel higiénico e lixívia" />
+            <label className="rot">Categoria</label>
+            <select className="campo" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+              {CATEGORIAS_DESPESA.map(([id, rotulo]) => (
+                <option key={id} value={id}>{rotulo}</option>
+              ))}
+            </select>
             <label className="rot">Valor</label>
             <input className="campo" type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
             <label className="rot">Nota ou fatura</label>
@@ -240,7 +248,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                     <div style={{ flex: 1 }}>
                       <p className="nmt">{eur(r.valor)}</p>
                       <p className="ds">
-                        {r.descricao} · {dataTimestamp(r.criadoEm)}{souLiderBase && p ? ` · ${p.nome}` : ""}
+                        {r.descricao}{r.categoria ? ` · ${ROTULO_CATEGORIA_DESPESA[r.categoria] ?? r.categoria}` : ""} · {dataTimestamp(r.criadoEm)}{souLiderBase && p ? ` · ${p.nome}` : ""}
                       </p>
                     </div>
                     {souLiderBase && POR_DECIDIR.has(r.estado) ? (

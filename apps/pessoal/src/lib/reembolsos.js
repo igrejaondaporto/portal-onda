@@ -61,7 +61,7 @@ export const mostrarDestino = (metodo, destino) =>
     ? String(destino).replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3")
     : String(destino).replace(/(.{4})/g, "$1 ").trim();
 
-export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNome, pagamento }) {
+export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNome, pagamento, categoria }) {
   const ref = doc(cReembolsos());
   let anexo = null;
   if (ficheiro) {
@@ -81,7 +81,9 @@ export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNo
     // base do token — de lá ele nunca conseguiria resolver o nome.
     pessoaNome: pessoaNome ?? null,
     baseId: BASE_ID,
-    descricao, valor, anexo, pagamento,
+    // categoria é o que faz o Relatório do Financeiro responder
+    // "gastámos quanto em quê" — sem isto, é só uma lista de valores.
+    descricao, valor, anexo, pagamento, categoria,
     estado: "submetido", criadoEm: serverTimestamp(),
   });
   return ref.id;
