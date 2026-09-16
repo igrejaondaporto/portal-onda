@@ -27,6 +27,10 @@ service cloud.firestore {
     // no token por entrar/trocarBase a partir de bases/{b}.veEscalas,
     // nunca lida do Firestore aqui (ver CLAUDE.md raiz, regra 4)
     function vejoTodasEscalas() { return autenticado() && request.auth.token.ve_todas_escalas == true; }
+    // idem para o Financeiro: bases/{b}.veReembolsos == "todas" (ver
+    // claimsExtraDaBase). Lê os reembolsos de qualquer base; quem paga
+    // é a Cloud Function, esta claim só abre a LEITURA.
+    function vejoTodosReembolsos() { return autenticado() && request.auth.token.ve_todos_reembolsos == true; }
 
     // ── identidade global — só nome/foto/quais bases, para o login
     // único e o seletor de base. O que é específico de cada base
@@ -35,6 +39,22 @@ service cloud.firestore {
       allow read: if euSou(pessoa);
       allow write: if false;                        // só por função
       match /privado/{doc} { allow read, write: if false; }
+      // ── exceção única ao `privado` fechado acima: onde a pessoa quer
+      // receber os reembolsos (MB Way ou IBAN). Vive aqui, e não no
+      // perfil da base, porque é global como o PIN — quem serve em
+      // duas bases recebe na mesma conta — e porque NENHUM líder de
+      // base tem de ver o IBAN de ninguém. Só a dona lê e escreve; o
+      // Financeiro nunca lê daqui, lê a cópia que o próprio pedido de
+      // reembolso carrega (ver reembolsos/{r}.pagamento).
+      // O `privado/auth` (hash do PIN) continua fechado: a regra
+      // genérica acima nega tudo, esta só abre este documento.
+      match /privado/pagamento {
+        allow read:  if euSou(pessoa);
+        allow write: if euSou(pessoa)
+                     && request.resource.data.metodo in ['mbway', 'transferencia']
+                     && request.resource.data.destino is string
+                     && request.resource.data.destino.size() > 0;
+      }
     }
 
     // ── ponteiro do culto ao vivo — qual eventoId está a gravar agora,
@@ -260,18 +280,38 @@ service cloud.firestore {
       }
 
       // ── reembolsos ───────────────────────────────────────
-      // submetido → aprovado|indeferido (líder) → pago (Financeiro,
-      // ainda por construir). O dono só escreve ao criar; depois disso
-      // o único campo que lhe pertence é vistoPeloVoluntario — para
-      // fechar o aviso de "indeferido" no Início sem poder tocar em
-      // mais nada (estado, comentarioLider… continuam só do líder).
+      // submetido → aprovado|indeferido (líder) → pago|devolvido
+      // (Financeiro, por Cloud Function). `devolvido` volta à mesa da
+      // líder, que aprova de novo ou indefere — daí o update dela
+      // continuar aberto a qualquer estado. O dono só escreve ao criar;
+      // depois disso o único campo que lhe pertence é
+      // vistoPeloVoluntario — para fechar o aviso de "indeferido",
+      // "devolvido" ou "pago" no Início sem poder tocar em mais nada
+      // (estado, comentarioLider… continuam só do líder).
+      //
+      // `pagamento` é uma CÓPIA do método guardado em
+      // pessoas/{uid}/privado/pagamento, tirada no momento do envio, e
+      // nunca mais muda: o Financeiro tem de saber para que conta pagou
+      // ESTE pedido, não para onde a pessoa recebe hoje. Mesma razão
+      // por que `pessoaNome` fica gravado aqui em vez de resolvido a
+      // cada leitura — o painel lê 9 bases de uma vez por
+      // collectionGroup e bases/{b}/pessoas é fechado a minhaBase.
       match /reembolsos/{r} {
-        allow read:   if souLiderBase(base) || resource.data.pessoaId == request.auth.uid;
+        allow read:   if souLiderBase(base)
+                      || vejoTodosReembolsos()
+                      || resource.data.pessoaId == request.auth.uid;
         allow create: if minhaBase(base)
                       && request.resource.data.pessoaId == request.auth.uid
                       && request.resource.data.estado == 'submetido'
+                      && request.resource.data.baseId == base
                       && request.resource.data.valor is number
-                      && request.resource.data.valor > 0;
+                      && request.resource.data.valor > 0
+                      && request.resource.data.pagamento.metodo in ['mbway', 'transferencia']
+                      && request.resource.data.pagamento.destino is string
+                      && request.resource.data.pagamento.destino.size() > 0;
+        // o Financeiro NÃO escreve daqui — pagar e devolver passam pela
+        // Cloud Function (CLAUDE.md raiz, regra 3: o que é de alguém
+        // decidir nunca é escrita direta do cliente).
         allow update: if souLiderBase(base)
                       || (resource.data.pessoaId == request.auth.uid
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vistoPeloVoluntario']));
@@ -624,6 +664,20 @@ service cloud.firestore {
     match /chamadas/{dia}/canais/{canal}/itens/{item} {
       allow read:  if true;
       allow write: if autenticado();
+    }
+
+    // ── reembolsos de todas as bases de uma vez (Financeiro) ──
+    // A regra de bases/{base}/reembolsos acima já deixa o Financeiro
+    // ler pedido a pedido, mas uma query collectionGroup não é avaliada
+    // por ela — o Firestore casa a query com um match de caminho
+    // aberto, e sem este bloco `collectionGroup("reembolsos")` falha
+    // com permission-denied mesmo tendo a claim. É a única forma de o
+    // painel ver as 9 bases numa subscrição só, em tempo real, em vez
+    // de nove queries (ou de uma função que perde o onSnapshot).
+    // Leitura e mais nada: pagar e devolver são Cloud Function.
+    match /{path=**}/reembolsos/{r} {
+      allow read:  if vejoTodosReembolsos();
+      allow write: if false;
     }
 
     match /{document=**} { allow read, write: if false; }

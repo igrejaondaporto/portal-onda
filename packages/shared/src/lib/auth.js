@@ -51,6 +51,7 @@ export const PORTAS_DEV = {
   louvor: 5179,
   new: 5180,
   shift: 5181,
+  financeiro: 5182,
 };
 
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um

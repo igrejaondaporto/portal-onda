@@ -83,6 +83,22 @@
       ]
     },
     {
+      "collectionGroup": "reembolsos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reembolsos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "pagoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "contactos",
       "queryScope": "COLLECTION",
       "fields": [
