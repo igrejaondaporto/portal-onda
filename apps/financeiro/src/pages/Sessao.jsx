@@ -9,6 +9,7 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import PorPagar from "./PorPagar";
 import Dinheiro from "./Dinheiro";
+import Fornecedores from "./Fornecedores";
 import Perfil from "./Perfil";
 
 // ícones que não existem no ICO padrão do NavBar (packages/shared,
@@ -16,14 +17,16 @@ import Perfil from "./Perfil";
 // ICONE_ENQUETES/ICONE_WIKI nas outras bases.
 const ICONE_POR_PAGAR = '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>';
 const ICONE_DINHEIRO = '<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16v-9"/><path d="M17 16v-3"/>';
+const ICONE_FORNECEDORES = '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>';
 
 // Sem "Montar"/"Escala"/"Funções" — o Financeiro não gere voluntários
-// de nenhuma base, só reembolsos já aprovados por elas. Duas abas na
-// NavBar; Perfil não é uma delas — entra-se tocando na foto, mesmo
-// padrão do "Ver perfil" do MenuEu nas outras bases.
+// de nenhuma base, só reembolsos já aprovados por elas. Perfil não é
+// uma aba — entra-se tocando na foto, mesmo padrão do "Ver perfil" do
+// MenuEu nas outras bases.
 const ABAS = [
   ["porpagar", "Por pagar", ICONE_POR_PAGAR],
   ["dinheiro", "Dinheiro", ICONE_DINHEIRO],
+  ["fornecedores", "Fornecedores", ICONE_FORNECEDORES],
 ];
 
 /**
@@ -95,6 +98,9 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
           </div>
           <div style={{ display: pagina === "dinheiro" ? "" : "none" }}>
             <Dinheiro definirCabecalho={setCab} />
+          </div>
+          <div style={{ display: pagina === "fornecedores" ? "" : "none" }}>
+            <Fornecedores uid={uid} definirCabecalho={setCab} />
           </div>
           {pagina === "perfil" && (
             <Perfil uid={uid} pessoa={pessoa} definirCabecalho={setCab} onAtualizarPessoa={setPessoa} />

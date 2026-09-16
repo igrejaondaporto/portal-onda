@@ -31,9 +31,9 @@ uma capacidade de base.
 ## O que esta app NÃO tem
 
 Sem escala, sem funções, sem culto, sem inventário, sem Painel do
-líder — nenhum desses conceitos existe aqui. Duas abas só: **Por
-pagar** e **Dinheiro**, mais Perfil (login/PIN, igual a qualquer
-base).
+líder — nenhum desses conceitos existe aqui. Três abas: **Por
+pagar**, **Dinheiro** e **Fornecedores**, mais Perfil (login/PIN,
+igual a qualquer base).
 
 ## Vocabulário
 
@@ -82,6 +82,31 @@ as escalas já usam). Nunca lê `bases/{id}/pessoas` de outra base —
 isso continua fechado; o nome de quem pediu vem gravado no próprio
 reembolso (`pessoaNome`, denormalizado no `criarReembolso`).
 
+## Fornecedores e despesas fixas
+
+Gastos recorrentes (renda, subscrições, contrato de limpeza…) que não
+nascem de um pedido de reembolso de nenhuma base — o Financeiro lança
+diretamente o que já pagou. Duas coleções próprias, só desta base
+(`lib/fornecedores.js`):
+
+```js
+bases/financeiro/fornecedores/{id}
+  nome, categoria (CATEGORIAS_DESPESA), valorHabitual?, periodicidade,
+  ativo
+
+bases/financeiro/despesasFixas/{id}
+  fornecedorId, fornecedorNome, categoria, valor, metodo, referencia,
+  criadoPor, criadoEm
+```
+
+Escrita direta do cliente (sem Cloud Function): é dado só desta base,
+sem cruzamento com outra nem autoria mista, mesmo padrão de
+`funcoes`/`avisos` de qualquer base (ver `firestore.rules`).
+`despesasFixas` é histórico de pagamento — só `create`, nunca
+`update`/`delete` (regra 5 do `CLAUDE.md` raiz: corrige-se com um
+lançamento novo, não editando o antigo). "Excluir" um fornecedor é
+sempre `ativo:false`, nunca um delete a sério.
+
 ## Detalhes já decididos
 
 - **Nunca escrevas o nome do responsável financeiro na interface**
@@ -100,5 +125,10 @@ reembolso (`pessoaNome`, denormalizado no `criarReembolso`).
 - Sem push/email (nenhuma base tem — ver `MELHORIAS-ENTRE-BASES.md`).
   O aviso de "pago"/"devolvido" é só o cartão `.destaque` no Início
   de cada base, como o de "indeferido" já era.
-- Sem categorias de despesa nem orçamento por base — ver o mockup e a
-  conversa que motivou esta app para o resto do plano (v2/v3).
+- Sem orçamento mensal (decisão explícita — só se usa dinheiro quando
+  precisa de algo, não há tecto a controlar) nem aprovação em dois
+  níveis (também recusado).
+- Ainda por fazer, do plano combinado: dinheiro que entra (dízimos e
+  ofertas, por método e por fundo), valor de património nos
+  equipamentos, e o Relatório geral — painel visual com gráficos e
+  tabelas, pensado para virar o ecrã de abertura.
