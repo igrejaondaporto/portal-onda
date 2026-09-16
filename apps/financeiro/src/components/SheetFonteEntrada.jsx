@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { CATEGORIAS_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { novoFornecedorId, criarFornecedor, editarFornecedor, desativarFornecedor, reativarFornecedor } from "../lib/fornecedores";
+import {
+  FUNDOS, novaFonteEntradaId, criarFonteEntrada, editarFonteEntrada,
+  desativarFonteEntrada, reativarFonteEntrada,
+} from "../lib/entradas";
 
 const PERIODICIDADES = [
   ["mensal", "Mensal"],
@@ -9,29 +11,28 @@ const PERIODICIDADES = [
   ["pontual", "Pontual"],
 ];
 
-/** Criar ou editar um fornecedor de despesa fixa — renda, subscrição,
- *  contrato de limpeza. `valorHabitual` é só uma referência para
- *  pré-preencher o registo de pagamento; o valor real de cada
- *  pagamento vai sempre em `despesasFixas`, pode variar do habitual. */
-export default function SheetFornecedor({ fornecedor, onFechar, onGuardado }) {
+/** Criar ou editar uma fonte fixa de entrada — aluguel de espaço, uma
+ *  doação mensal já combinada. `valorHabitual` só pré-preenche o
+ *  registo em `entradas`; o valor real de cada lançamento pode variar. */
+export default function SheetFonteEntrada({ fonte, onFechar, onGuardado }) {
   const torrada = useTorrada();
-  const [nome, setNome] = useState(fornecedor?.nome ?? "");
-  const [categoria, setCategoria] = useState(fornecedor?.categoria ?? CATEGORIAS_DESPESA[0][0]);
-  const [valorHabitual, setValorHabitual] = useState(fornecedor?.valorHabitual ? String(fornecedor.valorHabitual) : "");
-  const [periodicidade, setPeriodicidade] = useState(fornecedor?.periodicidade ?? "mensal");
+  const [nome, setNome] = useState(fonte?.nome ?? "");
+  const [fundo, setFundo] = useState(fonte?.fundo ?? FUNDOS[0][0]);
+  const [valorHabitual, setValorHabitual] = useState(fonte?.valorHabitual ? String(fonte.valorHabitual) : "");
+  const [periodicidade, setPeriodicidade] = useState(fonte?.periodicidade ?? "mensal");
   const [aEnviar, setAEnviar] = useState(false);
 
   async function guardar() {
-    if (!nome.trim()) return torrada("Escreve o nome do fornecedor");
+    if (!nome.trim()) return torrada("Escreve o nome da fonte");
     setAEnviar(true);
     try {
       const dados = {
-        nome: nome.trim(), categoria, periodicidade,
+        nome: nome.trim(), fundo, periodicidade,
         valorHabitual: valorHabitual ? Number(valorHabitual) : null,
       };
-      if (fornecedor) await editarFornecedor(fornecedor.id, dados);
-      else await criarFornecedor(novoFornecedorId(), dados);
-      torrada(fornecedor ? "Fornecedor atualizado" : "Fornecedor criado");
+      if (fonte) await editarFonteEntrada(fonte.id, dados);
+      else await criarFonteEntrada(novaFonteEntradaId(), dados);
+      torrada(fonte ? "Fonte atualizada" : "Fonte criada");
       onGuardado?.();
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -43,9 +44,9 @@ export default function SheetFornecedor({ fornecedor, onFechar, onGuardado }) {
   async function alternarAtivo() {
     setAEnviar(true);
     try {
-      if (fornecedor.ativo) await desativarFornecedor(fornecedor.id);
-      else await reativarFornecedor(fornecedor.id);
-      torrada(fornecedor.ativo ? "Fornecedor desativado" : "Fornecedor reativado");
+      if (fonte.ativo) await desativarFonteEntrada(fonte.id);
+      else await reativarFonteEntrada(fonte.id);
+      torrada(fonte.ativo ? "Fonte desativada" : "Fonte reativada");
       onGuardado?.();
     } catch (e) {
       torrada(e.message || "Não foi possível atualizar.");
@@ -59,14 +60,14 @@ export default function SheetFornecedor({ fornecedor, onFechar, onGuardado }) {
       <div className="veu on" onClick={onFechar} />
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
-        <h2>{fornecedor ? "Editar fornecedor" : "Novo fornecedor"}</h2>
+        <h2>{fonte ? "Editar fonte" : "Nova fonte fixa"}</h2>
 
         <label className="rot" style={{ marginTop: 14 }}>Nome</label>
-        <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Senhorio, EDP, Vodafone" />
+        <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Aluguel da sala, Doação da família X" />
 
-        <label className="rot">Categoria</label>
-        <select className="campo" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-          {CATEGORIAS_DESPESA.map(([id, rotulo]) => (
+        <label className="rot">Fundo</label>
+        <select className="campo" value={fundo} onChange={(e) => setFundo(e.target.value)}>
+          {FUNDOS.map(([id, rotulo]) => (
             <option key={id} value={id}>{rotulo}</option>
           ))}
         </select>
@@ -88,12 +89,12 @@ export default function SheetFornecedor({ fornecedor, onFechar, onGuardado }) {
 
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
           <button className="btn full" disabled={aEnviar} onClick={guardar}>Guardar</button>
-          {fornecedor && (
+          {fonte && (
             <button
-              className="btn sec" style={{ flex: "none", padding: "13px 16px", color: fornecedor.ativo ? "var(--magenta)" : "var(--azul)" }}
+              className="btn sec" style={{ flex: "none", padding: "13px 16px", color: fonte.ativo ? "var(--magenta)" : "var(--azul)" }}
               disabled={aEnviar} onClick={alternarAtivo}
             >
-              {fornecedor.ativo ? "Desativar" : "Reativar"}
+              {fonte.ativo ? "Desativar" : "Reativar"}
             </button>
           )}
         </div>

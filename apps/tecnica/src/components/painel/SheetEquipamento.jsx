@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { criarEquipamento, guardarEquipamento, desativarEquipamento, novoEquipamentoId, enviarFotoEquipamento, enviarFaturaEquipamento } from "../../lib/equipamentos";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
+import { TIPOS_PATRIMONIO } from "@portal/shared/lib/tiposPatrimonio.js";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 const TAMANHO_MAX_FATURA = 10 * 1024 * 1024;   // PDF de fatura é maior que uma foto comprimida
@@ -19,6 +20,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
   const [ministerioId, setMinisterioId] = useState(equipamento?.ministerioId ?? null);
   const [foto, setFoto] = useState(equipamento?.foto ?? null);
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
+  const [tipo, setTipo] = useState(equipamento?.tipo ?? TIPOS_PATRIMONIO[0][0]);
   const [valorCompra, setValorCompra] = useState(equipamento?.valorCompra ? String(equipamento.valorCompra) : "");
   const [fatura, setFatura] = useState(equipamento?.fatura ?? null);
   const [aEnviarFatura, setAEnviarFatura] = useState(false);
@@ -65,7 +67,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
     try {
       const dados = {
         itemId: idRef.current, nome: n, modelo, nSerie, local, ministerioId, foto,
-        quantidade: Number(quantidade || 1), fatura, valorCompra: valorCompra ? Number(valorCompra) : null,
+        quantidade: Number(quantidade || 1), fatura, tipo, valorCompra: valorCompra ? Number(valorCompra) : null,
       };
       if (equipamento) {
         await guardarEquipamento(dados);
@@ -111,10 +113,15 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
         <input className="campo" value={nSerie} onChange={(e) => setNSerie(e.target.value)} placeholder="Opcional" />
         <label className="rot">Local</label>
         <input className="campo" value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex.: Armário do palco" />
-        {/* Só para o Relatório do Financeiro somar o património da
-          * base — não aparece em mais lado nenhum. Opcional: um
-          * equipamento antigo sem nota fiscal fica sem valor, não
-          * bloqueia nada. */}
+        {/* Os dois campos abaixo só servem o Relatório do Financeiro
+          * (quanto temos em quê, quanto vale) — não aparecem em mais
+          * lado nenhum desta app. */}
+        <label className="rot">Tipo de património</label>
+        <select className="campo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          {TIPOS_PATRIMONIO.map(([id, rotulo]) => (
+            <option key={id} value={id}>{rotulo}</option>
+          ))}
+        </select>
         <label className="rot">Valor de compra (opcional)</label>
         <input className="campo" type="number" inputMode="decimal" value={valorCompra} onChange={(e) => setValorCompra(e.target.value)} placeholder="0,00" />
         {ministerios?.length > 0 && (

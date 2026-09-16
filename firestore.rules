@@ -348,7 +348,14 @@ service cloud.firestore {
       // outra base regista isto). Mesmo padrão de despesasFixas:
       // registo imutável, só create, corrige-se com um lançamento
       // novo. `fundo` e `metodo` validados para o Relatório conseguir
-      // somar por um e por outro sem lidar com texto livre.
+      // somar por um e por outro sem lidar com texto livre. `fonteId`/
+      // `fonteNome` são opcionais (entrada recorrente ligada a uma
+      // fonte fixa) — texto livre, sem validação própria, mesmo
+      // tratamento de `referencia`.
+      //
+      // mantém esta lista igual a FUNDOS em
+      // apps/financeiro/src/lib/entradas.js — sem isso o Relatório não
+      // consegue somar "quanto entrou em quê".
       match /entradas/{e} {
         allow read:   if minhaBase(base);
         allow create: if minhaBase(base)
@@ -356,10 +363,22 @@ service cloud.firestore {
                       && request.resource.data.valor is number
                       && request.resource.data.valor > 0
                       && request.resource.data.fundo in
-                         ['dizimo', 'oferta', 'missoes', 'obras', 'outro']
+                         ['dizimo', 'oferta', 'oferta_especial', 'missoes', 'obras', 'aluguel', 'evento', 'outro']
                       && request.resource.data.metodo in
                          ['dinheiro', 'mbway', 'transferencia'];
         allow update, delete: if false;
+      }
+
+      // ── Financeiro: fontes fixas de entrada (Base Financeiro) ──
+      // Receita recorrente que não é dízimo/oferta de culto — aluguel
+      // de espaço, uma doação mensal combinada. Mesmo padrão de
+      // fornecedores (catálogo, "excluir" é sempre ativo:false): serve
+      // só para pré-preencher o registo em `entradas`, não é ela
+      // própria uma entrada.
+      match /fontesEntrada/{f} {
+        allow read:            if minhaBase(base);
+        allow create, update: if minhaBase(base);
+        allow delete:          if false;
       }
 
       // ── biblioteca de músicas (Base Louvor) — só o líder (ou
