@@ -2687,14 +2687,30 @@ function faturaValida(fatura) {
   return { url, nome: String(fatura.nome || "Fatura").slice(0, 120) };
 }
 
+/**
+ * Valor de compra (opcional) — para o Relatório do Financeiro somar
+ * o valor de património de uma base sem ter de abrir item a item.
+ * `null` é "não sei/não interessa", nunca zero (zero é um valor
+ * válido só se alguém escreveu zero de propósito).
+ */
+function valorCompraValido(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new HttpsError("invalid-argument", "O valor de compra tem de ser um número positivo.");
+  }
+  return n;
+}
+
 export const criarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
     ministerioId, foto, quantidade: quantidadeValida(quantidade), fatura: faturaValida(fatura),
+    valorCompra: valorCompraValido(valorCompra),
     estado: "ok", ativo: true,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -2703,16 +2719,17 @@ export const criarEquipamento = onCall(async (req) => {
 
 export const guardarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
     ministerioId, foto, quantidade: quantidadeValida(quantidade),
-    // só se mexe na fatura quando o pedido fala dela. Sem isto, um
-    // cliente antigo em cache (que não conhece o campo) apagava a
-    // fatura já guardada a cada gravação, sem ninguém perceber.
+    // só se mexe na fatura/valor de compra quando o pedido fala deles.
+    // Sem isto, um cliente antigo em cache (que não conhece o campo)
+    // apagava o que já estava guardado a cada gravação, sem avisar.
     ...("fatura" in (req.data || {}) ? { fatura: faturaValida(fatura) } : {}),
+    ...("valorCompra" in (req.data || {}) ? { valorCompra: valorCompraValido(valorCompra) } : {}),
   }, { merge: true });
   return { ok: true };
 });
