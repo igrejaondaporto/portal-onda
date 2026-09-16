@@ -10,7 +10,7 @@ import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import ChecklistSala from "../components/sala/ChecklistSala";
 
 const ABAS = [
-  ["checklist", "Checklist", "Abrir e fechar a sala"],
+  ["checklist", "Checklist", "Pré-culto, durante e pós-culto"],
   ["ordem", "Ordem do culto", "A ordem do culto que o pastor envia"],
   ["feedbacks", "Feedbacks", "O que ficou registado de cada domingo"],
 ];

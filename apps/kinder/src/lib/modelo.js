@@ -8,7 +8,7 @@
  *   bases/kinder/familias/{f}                      ← só por Cloud Function (functions/kinder.js)
  *   bases/kinder/criancas/{c}                      ← idem
  *   bases/kinder/licoes/{id}                       ← categorias[], licao/recurso/atividades[] (PDF/foto/.docx), resumo…
- *   bases/kinder/checklistSala/{item}              ← texto, categoria, fase abrir|fechar
+ *   bases/kinder/checklistSala/{item}              ← titulo, subtitulo, horario, categoria, fase pre|durante|pos
  *   bases/kinder/definicoes/{categorias|consentimento}
  *   bases/kinder/inventario/{item}                 ← + sala (baby|fun|junior|partilhado)
  *   eventos/{e}/escalas/kinder                     ← pessoas[] (lista simples) + mestras {baby,fun,junior}
@@ -111,6 +111,14 @@ export function rotuloPapel(papel, cat) {
 /** A sala que cada ecrã mostra primeiro: a da pessoa. As líderes
  *  abrem em "Todas" — veem as três salas. */
 export const categoriaInicial = (papel, pessoa) => (souLider(papel) ? null : pessoa?.categoria ?? null);
+
+/** Mesmo padrão das outras bases (Apoio, Backstage, Comunicação…) —
+ *  três fases do domingo, não "abrir"/"fechar" a sala. */
+export const FASES = [
+  ["pre", "Pré-culto"],
+  ["durante", "Durante o culto"],
+  ["pos", "Pós-culto"],
+];
 
 /** Quem pode escrever o feedback do culto — a Kinder não tem líder de
  *  escala único (cada sala tem a sua Mestra); a Mestra ganhou
