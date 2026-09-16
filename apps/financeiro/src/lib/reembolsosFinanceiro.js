@@ -11,7 +11,9 @@
  * e cruzam bases (ver CLAUDE.md raiz, regra 3).
  */
 import { collectionGroup, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { db, chamar } from "@portal/shared/lib/firebase.js";
+import { ref as refStorage, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage, chamar } from "@portal/shared/lib/firebase.js";
+import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 
 export function ouvirReembolsosPorEstado(estado, cb) {
   const q = query(collectionGroup(db, "reembolsos"), where("estado", "==", estado), orderBy("criadoEm", "asc"));
@@ -23,8 +25,22 @@ export function ouvirReembolsosPagos(cb) {
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, baseId: d.data().baseId, ...d.data() }))));
 }
 
-export const marcarReembolsosPagos = (pedidos, metodo, referencia) =>
-  chamar("marcarReembolsosPagos")({ pedidos: pedidos.map((p) => ({ baseId: p.baseId, id: p.id })), metodo, referencia });
+/** Sobe o comprovativo para a mesma pasta da fatura original — a
+ *  regra de Storage já deixa o Financeiro escrever ali (vejoTodosReembolsos),
+ *  distinguido pelo sufixo, nunca pela pasta. Usa o primeiro pedido do
+ *  lote como âncora do nome; o mesmo ficheiro cobre todos (uma
+ *  transferência, um extrato). Opcional — nunca bloqueia o pagamento. */
+export async function subirComprovativoPagamento(pedidoAncora, ficheiro) {
+  const paraEnviar = ficheiro.type.startsWith("image/")
+    ? await comprimirImagem(ficheiro, { maxDimensao: 2000, qualidade: 0.9 })
+    : ficheiro;
+  const destino = refStorage(storage, `bases/${pedidoAncora.baseId}/reembolsos/${pedidoAncora.id}-comprovativo`);
+  await uploadBytes(destino, paraEnviar, { contentType: paraEnviar.type });
+  return getDownloadURL(destino);
+}
+
+export const marcarReembolsosPagos = (pedidos, metodo, referencia, comprovativo) =>
+  chamar("marcarReembolsosPagos")({ pedidos: pedidos.map((p) => ({ baseId: p.baseId, id: p.id })), metodo, referencia, comprovativo: comprovativo ?? null });
 
 export const devolverReembolso = (baseId, id, motivo) =>
   chamar("devolverReembolso")({ baseId, id, motivo });
