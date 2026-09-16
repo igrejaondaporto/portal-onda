@@ -69,6 +69,12 @@ const refSegredo = (p) => db.doc(`pessoas/${p}/privado/auth`);
  * capacidades no próprio token, lidas uma vez aqui a partir de
  * bases/{baseId}. Só entram no token quando true, para o ficar pequeno.
  *   ve_todas_escalas      — bases/{b}.veEscalas === "todas"
+ *   ve_todos_reembolsos   — bases/{b}.veReembolsos === "todas" (só a
+ *     base Financeiro): vê e paga os reembolsos aprovados de qualquer
+ *     base. Mesmo desenho do ve_todas_escalas — é capacidade da BASE,
+ *     não da pessoa, por isso quem entra em bases/financeiro herda-a
+ *     e mais ninguém. O líder de cada base continua a decidir o que
+ *     aprova; isto só abre o passo seguinte (aprovado → pago).
  *   pode_publicar_culto   — bases/{b}.culto.podePublicar === true
  *   pode_criar_evento_global — por agora, só o líder da própria base
  *     com esta flag; pensado para incluir admin_igreja mais tarde
@@ -78,6 +84,7 @@ async function claimsExtraDaBase(baseId) {
   const b = snap.exists ? snap.data() : {};
   const extra = {};
   if (b.veEscalas === "todas") extra.ve_todas_escalas = true;
+  if (b.veReembolsos === "todas") extra.ve_todos_reembolsos = true;
   if (b.culto?.podePublicar === true) extra.pode_publicar_culto = true;
   if (b.eventos?.podeCriarGlobal === true) extra.pode_criar_evento_global = true;
   if (b.feedbackAberto === true) extra.feedback_aberto = true;
@@ -4381,4 +4388,111 @@ export const aoGravarRepertorioLouvor = onDocumentWritten("bases/{baseId}/repert
     }, { merge: true });
   }
   await lote.commit();
+});
+
+/* ── REEMBOLSOS: PAGAR E DEVOLVER (base Financeiro) ────────────
+ * O ciclo do reembolso é: submetido → aprovado|indeferido (o líder da
+ * base, escrita direta do cliente, ver firestore.rules) → pago|devolvido
+ * (daqui). Os dois últimos passos são Cloud Function e não escrita
+ * direta porque mexem em dinheiro e porque o Financeiro não pertence à
+ * base do pedido — as rules de bases/{b}/reembolsos deixam-no LER (claim
+ * ve_todos_reembolsos) e mais nada.
+ *
+ * "Devolver" não é o mesmo que "indeferir": indeferir é da líder, e
+ * fecha o pedido; devolver é o Financeiro a dizer "a fatura está
+ * ilegível / falta o NIF", e põe o pedido de volta em cima da mesa da
+ * líder, com o motivo à vista. Sem isto o Financeiro só teria o
+ * telefone para resolver um pedido mal instruído.
+ */
+const gateFinanceiro = (req) => {
+  if (req.auth?.token?.ve_todos_reembolsos !== true) {
+    throw new HttpsError("permission-denied", "Sem acesso aos reembolsos das bases.");
+  }
+  return req.auth.uid;
+};
+
+const METODOS_PAGAMENTO = new Set(["mbway", "transferencia", "numerario"]);
+
+/** Marca 1..N reembolsos como pagos de uma vez. O lote é o caso normal,
+ *  não a exceção: o Financeiro paga por pessoa (uma transferência com
+ *  os pedidos todos dela), por isso os que vierem juntos partilham um
+ *  `lotePagamentoId` — é o que liga a linha do extrato bancário aos
+ *  vários pedidos que ela cobre. Ou passam todos, ou não passa nenhum. */
+export const marcarReembolsosPagos = onCall(async (req) => {
+  const uid = gateFinanceiro(req);
+  const { pedidos, metodo, referencia = "" } = req.data || {};
+  if (!Array.isArray(pedidos) || !pedidos.length) {
+    throw new HttpsError("invalid-argument", "Não veio nenhum pedido para pagar.");
+  }
+  if (pedidos.length > 50) throw new HttpsError("invalid-argument", "São pedidos a mais de uma vez (máximo 50).");
+  if (!METODOS_PAGAMENTO.has(metodo)) throw new HttpsError("invalid-argument", "Método de pagamento inválido.");
+  for (const p of pedidos) {
+    if (!p?.baseId || !p?.id) throw new HttpsError("invalid-argument", "Pedido sem base ou sem id.");
+  }
+
+  const refs = pedidos.map((p) => db.doc(`bases/${p.baseId}/reembolsos/${p.id}`));
+  const snaps = await db.getAll(...refs);
+  // Validar TUDO antes de escrever o que quer que seja — meio lote pago
+  // é pior do que nenhum: o Financeiro fica sem saber o que já saiu.
+  snaps.forEach((s, i) => {
+    if (!s.exists) throw new HttpsError("not-found", `Pedido ${pedidos[i].id} não existe.`);
+    const estado = s.data().estado;
+    if (estado === "pago") throw new HttpsError("failed-precondition", "Há um pedido aí que já está pago.");
+    if (estado !== "aprovado") {
+      throw new HttpsError("failed-precondition", `Só se paga o que a líder aprovou (este está "${estado}").`);
+    }
+  });
+
+  const lotePagamentoId = pedidos.length > 1 ? randomUUID() : null;
+  const agora = admin.firestore.Timestamp.now();
+  const lote = db.batch();
+  for (const ref of refs) {
+    lote.update(ref, {
+      estado: "pago",
+      pagoEm: agora,
+      // quem pagou fica gravado para o histórico, mas é o UID: o nome do
+      // responsável financeiro nunca aparece na interface de ninguém
+      // (ver apps/apoio/CLAUDE.md, "Detalhes já decididos").
+      pagoPorId: uid,
+      metodoPagamento: metodo,
+      referenciaPagamento: referencia.trim() || null,
+      lotePagamentoId,
+      vistoPeloVoluntario: false,
+    });
+  }
+  await lote.commit();
+  return { pagos: refs.length, lotePagamentoId };
+});
+
+/** Devolve o pedido à líder da base, com o motivo.
+ *
+ *  `devolvido` é estado próprio e não um regresso a `submetido`: a
+ *  líder precisa de distinguir um pedido novo de um que já aprovou e
+ *  voltou para trás (as ações dela são as mesmas — aprovar de novo ou
+ *  indeferir), e o Financeiro precisa de conseguir listar o que
+ *  devolveu e nunca mais viu. Com o pedido a voltar a `submetido` essa
+ *  segunda lista era impossível de fazer numa query. */
+export const devolverReembolso = onCall(async (req) => {
+  const uid = gateFinanceiro(req);
+  const { baseId, id, motivo = "" } = req.data || {};
+  if (!baseId || !id) throw new HttpsError("invalid-argument", "Falta o pedido.");
+  if (!motivo.trim()) throw new HttpsError("invalid-argument", "Falta dizer o que está mal no pedido.");
+
+  const ref = db.doc(`bases/${baseId}/reembolsos/${id}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+  const estado = snap.data().estado;
+  if (estado !== "aprovado") {
+    throw new HttpsError("failed-precondition", `Só se devolve o que está aprovado (este está "${estado}").`);
+  }
+
+  await ref.update({
+    estado: "devolvido",
+    comentarioLider: null,
+    devolvidoPorFinanceiro: motivo.trim(),
+    devolvidoEm: admin.firestore.Timestamp.now(),
+    devolvidoPorId: uid,
+    vistoPeloVoluntario: false,
+  });
+  return { ok: true };
 });

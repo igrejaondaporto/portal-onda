@@ -116,10 +116,19 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
     : null;
   const chegada = meuEvento?.horaChegada || base?.horaChegada || "08:00";
-  const reembolsoIndeferido = meusReembolsos.find((r) => r.estado === "indeferido" && !r.vistoPeloVoluntario);
+  // um só aviso de cada vez, o mais recente que ainda não foi visto —
+  // indeferido/devolvido/pago competem pelo mesmo cartão, nunca os três
+  // ao mesmo tempo (ordenar por decididoEm/pagoEm/devolvidoEm seria
+  // mais correto, mas exige juntar timestamps de campos diferentes só
+  // para isto; o mais recente A CHEGAR já resolve na prática, porque o
+  // Firestore devolve por criadoEm desc e um pedido só muda de estado
+  // uma vez de cada vez).
+  const meuAvisoReembolso = meusReembolsos.find(
+    (r) => ["indeferido", "devolvido", "pago"].includes(r.estado) && !r.vistoPeloVoluntario
+  );
 
   function fecharAvisoReembolso() {
-    marcarReembolsoVisto(reembolsoIndeferido.id).catch(() => {});
+    marcarReembolsoVisto(meuAvisoReembolso.id).catch(() => {});
   }
 
   useEffect(() => {
@@ -218,15 +227,23 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <span style={{ fontSize: 24 }}>›</span>
         </div>
       )}
-      {reembolsoIndeferido && (
-        <div className="destaque" style={{ background: "var(--magenta)" }} onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}>
+      {meuAvisoReembolso && (
+        <div
+          className="destaque"
+          style={{ background: meuAvisoReembolso.estado === "pago" ? "var(--grad)" : "var(--magenta)" }}
+          onClick={() => { fecharAvisoReembolso(); onIrReembolsos?.(); }}
+        >
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>O teu pedido de reembolso</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              Indeferido · {eur(reembolsoIndeferido.valor)}
+              {{ indeferido: "Indeferido", devolvido: "Devolvido pelo Financeiro", pago: "Pago" }[meuAvisoReembolso.estado]}
+              {" · "}{eur(meuAvisoReembolso.valor)}
             </p>
-            {reembolsoIndeferido.comentarioLider && (
-              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{reembolsoIndeferido.comentarioLider}</p>
+            {meuAvisoReembolso.estado === "indeferido" && meuAvisoReembolso.comentarioLider && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{meuAvisoReembolso.comentarioLider}</p>
+            )}
+            {meuAvisoReembolso.estado === "devolvido" && meuAvisoReembolso.devolvidoPorFinanceiro && (
+              <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{meuAvisoReembolso.devolvidoPorFinanceiro}</p>
             )}
           </div>
           <span style={{ fontSize: 24 }}>›</span>
