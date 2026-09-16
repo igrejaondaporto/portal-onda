@@ -8,7 +8,8 @@ repositório (regras que valem para todas as bases, RGPD, stack).
 A única base sem equipa de culto — trata do dinheiro, não de servir
 domingo. Fecha o ciclo que todas as outras bases começam:
 `Reembolsos` (`apps/*/src/pages/Reembolsos.jsx`) leva o pedido até
-"aprovado pelo líder"; esta app é onde ele vira "pago".
+"aprovado pelo líder"; esta app é onde ele vira "pago". Também é onde
+entra o outro lado — dízimos, ofertas, gastos fixos, património.
 
 Uso real: telemóvel pessoal, uma vez por semana ou menos — não é o
 ritmo de domingo de manhã das outras bases, mas continua a valer a
@@ -28,12 +29,51 @@ Backstage ver todas as escalas (`veEscalas: "todas"` →
 qualquer outra base; não há papel "admin_igreja" nenhum, é só mais
 uma capacidade de base.
 
-## O que esta app NÃO tem
+## As cinco abas
 
 Sem escala, sem funções, sem culto, sem inventário, sem Painel do
-líder — nenhum desses conceitos existe aqui. Quatro abas: **Relatório**
-(a de abertura), **Por pagar**, **Dinheiro** e **Fornecedores**, mais
-Perfil (login/PIN, igual a qualquer base).
+líder — nenhum desses conceitos existe aqui. Perfil não é aba, abre
+tocando na foto (mesmo padrão do "Ver perfil" do `MenuEu` das outras
+bases).
+
+| Aba | Ficheiro | O que é |
+|---|---|---|
+| **Início** | `pages/Inicio.jsx` | Ecrã de abertura — visão geral com gráficos e tabelas |
+| **Reembolsos** | `pages/Reembolsos.jsx` | A fila de pagamento (pedidos das 9 bases) |
+| **Entradas** | `pages/Entradas.jsx` | Dízimos, ofertas e outras receitas |
+| **Fornecedores** | `pages/Fornecedores.jsx` | Gastos fixos/recorrentes |
+| **Caixa** | `pages/Caixa.jsx` | O extrato — saldo, por base, exportação CSV |
+
+**Início é sempre a primeira aba, Caixa é sempre a última** — pedido
+explícito do dono do produto: a visão geral abre a app, o extrato
+detalhado é para quem quer conferir a sério, não o que se vê primeiro.
+
+Todas as cinco ficam **sempre montadas** (`display:none` no lugar de
+desmontar, em `Sessao.jsx`) — preserva filtro e posição de scroll ao
+trocar de aba. Por causa disso, cada página só recalcula o cabeçalho
+(`definirCabecalho`) quando recebe o prop **`ativo` = verdadeiro**
+(`pagina === "<chave>"`, passado por `Sessao.jsx`): sem esse gate, o
+efeito de cada página corria só uma vez, no arranque da app, e o
+título parava de seguir a navegação — foi um bug reportado depois do
+Relatório virar Início. Qualquer página nova aqui **tem de** receber
+`ativo` e usá-lo assim:
+
+```jsx
+useEffect(() => {
+  if (!ativo) return;
+  definirCabecalho({ titulo: ..., subtitulo: ..., chips: [...] });
+}, [ativo, definirCabecalho, /* ...o resto que o título usa */]);
+```
+
+## Todo sheet tem um botão de fechar
+
+Regra sem exceção nesta app (reportado como bug: um popup sem saída
+visível, só fechava tocando fora): todo componente `Sheet*` acaba com
+um `<button className="btn sec full" onClick={onFechar}>Cancelar</button>`
+(ou "Fechar", em `SheetDetalheReembolso`), **mesmo** quando já existe
+uma ação primária (Guardar, Registar, Marcar como pago). O véu
+(`<div className="veu" onClick={onFechar}>`) continua a existir, mas
+nunca é a única saída.
 
 ## Vocabulário
 
@@ -47,7 +87,7 @@ Perfil (login/PIN, igual a qualquer base).
 Não digas "indeferido" aqui — indeferir é sempre do líder da base, o
 Financeiro só paga ou devolve.
 
-## Modelo de dados
+## Reembolsos (fila de pagamento)
 
 Não tem coleção própria de reembolsos — lê `bases/*/reembolsos` de
 TODAS as bases por `collectionGroup` (`lib/reembolsosFinanceiro.js`),
@@ -61,6 +101,14 @@ do `CLAUDE.md` raiz).
 `bases/financeiro` em si não guarda reembolsos nenhuns — só existe
 para dar identidade/PIN a quem trata disto, com
 `veReembolsos: "todas"`.
+
+Cada linha da fila mostra uma etiqueta colorida com o nome da base
+(cor de `bases/{id}.cor`, mesmo `.tag` que qualquer base usa) — sem
+isso não dava para saber de relance quem mandou o pedido sem abrir
+o detalhe. A aba **Pagos** (dentro de Reembolsos) mostra o mesmo
+"resumo de pagos" (total do mês/ano + por base) que também aparece em
+Caixa — duplicado de propósito: quem só quer saber "quanto já paguei"
+não devia ter de trocar de aba.
 
 ### Onde a pessoa recebe (IBAN/MB Way)
 
@@ -82,26 +130,43 @@ as escalas já usam). Nunca lê `bases/{id}/pessoas` de outra base —
 isso continua fechado; o nome de quem pediu vem gravado no próprio
 reembolso (`pessoaNome`, denormalizado no `criarReembolso`).
 
-## Dinheiro que entra — dízimos e ofertas
+## Entradas — dízimos, ofertas e outras receitas
 
-Ao contrário dos reembolsos (que nascem noutra base), quem regista
-dízimo/oferta é **sempre o próprio Financeiro** — nenhuma base tem
-esse dado. Coleção própria (`lib/entradas.js`):
+Ao contrário dos reembolsos (que nascem noutra base), quem regista é
+**sempre o próprio Financeiro** — nenhuma base tem esse dado. Duas
+coleções (`lib/entradas.js`):
 
 ```js
 bases/financeiro/entradas/{id}
-  valor, fundo (dizimo|oferta|missoes|obras|outro),
-  metodo (dinheiro|mbway|transferencia), referencia?,
+  valor, fundo, metodo (dinheiro|mbway|transferencia), referencia?,
+  fonteId?, fonteNome?,             // ligação a uma fonte fixa, opcional
   criadoPor, criadoEm
+
+bases/financeiro/fontesEntrada/{id}
+  nome, fundo, valorHabitual?, periodicidade (mensal|anual|pontual),
+  ativo
 ```
+
+`fundo` — os tipos de receita comuns numa igreja local (`FUNDOS` em
+`lib/entradas.js`, mantido igual em `firestore.rules`):
+`dizimo`, `oferta`, `oferta_especial` (campanha), `missoes`, `obras`,
+`aluguel` (espaço alugado), `evento`, `outro`.
+
+`fontesEntrada` é o equivalente, do lado da receita, de
+`fornecedores` do lado da despesa — receita recorrente que não é
+dízimo/oferta de culto (aluguel de uma sala, uma doação mensal já
+combinada). Só pré-preenche o registo em `entradas` (botão "Registar"
+na fonte abre o mesmo formulário, com fundo/valor já preenchidos);
+a fonte em si nunca é uma entrada. "Excluir" é sempre `ativo:false`.
 
 Um lançamento por fundo+método (não um total à mão) — é o que faz o
 "total por método + por fundo" bater certo sem depender de texto
-livre. Mesmo padrão de `despesasFixas`: escrita direta do cliente,
-imutável (só `create`), corrige-se com um lançamento novo. Aparece
-dentro da aba **Dinheiro** (não ganhou aba própria — é a mesma tela
-que já mostra "o que saiu"), com os totais do mês por fundo e por
-método e os últimos lançamentos.
+livre. Escrita direta do cliente, imutável (só `create`), corrige-se
+com um lançamento novo. **Sem resumo por fundo/método na própria
+aba** (decisão explícita — já existe em Início como gráfico, e
+repetir como etiquetas soltas ao lado da lista de lançamentos era
+redundante, reportado como ruído visual): a lista de "últimos
+lançamentos" já mostra o fundo de cada um.
 
 ## Fornecedores e despesas fixas
 
@@ -128,37 +193,55 @@ sem cruzamento com outra nem autoria mista, mesmo padrão de
 lançamento novo, não editando o antigo). "Excluir" um fornecedor é
 sempre `ativo:false`, nunca um delete a sério.
 
+## Caixa — o extrato
+
+Última aba de propósito (ver "As cinco abas" acima). Resumo de
+**entradas, saídas e saldo do mês** logo no topo (o pedido era
+explícito: "precisa ter um resumo de entradas e saídas e saldo, logo
+no começo"), depois o histórico de reembolsos pagos por mês/ano e por
+base (`.barra`/`.barra i`, mesmo padrão de barra de magnitude usada
+no Início), e a exportação CSV do mês (sempre o mês corrente visível
+— sem seletor de período por agora; se vier a fazer falta, portar).
+
 ## Valor de património nos equipamentos
 
-Não é dado desta base — vive em `bases/{tecnica|louvor}/inventario/{item}.valorCompra`
-(`criarEquipamento`/`guardarEquipamento`, `functions/index.js`), o
-mesmo campo opcional já usado para a fatura de compra. O Relatório
-(abaixo) é quem o lê.
+Não é dado desta base — vive em
+`bases/{tecnica|louvor}/inventario/{item}.valorCompra` e `.tipo`
+(`criarEquipamento`/`guardarEquipamento`, `functions/index.js`), os
+mesmos campos opcionais condicionais já usados pela fatura de compra.
+`tipo` é `TIPOS_PATRIMONIO` (`packages/shared/src/lib/tiposPatrimonio.js`):
+`equipamento` (técnico), `instrumento` (musical), `mobiliario`,
+`outro` — o Início soma por **tipo**, não por base (só duas bases
+hoje, a distinção por base dizia pouco; "equipamento" vs.
+"instrumento" já separa Técnica de Louvor na prática, sem precisar
+nomear a base). Item sem `tipo` definido cai em "outro" na soma.
 
-## Relatório — a aba de abertura
+## Início — a aba de abertura
 
 Pedido explícito do dono do produto ("quero MUITO, isso é muito
 importante, deixar até como Início isso") — painel geral com
-gráficos simples e tabelas fáceis, primeira aba da NavBar
-(`pages/Relatorio.jsx`). Nada de coleção própria: junta o que as
-outras abas já leem —
+gráficos simples e tabelas fáceis (`pages/Inicio.jsx`). Nada de
+coleção própria: junta o que as outras abas já leem —
 
-- **Entrou/Saiu do mês** — soma de `entradas` (dízimos/ofertas) contra
-  reembolsos pagos + `despesasFixas`.
-- **Património** — soma de `valorCompra` de Técnica e Louvor, via
-  `obterPatrimonioBases` (`lib/relatorio.js`). Única leitura nova:
+- **Por pagar agora** — o mesmo cartão `.destaque` azul que também
+  aparece em Reembolsos (duplicado de propósito, mesma razão do
+  "resumo de pagos" acima).
+- **Entrou/Saiu do mês** — soma de `entradas` contra reembolsos pagos
+  + `despesasFixas`.
+- **Património** — soma de `valorCompra` de Técnica e Louvor, **por
+  tipo**, via `obterPatrimonioBases` (`lib/relatorio.js`). Única
+  leitura cross-base fora da collectionGroup de reembolsos:
   `bases/{b}/inventario` é fechado por `minhaBase(b)` nas rules (ao
-  contrário de reembolsos, que já eram por documento e por isso a
-  collectionGroup do Financeiro serve) — sem atalho de regra possível
-  aqui, por isso é uma Cloud Function com Admin SDK, mesmo molde do
-  `escalasCrossBase` da Backstage. `BASES_PATRIMONIO` é uma lista fixa
-  em código (`functions/index.js`) — uma base nova em modo património
-  entra ali manualmente, o mesmo custo que já existe para
-  `CATEGORIAS_DESPESA`.
-- **Gasto por categoria** / **Entradas por fundo** — barras horizontais
-  de um hue só (o mesmo componente `.barra`/`.barra i` que "Por base"
-  em Dinheiro.jsx já usa), ano corrente, reembolsos pagos +
-  despesasFixas categorizados de um lado, entradas do outro.
+  contrário de reembolsos, que já eram por documento) — sem atalho de
+  regra possível aqui, por isso é uma Cloud Function com Admin SDK,
+  mesmo molde do `escalasCrossBase` da Backstage. `BASES_PATRIMONIO`
+  é uma lista fixa em código (`functions/index.js`) — uma base nova
+  em modo património entra ali manualmente, o mesmo custo que já
+  existe para `CATEGORIAS_DESPESA`.
+- **Gasto por categoria** / **Entradas por fundo** — barras
+  horizontais de um hue só (o mesmo componente `.barra`/`.barra i`
+  que "Por base" em Caixa.jsx já usa), ano corrente, reembolsos pagos
+  + despesasFixas categorizados de um lado, entradas do outro.
 - **Últimos 6 meses** — tabela simples, sempre 6 linhas mesmo em mês
   sem lançamento nenhum.
 
@@ -176,8 +259,10 @@ o valor de compra de um equipamento quase nunca muda).
   `devolverReembolso`, `functions/index.js`.
 - O pagamento em lote agrupa por pessoa (uma transferência com todos
   os pedidos dela), não por base.
-- Exportação CSV é sempre do mês corrente visível em Dinheiro — sem
-  seletor de período por agora; se vier a fazer falta, portar.
+- Nenhum trigger de criação/edição/registo é um link de texto (`.cap`)
+  — é sempre um `.btn` cheio, óbvio ao toque (reportado: "nem parece
+  que dá pra clicar"). Vale para "+ Registar entrada", "+ Novo
+  fornecedor" e qualquer botão equivalente que vier a seguir.
 
 ## Por fazer / débito consciente
 
@@ -187,5 +272,3 @@ o valor de compra de um equipamento quase nunca muda).
 - Sem orçamento mensal (decisão explícita — só se usa dinheiro quando
   precisa de algo, não há tecto a controlar) nem aprovação em dois
   níveis (também recusado).
-- Plano combinado do painel financeiro completo — categorias,
-  fornecedores, entradas, património, Relatório.

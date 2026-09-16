@@ -133,6 +133,7 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
             </div>
           </>
         )}
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
     </>
   );

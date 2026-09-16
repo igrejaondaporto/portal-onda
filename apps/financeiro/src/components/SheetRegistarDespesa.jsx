@@ -61,6 +61,7 @@ export default function SheetRegistarDespesa({ fornecedor, uid, onFechar, onFeit
         <input className="campo" value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="Nº da transferência, por exemplo" />
 
         <button className="btn full" style={{ marginTop: 20 }} disabled={aEnviar} onClick={guardar}>Registar pagamento</button>
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
       </div>
     </>
   );

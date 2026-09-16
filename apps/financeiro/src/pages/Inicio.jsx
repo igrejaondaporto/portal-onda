@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ouvirReembolsosPagos } from "../lib/reembolsosFinanceiro";
+import { ouvirReembolsosPorEstado, ouvirReembolsosPagos } from "../lib/reembolsosFinanceiro";
 import { ouvirDespesasFixas } from "../lib/fornecedores";
 import { ouvirEntradas, FUNDOS, ROTULO_FUNDO } from "../lib/entradas";
-import { ouvirBases } from "../lib/bases";
 import { obterPatrimonioBases } from "../lib/relatorio";
 import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
+import { ROTULO_TIPO_PATRIMONIO } from "@portal/shared/lib/tiposPatrimonio.js";
 import { eur } from "@portal/shared/lib/data.js";
 
 const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-const BASES_PATRIMONIO = ["tecnica", "louvor"];
 
 const chaveMes = (ts) => (ts?.toDate ? `${ts.toDate().getFullYear()}-${ts.toDate().getMonth()}` : null);
 
@@ -25,8 +24,8 @@ function ultimosMeses(hoje, n) {
 }
 
 /** Barra horizontal simples (magnitude, um hue só) — mesmo padrão
- *  visual já usado em Dinheiro.jsx ("Por base"), reaproveitado aqui
- *  em vez de inventar um segundo tipo de gráfico para a mesma ideia. */
+ *  visual já usado em Caixa.jsx ("Por base"), reaproveitado aqui em
+ *  vez de inventar um segundo tipo de gráfico para a mesma ideia. */
 function Barras({ linhas }) {
   const maior = Math.max(...linhas.map((l) => l.valor), 1);
   return (
@@ -46,26 +45,29 @@ function Barras({ linhas }) {
   );
 }
 
-/** Relatório geral do Financeiro — a visão de conjunto que os outros
- *  ecrãs não dão (cada um só mostra a parte dele). Tudo lido do que
- *  já existe (reembolsos pagos, despesas fixas, entradas); só o
- *  património de Técnica/Louvor vem de uma chamada própria, porque
- *  `inventario` é fechado por `minhaBase` (ver lib/relatorio.js). */
-export default function Relatorio({ definirCabecalho }) {
+/** Início — a visão de conjunto que os outros ecrãs não dão (cada um
+ *  só mostra a parte dele). Tudo lido do que já existe (reembolsos,
+ *  despesas fixas, entradas); só o património de Técnica/Louvor vem
+ *  de uma chamada própria, porque `inventario` é fechado por
+ *  `minhaBase` (ver lib/relatorio.js). */
+export default function Inicio({ ativo, definirCabecalho }) {
+  const [porPagar, setPorPagar] = useState([]);
   const [pagos, setPagos] = useState([]);
   const [despesasFixas, setDespesasFixas] = useState([]);
   const [entradas, setEntradas] = useState([]);
-  const [bases, setBases] = useState({});
   const [patrimonio, setPatrimonio] = useState(null);
 
+  useEffect(() => ouvirReembolsosPorEstado("aprovado", setPorPagar), []);
   useEffect(() => ouvirReembolsosPagos(setPagos), []);
   useEffect(() => ouvirDespesasFixas(setDespesasFixas), []);
   useEffect(() => ouvirEntradas(setEntradas), []);
-  useEffect(() => ouvirBases(setBases), []);
-  useEffect(() => { obterPatrimonioBases().then((r) => setPatrimonio(r.porBase)).catch(() => setPatrimonio({})); }, []);
+  useEffect(() => { obterPatrimonioBases().then((r) => setPatrimonio(r)).catch(() => setPatrimonio({ porTipo: {}, total: 0 })); }, []);
 
   const hoje = useMemo(() => new Date(), []);
   const chaveMesAtual = `${hoje.getFullYear()}-${hoje.getMonth()}`;
+
+  const totalPorPagar = porPagar.reduce((s, r) => s + r.valor, 0);
+  const basesPorPagar = new Set(porPagar.map((r) => r.baseId)).size;
 
   const pagoEsteMes = useMemo(() => pagos.filter((r) => chaveMes(r.pagoEm) === chaveMesAtual), [pagos, chaveMesAtual]);
   const despesasFixasEsteMes = useMemo(() => despesasFixas.filter((d) => chaveMes(d.criadoEm) === chaveMesAtual), [despesasFixas, chaveMesAtual]);
@@ -73,7 +75,6 @@ export default function Relatorio({ definirCabecalho }) {
 
   const totalEntrouMes = entradasEsteMes.reduce((s, e) => s + e.valor, 0);
   const totalSaiuMes = pagoEsteMes.reduce((s, r) => s + r.valor, 0) + despesasFixasEsteMes.reduce((s, d) => s + d.valor, 0);
-  const totalPatrimonio = patrimonio ? Object.values(patrimonio).reduce((s, v) => s + v, 0) : null;
 
   const anoAtual = hoje.getFullYear();
   const porCategoria = useMemo(() => {
@@ -109,17 +110,33 @@ export default function Relatorio({ definirCabecalho }) {
     }));
   }, [hoje, entradas, pagos, despesasFixas]);
 
+  // só recalcula o cabeçalho quando esta aba fica ativa — as quatro
+  // abas ficam sempre montadas (display:none), e sem o `ativo` na
+  // dependência o efeito de cada uma só disparava uma vez, à toa, no
+  // arranque da app, e o título deixava de seguir a navegação.
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
-      titulo: <em>Relatório</em>,
+      titulo: <em>Início</em>,
       subtitulo: "Visão geral do dinheiro da igreja",
       chips: [],
     });
-  }, [definirCabecalho]);
+  }, [ativo, definirCabecalho]);
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
+      <div className="destaque">
+        <div>
+          <p style={{ fontSize: 12.5, opacity: 0.85 }}>Por pagar agora</p>
+          <p style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.035em", marginTop: 2 }}>{eur(totalPorPagar)}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: 12.5, opacity: 0.85 }}>{porPagar.length} pedido{porPagar.length !== 1 ? "s" : ""}</p>
+          <p style={{ fontSize: 12.5, opacity: 0.85, marginTop: 2 }}>{basesPorPagar} base{basesPorPagar !== 1 ? "s" : ""}</p>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent" }}>
           <p className="ds" style={{ marginTop: 0 }}>Entrou em {MESES_PT[hoje.getMonth()]}</p>
           <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur(totalEntrouMes)}</p>
@@ -129,18 +146,16 @@ export default function Relatorio({ definirCabecalho }) {
           <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur(totalSaiuMes)}</p>
         </div>
       </div>
+
       <div className="caixa" style={{ marginTop: 10, background: "var(--agua)", borderColor: "transparent" }}>
         <p className="ds" style={{ marginTop: 0 }}>Património (Técnica + Louvor)</p>
         <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
-          {totalPatrimonio === null ? "…" : eur(totalPatrimonio)}
+          {patrimonio === null ? "…" : eur(patrimonio.total)}
         </p>
-        {patrimonio && (
+        {patrimonio && Object.keys(patrimonio.porTipo).length > 0 && (
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            {BASES_PATRIMONIO.map((b) => (
-              <span className="tag cinz" key={b}>
-                <span className="quadmin" style={{ background: bases[b]?.cor ?? "#6a7192" }} />
-                {bases[b]?.nome ?? b} · {eur(patrimonio[b] ?? 0)}
-              </span>
+            {Object.entries(patrimonio.porTipo).sort((a, b) => b[1] - a[1]).map(([tipo, valor]) => (
+              <span className="tag cinz" key={tipo}>{ROTULO_TIPO_PATRIMONIO[tipo] ?? tipo} · {eur(valor)}</span>
             ))}
           </div>
         )}

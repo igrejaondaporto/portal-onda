@@ -8,7 +8,7 @@ import SheetRegistarDespesa from "../components/SheetRegistarDespesa";
 
 const ROTULO_PERIODICIDADE = { mensal: "/mês", anual: "/ano", pontual: "" };
 
-export default function Fornecedores({ uid, definirCabecalho }) {
+export default function Fornecedores({ uid, ativo, definirCabecalho }) {
   const [fornecedores, setFornecedores] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [sheetFornecedor, setSheetFornecedor] = useState(null); // { fornecedor } | { novo: true } | null
@@ -28,22 +28,26 @@ export default function Fornecedores({ uid, definirCabecalho }) {
   );
   const totalEsteMes = pagoEsteMes.reduce((s, d) => s + d.valor, 0);
 
+  // só recalcula o cabeçalho quando esta aba fica ativa — ver o mesmo
+  // comentário em Inicio.jsx.
   useEffect(() => {
+    if (!ativo) return;
     definirCabecalho({
       titulo: <em>Fornecedores</em>,
       subtitulo: "Gastos fixos e recorrentes",
       chips: [eur(totalEsteMes), `${pagoEsteMes.length} pago${pagoEsteMes.length !== 1 ? "s" : ""} este mês`],
     });
-  }, [definirCabecalho, totalEsteMes, pagoEsteMes.length]);
+  }, [ativo, definirCabecalho, totalEsteMes, pagoEsteMes.length]);
 
   return (
     <>
+      <button className="btn full" style={{ marginTop: 20 }} onClick={() => setSheetFornecedor({ novo: true })}>
+        + Novo fornecedor
+      </button>
+
       <div className="sect">
         <div className="cabecalho">
           <h3>Fornecedores</h3>
-          <button className="cap" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={() => setSheetFornecedor({ novo: true })}>
-            + Novo
-          </button>
         </div>
 
         {ativos.length ? ativos.map((f) => (

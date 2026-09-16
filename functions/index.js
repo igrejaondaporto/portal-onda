@@ -2702,15 +2702,27 @@ function valorCompraValido(v) {
   return n;
 }
 
+/** Tipo do item de património — para o Relatório do Financeiro somar
+ *  "quanto temos em quê" (Equipamento/Instrumento/Mobiliário/Outro)
+ *  entre Técnica e Louvor, em vez de só por base. Lista igual a
+ *  TIPOS_PATRIMONIO em packages/shared/src/lib/tiposPatrimonio.js. */
+function tipoPatrimonioValido(v) {
+  if (!v) return null;
+  if (!["equipamento", "instrumento", "mobiliario", "outro"].includes(v)) {
+    throw new HttpsError("invalid-argument", "Tipo de património inválido.");
+  }
+  return v;
+}
+
 export const criarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null, tipo = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
     ministerioId, foto, quantidade: quantidadeValida(quantidade), fatura: faturaValida(fatura),
-    valorCompra: valorCompraValido(valorCompra),
+    valorCompra: valorCompraValido(valorCompra), tipo: tipoPatrimonioValido(tipo),
     estado: "ok", ativo: true,
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -2719,17 +2731,18 @@ export const criarEquipamento = onCall(async (req) => {
 
 export const guardarEquipamento = onCall(async (req) => {
   const baseId = exigeLider(req);
-  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null } = req.data || {};
+  const { itemId, nome, modelo = "", nSerie = "", local = "", ministerioId = null, foto = null, quantidade, fatura = null, valorCompra = null, tipo = null } = req.data || {};
   if (!itemId) throw new HttpsError("invalid-argument", "Falta o equipamento.");
   if (!nome?.trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
   await refEquipamento(baseId, itemId).set({
     nome: nome.trim(), modelo: modelo.trim(), nSerie: nSerie.trim(), local: local.trim(),
     ministerioId, foto, quantidade: quantidadeValida(quantidade),
-    // só se mexe na fatura/valor de compra quando o pedido fala deles.
-    // Sem isto, um cliente antigo em cache (que não conhece o campo)
-    // apagava o que já estava guardado a cada gravação, sem avisar.
+    // só se mexe na fatura/valor de compra/tipo quando o pedido fala
+    // deles. Sem isto, um cliente antigo em cache (que não conhece o
+    // campo) apagava o que já estava guardado a cada gravação, sem avisar.
     ...("fatura" in (req.data || {}) ? { fatura: faturaValida(fatura) } : {}),
     ...("valorCompra" in (req.data || {}) ? { valorCompra: valorCompraValido(valorCompra) } : {}),
+    ...("tipo" in (req.data || {}) ? { tipo: tipoPatrimonioValido(tipo) } : {}),
   }, { merge: true });
   return { ok: true };
 });
@@ -4527,25 +4540,34 @@ export const devolverReembolso = onCall(async (req) => {
 const BASES_PATRIMONIO = ["tecnica", "louvor"];
 
 /**
- * Soma o valor de compra dos equipamentos ativos de cada base em modo
- * património, para o Relatório do Financeiro. `bases/{b}/inventario`
- * é fechado por `minhaBase(b)` nas rules (ao contrário de reembolsos,
- * que já eram por documento e por isso a collectionGroup do
- * Financeiro serve) — aqui não há atalho de regra, por isso é Admin
- * SDK, mesmo molde do `escalasCrossBase` da Backstage (ver
- * MELHORIAS-ENTRE-BASES.md, "capacidade de base" cross-base #2).
+ * Soma o valor de compra dos equipamentos ativos das bases em modo
+ * património, agrupado por `tipo` (Equipamento/Instrumento/
+ * Mobiliário/Outro — ver TIPOS_PATRIMONIO em
+ * packages/shared/src/lib/tiposPatrimonio.js), não por base: o
+ * Relatório quer responder "quanto temos em quê", não "quanto tem
+ * cada base" — só duas bases hoje, a distinção por base dizia pouco.
+ * Sem `tipo` definido cai em "outro".
+ *
+ * `bases/{b}/inventario` é fechado por `minhaBase(b)` nas rules (ao
+ * contrário de reembolsos, que já eram por documento e por isso a
+ * collectionGroup do Financeiro serve) — aqui não há atalho de regra,
+ * por isso é Admin SDK, mesmo molde do `escalasCrossBase` da
+ * Backstage (ver MELHORIAS-ENTRE-BASES.md, "capacidade de base"
+ * cross-base #2).
  */
 export const obterPatrimonioBases = onCall(async (req) => {
   gateFinanceiro(req);
-  const porBase = {};
+  const porTipo = {};
+  let total = 0;
   for (const baseId of BASES_PATRIMONIO) {
     const snap = await db.collection(`bases/${baseId}/inventario`).where("ativo", "==", true).get();
-    let total = 0;
     for (const doc of snap.docs) {
       const v = doc.data().valorCompra;
-      if (typeof v === "number") total += v;
+      if (typeof v !== "number" || !v) continue;
+      const tipo = doc.data().tipo || "outro";
+      porTipo[tipo] = (porTipo[tipo] ?? 0) + v;
+      total += v;
     }
-    porBase[baseId] = total;
   }
-  return { porBase };
+  return { porTipo, total };
 });
