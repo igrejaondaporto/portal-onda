@@ -31,9 +31,9 @@ uma capacidade de base.
 ## O que esta app NÃO tem
 
 Sem escala, sem funções, sem culto, sem inventário, sem Painel do
-líder — nenhum desses conceitos existe aqui. Três abas: **Por
-pagar**, **Dinheiro** e **Fornecedores**, mais Perfil (login/PIN,
-igual a qualquer base).
+líder — nenhum desses conceitos existe aqui. Quatro abas: **Relatório**
+(a de abertura), **Por pagar**, **Dinheiro** e **Fornecedores**, mais
+Perfil (login/PIN, igual a qualquer base).
 
 ## Vocabulário
 
@@ -132,10 +132,39 @@ sempre `ativo:false`, nunca um delete a sério.
 
 Não é dado desta base — vive em `bases/{tecnica|louvor}/inventario/{item}.valorCompra`
 (`criarEquipamento`/`guardarEquipamento`, `functions/index.js`), o
-mesmo campo opcional já usado para a fatura de compra, só para o
-futuro Relatório somar o valor de património de cada base sem abrir
-item a item. Nenhuma escrita nem leitura desta app ainda — entra
-quando o Relatório precisar de o ler entre bases.
+mesmo campo opcional já usado para a fatura de compra. O Relatório
+(abaixo) é quem o lê.
+
+## Relatório — a aba de abertura
+
+Pedido explícito do dono do produto ("quero MUITO, isso é muito
+importante, deixar até como Início isso") — painel geral com
+gráficos simples e tabelas fáceis, primeira aba da NavBar
+(`pages/Relatorio.jsx`). Nada de coleção própria: junta o que as
+outras abas já leem —
+
+- **Entrou/Saiu do mês** — soma de `entradas` (dízimos/ofertas) contra
+  reembolsos pagos + `despesasFixas`.
+- **Património** — soma de `valorCompra` de Técnica e Louvor, via
+  `obterPatrimonioBases` (`lib/relatorio.js`). Única leitura nova:
+  `bases/{b}/inventario` é fechado por `minhaBase(b)` nas rules (ao
+  contrário de reembolsos, que já eram por documento e por isso a
+  collectionGroup do Financeiro serve) — sem atalho de regra possível
+  aqui, por isso é uma Cloud Function com Admin SDK, mesmo molde do
+  `escalasCrossBase` da Backstage. `BASES_PATRIMONIO` é uma lista fixa
+  em código (`functions/index.js`) — uma base nova em modo património
+  entra ali manualmente, o mesmo custo que já existe para
+  `CATEGORIAS_DESPESA`.
+- **Gasto por categoria** / **Entradas por fundo** — barras horizontais
+  de um hue só (o mesmo componente `.barra`/`.barra i` que "Por base"
+  em Dinheiro.jsx já usa), ano corrente, reembolsos pagos +
+  despesasFixas categorizados de um lado, entradas do outro.
+- **Últimos 6 meses** — tabela simples, sempre 6 linhas mesmo em mês
+  sem lançamento nenhum.
+
+Tudo lido ao vivo (`onSnapshot`) exceto o património, que é uma
+chamada única à função ao entrar na aba (não há razão para ao vivo —
+o valor de compra de um equipamento quase nunca muda).
 
 ## Detalhes já decididos
 
@@ -158,6 +187,5 @@ quando o Relatório precisar de o ler entre bases.
 - Sem orçamento mensal (decisão explícita — só se usa dinheiro quando
   precisa de algo, não há tecto a controlar) nem aprovação em dois
   níveis (também recusado).
-- Ainda por fazer, do plano combinado: o Relatório geral — painel
-  visual com gráficos e tabelas, pensado para virar o ecrã de
-  abertura.
+- Plano combinado do painel financeiro completo — categorias,
+  fornecedores, entradas, património, Relatório.
