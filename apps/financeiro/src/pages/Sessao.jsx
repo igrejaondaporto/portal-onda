@@ -97,7 +97,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
             <PorPagar definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "dinheiro" ? "" : "none" }}>
-            <Dinheiro definirCabecalho={setCab} />
+            <Dinheiro uid={uid} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "fornecedores" ? "" : "none" }}>
             <Fornecedores uid={uid} definirCabecalho={setCab} />
