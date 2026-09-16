@@ -8,8 +8,9 @@ import {
   criarItemChecklist, desativarItemChecklist,
 } from "../../lib/kinder";
 import SeletorCategoria from "../SeletorCategoria";
+import ItensChecklist from "./ItensChecklist";
 
-const FASES = [["abrir", "Ao abrir a sala"], ["fechar", "Ao fechar a sala"]];
+const NOVO_VAZIO = { horario: "", titulo: "", subtitulo: "" };
 
 /**
  * Checklist de cada sala no culto de hoje (ou no próximo): higienizar
@@ -26,7 +27,7 @@ export default function ChecklistSala({ uid, papel, pessoa }) {
   const [itens, setItens] = useState([]);
   const [marcas, setMarcas] = useState({});
   const [voluntarios, setVoluntarios] = useState([]);
-  const [novo, setNovo] = useState({ abrir: "", fechar: "" });
+  const [novo, setNovo] = useState({ pre: NOVO_VAZIO, durante: NOVO_VAZIO, pos: NOVO_VAZIO });
 
   useEffect(() => {
     const agora = new Date();
@@ -50,12 +51,20 @@ export default function ChecklistSala({ uid, papel, pessoa }) {
     escrita.catch((e) => torrada(e.message || "Não foi possível atualizar.", true));
   }
 
-  async function juntar(fase) {
-    const texto = novo[fase].trim();
-    if (!texto) return;
+  async function remover(item) {
     try {
-      await criarItemChecklist({ texto, categoria: sala, fase });
-      setNovo((n) => ({ ...n, [fase]: "" }));
+      await desativarItemChecklist(item.id);
+    } catch (e) {
+      torrada(e.message || "Não foi possível remover.", true);
+    }
+  }
+
+  async function juntar(fase) {
+    const { titulo, subtitulo, horario } = novo[fase];
+    if (!titulo.trim()) return;
+    try {
+      await criarItemChecklist({ titulo, subtitulo, horario, categoria: sala, fase });
+      setNovo((n) => ({ ...n, [fase]: NOVO_VAZIO }));
     } catch (e) {
       torrada(e.message || "Não foi possível juntar.", true);
     }
@@ -72,38 +81,33 @@ export default function ChecklistSala({ uid, papel, pessoa }) {
         <SeletorCategoria valor={sala} onMudar={setSala} comTodas={false} />
       )}
       <div className="barra" style={{ marginTop: 10 }}><i style={{ width: `${pct}%`, background: varsCategoria(sala)["--c"] }} /></div>
-      {FASES.map(([fase, titulo]) => {
-        const lista = daSala.filter((i) => i.fase === fase);
-        return (
-          <div key={fase}>
-            <div className="fasecab"><h4>{titulo}</h4><em>{lista.filter((i) => marcas[i.id]).length}/{lista.length}</em></div>
-            {lista.length === 0 && <p className="ds">Sem itens para a sala {nomeCategoria(sala)}.</p>}
-            {lista.map((i) => {
-              const m = marcas[i.id];
-              return (
-                <div className={`linha${m ? " feita" : ""}`} key={i.id} style={{ cursor: "pointer" }} onClick={() => alternar(i)}>
-                  <button className={`chk${m ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); alternar(i); }}>✓</button>
-                  <div style={{ flex: 1 }}>
-                    <p className="nmt" style={{ fontSize: 15 }}>{i.texto}</p>
-                    {m && <p className="ds">{voluntarios.find((p) => p.id === m.por)?.nome ?? "alguém"} · {m.hora}</p>}
-                  </div>
-                  {lider && (
-                    <button className="oc-icobt mag" aria-label={`Tirar ${i.texto}`} onClick={(e) => { e.stopPropagation(); desativarItemChecklist(i.id).catch((er) => torrada(er.message, true)); }}>✕</button>
-                  )}
-                </div>
-              );
-            })}
-            {lider && (
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <input className="campo" style={{ flex: 1, margin: 0 }} value={novo[fase]} placeholder="Novo item"
-                  onChange={(e) => setNovo((n) => ({ ...n, [fase]: e.target.value }))}
-                  onKeyDown={(e) => { if (e.key === "Enter") juntar(fase); }} />
-                <button className="btn sec" onClick={() => juntar(fase)}>Juntar</button>
-              </div>
-            )}
+      <ItensChecklist
+        itens={daSala} marcas={marcas} voluntarios={voluntarios} sala={sala} onAlternar={alternar}
+        onRemover={lider ? remover : undefined}
+        renderRodape={(fase) => lider && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="campo" type="time" style={{ width: 96, margin: 0 }} value={novo[fase].horario}
+                onChange={(e) => setNovo((n) => ({ ...n, [fase]: { ...n[fase], horario: e.target.value } }))}
+              />
+              <input
+                className="campo" style={{ flex: 1, margin: 0 }} value={novo[fase].titulo} placeholder="Título do item"
+                onChange={(e) => setNovo((n) => ({ ...n, [fase]: { ...n[fase], titulo: e.target.value } }))}
+                onKeyDown={(e) => { if (e.key === "Enter") juntar(fase); }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="campo" style={{ flex: 1, margin: 0 }} value={novo[fase].subtitulo} placeholder="Subtítulo (opcional)"
+                onChange={(e) => setNovo((n) => ({ ...n, [fase]: { ...n[fase], subtitulo: e.target.value } }))}
+                onKeyDown={(e) => { if (e.key === "Enter") juntar(fase); }}
+              />
+              <button className="btn sec" onClick={() => juntar(fase)}>Juntar</button>
+            </div>
           </div>
-        );
-      })}
+        )}
+      />
       <p className="ds" style={{ marginTop: 12 }}>
         {daSala.length && feitos === daSala.length ? "Está tudo feito nesta sala." : "Cada marca fica com o teu nome e a hora."}
       </p>

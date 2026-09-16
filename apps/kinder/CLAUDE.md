@@ -117,7 +117,7 @@ listener do Firestore, o filtro entra na própria query — nunca só na
 UI — para uma sala restrita nunca ter os dados de outra na cache
 local. Já aplicado em: Início, Check-in (famílias/crianças só da
 sala, `FormFamilia` com `salaFixa`, e a visão geral da contagem),
-Chamadas, Culto → Checklist/Compras, e Lição (lições visíveis e "para
+Chamadas, Culto → Checklist/Inventário, e Lição (lições visíveis e "para
 que salas" ao publicar uma nova). `PainelLider.jsx` filtra a lista de
 voluntários da mesma forma — uma líder de sala só vê e edita a sua
 própria equipa.
@@ -156,7 +156,7 @@ bases/kinder/capacitacoes/{cap}       ← catálogo, só a líder mantém
 bases/kinder/familias/{f}             ← só por Cloud Function; responsaveis[]/autorizados[] com {id, foto}
 bases/kinder/criancas/{c}             ← idem — familiaId, alergias…, foto
 bases/kinder/licoes/{id}              ← categorias[], licao/recursos[]/atividades[] (PDF/foto/.docx), resumo, resumoPais, louvor
-bases/kinder/checklistSala/{item}     ← texto, categoria, fase abrir|fechar
+bases/kinder/checklistSala/{item}     ← titulo, subtitulo, horario, categoria, fase pre|durante|pos
 bases/kinder/definicoes/categorias    ← faixas etárias (só sugerem a sala)
 bases/kinder/definicoes/consentimento ← texto + versão, a líder edita
 bases/kinder/definicoes/grupoPais     ← link do grupo dos pais, a líder edita
@@ -362,6 +362,31 @@ resumo para os pais ficam) de lições com mais de
 O caminho a apagar vem do próprio `url` guardado (nunca precisa de
 reconstruir o nome, que varia com a extensão real do ficheiro) —
 `caminhoDeUrlStorage()` extrai o caminho do download URL do Firebase.
+
+## Checklist da sala — Pré-culto/Durante/Pós-culto
+
+Mesmo padrão de fases das outras bases (Apoio, Backstage,
+Comunicação…): `FASES` em `lib/modelo.js`, `pre|durante|pos` →
+"Pré-culto"/"Durante o culto"/"Pós-culto" — nunca "ao abrir"/"ao
+fechar a sala" (versão antiga, trocada 2026-09). Cada item
+(`bases/kinder/checklistSala/{id}`) tem `titulo`, `subtitulo`
+(opcional) e `horario` (opcional, "HH:MM") — a linha mostra sempre o
+horário primeiro, `"09:00 · Higienizar brinquedos"`, com o subtítulo
+por baixo. Escrita direta do cliente (`criarItemChecklist`,
+`lib/kinder.js`), só a líder cria/remove; qualquer voluntário marca —
+a marca (`eventos/{e}/checklistKinder/{sala}`) funciona sem rede,
+sincroniza quando a ligação voltar (a Casa do Povo nem sempre tem
+sinal).
+
+`ItensChecklist.jsx` (`components/sala/`) é o render partilhado —
+fases + itens + checkbox — usado por `ChecklistSala.jsx` (a página em
+Culto, com o formulário de "+ item" e o "✕" de remover, só para a
+líder) e por `Inicio.jsx` (só ver e marcar, sem gerir o catálogo,
+`mostrarFasesVazias={false}` para não mostrar "Pós-culto 0/0" antes
+de a líder criar itens nessa fase). Pedido do líder (2026-09): os
+itens da checklist da minha sala aparecem direto no Início, iguais ao
+resto do que outras bases já mostram lá — não só o atalho para a
+página.
 
 ## Entrada e cartaz de impressão
 

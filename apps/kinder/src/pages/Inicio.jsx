@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, souLider, souLiderGeral, minhaSalaRestrita, categoria, nomeCategoria, varsCategoria, CATEGORIAS, capacidadesPorSala, CRIANCAS_POR_VOLUNTARIO, CHECKIN_ATIVO } from "../lib/modelo";
-import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
+import { ouvirVoluntarios, ouvirEventosDoMes, obterEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirInventario, ouvirListaCompraFechada } from "../lib/inventario";
@@ -9,6 +9,7 @@ import { licoesDaSala, licoesVistas } from "../lib/licoes";
 import {
   hojeLocal, ouvirCriancas, ouvirCheckins,
   ouvirCapacitacoes, ouvirCapacitacoesDe, estadoCapacitacao,
+  ouvirItensChecklist, ouvirMarcasChecklist, marcarItem, desmarcarItem,
 } from "../lib/kinder";
 import { dataPorExtenso, eur, nomeCurto, nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -18,6 +19,7 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import Calendario from "../components/Calendario";
+import ItensChecklist from "../components/sala/ItensChecklist";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
   return (
@@ -58,6 +60,9 @@ export default function Inicio({
   const [contactoAberto, setContactoAberto] = useState(null);
   const [minhasSolicitacoes, setMinhasSolicitacoes] = useState([]);
   const [sheetComunicacao, setSheetComunicacao] = useState(null);
+  const [eventoChecklist, setEventoChecklist] = useState(null);
+  const [itensChecklist, setItensChecklist] = useState([]);
+  const [marcasChecklist, setMarcasChecklist] = useState({});
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
@@ -79,6 +84,22 @@ export default function Inicio({
     return ouvirReembolsos(true, uid, (l) => setPendentesReembolso(l.filter((r) => r.estado === "submetido")));
   }, [liderGeral, uid]);
   useEffect(() => { if (lider) return ouvirMinhasSolicitacoes(setMinhasSolicitacoes); }, [lider]);
+
+  // culto da checklist: o próximo a sério (hoje ou por vir), nunca
+  // preso ao mês que o calendário do Início está a mostrar — mesmo
+  // cálculo de ChecklistSala.jsx.
+  useEffect(() => {
+    const agora = new Date();
+    const seguinte = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+    Promise.all([obterEventosDoMes(agora.getFullYear(), agora.getMonth()), obterEventosDoMes(seguinte.getFullYear(), seguinte.getMonth())])
+      .then(([a, b]) => setEventoChecklist([...a, ...b].find((e) => e.data >= hoje) ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => ouvirItensChecklist(setItensChecklist), []);
+  useEffect(() => {
+    if (!eventoChecklist || !restrita) return;
+    return ouvirMarcasChecklist(eventoChecklist.id, restrita, setMarcasChecklist);
+  }, [eventoChecklist, restrita]);
 
   // a escala do culto em que sirvo tem de ser ao vivo
   useEffect(() => {
@@ -121,6 +142,17 @@ export default function Inicio({
       : (restrita && semLicaoHoje(restrita) ? [categoria(restrita)] : []);
   const capsEmFalta = capacitacoes.filter((c) => c.obrigatoria && estadoCapacitacao(c, minhasCaps[c.id]) !== "ok");
   const faltaInventario = inventario.filter((i) => i.quantidade <= i.minimo).length;
+
+  const itensDaMinhaSala = restrita ? itensChecklist.filter((i) => i.categoria === restrita || i.categoria === "todas") : [];
+  const feitosChecklist = itensDaMinhaSala.filter((i) => marcasChecklist[i.id]).length;
+
+  function alternarChecklist(item) {
+    if (!eventoChecklist || !restrita) return;
+    const escrita = marcasChecklist[item.id]
+      ? desmarcarItem(eventoChecklist.id, restrita, item.id)
+      : marcarItem(eventoChecklist.id, restrita, item.id, uid);
+    escrita.catch((e) => torrada(e.message || "Não foi possível atualizar.", true));
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -211,6 +243,17 @@ export default function Inicio({
             </div>
           )}
 
+          {restrita && eventoChecklist && (
+            <div className="sect" data-tour="checklist-bloco">
+              <div className="cabecalho"><h3>Checklist da sala</h3><span className="cap">{feitosChecklist} de {itensDaMinhaSala.length}</span></div>
+              <ItensChecklist
+                itens={itensDaMinhaSala} marcas={marcasChecklist} voluntarios={voluntarios} sala={restrita}
+                onAlternar={alternarChecklist} mostrarFasesVazias={false}
+              />
+              {itensDaMinhaSala.length === 0 && <div className="vaz">Ainda sem itens de checklist para a tua sala.</div>}
+            </div>
+          )}
+
           <div className="sect" data-tour="licao-bloco">
             <div className="cabecalho"><h3>Lição</h3></div>
             {licaoSemana ? (
@@ -240,7 +283,7 @@ export default function Inicio({
           <div className="sect">
             <div className="cabecalho"><h3>A tua sala</h3></div>
             {[
-              ["checklist", "Checklist da sala", "Abrir e fechar a sala", () => onIrCulto?.("checklist"), null],
+              ["checklist", "Checklist da sala", "Pré-culto, durante e pós-culto", () => onIrCulto?.("checklist"), null],
               ["inventario", "Inventário", lider ? "Materiais e lista de compras" : "Material da sala", () => onIrInventario?.(), faltaInventario ? `${faltaInventario} em falta` : null],
               ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
               ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),

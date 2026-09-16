@@ -98,8 +98,11 @@ export const ouvirItensChecklist = (cb) =>
   onSnapshot(query(cChecklistSala(), where("ativo", "==", true)), (s) =>
     cb(lista(s).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))));
 
-export const criarItemChecklist = ({ texto, categoria, fase }) =>
-  addDoc(cChecklistSala(), { texto: texto.trim(), categoria, fase, ordem: Date.now(), ativo: true });
+export const criarItemChecklist = ({ titulo, subtitulo, horario, categoria, fase }) =>
+  addDoc(cChecklistSala(), {
+    titulo: titulo.trim(), subtitulo: subtitulo?.trim() || "", horario: horario || "",
+    categoria, fase, ordem: Date.now(), ativo: true,
+  });
 export const desativarItemChecklist = (id) =>
   updateDoc(doc(db, `bases/${BASE_ID}/checklistSala/${id}`), { ativo: false });
 
