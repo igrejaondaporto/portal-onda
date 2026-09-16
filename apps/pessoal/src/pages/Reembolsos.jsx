@@ -1,18 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import { ouvirReembolsos, criarReembolso, aprovarReembolso, indeferirReembolso } from "../lib/reembolsos";
+import {
+  ouvirReembolsos, criarReembolso, aprovarReembolso, indeferirReembolso,
+  lerPagamentoGuardado, guardarPagamento, normalizarDestino, mostrarDestino,
+} from "../lib/reembolsos";
 import { ouvirVoluntarios } from "../lib/painel";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
-// submetido → aprovado|indeferido (líder) → pago (Financeiro, ainda
-// por construir — "aprovado" é onde este fluxo para, por agora).
+// submetido → aprovado|indeferido (líder) → pago|devolvido (Financeiro,
+// na app dele). "Devolvido" volta à mesa do líder: o Financeiro viu que
+// falta alguma coisa na nota e o pedido precisa de nova decisão.
 const ROTULOS = {
   submetido: { texto: { lider: "Pendente", voluntario: "Em aberto" }, tag: "cinz" },
-  aprovado: { texto: { lider: "Aprovado", voluntario: "Aguardando Financeiro" }, tag: "verd" },
+  aprovado: { texto: { lider: "Aprovado", voluntario: "À espera do Financeiro" }, tag: "verd" },
+  devolvido: { texto: { lider: "Devolvido", voluntario: "Por corrigir" }, tag: "lim" },
   indeferido: { texto: { lider: "Indeferido", voluntario: "Indeferido" }, tag: "" },
   pago: { texto: { lider: "Pago", voluntario: "Pago" }, tag: "verd" },
 };
+
+const POR_DECIDIR = new Set(["submetido", "devolvido"]);
+
+const METODOS = [
+  ["mbway", "MB Way"],
+  ["transferencia", "Transferência"],
+];
 
 export default function Reembolsos({ uid, papel, definirCabecalho }) {
   const torrada = useTorrada();
@@ -27,11 +39,36 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
   const [aIndeferir, setAIndeferir] = useState(null);
   const [comentario, setComentario] = useState("");
   const [aProcessar, setAProcessar] = useState(false);
+  // onde a pessoa recebe: lido uma vez, editável enquanto não houver
+  // nada guardado (ou quando ela toca em "Mudar")
+  const [pagamento, setPagamento] = useState(null);
+  const [aMudarPagamento, setAMudarPagamento] = useState(false);
+  const [metodo, setMetodo] = useState("mbway");
+  const [destino, setDestino] = useState("");
 
   useEffect(() => ouvirReembolsos(souLiderBase, uid, setReembolsos), [souLiderBase, uid]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
 
-  const pendentes = reembolsos.filter((r) => r.estado === "submetido");
+  const eu = voluntarios.find((x) => x.id === uid);
+
+  useEffect(() => {
+    let vivo = true;
+    lerPagamentoGuardado(uid).then((p) => {
+      if (!vivo) return;
+      setPagamento(p);
+      if (p) { setMetodo(p.metodo); setDestino(p.destino); }
+    });
+    return () => { vivo = false; };
+  }, [uid]);
+
+  // o MB Way é o telemóvel dela — poupa-lhe escrever o número que a
+  // base já conhece. Só sugere: se ela apagar, fica apagado.
+  useEffect(() => {
+    if (pagamento || destino || metodo !== "mbway" || !eu?.telefone) return;
+    setDestino(eu.telefone);
+  }, [pagamento, destino, metodo, eu?.telefone]);
+
+  const pendentes = reembolsos.filter((r) => POR_DECIDIR.has(r.estado));
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
 
   useEffect(() => {
@@ -51,15 +88,33 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
     if (f) setFicheiro(f);
   }
 
+  function trocarMetodo(m) {
+    setMetodo(m);
+    setDestino(m === "mbway" ? (eu?.telefone ?? "") : "");
+  }
+
   async function submeter() {
     if (!descricao.trim()) return torrada("Escreve o que compraste");
     const v = parseFloat(String(valor).replace(",", "."));
     if (!v || v <= 0) return torrada("Falta o valor");
     if (!ficheiro) return torrada("Junta a foto da nota");
+
+    // sem isto ninguém te consegue pagar — é por isso que é obrigatório
+    const usarGuardado = pagamento && !aMudarPagamento;
+    const aValidar = usarGuardado ? pagamento : { metodo, destino };
+    const { destino: limpo, erro } = normalizarDestino(aValidar.metodo, aValidar.destino);
+    if (erro) return torrada(erro);
+    const paraPagar = { metodo: aValidar.metodo, destino: limpo };
+
     setAEnviar(true);
     try {
-      await criarReembolso(uid, { descricao: descricao.trim(), valor: v, ficheiro });
+      if (!usarGuardado) await guardarPagamento(uid, paraPagar);
+      await criarReembolso(uid, {
+        descricao: descricao.trim(), valor: v, ficheiro,
+        pessoaNome: eu?.nome ?? null, pagamento: paraPagar,
+      });
       setDescricao(""); setValor(""); setFicheiro(null);
+      setPagamento(paraPagar); setAMudarPagamento(false);
       torrada(`Pedido enviado ao ${nomeLiderBase}`);
     } catch (e) {
       torrada(e.message || "Não foi possível enviar.");
@@ -95,6 +150,8 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
     }
   }
 
+  const mostrarFormPagamento = !pagamento || aMudarPagamento;
+
   return (
     <div className="duas">
       <div>
@@ -113,6 +170,56 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
             <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => inputRef.current.click()}>
               {ficheiro ? "Nota anexada ✓" : "Escolher ficheiro"}
             </button>
+
+            <label className="rot">Onde queres receber</label>
+            {mostrarFormPagamento ? (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 8 }}>
+                  {METODOS.map(([m, rotulo]) => (
+                    <button
+                      key={m}
+                      className="btn sec"
+                      style={{
+                        padding: "12px 10px", fontSize: 13.5,
+                        ...(metodo === m ? { background: "var(--azul)", color: "#fff" } : null),
+                      }}
+                      onClick={() => trocarMetodo(m)}
+                    >
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  className="campo" value={destino} onChange={(e) => setDestino(e.target.value)}
+                  inputMode={metodo === "mbway" ? "numeric" : "text"}
+                  placeholder={metodo === "mbway" ? "912 345 678" : "PT50 0000 0000 0000 0000 0000 0"}
+                />
+                <p className="ds" style={{ marginTop: 8 }}>
+                  Fica guardado — nos próximos pedidos já não tens de escrever. Ninguém da base vê isto, só o Financeiro.
+                </p>
+                {pagamento && (
+                  <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => {
+                    setAMudarPagamento(false);
+                    setMetodo(pagamento.metodo); setDestino(pagamento.destino);
+                  }}>
+                    Manter o que estava
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="linha" style={{ borderBottom: 0, paddingBottom: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="nmt">
+                    {METODOS.find(([m]) => m === pagamento.metodo)?.[1]} · {mostrarDestino(pagamento.metodo, pagamento.destino)}
+                  </p>
+                  <p className="ds">O teu método guardado</p>
+                </div>
+                <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, flex: "none" }} onClick={() => setAMudarPagamento(true)}>
+                  Mudar
+                </button>
+              </div>
+            )}
+
             <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={submeter}>Enviar ao líder</button>
             <p className="ds" style={{ marginTop: 12 }}>O {nomeLiderBase} recebe o pedido e encaminha para o Financeiro.</p>
           </div>
@@ -135,7 +242,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                         {r.descricao} · {dataTimestamp(r.criadoEm)}{souLiderBase && p ? ` · ${p.nome}` : ""}
                       </p>
                     </div>
-                    {souLiderBase && r.estado === "submetido" ? (
+                    {souLiderBase && POR_DECIDIR.has(r.estado) ? (
                       aIndeferir === r.id ? null : (
                         <div style={{ display: "flex", gap: 8, flex: "none" }}>
                           <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} disabled={aProcessar} onClick={() => aprovar(r.id)}>
@@ -167,6 +274,11 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                         <button className="btn sec full" onClick={() => setAIndeferir(null)}>Cancelar</button>
                       </div>
                     </div>
+                  )}
+                  {r.estado === "devolvido" && r.devolvidoPorFinanceiro && (
+                    <p className="ds" style={{ marginTop: -8, marginBottom: 14, color: "var(--laranja)" }}>
+                      O Financeiro devolveu: {r.devolvidoPorFinanceiro}
+                    </p>
                   )}
                   {r.estado === "indeferido" && r.comentarioLider && (
                     <p className="ds" style={{ marginTop: -8, marginBottom: 14, color: "var(--magenta)" }}>
