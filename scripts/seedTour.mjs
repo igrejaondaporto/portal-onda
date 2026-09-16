@@ -642,10 +642,10 @@ const TOURS = {
     ],
   },
 
-  // sem líder de escala nem checklist — a app inteira é só duas telas.
-  // Ordem: primeiro os dois botões do menu (não dependem de dados),
-  // depois "fechamento". Sem `passosLider` a sério — todo mundo aqui
-  // já trata reembolsos, não há um segundo papel para explicar.
+  // sem líder de escala nem checklist. Ordem: primeiro os botões do
+  // menu (não dependem de dados), depois "fechamento". Sem
+  // `passosLider` a sério — todo mundo aqui já trata reembolsos, não
+  // há um segundo papel para explicar.
   financeiro: {
     passos: [
       {
@@ -665,6 +665,12 @@ const TOURS = {
         titulo: "Dinheiro",
         texto: "Totais por base e por mês, e a exportação para a contabilidade.",
         alvo: "nav-dinheiro", pagina: "porpagar",
+      },
+      {
+        chave: "nav-fornecedores",
+        titulo: "Fornecedores",
+        texto: "Gastos fixos que não vêm de reembolso — renda, subscrições, contratos. Regista aqui quando pagares um.",
+        alvo: "nav-fornecedores", pagina: "porpagar",
       },
       {
         chave: "fechamento",

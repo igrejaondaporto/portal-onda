@@ -324,6 +324,25 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ── Financeiro: fornecedores e despesas fixas (Base Financeiro) ──
+      // Gastos fixos/recorrentes que não nascem de um pedido de
+      // reembolso de outra base (renda, subscrições, contrato de
+      // limpeza…) — dado só desta base, sem autoria mista, por isso
+      // escrita direta do cliente, mesmo padrão de funcoes/avisos.
+      // "Excluir" um fornecedor é sempre ativo:false (regra 5 do
+      // CLAUDE.md raiz). despesasFixas é o histórico de pagamento —
+      // só cria, nunca edita nem apaga, como inventario/movimentos.
+      match /fornecedores/{f} {
+        allow read:            if minhaBase(base);
+        allow create, update: if minhaBase(base);
+        allow delete:          if false;
+      }
+      match /despesasFixas/{d} {
+        allow read:   if minhaBase(base);
+        allow create: if minhaBase(base) && request.resource.data.criadoPor == request.auth.uid;
+        allow update, delete: if false;
+      }
+
       // ── biblioteca de músicas (Base Louvor) — só o líder (ou
       // auxiliar, já coberto por souLiderBase) cadastra música nova
       // (2026-09, antes era qualquer voluntário); adicionar versão
