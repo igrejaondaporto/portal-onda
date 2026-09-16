@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { marcarReembolsosPagos, devolverReembolso, mostrarDestino, ROTULO_METODO } from "../lib/reembolsosFinanceiro";
+import { marcarReembolsosPagos, devolverReembolso, subirComprovativoPagamento, mostrarDestino, ROTULO_METODO } from "../lib/reembolsosFinanceiro";
 
 /** Detalhe de um pedido aprovado — pagar ou devolver. As duas ações
  *  são Cloud Function (ver lib/reembolsosFinanceiro.js); esta folha só
@@ -10,14 +10,32 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
   const torrada = useTorrada();
   const [metodo, setMetodo] = useState(pedido.pagamento?.metodo ?? "transferencia");
   const [referencia, setReferencia] = useState("");
+  const [comprovativo, setComprovativo] = useState(null);
+  const inputComprovativoRef = useRef(null);
   const [aDevolver, setADevolver] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
+  function escolherComprovativo(e) {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (f) setComprovativo(f);
+  }
+
   async function pagar() {
     setAEnviar(true);
     try {
-      await marcarReembolsosPagos([pedido], metodo, referencia.trim());
+      // opcional — se falhar o upload, o pagamento não fica bloqueado
+      // por causa disso; só avisa e segue sem o comprovativo.
+      let comprovativoUrl = null;
+      if (comprovativo) {
+        try {
+          comprovativoUrl = await subirComprovativoPagamento(pedido, comprovativo);
+        } catch {
+          torrada("Não foi possível subir o comprovativo — a marcar como pago mesmo assim.");
+        }
+      }
+      await marcarReembolsosPagos([pedido], metodo, referencia.trim(), comprovativoUrl);
       torrada("Pedido marcado como pago");
       onFeito?.();
     } catch (e) {
@@ -96,6 +114,12 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
             </div>
             <label className="rot">Referência (opcional)</label>
             <input className="campo" value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="Nº da transferência, por exemplo" />
+
+            <label className="rot">Comprovativo de pagamento (opcional)</label>
+            <input ref={inputComprovativoRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={escolherComprovativo} />
+            <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => inputComprovativoRef.current.click()}>
+              {comprovativo ? "Comprovativo anexado ✓" : "Escolher ficheiro"}
+            </button>
 
             <div style={{ display: "flex", gap: 9, marginTop: 20 }}>
               <button className="btn full" disabled={aEnviar} onClick={pagar}>Marcar como pago</button>

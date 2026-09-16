@@ -281,6 +281,11 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                       O Financeiro devolveu: {r.devolvidoPorFinanceiro}
                     </p>
                   )}
+                  {r.estado === "pago" && r.comprovativoPagamento && (
+                    <p className="ds" style={{ marginTop: -8, marginBottom: 14 }}>
+                      <a href={r.comprovativoPagamento} target="_blank" rel="noreferrer">Ver comprovativo de pagamento</a>
+                    </p>
+                  )}
                   {r.estado === "indeferido" && r.comentarioLider && (
                     <p className="ds" style={{ marginTop: -8, marginBottom: 14, color: "var(--magenta)" }}>
                       Motivo: {r.comentarioLider}
