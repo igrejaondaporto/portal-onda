@@ -663,7 +663,7 @@ const TOURS = {
       {
         chave: "nav-dinheiro",
         titulo: "Dinheiro",
-        texto: "Totais por base e por mês, e a exportação para a contabilidade.",
+        texto: "Totais por base e por mês, a exportação para a contabilidade, e o registo de dízimos e ofertas de cada culto.",
         alvo: "nav-dinheiro", pagina: "porpagar",
       },
       {

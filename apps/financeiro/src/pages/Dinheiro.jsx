@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirReembolsosPorEstado, ouvirReembolsosPagos } from "../lib/reembolsosFinanceiro";
+import { ouvirEntradas, FUNDOS, ROTULO_FUNDO, ROTULO_METODO_ENTRADA } from "../lib/entradas";
 import { ouvirBases } from "../lib/bases";
-import { eur } from "@portal/shared/lib/data.js";
+import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import SheetRegistarEntrada from "../components/SheetRegistarEntrada";
 
 const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -27,15 +29,18 @@ function paraCsv(linhas) {
   return [cabecalho.join(","), ...corpo].join("\n");
 }
 
-export default function Dinheiro({ definirCabecalho }) {
+export default function Dinheiro({ uid, definirCabecalho }) {
   const torrada = useTorrada();
   const [porPagar, setPorPagar] = useState([]);
   const [pagos, setPagos] = useState([]);
   const [bases, setBases] = useState({});
+  const [entradas, setEntradas] = useState([]);
+  const [sheetEntrada, setSheetEntrada] = useState(false);
 
   useEffect(() => ouvirBases(setBases), []);
   useEffect(() => ouvirReembolsosPorEstado("aprovado", setPorPagar), []);
   useEffect(() => ouvirReembolsosPagos(setPagos), []);
+  useEffect(() => ouvirEntradas(setEntradas), []);
 
   const hoje = useMemo(() => new Date(), []);
   const chaveMesAtual = `${hoje.getFullYear()}-${hoje.getMonth()}`;
@@ -51,8 +56,24 @@ export default function Dinheiro({ definirCabecalho }) {
   }, [pagoEsteAno]);
   const maiorPorBase = porBaseEsteAno[0]?.total ?? 1;
 
+  const entradasEsteMes = useMemo(
+    () => entradas.filter((e) => mesAno(e.criadoEm) === chaveMesAtual),
+    [entradas, chaveMesAtual],
+  );
+  const totalEntradasMes = entradasEsteMes.reduce((s, e) => s + e.valor, 0);
+  const entradasPorFundo = useMemo(() => {
+    const mapa = new Map();
+    for (const e of entradasEsteMes) mapa.set(e.fundo, (mapa.get(e.fundo) ?? 0) + e.valor);
+    return FUNDOS.map(([f]) => [f, mapa.get(f) ?? 0]).filter(([, total]) => total > 0);
+  }, [entradasEsteMes]);
+  const entradasPorMetodo = useMemo(() => {
+    const mapa = new Map();
+    for (const e of entradasEsteMes) mapa.set(e.metodo, (mapa.get(e.metodo) ?? 0) + e.valor);
+    return [...mapa.entries()];
+  }, [entradasEsteMes]);
+
   useEffect(() => {
-    definirCabecalho({ titulo: <em>Dinheiro</em>, subtitulo: "O que saiu, por base e por mês", chips: [] });
+    definirCabecalho({ titulo: <em>Dinheiro</em>, subtitulo: "O que saiu e o que entrou, por mês", chips: [] });
   }, [definirCabecalho]);
 
   function exportarCsv() {
@@ -110,9 +131,54 @@ export default function Dinheiro({ definirCabecalho }) {
         )) : <div className="vaz">Ainda não há nada pago este ano.</div>}
       </div>
 
-      <button className="btn sec full" style={{ marginTop: 20, marginBottom: 20 }} onClick={exportarCsv}>
+      <button className="btn sec full" style={{ marginTop: 20 }} onClick={exportarCsv}>
         Exportar {MESES_PT[hoje.getMonth()]} (CSV)
       </button>
+
+      <div className="sect">
+        <div className="cabecalho">
+          <h3>Dinheiro que entra</h3>
+          <button className="cap" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={() => setSheetEntrada(true)}>
+            + Registar
+          </button>
+        </div>
+
+        <div className="linha" style={{ paddingTop: 0 }}>
+          <div style={{ flex: 1 }}>
+            <p className="nmt">{eur(totalEntradasMes)}</p>
+            <p className="ds">Entrou em {MESES_PT[hoje.getMonth()]} · {entradasEsteMes.length} lançamento{entradasEsteMes.length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+
+        {entradasPorFundo.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {entradasPorFundo.map(([fundo, total]) => (
+              <span className="tag cinz" key={fundo}>{ROTULO_FUNDO[fundo]} · {eur(total)}</span>
+            ))}
+          </div>
+        )}
+        {entradasPorMetodo.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {entradasPorMetodo.map(([metodo, total]) => (
+              <span className="tag cinz" key={metodo}>{ROTULO_METODO_ENTRADA[metodo] ?? metodo} · {eur(total)}</span>
+            ))}
+          </div>
+        )}
+
+        {entradas.length ? entradas.slice(0, 10).map((e) => (
+          <div className="linha" key={e.id}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="nmt">{eur(e.valor)}</p>
+              <p className="ds">{ROTULO_FUNDO[e.fundo] ?? e.fundo} · {dataTimestamp(e.criadoEm)}{e.referencia ? ` · ${e.referencia}` : ""}</p>
+            </div>
+            <span className="tag cinz">{ROTULO_METODO_ENTRADA[e.metodo] ?? e.metodo}</span>
+          </div>
+        )) : <div className="vaz" style={{ marginTop: 12 }}>Ainda não há entradas registadas.</div>}
+      </div>
+
+      {sheetEntrada && (
+        <SheetRegistarEntrada uid={uid} onFechar={() => setSheetEntrada(false)} onFeito={() => setSheetEntrada(false)} />
+      )}
     </>
   );
 }
