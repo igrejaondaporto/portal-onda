@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ouvirReembolsosPorEstado, ouvirReembolsosPagos } from "../lib/reembolsosFinanceiro";
+import { ouvirReembolsosPorEstado, ouvirReembolsosPagos, faturaPorReceber } from "../lib/reembolsosFinanceiro";
 import { ouvirContagens, emEuros, domingoMaisRecente } from "../lib/oferta";
 import { ouvirBases } from "../lib/bases";
 import Barras from "../components/Barras";
@@ -73,6 +73,13 @@ export default function Inicio({ ativo, irPara, definirCabecalho }) {
   const domingo = domingoMaisRecente(hoje);
   const ofertaPorContar = contagens !== null && !contagens.some((c) => c.data === domingo);
 
+  // a fatura em papel anda a outro ritmo que o dinheiro — pagar não
+  // fecha o processo enquanto o papel não estiver conferido.
+  const faturasPorConferir = useMemo(
+    () => [...porPagar, ...pagos].filter(faturaPorReceber).length,
+    [porPagar, pagos],
+  );
+
   const anoAtual = hoje.getFullYear();
   const porCategoria = useMemo(() => {
     const mapa = new Map();
@@ -126,6 +133,12 @@ export default function Inicio({ ativo, irPara, definirCabecalho }) {
         <Aviso
           texto={`A oferta de ${dataPorExtenso(domingo)} ainda não foi contada.`}
           accao="Contar" onAccao={() => irPara("oferta")}
+        />
+      )}
+      {faturasPorConferir > 0 && (
+        <Aviso
+          texto={`${faturasPorConferir} fatura${faturasPorConferir !== 1 ? "s" : ""} em papel por conferir.`}
+          accao="Conferir" onAccao={() => irPara("reembolsos")}
         />
       )}
 

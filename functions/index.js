@@ -4532,6 +4532,40 @@ export const devolverReembolso = onCall(async (req) => {
   return { ok: true };
 });
 
+/**
+ * O Financeiro confirma que tem mesmo a fatura EM PAPEL daquele
+ * pedido. É uma conferência à parte do dinheiro: o líder pode
+ * entregar cinco faturas e faltar uma, e é isso que este campo
+ * regista, pedido a pedido — nunca "o líder entregou tudo".
+ *
+ * Passa por função porque o Financeiro só tem LEITURA em
+ * bases/{b}/reembolsos (claim ve_todos_reembolsos, ver
+ * firestore.rules) — escrever de lá seria abrir a coleção de outra
+ * base à escrita direta, que é exatamente o que a regra 3 do
+ * CLAUDE.md raiz evita.
+ *
+ * Desmarcar é permitido de propósito: marcar a linha errada numa
+ * pilha de papéis acontece, e não há nada aqui que justifique um
+ * caminho só de ida.
+ */
+export const marcarFaturaFisica = onCall(async (req) => {
+  const uid = gateFinanceiro(req);
+  const { baseId, id, recebida } = req.data || {};
+  if (!baseId || !id) throw new HttpsError("invalid-argument", "Falta o pedido.");
+  if (typeof recebida !== "boolean") throw new HttpsError("invalid-argument", "Falta dizer se a fatura foi recebida.");
+
+  const ref = db.doc(`bases/${baseId}/reembolsos/${id}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+
+  await ref.update({
+    "fatura.recebida": recebida,
+    "fatura.recebidaEm": recebida ? admin.firestore.Timestamp.now() : null,
+    "fatura.recebidaPorId": recebida ? uid : null,
+  });
+  return { ok: true };
+});
+
 /* O Financeiro já não lê património nenhum: `obterPatrimonioBases`
  * (soma de `valorCompra` da Técnica e da Louvor por Admin SDK) foi
  * removida em 2026-09, quando a base passou a fazer só duas coisas —

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ouvirReembolsosPorEstado, marcarReembolsosPagos } from "../lib/reembolsosFinanceiro";
+import {
+  ouvirReembolsosPorEstado, ouvirReembolsosPagos, marcarReembolsosPagos,
+  marcarFaturaFisica, faturaPorReceber, ROTULO_FATURA,
+} from "../lib/reembolsosFinanceiro";
 import { ouvirBases } from "../lib/bases";
 import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
@@ -14,7 +17,14 @@ const FILTROS = [
   ["aprovado", "Por pagar"],
   ["pago", "Pagos"],
   ["devolvido", "Devolvidos"],
+  ["faturas", "Faturas"],
 ];
+
+// "Faturas" não é um estado do pedido — é a conferência do papel, que
+// corre em paralelo ao dinheiro: um pedido pode já estar pago e a
+// fatura ainda não ter chegado à mão, e vice-versa. Por isso lê
+// aprovados E pagos, e filtra pelo que falta conferir.
+const ESTADO_REAL = (f) => (f === "faturas" ? "aprovado" : f);
 
 export default function Reembolsos({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
@@ -28,10 +38,19 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
   const [selecionados, setSelecionados] = useState(() => new Set());
   const [aPagarLote, setAPagarLote] = useState(false);
 
+  const [pagosParaFatura, setPagosParaFatura] = useState([]);
+  const [aMarcarFatura, setAMarcarFatura] = useState(null);
+
   useEffect(() => ouvirBases(setBases), []);
   useEffect(() => {
     setSelecionados(new Set());
-    return ouvirReembolsosPorEstado(filtro, setReembolsos);
+    return ouvirReembolsosPorEstado(ESTADO_REAL(filtro), setReembolsos);
+  }, [filtro]);
+  // um pedido já pago pode continuar sem a fatura em papel — por isso a
+  // conferência tem de olhar também para esses, não só para a fila.
+  useEffect(() => {
+    if (filtro !== "faturas") return setPagosParaFatura([]);
+    return ouvirReembolsosPagos(setPagosParaFatura);
   }, [filtro]);
 
   const nomeBase = (b) => bases[b]?.nome ?? b;
@@ -45,14 +64,42 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
     [reembolsos, bases],
   );
 
-  const visiveis = useMemo(() => reembolsos.filter((r) => {
-    if (base !== "todas" && r.baseId !== base) return false;
-    if (categoria !== "todas" && r.categoria !== categoria) return false;
-    return true;
-  }), [reembolsos, base, categoria]);
+  const visiveis = useMemo(() => {
+    const fonte = filtro === "faturas"
+      ? [...reembolsos, ...pagosParaFatura].filter(faturaPorReceber)
+      : reembolsos;
+    return fonte.filter((r) => {
+      if (base !== "todas" && r.baseId !== base) return false;
+      if (categoria !== "todas" && r.categoria !== categoria) return false;
+      return true;
+    });
+  }, [filtro, reembolsos, pagosParaFatura, base, categoria]);
+
+  // na conferência do papel, o que interessa é "de quem é esta pilha" —
+  // o líder entrega as faturas da base dele todas juntas.
+  const porBase = useMemo(() => {
+    const mapa = new Map();
+    for (const r of visiveis) {
+      if (!mapa.has(r.baseId)) mapa.set(r.baseId, []);
+      mapa.get(r.baseId).push(r);
+    }
+    return [...mapa.entries()].sort((a, b) => nomeBase(a[0]).localeCompare(nomeBase(b[0])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiveis, bases]);
 
   const total = useMemo(() => visiveis.reduce((s, r) => s + r.valor, 0), [visiveis]);
   const haFiltro = base !== "todas" || categoria !== "todas";
+
+  async function alternarFatura(r) {
+    setAMarcarFatura(r.id);
+    try {
+      await marcarFaturaFisica(r.baseId, r.id, !r.fatura?.recebida);
+    } catch (e) {
+      torrada(e.message || "Não foi possível marcar a fatura.");
+    } finally {
+      setAMarcarFatura(null);
+    }
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -138,6 +185,48 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
         </select>
       </div>
 
+      {filtro === "faturas" ? (
+        <>
+          <p className="ds" style={{ marginTop: 14 }}>
+            As faturas em papel que ainda não conferiste, agrupadas pela base de quem as entrega.
+            Marca cada uma à medida que a tiveres em mãos — o líder pode entregar só parte da pilha.
+          </p>
+          {porBase.length ? porBase.map(([baseId, itens]) => (
+            <div className="sect" key={baseId}>
+              <div className="cabecalho">
+                <h3>
+                  <span className="quadmin" style={{ background: corBase(baseId) }} />
+                  {nomeBase(baseId)}
+                </h3>
+                <span className="cap">{itens.length} por conferir</span>
+              </div>
+              {itens.map((r) => (
+                <div className="linha" key={`${r.baseId}-${r.id}`} style={{ cursor: "pointer" }} onClick={() => alternarFatura(r)}>
+                  <span
+                    style={{
+                      width: 24, height: 24, borderRadius: 8, flex: "none", display: "grid", placeItems: "center",
+                      border: "2px solid #cdd3ea", background: "#fff",
+                      opacity: aMarcarFatura === r.id ? 0.4 : 1,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{eur(r.valor)}</p>
+                    <p className="ds">
+                      {r.pessoaNome ?? "…"} · {r.descricao}
+                    </p>
+                    <p className="ds" style={{ color: r.fatura?.paraFinanceiro === "entregue" ? "var(--laranja)" : undefined }}>
+                      {ROTULO_FATURA[r.fatura?.paraFinanceiro] ?? "Sem informação do líder"}
+                      {r.estado === "pago" ? " · já pago" : ""}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )) : (
+            <div className="sect"><div className="vaz">Está tudo conferido — não falta nenhuma fatura em papel.</div></div>
+          )}
+        </>
+      ) : (
       <div className="sect">
         <div className="cabecalho">
           <h3>{filtro === "aprovado" ? "Fila de pagamento" : FILTROS.find(([e]) => e === filtro)?.[1]}</h3>
@@ -193,6 +282,7 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
           <div className="vaz">{haFiltro ? "Nada com estes filtros." : "Nada por aqui."}</div>
         )}
       </div>
+      )}
 
       {/* fica ACIMA da NavBar (fixa no fundo, z-index 12) — nunca sobre
           ela, senão tapa os separadores enquanto se escolhe o lote.

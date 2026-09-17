@@ -61,7 +61,7 @@ export const mostrarDestino = (metodo, destino) =>
     ? String(destino).replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3")
     : String(destino).replace(/(.{4})/g, "$1 ").trim();
 
-export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNome, pagamento, categoria }) {
+export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNome, pagamento, categoria, faturaComLider }) {
   const ref = doc(cReembolsos());
   let anexo = null;
   if (ficheiro) {
@@ -84,6 +84,12 @@ export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNo
     // categoria é o que faz o Relatório do Financeiro responder
     // "gastámos quanto em quê" — sem isto, é só uma lista de valores.
     descricao, valor, anexo, pagamento, categoria,
+    // O papel da fatura segue à parte do dinheiro: a foto vai por aqui,
+    // mas o original em papel passa de mão em mão (voluntário → líder →
+    // Financeiro) e é isso que a contabilidade precisa de ter. Este mapa
+    // é o rasto dessa viagem, e `comLider` é o primeiro passo — o que a
+    // pessoa declara ao submeter.
+    fatura: { comLider: !!faturaComLider, paraFinanceiro: null, recebida: false, recebidaEm: null },
     estado: "submetido", criadoEm: serverTimestamp(),
   });
   return ref.id;
@@ -91,10 +97,18 @@ export async function criarReembolso(uid, { descricao, valor, ficheiro, pessoaNo
 
 /** Aprovar/indeferir são do líder — as regras já só deixam a ele
  *  (souLiderBase). "Aprovado" fica à espera do Financeiro, que paga ou
- *  devolve a partir da app dele. */
-export const aprovarReembolso = (reembolsoId) =>
+ *  devolve a partir da app dele.
+ *
+ *  `paraFinanceiro` diz o que o líder vai fazer ao papel: "entregue"
+ *  (já o passou ao Financeiro) ou "proximo_culto" (leva no domingo).
+ *  Aprovar marca sempre `comLider: true` — ninguém entrega ao
+ *  Financeiro uma fatura que não tem na mão, e é o líder que confirma
+ *  o que o voluntário declarou. */
+export const aprovarReembolso = (reembolsoId, paraFinanceiro) =>
   updateDoc(doc(db, `bases/${BASE_ID}/reembolsos/${reembolsoId}`), {
     estado: "aprovado", comentarioLider: null, decididoEm: serverTimestamp(),
+    "fatura.comLider": true,
+    "fatura.paraFinanceiro": paraFinanceiro,
   });
 
 export const indeferirReembolso = (reembolsoId, comentario) =>
