@@ -12,6 +12,15 @@ export function inicial(nome) {
   return (nome || "?").trim()[0]?.toUpperCase() || "?";
 }
 
+/** "Apoio" → "Base Apoio"; "Base Louvor" → "Base Louvor" (sem
+ *  duplicar). O campo `bases/{id}.nome` não é consistente entre
+ *  bases — algumas já gravam o nome com "Base" pela frente, outras
+ *  não — por isso nunca se pode simplesmente prefixar às cegas. */
+export function nomeBase(nome) {
+  const n = String(nome || "").trim();
+  return /^base\b/i.test(n) ? n : `Base ${n}`;
+}
+
 const DIA_MS = 24 * 60 * 60 * 1000;
 export function relativo(timestamp) {
   const ms = timestamp?.toMillis?.() ?? (timestamp?.seconds ? timestamp.seconds * 1000 : null);

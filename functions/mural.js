@@ -28,7 +28,7 @@ import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import admin from "firebase-admin";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 const db = () => admin.firestore();
 
@@ -65,6 +65,15 @@ function confere(pin, guardado) {
 const refGlobal = (p) => db().doc(`pessoas/${p}`);
 const refSegredo = (p) => db().doc(`pessoas/${p}/privado/auth`);
 const refAdminMural = (uid) => db().doc(`config/muralAdmins/${uid}`);
+
+/** "Apoio" → "Base Apoio"; "Base Louvor" → "Base Louvor" (sem
+ *  duplicar) — mesmo helper de apps/mural/src/lib/util.js. O campo
+ *  `bases/{id}.nome` não é consistente entre bases (algumas já
+ *  gravam "Base X", outras só "X"), por isso nunca prefixar às cegas. */
+function nomeBase(nome) {
+  const n = String(nome || "").trim();
+  return /^base\b/i.test(n) ? n : `Base ${n}`;
+}
 
 /** Só dígitos, sem +351/espaços/traços. Não valida se É um número de
  *  telemóvel real — não há verificação por SMS aqui, de propósito: o
@@ -249,7 +258,7 @@ async function autorInfo(uid) {
   const basesAtivas = Object.keys(p.bases || {}).filter((b) => p.bases[b]);
   if (basesAtivas.length) {
     const bSnap = await db().doc(`bases/${basesAtivas[0]}`).get();
-    local = bSnap.exists ? `Base ${bSnap.data().nome || basesAtivas[0]}` : null;
+    local = bSnap.exists ? nomeBase(bSnap.data().nome || basesAtivas[0]) : null;
   } else if (p.gdId) {
     const gSnap = await db().doc(`gds/${p.gdId}`).get();
     local = gSnap.exists ? `GD ${gSnap.data().nome}` : null;
@@ -304,12 +313,35 @@ async function telefoneDoAutor(uid) {
   return null;
 }
 
-/** Botão "Falar no WhatsApp" do detalhe do anúncio — o único sítio
- *  onde o número sai, e só para quem já entrou (nunca para quem só
- *  tem o link). */
+const MAX_CONTACTOS_POR_HORA = 30; // por IP — ver limitarPedidoContacto
+
+/** Mesmo padrão de `limitarRegistoPublico` em kinder.js: sem sessão
+ *  para identificar quem pede (o botão do WhatsApp é público — ver
+ *  abaixo), o IP é o único travão contra um script a percorrer todos
+ *  os anúncios a colher números. Guardado com hash, nunca em claro. */
+async function limitarPedidoContacto(req) {
+  const ip = req.rawRequest?.ip || req.rawRequest?.headers?.["x-forwarded-for"] || "desconhecido";
+  const ref = db().doc(`limitesMural/${createHash("sha256").update(String(ip)).digest("hex").slice(0, 32)}`);
+  await db().runTransaction(async (tx) => {
+    const s = await tx.get(ref);
+    const agoraMs = Date.now();
+    const d = s.exists ? s.data() : null;
+    const naJanela = d && agoraMs - d.inicioMs < 60 * 60 * 1000;
+    const contagem = naJanela ? d.contagem + 1 : 1;
+    if (contagem > MAX_CONTACTOS_POR_HORA) {
+      throw new HttpsError("resource-exhausted", "Demasiados pedidos seguidos. Tenta outra vez daqui a um bocado.");
+    }
+    tx.set(ref, { inicioMs: naJanela ? d.inicioMs : agoraMs, contagem });
+  });
+}
+
+/** Botão "Falar no WhatsApp" do detalhe do anúncio — público de
+ *  propósito (2026-09): ver quem vende e chamar no WhatsApp NUNCA
+ *  pede conta (só publicar pede). O único travão contra colheita em
+ *  massa é o limite por IP acima — nunca o número fica gravado no
+ *  documento do anúncio em si (ver telefoneDoAutor). */
 export const pedirContactoAnuncio = onCall(async (req) => {
-  const uid = req.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  await limitarPedidoContacto(req);
   const { id } = req.data || {};
   const snap = await db().doc(`anuncios/${id}`).get();
   if (!snap.exists) throw new HttpsError("not-found", "Anúncio não encontrado.");

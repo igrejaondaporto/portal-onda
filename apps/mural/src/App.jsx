@@ -5,13 +5,21 @@ import { souAdminMuralAgora } from "./lib/anuncios.js";
 import Entrada from "./pages/Entrada.jsx";
 import Sessao from "./pages/Sessao.jsx";
 
+/**
+ * O Mural é público (2026-09, pedido explícito): ver os anúncios e
+ * falar no WhatsApp NUNCA pede conta — só publicar pede. Por isso o
+ * ecrã de Entrada deixou de ser a porta de entrada da app: é um
+ * overlay que só aparece quando alguém pede para entrar (botão
+ * "Entrar" no cabeçalho, ou ao tentar Publicar/Os meus/Painel sem
+ * sessão — ver `onPedirEntrar` em Sessao.jsx).
+ */
 export default function App() {
-  const [aCarregar, setACarregar] = useState(true);
+  const [pronto, setPronto] = useState(false);
   const [eu, setEu] = useState(null);
+  const [aEntrar, setAEntrar] = useState(false);
 
   useEffect(() => {
     const parar = onAuthStateChanged(auth, async (utilizador) => {
-      setACarregar(true);
       if (utilizador) {
         const [pSnap, admin] = await Promise.all([
           getDoc(doc(db, "pessoas", utilizador.uid)),
@@ -19,15 +27,16 @@ export default function App() {
         ]);
         const p = pSnap.exists() ? pSnap.data() : {};
         setEu({ uid: utilizador.uid, nome: p.nome || "Alguém da igreja", foto: p.foto ?? null, admin });
+        setAEntrar(false); // entrou — fecha o overlay sozinho
       } else {
         setEu(null);
       }
-      setACarregar(false);
+      setPronto(true);
     });
     return () => parar();
   }, []);
 
-  if (aCarregar) {
+  if (!pronto) {
     return (
       <div className="acarregar">
         <span className="logo">
@@ -38,6 +47,15 @@ export default function App() {
     );
   }
 
-  if (!eu) return <Entrada />;
-  return <Sessao eu={eu} />;
+  return (
+    <>
+      <Sessao eu={eu} onPedirEntrar={() => setAEntrar(true)} />
+      {aEntrar && (
+        <div className="entradaModal">
+          <button className="fecharEntradaModal" aria-label="Fechar" onClick={() => setAEntrar(false)}>×</button>
+          <Entrada />
+        </div>
+      )}
+    </>
+  );
 }

@@ -169,3 +169,43 @@
 .preco.gratis {
   color: var(--verde);
 }
+
+/* overlay da Entrada (App.jsx) — o Mural em si fica por baixo,
+ * público; isto só aparece quando alguém pede para entrar. */
+.entradaModal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: #fff;
+  overflow-y: auto;
+  animation: ap 0.22s;
+}
+.fecharEntradaModal {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top, 0px));
+  right: 14px;
+  z-index: 31;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(10, 15, 46, 0.35);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 900px) {
+  .entradaModal {
+    background: rgba(4, 8, 40, 0.55);
+  }
+  .entradaModal .login {
+    max-width: 900px;
+    margin: 40px auto;
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(10, 15, 46, 0.35);
+  }
+}

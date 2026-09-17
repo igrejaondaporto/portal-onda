@@ -5,7 +5,7 @@ import SheetPin from "@portal/shared/components/SheetPin.jsx";
 import TecladoNumerico from "@portal/shared/components/TecladoNumerico.jsx";
 import { listarBasesMural, dadosEntradaBase, definirBaseEmCurso, pedirEntradaMural, entrarComPinMural, registarMural } from "../lib/auth.js";
 import { ouvirGDs } from "../lib/gds.js";
-import { corPara, inicial } from "../lib/util.js";
+import { corPara, inicial, nomeBase } from "../lib/util.js";
 
 /**
  * Entrada do Mural — dois caminhos (ver CLAUDE.md desta app):
@@ -135,7 +135,7 @@ export default function Entrada() {
             <button key={b.id} className="opcao" onClick={() => escolherBase(b)}>
               <span className="bola" style={{ background: corPara(b.nome) }}>{inicial(b.nome)}</span>
               <span>
-                <span className="nmt">Base {b.nome}</span>
+                <span className="nmt">{nomeBase(b.nome)}</span>
               </span>
               <span className="seta">›</span>
             </button>
@@ -148,7 +148,7 @@ export default function Entrada() {
         <div className="folha" style={{ paddingTop: 34 }}>
           <div className="tit">
             <h2>Toca no teu nome</h2>
-            <span className="cap">Base {baseEscolhida?.nome}</span>
+            <span className="cap">{baseEscolhida ? nomeBase(baseEscolhida.nome) : ""}</span>
           </div>
           {erro && <p className="aviso" style={{ textAlign: "left", paddingTop: 0 }}>{erro}</p>}
           <div className="g">

@@ -17,7 +17,15 @@ const ICONES = {
   painel: '<path d="M12 3l7.5 3.6v5c0 4.4-3.1 8.1-7.5 9.4-4.4-1.3-7.5-5-7.5-9.4v-5z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/>',
 };
 
-export default function Sessao({ eu }) {
+// páginas que só existem para quem já entrou — tocar nelas sem
+// sessão abre a Entrada em vez de navegar (ver irPara abaixo).
+const PAGINAS_COM_SESSAO = new Set(["publicar", "meus", "painel"]);
+
+/** `eu` é `null` para quem só está a ver — o Mural mostra-se a
+ *  QUALQUER PESSOA sem conta (2026-09, pedido explícito); só
+ *  publicar/gerir pede sessão. `onPedirEntrar` abre o overlay de
+ *  Entrada (ver App.jsx). */
+export default function Sessao({ eu, onPedirEntrar }) {
   const [pagina, setPagina] = useState("mural");
   const [anuncios, setAnuncios] = useState([]);
   const [tipo, setTipo] = useState("ofereco");
@@ -37,19 +45,30 @@ export default function Sessao({ eu }) {
       .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal}`.toLowerCase().includes(q));
   }, [anuncios, tipo, regiao, categoria, busca]);
 
+  function irPara(destino) {
+    if (PAGINAS_COM_SESSAO.has(destino) && !eu) return onPedirEntrar();
+    setPagina(destino);
+  }
+
   const itens = [
     ["mural", "Mural", ICONES.mural],
     ["publicar", "Publicar", ICONES.publicar],
     ["meus", "Os meus", ICONES.meus],
   ];
-  if (eu.admin) itens.push(["painel", "Painel", ICONES.painel]);
+  if (eu?.admin) itens.push(["painel", "Painel", ICONES.painel]);
 
-  if (pagina === "publicar") return <Casca pagina={pagina} setPagina={setPagina} itens={itens} eu={eu}><Publicar onPublicado={() => setPagina("meus")} /></Casca>;
-  if (pagina === "meus") return <Casca pagina={pagina} setPagina={setPagina} itens={itens} eu={eu}><MeusAnuncios /></Casca>;
-  if (pagina === "painel" && eu.admin) return <Casca pagina={pagina} setPagina={setPagina} itens={itens} eu={eu}><PainelAdmin /></Casca>;
+  const casca = (conteudo) => (
+    <Casca pagina={pagina} onIr={irPara} itens={itens} eu={eu} onPedirEntrar={onPedirEntrar}>
+      {conteudo}
+    </Casca>
+  );
 
-  return (
-    <Casca pagina={pagina} setPagina={setPagina} itens={itens} eu={eu}>
+  if (pagina === "publicar" && eu) return casca(<Publicar onPublicado={() => setPagina("meus")} />);
+  if (pagina === "meus" && eu) return casca(<MeusAnuncios />);
+  if (pagina === "painel" && eu?.admin) return casca(<PainelAdmin />);
+
+  return casca(
+    <>
       <div className="subtabs">
         <button data-on={tipo === "ofereco" ? 1 : 0} onClick={() => setTipo("ofereco")}>Ofereço</button>
         <button data-on={tipo === "procuro" ? 1 : 0} onClick={() => setTipo("procuro")}>Procuro</button>
@@ -102,12 +121,19 @@ export default function Sessao({ eu }) {
         </button>
       ))}
 
-      {aberto && <DetalheAnuncio anuncio={aberto} meuUid={eu.uid} onFechar={() => setAberto(null)} />}
-    </Casca>
+      {aberto && (
+        <DetalheAnuncio
+          anuncio={aberto}
+          meuUid={eu?.uid}
+          onFechar={() => setAberto(null)}
+          onPedirEntrar={onPedirEntrar}
+        />
+      )}
+    </>
   );
 }
 
-function Casca({ children, pagina, setPagina, itens, eu }) {
+function Casca({ children, pagina, onIr, itens, eu, onPedirEntrar }) {
   return (
     <div className="app on">
       <AvisoOffline />
@@ -118,19 +144,25 @@ function Casca({ children, pagina, setPagina, itens, eu }) {
             <i>mural</i>
             <b>onda</b>
           </span>
-          <div className="eu">
-            <div style={{ textAlign: "right" }}>
-              <b>{eu.nome}</b>
-              <p>{eu.admin ? "Modera o Mural" : "Igreja Onda"}</p>
+          {eu ? (
+            <div className="eu">
+              <div style={{ textAlign: "right" }}>
+                <b>{eu.nome}</b>
+                <p>{eu.admin ? "Modera o Mural" : "Igreja Onda"}</p>
+              </div>
+              <span
+                className="av" style={{ width: 36, height: 36, fontSize: 14, cursor: "pointer", ...(eu.foto ? { backgroundImage: `url(${eu.foto})` } : { background: "var(--lima)", color: "var(--tinta)" }) }}
+                onClick={() => window.confirm("Sair do Mural?") && sair()}
+                title="Sair"
+              >
+                {eu.foto ? "" : eu.nome[0]}
+              </span>
             </div>
-            <span
-              className="av" style={{ width: 36, height: 36, fontSize: 14, cursor: "pointer", ...(eu.foto ? { backgroundImage: `url(${eu.foto})` } : { background: "var(--lima)", color: "var(--tinta)" }) }}
-              onClick={() => window.confirm("Sair do Mural?") && sair()}
-              title="Sair"
-            >
-              {eu.foto ? "" : eu.nome[0]}
-            </span>
-          </div>
+          ) : (
+            <button className="btn sec" style={{ padding: "9px 18px", fontSize: 13 }} onClick={onPedirEntrar}>
+              Entrar
+            </button>
+          )}
         </div>
         <h1 style={{ marginTop: 18, fontSize: "clamp(30px,8vw,40px)" }}>
           {pagina === "mural" && <>Mural <em>Onda</em></>}
@@ -143,7 +175,7 @@ function Casca({ children, pagina, setPagina, itens, eu }) {
         </svg>
       </div>
       <div className="corpo">{children}</div>
-      <NavBar pagina={pagina} onIr={setPagina} itens={itens} />
+      <NavBar pagina={pagina} onIr={onIr} itens={itens} />
     </div>
   );
 }

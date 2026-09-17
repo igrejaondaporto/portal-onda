@@ -81,10 +81,17 @@ service cloud.firestore {
     // via scripts/definirAdminMural.mjs, lê/escreve lá).
     // (mural_admin não precisa de função própria aqui: os reports
     // ficam desnormalizados no próprio anúncio — ver reportarAnuncio
-    // em functions/mural.js — e quem modera já lê o documento inteiro
-    // pela regra "autenticado()" acima, como qualquer outro membro.)
+    // em functions/mural.js.)
+    //
+    // Leitura pública de propósito (2026-09, pedido explícito): o
+    // mural mostra-se a QUALQUER PESSOA, sem conta nem sessão — só
+    // publicar exige entrar. Nada aqui é sensível: nome/foto/"onde
+    // serves" são os mesmos que já aparecem num anúncio partilhado no
+    // WhatsApp, e o telefone NUNCA está neste documento (fica só em
+    // pessoas/{uid} ou bases/{b}/pessoas/{uid}, que continuam
+    // fechados — ver pedirContactoAnuncio em functions/mural.js).
     match /anuncios/{anuncio} {
-      allow read:  if autenticado();
+      allow read:  if true;
       allow write: if false;                        // só por função
     }
 

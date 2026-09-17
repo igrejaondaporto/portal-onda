@@ -3,9 +3,14 @@ import { corPara, ESTADOS, nomeCategoria, relativo, linkWhatsApp } from "../lib/
 import { pedirContactoAnuncio, reportarAnuncio } from "../lib/anuncios.js";
 
 /** Folha de detalhe — mesmo padrão de SheetPin (veu + folha fixa em
- *  baixo). "Reportar" e "Falar no WhatsApp" só aparecem em anúncios
- *  de outra pessoa; o dono gere o seu em "Os meus". */
-export default function DetalheAnuncio({ anuncio, meuUid, onFechar }) {
+ *  baixo). "Falar no WhatsApp" é público (2026-09: ver e contactar
+ *  nunca pede conta, só publicar pede — `pedirContactoAnuncio` já
+ *  aceita chamadas sem sessão). "Reportar" continua a exigir sessão
+ *  (é moderação, não simples consulta) — sem `meuUid` (visitante sem
+ *  conta), o próprio botão pede para entrar em vez de tentar reportar
+ *  e falhar. Os dois só aparecem em anúncios de outra pessoa; o dono
+ *  gere o seu em "Os meus". */
+export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntrar }) {
   const [aPedirContacto, setAPedirContacto] = useState(false);
   const [aReportar, setAReportar] = useState(false);
   const [reportado, setReportado] = useState(false);
@@ -27,6 +32,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar }) {
   }
 
   async function reportar() {
+    if (!meuUid) return onPedirEntrar?.();
     const motivo = window.prompt("O que é que não está bem neste anúncio? (opcional)") ?? "";
     setAReportar(true);
     await reportarAnuncio(anuncio.id, motivo).catch(() => {});

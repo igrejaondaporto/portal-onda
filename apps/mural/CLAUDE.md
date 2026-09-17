@@ -27,6 +27,25 @@ ver anúncios deixa de ser interrompido; e cada anúncio fica sempre
 atualizado, porque o dono confirma "ainda está disponível?" a cada 30
 dias, em vez de a informação morrer soterrada no histórico do grupo.
 
+## O mural é público — só publicar pede conta
+
+Diferença grande em relação a todas as outras apps do repo: ver os
+anúncios e falar no WhatsApp **nunca pedem sessão**. `anuncios/{id}`
+lê-se com `allow read: if true` no `firestore.rules`, e
+`pedirContactoAnuncio` (o único sítio de onde o telefone sai) aceita
+chamadas sem `req.auth`, travado só por limite de pedidos por IP
+(`limitarPedidoContacto`, mesmo padrão de `limitarRegistoPublico` em
+`kinder.js`) — sem isso, um script sem conta nenhuma conseguia
+percorrer todos os anúncios a colher números.
+
+Na prática (`App.jsx`/`Sessao.jsx`): o Mural em si é sempre a tela de
+raiz, com ou sem sessão; a Entrada só aparece como um overlay
+(`.entradaModal`), aberto pelo botão "Entrar" no cabeçalho ou ao
+tentar Publicar/Os meus/Painel sem conta (`PAGINAS_COM_SESSAO` em
+`Sessao.jsx`). "Reportar anúncio" continua a exigir sessão — é
+moderação, não simples consulta — mas o próprio botão abre a Entrada
+em vez de falhar silenciosamente quando não há `meuUid`.
+
 ## Entrada — dois caminhos para a mesma identidade
 
 Isto é a decisão mais importante desta app e a que mais foge do
