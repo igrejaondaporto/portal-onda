@@ -1,131 +1,105 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirReembolsosPorEstado, ouvirReembolsosPagos } from "../lib/reembolsosFinanceiro";
-import { ouvirDespesasFixas } from "../lib/fornecedores";
-import { ouvirEntradas, FUNDOS, ROTULO_FUNDO } from "../lib/entradas";
-import { obterPatrimonioBases } from "../lib/relatorio";
+import { ouvirContagens, emEuros, domingoMaisRecente } from "../lib/oferta";
+import { ouvirBases } from "../lib/bases";
+import Barras from "../components/Barras";
 import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
-import { ROTULO_TIPO_PATRIMONIO } from "@portal/shared/lib/tiposPatrimonio.js";
-import { eur } from "@portal/shared/lib/data.js";
+import { eur, dataPorExtenso } from "@portal/shared/lib/data.js";
 
 const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const DIAS_A_ESPERAR = 7;   // a partir daqui um pedido aprovado está a arrastar-se
 
-const chaveMes = (ts) => (ts?.toDate ? `${ts.toDate().getFullYear()}-${ts.toDate().getMonth()}` : null);
+const chaveMes = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+const dataDe = (ts) => (ts?.toDate ? ts.toDate() : null);
+const dataDeIso = (iso) => {
+  if (!iso) return null;
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(a, m - 1, d);
+};
 
-/** As últimas 6 chaves "AAAA-M", da mais antiga para a mais recente —
- *  é o eixo da tabela de baixo, sempre com 6 linhas mesmo em meses
- *  sem nenhum lançamento. */
-function ultimosMeses(hoje, n) {
-  const lista = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-    lista.push({ chave: `${d.getFullYear()}-${d.getMonth()}`, rotulo: MESES_PT[d.getMonth()] });
-  }
-  return lista;
-}
-
-/** Barra horizontal simples (magnitude, um hue só) — mesmo padrão
- *  visual já usado em Caixa.jsx ("Por base"), reaproveitado aqui em
- *  vez de inventar um segundo tipo de gráfico para a mesma ideia. */
-function Barras({ linhas }) {
-  const maior = Math.max(...linhas.map((l) => l.valor), 1);
+/** Cartão de aviso — o que está à espera de alguém. Sempre com o
+ *  atalho para o sítio onde se resolve: um aviso que não leva a lado
+ *  nenhum obriga a procurar o ecrã certo à mão. */
+function Aviso({ texto, accao, onAccao }) {
   return (
-    <>
-      {linhas.map((l) => (
-        <div className="fila" style={{ paddingTop: 13 }} key={l.chave}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "-.02em" }}>{l.rotulo}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", flex: "none" }}>{eur(l.valor)}</span>
-          </div>
-          <div className="barra" style={{ marginTop: 7 }}>
-            <i style={{ width: `${(l.valor / maior) * 100}%`, background: "var(--azul)" }} />
-          </div>
-        </div>
-      ))}
-    </>
+    <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", display: "flex", alignItems: "center", gap: 12 }}>
+      <p className="ds" style={{ marginTop: 0, flex: 1 }}>{texto}</p>
+      <button className="btn sec" style={{ flex: "none", padding: "9px 14px", fontSize: 13 }} onClick={onAccao}>
+        {accao}
+      </button>
+    </div>
   );
 }
 
-/** Início — a visão de conjunto que os outros ecrãs não dão (cada um
- *  só mostra a parte dele). Tudo lido do que já existe (reembolsos,
- *  despesas fixas, entradas); só o património de Técnica/Louvor vem
- *  de uma chamada própria, porque `inventario` é fechado por
- *  `minhaBase` (ver lib/relatorio.js). */
-export default function Inicio({ ativo, definirCabecalho }) {
+/** Início — o que falta fazer agora, e um resumo curto. O histórico
+ *  completo, os filtros e os gráficos a sério vivem em Relatórios;
+ *  aqui só entra o que responde a "tenho alguma coisa para tratar?". */
+export default function Inicio({ ativo, irPara, definirCabecalho }) {
   const [porPagar, setPorPagar] = useState([]);
+  const [devolvidos, setDevolvidos] = useState([]);
   const [pagos, setPagos] = useState([]);
-  const [despesasFixas, setDespesasFixas] = useState([]);
-  const [entradas, setEntradas] = useState([]);
-  const [patrimonio, setPatrimonio] = useState(null);
+  // null enquanto a primeira leitura não chega — sem isto, o aviso de
+  // "oferta por contar" pisca sempre no arranque, mesmo quando ela já
+  // está contada.
+  const [contagens, setContagens] = useState(null);
+  const [bases, setBases] = useState({});
 
   useEffect(() => ouvirReembolsosPorEstado("aprovado", setPorPagar), []);
+  useEffect(() => ouvirReembolsosPorEstado("devolvido", setDevolvidos), []);
   useEffect(() => ouvirReembolsosPagos(setPagos), []);
-  useEffect(() => ouvirDespesasFixas(setDespesasFixas), []);
-  useEffect(() => ouvirEntradas(setEntradas), []);
-  useEffect(() => { obterPatrimonioBases().then((r) => setPatrimonio(r)).catch(() => setPatrimonio({ porTipo: {}, total: 0 })); }, []);
+  useEffect(() => ouvirContagens(setContagens), []);
+  useEffect(() => ouvirBases(setBases), []);
 
   const hoje = useMemo(() => new Date(), []);
-  const chaveMesAtual = `${hoje.getFullYear()}-${hoje.getMonth()}`;
+  const chaveMesAtual = chaveMes(hoje);
 
   const totalPorPagar = porPagar.reduce((s, r) => s + r.valor, 0);
   const basesPorPagar = new Set(porPagar.map((r) => r.baseId)).size;
+  const aArrastar = porPagar.filter((r) => {
+    const d = dataDe(r.criadoEm);
+    return d && (hoje - d) / 86400000 >= DIAS_A_ESPERAR;
+  });
 
-  const pagoEsteMes = useMemo(() => pagos.filter((r) => chaveMes(r.pagoEm) === chaveMesAtual), [pagos, chaveMesAtual]);
-  const despesasFixasEsteMes = useMemo(() => despesasFixas.filter((d) => chaveMes(d.criadoEm) === chaveMesAtual), [despesasFixas, chaveMesAtual]);
-  const entradasEsteMes = useMemo(() => entradas.filter((e) => chaveMes(e.criadoEm) === chaveMesAtual), [entradas, chaveMesAtual]);
+  const pagoEsteMes = useMemo(
+    () => pagos.filter((r) => { const d = dataDe(r.pagoEm); return d && chaveMes(d) === chaveMesAtual; }),
+    [pagos, chaveMesAtual],
+  );
+  const ofertaEsteMes = useMemo(
+    () => (contagens ?? []).filter((c) => { const d = dataDeIso(c.data); return d && chaveMes(d) === chaveMesAtual; }),
+    [contagens, chaveMesAtual],
+  );
+  const totalOfertaMes = emEuros(ofertaEsteMes.reduce((s, c) => s + (c.total ?? 0), 0));
 
-  const totalEntrouMes = entradasEsteMes.reduce((s, e) => s + e.valor, 0);
-  const totalSaiuMes = pagoEsteMes.reduce((s, r) => s + r.valor, 0) + despesasFixasEsteMes.reduce((s, d) => s + d.valor, 0);
+  const domingo = domingoMaisRecente(hoje);
+  const ofertaPorContar = contagens !== null && !contagens.some((c) => c.data === domingo);
 
   const anoAtual = hoje.getFullYear();
   const porCategoria = useMemo(() => {
     const mapa = new Map();
-    const doAno = (lista, chaveData) => lista.filter((x) => x[chaveData]?.toDate?.().getFullYear() === anoAtual);
-    for (const r of doAno(pagos, "pagoEm")) if (r.categoria) mapa.set(r.categoria, (mapa.get(r.categoria) ?? 0) + r.valor);
-    for (const d of doAno(despesasFixas, "criadoEm")) if (d.categoria) mapa.set(d.categoria, (mapa.get(d.categoria) ?? 0) + d.valor);
+    for (const r of pagos) {
+      const d = dataDe(r.pagoEm);
+      if (!d || d.getFullYear() !== anoAtual || !r.categoria) continue;
+      mapa.set(r.categoria, (mapa.get(r.categoria) ?? 0) + r.valor);
+    }
     return CATEGORIAS_DESPESA
       .map(([id]) => ({ chave: id, rotulo: ROTULO_CATEGORIA_DESPESA[id], valor: mapa.get(id) ?? 0 }))
       .filter((l) => l.valor > 0)
-      .sort((a, b) => b.valor - a.valor);
-  }, [pagos, despesasFixas, anoAtual]);
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 5);
+  }, [pagos, anoAtual]);
 
-  const porFundo = useMemo(() => {
-    const mapa = new Map();
-    for (const e of entradas) {
-      if (e.criadoEm?.toDate?.().getFullYear() !== anoAtual) continue;
-      mapa.set(e.fundo, (mapa.get(e.fundo) ?? 0) + e.valor);
-    }
-    return FUNDOS
-      .map(([id]) => ({ chave: id, rotulo: ROTULO_FUNDO[id], valor: mapa.get(id) ?? 0 }))
-      .filter((l) => l.valor > 0)
-      .sort((a, b) => b.valor - a.valor);
-  }, [entradas, anoAtual]);
-
-  const tabelaMeses = useMemo(() => {
-    const meses = ultimosMeses(hoje, 6);
-    return meses.map(({ chave, rotulo }) => ({
-      chave, rotulo,
-      entrou: entradas.filter((e) => chaveMes(e.criadoEm) === chave).reduce((s, e) => s + e.valor, 0),
-      saiu: pagos.filter((r) => chaveMes(r.pagoEm) === chave).reduce((s, r) => s + r.valor, 0)
-          + despesasFixas.filter((d) => chaveMes(d.criadoEm) === chave).reduce((s, d) => s + d.valor, 0),
-    }));
-  }, [hoje, entradas, pagos, despesasFixas]);
-
-  // só recalcula o cabeçalho quando esta aba fica ativa — as quatro
-  // abas ficam sempre montadas (display:none), e sem o `ativo` na
-  // dependência o efeito de cada uma só disparava uma vez, à toa, no
-  // arranque da app, e o título deixava de seguir a navegação.
+  // só recalcula o cabeçalho quando esta aba fica ativa — as abas
+  // ficam sempre montadas (display:none), e sem o `ativo` na
+  // dependência o efeito de cada uma corria uma vez à toa no arranque
+  // e o título deixava de seguir a navegação.
   useEffect(() => {
     if (!ativo) return;
-    definirCabecalho({
-      titulo: <em>Início</em>,
-      subtitulo: "Visão geral do dinheiro da igreja",
-      chips: [],
-    });
+    definirCabecalho({ titulo: <em>Início</em>, subtitulo: "O que está à tua espera", chips: [] });
   }, [ativo, definirCabecalho]);
 
   return (
     <>
-      <div className="destaque">
+      <div className="destaque" onClick={() => irPara("reembolsos")}>
         <div>
           <p style={{ fontSize: 12.5, opacity: 0.85 }}>Por pagar agora</p>
           <p style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.035em", marginTop: 2 }}>{eur(totalPorPagar)}</p>
@@ -136,60 +110,66 @@ export default function Inicio({ ativo, definirCabecalho }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent" }}>
-          <p className="ds" style={{ marginTop: 0 }}>Entrou em {MESES_PT[hoje.getMonth()]}</p>
-          <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur(totalEntrouMes)}</p>
-        </div>
-        <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent" }}>
-          <p className="ds" style={{ marginTop: 0 }}>Saiu em {MESES_PT[hoje.getMonth()]}</p>
-          <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur(totalSaiuMes)}</p>
-        </div>
-      </div>
+      {aArrastar.length > 0 && (
+        <Aviso
+          texto={`${aArrastar.length} pedido${aArrastar.length !== 1 ? "s" : ""} aprovado${aArrastar.length !== 1 ? "s" : ""} há mais de ${DIAS_A_ESPERAR} dias à espera de pagamento.`}
+          accao="Ver" onAccao={() => irPara("reembolsos")}
+        />
+      )}
+      {devolvidos.length > 0 && (
+        <Aviso
+          texto={`${devolvidos.length} pedido${devolvidos.length !== 1 ? "s" : ""} que devolveste continua${devolvidos.length !== 1 ? "m" : ""} à espera da líder da base.`}
+          accao="Ver" onAccao={() => irPara("reembolsos")}
+        />
+      )}
+      {ofertaPorContar && (
+        <Aviso
+          texto={`A oferta de ${dataPorExtenso(domingo)} ainda não foi contada.`}
+          accao="Contar" onAccao={() => irPara("oferta")}
+        />
+      )}
 
-      <div className="caixa" style={{ marginTop: 10, background: "var(--agua)", borderColor: "transparent" }}>
-        <p className="ds" style={{ marginTop: 0 }}>Património (Técnica + Louvor)</p>
-        <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
-          {patrimonio === null ? "…" : eur(patrimonio.total)}
-        </p>
-        {patrimonio && Object.keys(patrimonio.porTipo).length > 0 && (
-          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            {Object.entries(patrimonio.porTipo).sort((a, b) => b[1] - a[1]).map(([tipo, valor]) => (
-              <span className="tag cinz" key={tipo}>{ROTULO_TIPO_PATRIMONIO[tipo] ?? tipo} · {eur(valor)}</span>
-            ))}
-          </div>
-        )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+        <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
+          <p className="ds" style={{ marginTop: 0 }}>Pago em {MESES_PT[hoje.getMonth()]}</p>
+          <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+            {eur(pagoEsteMes.reduce((s, r) => s + r.valor, 0))}
+          </p>
+          <p className="ds" style={{ marginTop: 2 }}>{pagoEsteMes.length} pedido{pagoEsteMes.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
+          <p className="ds" style={{ marginTop: 0 }}>Oferta em {MESES_PT[hoje.getMonth()]}</p>
+          <p style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+            {eur(totalOfertaMes)}
+          </p>
+          <p className="ds" style={{ marginTop: 2 }}>{ofertaEsteMes.length} contagem{ofertaEsteMes.length !== 1 ? "s" : ""}</p>
+        </div>
       </div>
 
       <div className="sect">
-        <div className="cabecalho"><h3>Gasto por categoria</h3><span className="cap">{anoAtual}</span></div>
-        {porCategoria.length ? <Barras linhas={porCategoria} /> : <div className="vaz">Ainda sem gastos categorizados este ano.</div>}
-      </div>
-
-      <div className="sect">
-        <div className="cabecalho"><h3>Entradas por fundo</h3><span className="cap">{anoAtual}</span></div>
-        {porFundo.length ? <Barras linhas={porFundo} /> : <div className="vaz">Ainda sem entradas registadas este ano.</div>}
-      </div>
-
-      <div className="sect">
-        <div className="cabecalho"><h3>Últimos 6 meses</h3></div>
-        <div className="tabwrap">
-          <table className="tab" style={{ marginTop: 4 }}>
-            <thead>
-              <tr><th>Mês</th><th style={{ textAlign: "right" }}>Entrou</th><th style={{ textAlign: "right" }}>Saiu</th></tr>
-            </thead>
-            <tbody>
-              {tabelaMeses.map((m) => (
-                <tr key={m.chave}>
-                  <td>{m.rotulo}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{eur(m.entrou)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{eur(m.saiu)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="cabecalho">
+          <h3>Onde foi o dinheiro</h3>
+          <button className="cap" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={() => irPara("relatorios")}>
+            Ver tudo
+          </button>
         </div>
+        <Barras linhas={porCategoria} vazio="Ainda não há reembolsos pagos com categoria este ano." />
       </div>
+
+      {porPagar.length > 0 && (
+        <div className="sect">
+          <div className="cabecalho"><h3>Fila de pagamento</h3><span className="cap">{porPagar.length}</span></div>
+          {porPagar.slice(0, 5).map((r) => (
+            <div className="linha" key={`${r.baseId}-${r.id}`} style={{ cursor: "pointer" }} onClick={() => irPara("reembolsos")}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p className="nmt">{eur(r.valor)}</p>
+                <p className="ds">{r.pessoaNome ?? "…"} · {bases[r.baseId]?.nome ?? r.baseId}</p>
+              </div>
+              <span className="seta">›</span>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

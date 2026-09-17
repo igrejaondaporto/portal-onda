@@ -3,13 +3,27 @@
 Contexto específico desta base. Lê primeiro o `CLAUDE.md` da raiz do
 repositório (regras que valem para todas as bases, RGPD, stack).
 
-## O que é
+## O que é — e o que deliberadamente NÃO é
 
-A única base sem equipa de culto — trata do dinheiro, não de servir
-domingo. Fecha o ciclo que todas as outras bases começam:
-`Reembolsos` (`apps/*/src/pages/Reembolsos.jsx`) leva o pedido até
-"aprovado pelo líder"; esta app é onde ele vira "pago". Também é onde
-entra o outro lado — dízimos, ofertas, gastos fixos, património.
+A única base sem equipa de culto. Faz **duas coisas, e só duas**:
+
+1. **Pagar os reembolsos** que as outras bases aprovam — fecha o ciclo
+   que elas começam (`apps/*/src/pages/Reembolsos.jsx` leva o pedido
+   até "aprovado pelo líder"; aqui vira "pago" ou "devolvido").
+2. **Contar a oferta** do culto, nota a nota e moeda a moeda.
+
+Mais os relatórios que saem dessas duas coisas.
+
+**Isto NÃO é um sistema de contabilidade da igreja.** Em 2026-09 esta
+app chegou a ter caixa (saldo entradas−saídas), registo de dízimos e
+ofertas por fundo, catálogo de fornecedores com despesas fixas, fontes
+fixas de receita e soma de património das outras bases — tudo isso foi
+**removido a pedido do dono do produto**, que achou o painel a crescer
+para fora do que precisa. Não voltes a acrescentar nada disso sem ele
+pedir explicitamente: as coleções `entradas`, `fontesEntrada`,
+`fornecedores` e `despesasFixas` deixaram de ter regras no
+`firestore.rules` e a Cloud Function `obterPatrimonioBases` foi
+apagada (ver `git log` se precisares do código).
 
 Uso real: telemóvel pessoal, uma vez por semana ou menos — não é o
 ritmo de domingo de manhã das outras bases, mas continua a valer a
@@ -29,34 +43,30 @@ Backstage ver todas as escalas (`veEscalas: "todas"` →
 qualquer outra base; não há papel "admin_igreja" nenhum, é só mais
 uma capacidade de base.
 
-## As cinco abas
-
-Sem escala, sem funções, sem culto, sem inventário, sem Painel do
-líder — nenhum desses conceitos existe aqui. Perfil não é aba, abre
-tocando na foto (mesmo padrão do "Ver perfil" do `MenuEu` das outras
-bases).
+## As quatro abas
 
 | Aba | Ficheiro | O que é |
 |---|---|---|
-| **Início** | `pages/Inicio.jsx` | Ecrã de abertura — visão geral com gráficos e tabelas |
-| **Reembolsos** | `pages/Reembolsos.jsx` | A fila de pagamento (pedidos das 9 bases) |
-| **Entradas** | `pages/Entradas.jsx` | Dízimos, ofertas e outras receitas |
-| **Fornecedores** | `pages/Fornecedores.jsx` | Gastos fixos/recorrentes |
-| **Caixa** | `pages/Caixa.jsx` | O extrato — saldo, por base, exportação CSV |
+| **Início** | `pages/Inicio.jsx` | O que está à espera de alguém + resumo curto |
+| **Reembolsos** | `pages/Reembolsos.jsx` | A fila de pagamento, com filtros |
+| **Oferta** | `pages/Oferta.jsx` | A contagem do culto |
+| **Relatórios** | `pages/Relatorios.jsx` | Histórico completo, filtros e gráficos |
 
-**Início é sempre a primeira aba, Caixa é sempre a última** — pedido
-explícito do dono do produto: a visão geral abre a app, o extrato
-detalhado é para quem quer conferir a sério, não o que se vê primeiro.
+Perfil não é aba — entra-se tocando na foto (mesmo padrão do "Ver
+perfil" do `MenuEu` das outras bases).
 
-Todas as cinco ficam **sempre montadas** (`display:none` no lugar de
+**Início responde "tenho alguma coisa para tratar?", Relatórios
+responde "quanto foi para quê".** Se uma coisa nova não cabe numa
+dessas duas perguntas, provavelmente não pertence a esta app.
+
+As quatro ficam **sempre montadas** (`display:none` no lugar de
 desmontar, em `Sessao.jsx`) — preserva filtro e posição de scroll ao
 trocar de aba. Por causa disso, cada página só recalcula o cabeçalho
 (`definirCabecalho`) quando recebe o prop **`ativo` = verdadeiro**
 (`pagina === "<chave>"`, passado por `Sessao.jsx`): sem esse gate, o
 efeito de cada página corria só uma vez, no arranque da app, e o
-título parava de seguir a navegação — foi um bug reportado depois do
-Relatório virar Início. Qualquer página nova aqui **tem de** receber
-`ativo` e usá-lo assim:
+título parava de seguir a navegação — foi um bug reportado. Qualquer
+página nova aqui **tem de** receber `ativo` e usá-lo assim:
 
 ```jsx
 useEffect(() => {
@@ -67,13 +77,12 @@ useEffect(() => {
 
 ## Todo sheet tem um botão de fechar
 
-Regra sem exceção nesta app (reportado como bug: um popup sem saída
-visível, só fechava tocando fora): todo componente `Sheet*` acaba com
-um `<button className="btn sec full" onClick={onFechar}>Cancelar</button>`
-(ou "Fechar", em `SheetDetalheReembolso`), **mesmo** quando já existe
-uma ação primária (Guardar, Registar, Marcar como pago). O véu
-(`<div className="veu" onClick={onFechar}>`) continua a existir, mas
-nunca é a única saída.
+Regra sem exceção nesta app (reportada como bug: um popup sem saída
+visível, que só fechava tocando fora): todo componente `Sheet*` acaba
+com um `<button className="btn sec full" onClick={onFechar}>` —
+"Fechar" ou "Cancelar" —, **mesmo** quando já existe uma ação
+primária. O véu (`<div className="veu" onClick={onFechar}>`) continua
+a existir, mas nunca é a única saída.
 
 ## Vocabulário
 
@@ -83,11 +92,12 @@ nunca é a única saída.
 | **Pago** | O Financeiro já transferiu/pagou por MB Way |
 | **Devolvido** | O Financeiro encontrou um problema (fatura ilegível, falta o NIF) e mandou de volta ao líder — volta a ser decisão dele, aprovar de novo ou indeferir |
 | **Lote** | Vários pedidos pagos de uma vez, tipicamente todos os de uma mesma pessoa |
+| **Contagem** | Um culto contado: quantas notas e moedas de cada, e o total |
 
 Não digas "indeferido" aqui — indeferir é sempre do líder da base, o
 Financeiro só paga ou devolve.
 
-## Reembolsos (fila de pagamento)
+## Reembolsos
 
 Não tem coleção própria de reembolsos — lê `bases/*/reembolsos` de
 TODAS as bases por `collectionGroup` (`lib/reembolsosFinanceiro.js`),
@@ -98,17 +108,12 @@ autorizado pelo bloco `match /{path=**}/reembolsos/{r}` em
 direta do cliente, porque mexem em dinheiro e cruzam bases (regra 3
 do `CLAUDE.md` raiz).
 
-`bases/financeiro` em si não guarda reembolsos nenhuns — só existe
-para dar identidade/PIN a quem trata disto, com
-`veReembolsos: "todas"`.
-
-Cada linha da fila mostra uma etiqueta colorida com o nome da base
-(cor de `bases/{id}.cor`, mesmo `.tag` que qualquer base usa) — sem
-isso não dava para saber de relance quem mandou o pedido sem abrir
-o detalhe. A aba **Pagos** (dentro de Reembolsos) mostra o mesmo
-"resumo de pagos" (total do mês/ano + por base) que também aparece em
-Caixa — duplicado de propósito: quem só quer saber "quanto já paguei"
-não devia ter de trocar de aba.
+Filtros: estado (Por pagar / Pagos / Devolvidos) em chips, mais dois
+seletores — **base** e **categoria de despesa**. As bases do seletor
+saem do que há na lista, não das 9 fixas: filtrar por uma base que
+nunca pediu nada só daria lista vazia. Cada linha leva uma etiqueta
+colorida com o nome da base (cor de `bases/{id}.cor`) — sem isso não
+dá para saber de relance quem mandou o pedido.
 
 ### Onde a pessoa recebe (IBAN/MB Way)
 
@@ -121,133 +126,64 @@ veio no pedido, e é o que aparece em `SheetDetalheReembolso`.
 Continua certo mesmo que a pessoa mude de banco depois de já ter
 sido paga uma vez.
 
+## Oferta — a contagem do culto
+
+```js
+bases/financeiro/contagensOferta/{id}
+  data: "2026-09-20"                       // o culto; o mesmo id de eventos/{AAAA-MM-DD}
+  notas:  { "50000": 0, "20000": 1, ... }  // denominação em cêntimos → quantidade
+  moedas: { "200": 4, "100": 10, ... }
+  totalNotas, totalMoedas, total           // tudo em CÊNTIMOS
+  observacao, contadoPor, contadoEm
+```
+
+**Tudo em cêntimos, inteiros, do princípio ao fim** (`lib/oferta.js`).
+Somar `0.1 + 0.2` em vírgula flutuante dá `0.30000000000000004`, e uma
+contagem de dinheiro que não fecha ao cêntimo não serve para nada. Só
+na apresentação é que se divide por 100 (`emEuros`).
+
+As notas e moedas são **desenhadas em SVG**
+(`components/DinheiroEuro.jsx`), não fotografadas: as imagens reais
+são do Banco Central Europeu, têm regras próprias de reprodução e
+pesariam mais do que a app inteira. O que interessa é o sinal — a cor
+de cada nota (cinza 5, vermelho 10, azul 20, laranja 50, verde 100,
+amarelo 200, roxo 500) e o metal de cada moeda (ouro nórdico, cobre, e
+as duas bimetálicas ao contrário uma da outra) são o que a mão já
+conhece de contar dinheiro a sério. A moeda leva só o número lá
+dentro: o "c"/"€" por cima do algarismo fica ilegível a 32px, e o
+rótulo ao lado já diz "50 cênt." por extenso.
+
+O campo aceita **escrever o número direto** (teclado numérico); os
+botões −/+ são só para o ajuste fino. Contar 37 moedas de 10 cêntimos
+a tocar 37 vezes no "+" seria absurdo.
+
+Ao contrário dos pagamentos já feitos (imutáveis), **uma contagem pode
+ser corrigida por cima**: contar mal acontece, e obrigar a criar uma
+segunda contagem do mesmo culto só faria o histórico mentir. Tocar
+numa contagem antiga carrega-a no formulário. Nunca se apaga (regra 5
+do `CLAUDE.md` raiz).
+
+## Relatórios
+
+Filtro de período (mês / ano / tudo) e, a partir dele: totais de
+reembolso e de oferta, dias médios entre o pedido e o pagamento,
+barras por categoria e por base, oferta por mês, tabela mês a mês,
+detalhe linha a linha e exportação CSV.
+
+As barras são um componente só (`components/Barras.jsx`), partilhado
+com o Início: magnitude, um hue só, ordenadas de maior para menor.
+`cor` por linha só se usa quando a cor JÁ significa alguma coisa (a
+cor da base, que o resto da app usa para a mesma base) — para
+categorias ou meses não há cor própria nenhuma, e aí fica tudo a azul.
+
 ## Nomes e cores de outras bases
 
 `bases/{id}` é público a qualquer pessoa autenticada (ver
 `firestore.rules`) — `lib/bases.js` lê a coleção toda uma vez para
-etiquetar cada pedido com o nome e a cor certos (mesmo `quadmin` que
-as escalas já usam). Nunca lê `bases/{id}/pessoas` de outra base —
-isso continua fechado; o nome de quem pediu vem gravado no próprio
-reembolso (`pessoaNome`, denormalizado no `criarReembolso`).
-
-## Entradas — dízimos, ofertas e outras receitas
-
-Ao contrário dos reembolsos (que nascem noutra base), quem regista é
-**sempre o próprio Financeiro** — nenhuma base tem esse dado. Duas
-coleções (`lib/entradas.js`):
-
-```js
-bases/financeiro/entradas/{id}
-  valor, fundo, metodo (dinheiro|mbway|transferencia), referencia?,
-  fonteId?, fonteNome?,             // ligação a uma fonte fixa, opcional
-  criadoPor, criadoEm
-
-bases/financeiro/fontesEntrada/{id}
-  nome, fundo, valorHabitual?, periodicidade (mensal|anual|pontual),
-  ativo
-```
-
-`fundo` — os tipos de receita comuns numa igreja local (`FUNDOS` em
-`lib/entradas.js`, mantido igual em `firestore.rules`):
-`dizimo`, `oferta`, `oferta_especial` (campanha), `missoes`, `obras`,
-`aluguel` (espaço alugado), `evento`, `outro`.
-
-`fontesEntrada` é o equivalente, do lado da receita, de
-`fornecedores` do lado da despesa — receita recorrente que não é
-dízimo/oferta de culto (aluguel de uma sala, uma doação mensal já
-combinada). Só pré-preenche o registo em `entradas` (botão "Registar"
-na fonte abre o mesmo formulário, com fundo/valor já preenchidos);
-a fonte em si nunca é uma entrada. "Excluir" é sempre `ativo:false`.
-
-Um lançamento por fundo+método (não um total à mão) — é o que faz o
-"total por método + por fundo" bater certo sem depender de texto
-livre. Escrita direta do cliente, imutável (só `create`), corrige-se
-com um lançamento novo. **Sem resumo por fundo/método na própria
-aba** (decisão explícita — já existe em Início como gráfico, e
-repetir como etiquetas soltas ao lado da lista de lançamentos era
-redundante, reportado como ruído visual): a lista de "últimos
-lançamentos" já mostra o fundo de cada um.
-
-## Fornecedores e despesas fixas
-
-Gastos recorrentes (renda, subscrições, contrato de limpeza…) que não
-nascem de um pedido de reembolso de nenhuma base — o Financeiro lança
-diretamente o que já pagou. Duas coleções próprias, só desta base
-(`lib/fornecedores.js`):
-
-```js
-bases/financeiro/fornecedores/{id}
-  nome, categoria (CATEGORIAS_DESPESA), valorHabitual?, periodicidade,
-  ativo
-
-bases/financeiro/despesasFixas/{id}
-  fornecedorId, fornecedorNome, categoria, valor, metodo, referencia,
-  criadoPor, criadoEm
-```
-
-Escrita direta do cliente (sem Cloud Function): é dado só desta base,
-sem cruzamento com outra nem autoria mista, mesmo padrão de
-`funcoes`/`avisos` de qualquer base (ver `firestore.rules`).
-`despesasFixas` é histórico de pagamento — só `create`, nunca
-`update`/`delete` (regra 5 do `CLAUDE.md` raiz: corrige-se com um
-lançamento novo, não editando o antigo). "Excluir" um fornecedor é
-sempre `ativo:false`, nunca um delete a sério.
-
-## Caixa — o extrato
-
-Última aba de propósito (ver "As cinco abas" acima). Resumo de
-**entradas, saídas e saldo do mês** logo no topo (o pedido era
-explícito: "precisa ter um resumo de entradas e saídas e saldo, logo
-no começo"), depois o histórico de reembolsos pagos por mês/ano e por
-base (`.barra`/`.barra i`, mesmo padrão de barra de magnitude usada
-no Início), e a exportação CSV do mês (sempre o mês corrente visível
-— sem seletor de período por agora; se vier a fazer falta, portar).
-
-## Valor de património nos equipamentos
-
-Não é dado desta base — vive em
-`bases/{tecnica|louvor}/inventario/{item}.valorCompra` e `.tipo`
-(`criarEquipamento`/`guardarEquipamento`, `functions/index.js`), os
-mesmos campos opcionais condicionais já usados pela fatura de compra.
-`tipo` é `TIPOS_PATRIMONIO` (`packages/shared/src/lib/tiposPatrimonio.js`):
-`equipamento` (técnico), `instrumento` (musical), `mobiliario`,
-`outro` — o Início soma por **tipo**, não por base (só duas bases
-hoje, a distinção por base dizia pouco; "equipamento" vs.
-"instrumento" já separa Técnica de Louvor na prática, sem precisar
-nomear a base). Item sem `tipo` definido cai em "outro" na soma.
-
-## Início — a aba de abertura
-
-Pedido explícito do dono do produto ("quero MUITO, isso é muito
-importante, deixar até como Início isso") — painel geral com
-gráficos simples e tabelas fáceis (`pages/Inicio.jsx`). Nada de
-coleção própria: junta o que as outras abas já leem —
-
-- **Por pagar agora** — o mesmo cartão `.destaque` azul que também
-  aparece em Reembolsos (duplicado de propósito, mesma razão do
-  "resumo de pagos" acima).
-- **Entrou/Saiu do mês** — soma de `entradas` contra reembolsos pagos
-  + `despesasFixas`.
-- **Património** — soma de `valorCompra` de Técnica e Louvor, **por
-  tipo**, via `obterPatrimonioBases` (`lib/relatorio.js`). Única
-  leitura cross-base fora da collectionGroup de reembolsos:
-  `bases/{b}/inventario` é fechado por `minhaBase(b)` nas rules (ao
-  contrário de reembolsos, que já eram por documento) — sem atalho de
-  regra possível aqui, por isso é uma Cloud Function com Admin SDK,
-  mesmo molde do `escalasCrossBase` da Backstage. `BASES_PATRIMONIO`
-  é uma lista fixa em código (`functions/index.js`) — uma base nova
-  em modo património entra ali manualmente, o mesmo custo que já
-  existe para `CATEGORIAS_DESPESA`.
-- **Gasto por categoria** / **Entradas por fundo** — barras
-  horizontais de um hue só (o mesmo componente `.barra`/`.barra i`
-  que "Por base" em Caixa.jsx já usa), ano corrente, reembolsos pagos
-  + despesasFixas categorizados de um lado, entradas do outro.
-- **Últimos 6 meses** — tabela simples, sempre 6 linhas mesmo em mês
-  sem lançamento nenhum.
-
-Tudo lido ao vivo (`onSnapshot`) exceto o património, que é uma
-chamada única à função ao entrar na aba (não há razão para ao vivo —
-o valor de compra de um equipamento quase nunca muda).
+etiquetar cada pedido com o nome e a cor certos. Nunca lê
+`bases/{id}/pessoas` de outra base — isso continua fechado; o nome de
+quem pediu vem gravado no próprio reembolso (`pessoaNome`,
+denormalizado no `criarReembolso`).
 
 ## Detalhes já decididos
 
@@ -259,16 +195,18 @@ o valor de compra de um equipamento quase nunca muda).
   `devolverReembolso`, `functions/index.js`.
 - O pagamento em lote agrupa por pessoa (uma transferência com todos
   os pedidos dela), não por base.
-- Nenhum trigger de criação/edição/registo é um link de texto (`.cap`)
-  — é sempre um `.btn` cheio, óbvio ao toque (reportado: "nem parece
-  que dá pra clicar"). Vale para "+ Registar entrada", "+ Novo
-  fornecedor" e qualquer botão equivalente que vier a seguir.
+- Nenhum trigger de criação/registo é um link de texto (`.cap`) — é
+  sempre um `.btn` cheio, óbvio ao toque (reportado: "nem parece que
+  dá pra clicar").
+- Todo aviso no Início leva ao sítio onde se resolve: um aviso que não
+  tem atalho obriga a procurar o ecrã certo à mão.
 
 ## Por fazer / débito consciente
 
 - Sem push/email (nenhuma base tem — ver `MELHORIAS-ENTRE-BASES.md`).
   O aviso de "pago"/"devolvido" é só o cartão `.destaque` no Início
   de cada base, como o de "indeferido" já era.
-- Sem orçamento mensal (decisão explícita — só se usa dinheiro quando
-  precisa de algo, não há tecto a controlar) nem aprovação em dois
-  níveis (também recusado).
+- A contagem da oferta não está ligada a `eventos/{AAAA-MM-DD}` por
+  chave estrangeira — guarda só a data em texto, no mesmo formato. Se
+  um dia fizer falta cruzar com o culto a sério (tipo de culto, nome),
+  é aí que se liga.
