@@ -9,6 +9,8 @@
  */
 
 /* avatarzinho inline, junto ao nome de quem publicou */
+/* sempre dentro de uma linha flex (ver .ds em Sessao.jsx/PainelAdmin.jsx)
+ * — o espaço até ao texto vem do gap do pai, não de margem própria. */
 .mini {
   width: 18px;
   height: 18px;
@@ -20,8 +22,6 @@
   font-size: 8.5px;
   font-weight: 700;
   background-size: cover;
-  margin-right: 3px;
-  vertical-align: -4px;
 }
 
 /* barra "3 de 5 no ar" — Publicar e Os meus */

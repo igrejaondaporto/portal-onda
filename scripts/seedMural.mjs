@@ -1,14 +1,25 @@
 /**
  * Semeia o Mural Onda com anúncios de exemplo, para haver algo para
- * ver no primeiro deploy (mural nenhum convence vazio).
+ * ver no primeiro deploy (mural nenhum convence vazio) — e, a pedido
+ * explícito do dono do produto (2026-09, "isso é só teste para ver
+ * como fica"), com nomes e fotos REAIS de voluntários da Base de
+ * Apoio, copiados de bases/apoio/pessoas, para o painel aparecer
+ * totalmente preenchido, como ficaria a sério.
  *
- * Pessoas fictícias, de propósito — nunca ligadas a um voluntário
- * real e identificável (um anúncio inventado, "vendo o meu carro",
- * atribuído a alguém real sem essa pessoa saber, é o tipo de coisa
- * que confunde ou constrange se for encontrado antes de se perceber
- * que é só demonstração). Nomes correntes, sem qualquer marca "de
- * exemplo" no texto em si — o que os identifica como seed é só o
- * campo `exemploSeed:true`, nunca visível na UI.
+ * O que NÃO fica ligado ao voluntário real, mesmo assim: o "autor"
+ * de cada anúncio de exemplo continua a ser uma identidade só de
+ * teste (`pessoas/tel_...`, nunca o pessoaId real). Só o nome e a
+ * foto são copiados — nunca o telefone. Sem isto, o botão "Falar no
+ * WhatsApp" de um anúncio inventado abriria o número verdadeiro de
+ * alguém que nunca publicou nada, e mandava uma pessoa real e
+ * inconsciente receber mensagens sobre um sofá que não existe. O
+ * telefone de cada identidade de teste continua fictício
+ * (`tel_000000001` → "000000001"), por isso o botão simplesmente não
+ * encontra contacto — falha de forma segura, nunca contacta ninguém.
+ *
+ * As fotos dos ANÚNCIOS em si (picsum.photos, semente fixa por
+ * anúncio) são só para testar o layout com fotos a sério — não são
+ * fotos do produto de verdade nenhum.
  *
  *   1. Firebase → Definições → Contas de serviço → Gerar chave privada
  *   2. guardar como service-account.json na raiz (está no .gitignore)
@@ -25,82 +36,84 @@ const chave = JSON.parse(readFileSync("./service-account.json", "utf8"));
 admin.initializeApp({ credential: admin.credential.cert(chave) });
 const db = admin.firestore();
 
-// id determinístico "tel_" — a mesma família de id de quem regista
-// pelo Mural a sério (ver idParaTelefone em functions/mural.js), só
-// que com um telefone que nunca vai bater com ninguém real.
-const PESSOAS = [
-  { id: "tel_000000001", nome: "Ricardo Matos", local: "Base Técnica" },
-  { id: "tel_000000002", nome: "Sofia Andrade", local: "Base Kinder" },
-  { id: "tel_000000003", nome: "Paulo Carvalho", local: "Base de Apoio" },
-  { id: "tel_000000004", nome: "Marta Ferreira", local: "Base New" },
-  { id: "tel_000000005", nome: "Vítor Nunes", local: "Base de Apoio" },
-  { id: "tel_000000006", nome: "Inês Bettencourt", local: "GD Lisboa" },
-  { id: "tel_000000007", nome: "Hugo Trindade", local: "GD Lisboa" },
-  { id: "tel_000000008", nome: "Bruno Lopes", local: "GD Santo André — Sines" },
-  { id: "tel_000000009", nome: "Tiago Palma", local: "GD Piscina — Sines" },
-  { id: "tel_000000010", nome: "Joana Pinheiro", local: "GD Fânzeres" },
-  { id: "tel_000000011", nome: "Nuno Resende", local: "Base Backstage" },
-  { id: "tel_000000012", nome: "Alzira Santos", local: "GD Gaia" },
-  { id: "tel_000000013", nome: "Elsa Maia", local: "Base de Apoio" },
-  { id: "tel_000000014", nome: "Carla Bastos", local: "GD Lisboa" },
-  { id: "tel_000000015", nome: "Rute Aleixo", local: "GD New — Sines" },
-];
+const NUM_PESSOAS = 15;
+
+/** Vai buscar voluntários reais da Apoio (nome + foto), só para
+ *  emprestar a aparência às identidades de teste — ver o aviso no
+ *  topo do ficheiro. Se a Apoio não estiver semeada (ambiente novo,
+ *  sem `npm run seed` ainda), cai para nomes claramente fictícios em
+ *  vez de rebentar. */
+async function pessoasReaisDeApoio() {
+  const snap = await db.collection("bases/apoio/pessoas").where("ativo", "==", true).orderBy("nome").get();
+  if (snap.empty) {
+    console.log("bases/apoio/pessoas vazia — a usar nomes fictícios (corre `npm run seed` primeiro para nomes/fotos reais).");
+    return Array.from({ length: NUM_PESSOAS }, (_, i) => ({ nome: `Pessoa de Exemplo ${i + 1}`, foto: null }));
+  }
+  const pessoas = snap.docs.map((d) => ({ nome: d.data().nome, foto: d.data().foto ?? null }));
+  // repete a lista se a Apoio tiver menos de NUM_PESSOAS voluntários
+  return Array.from({ length: NUM_PESSOAS }, (_, i) => pessoas[i % pessoas.length]);
+}
 
 const DIA = 24 * 60 * 60 * 1000;
 const ANUNCIOS = [
-  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Golf 1.6 TDI de 2014", preco: "7.400 €", diasAtras: 2,
-    descricao: "168 mil km, revisões em dia, dois donos. Inspeção válida até 2028. Aceito ver na Maia ao sábado de manhã.", autor: 0 },
-  { tipo: "ofereco", categoria: "doacao", regiao: "norte", titulo: "Berço com colchão", gratis: true, diasAtras: 3,
-    descricao: "A minha filha já passou para a cama grande. Impecável, só precisa de uma lavagem no resguardo.", autor: 1 },
-  { tipo: "ofereco", categoria: "arrendamento", regiao: "norte", titulo: "T2 na Maia, junto ao metro", preco: "650 €/mês", diasAtras: 4, estado: "reservado",
-    descricao: "Segundo andar sem elevador, mobilado, aquecimento central. Cinco minutos a pé da estação.", autor: 2 },
-  { tipo: "ofereco", categoria: "emprego", regiao: "norte", titulo: "Ajudante de cozinha", preco: "A combinar", diasAtras: 5,
-    descricao: "Restaurante na Senhora da Hora, part-time ao almoço, terça a sábado. Não é preciso experiência.", autor: 3 },
-  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Sofá de 3 lugares, cinzento", preco: "120 €", diasAtras: 7,
-    descricao: "Bom estado, sem rasgões. Entrega na Maia, é só combinar.", autor: 4 },
-  { tipo: "ofereco", categoria: "doacao", regiao: "lisboa", titulo: "Roupa de menino, 4 a 6 anos", gratis: true, diasAtras: 2,
-    descricao: "Dois sacos, tudo lavado e dobrado. Levanta-se em Benfica.", autor: 5 },
-  { tipo: "ofereco", categoria: "venda", regiao: "lisboa", titulo: "Secretária e cadeira de escritório", preco: "80 €", diasAtras: 6,
-    descricao: "Mudei de casa e já não tenho espaço. A cadeira tem um braço a precisar de aperto.", autor: 6 },
-  { tipo: "ofereco", categoria: "arrendamento", regiao: "sines", titulo: "Quarto em Santo André", preco: "280 €/mês", diasAtras: 7,
-    descricao: "Casa partilhada com mais duas pessoas, despesas incluídas. Prefiro alguém da igreja.", autor: 7 },
-  { tipo: "ofereco", categoria: "emprego", regiao: "sines", titulo: "Precisa-se de eletricista", preco: "A combinar", diasAtras: 4,
-    descricao: "Obra pequena, uns quinze dias de trabalho. Pago à semana.", autor: 8 },
-  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Bicicleta de criança, 20 polegadas", preco: "45 €", diasAtras: 21, estado: "vendido",
-    descricao: "Já foi vendida — fica no histórico, não no mural.", autor: 4 },
+  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Golf 1.6 TDI de 2014", preco: "7.400 €", diasAtras: 2, foto: "carro-1",
+    descricao: "168 mil km, revisões em dia, dois donos. Inspeção válida até 2028. Aceito ver na Maia ao sábado de manhã.", autor: 0, local: "Base Técnica" },
+  { tipo: "ofereco", categoria: "doacao", regiao: "norte", titulo: "Berço com colchão", gratis: true, diasAtras: 3, foto: "berco-1",
+    descricao: "A minha filha já passou para a cama grande. Impecável, só precisa de uma lavagem no resguardo.", autor: 1, local: "Base Kinder" },
+  { tipo: "ofereco", categoria: "arrendamento", regiao: "norte", titulo: "T2 na Maia, junto ao metro", preco: "650 €/mês", diasAtras: 4, estado: "reservado", foto: "casa-1",
+    descricao: "Segundo andar sem elevador, mobilado, aquecimento central. Cinco minutos a pé da estação.", autor: 2, local: "Base de Apoio" },
+  { tipo: "ofereco", categoria: "emprego", regiao: "norte", titulo: "Ajudante de cozinha", preco: "A combinar", diasAtras: 5, foto: "cozinha-1",
+    descricao: "Restaurante na Senhora da Hora, part-time ao almoço, terça a sábado. Não é preciso experiência.", autor: 3, local: "Base New" },
+  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Sofá de 3 lugares, cinzento", preco: "120 €", diasAtras: 7, foto: "sofa-1",
+    descricao: "Bom estado, sem rasgões. Entrega na Maia, é só combinar.", autor: 4, local: "Base de Apoio" },
+  { tipo: "ofereco", categoria: "doacao", regiao: "lisboa", titulo: "Roupa de menino, 4 a 6 anos", gratis: true, diasAtras: 2, foto: "roupa-1",
+    descricao: "Dois sacos, tudo lavado e dobrado. Levanta-se em Benfica.", autor: 5, local: "GD Lisboa" },
+  { tipo: "ofereco", categoria: "venda", regiao: "lisboa", titulo: "Secretária e cadeira de escritório", preco: "80 €", diasAtras: 6, foto: "secretaria-1",
+    descricao: "Mudei de casa e já não tenho espaço. A cadeira tem um braço a precisar de aperto.", autor: 6, local: "GD Lisboa" },
+  { tipo: "ofereco", categoria: "arrendamento", regiao: "sines", titulo: "Quarto em Santo André", preco: "280 €/mês", diasAtras: 7, foto: "quarto-1",
+    descricao: "Casa partilhada com mais duas pessoas, despesas incluídas. Prefiro alguém da igreja.", autor: 7, local: "GD Santo André — Sines" },
+  { tipo: "ofereco", categoria: "emprego", regiao: "sines", titulo: "Precisa-se de eletricista", preco: "A combinar", diasAtras: 4, foto: "eletricista-1",
+    descricao: "Obra pequena, uns quinze dias de trabalho. Pago à semana.", autor: 8, local: "GD Piscina — Sines" },
+  { tipo: "ofereco", categoria: "venda", regiao: "norte", titulo: "Bicicleta de criança, 20 polegadas", preco: "45 €", diasAtras: 21, estado: "vendido", foto: "bicicleta-1",
+    descricao: "Já foi vendida — fica no histórico, não no mural.", autor: 4, local: "Base de Apoio" },
   { tipo: "procuro", categoria: "objetos", regiao: "norte", titulo: "Preciso de uma cama de grades", preco: "Até 60 €", diasAtras: 1,
-    descricao: "Estamos à espera do segundo bebé para novembro e a cama que temos já não dá.", autor: 9 },
+    descricao: "Estamos à espera do segundo bebé para novembro e a cama que temos já não dá.", autor: 9, local: "GD Fânzeres" },
   { tipo: "procuro", categoria: "servicos", regiao: "norte", titulo: "Explicações de matemática, 9.º ano", preco: "Pago", diasAtras: 2,
-    descricao: "Para o meu filho, duas vezes por semana, ao fim da tarde. Na Maia ou por vídeo.", autor: 10 },
+    descricao: "Para o meu filho, duas vezes por semana, ao fim da tarde. Na Maia ou por vídeo.", autor: 10, local: "Base Backstage" },
   { tipo: "procuro", categoria: "boleias", regiao: "norte", titulo: "Boleia para o culto, de Gondomar", preco: "Domingos", diasAtras: 4,
-    descricao: "Perdi o carro e o metro ao domingo de manhã é complicado. Somos duas.", autor: 11 },
+    descricao: "Perdi o carro e o metro ao domingo de manhã é complicado. Somos duas.", autor: 11, local: "GD Gaia" },
   { tipo: "procuro", categoria: "emprego", regiao: "norte", titulo: "Procuro trabalho em limpezas", preco: "Disponível já", diasAtras: 7,
-    descricao: "Experiência em escritórios e casas particulares, com referências.", autor: 12 },
+    descricao: "Experiência em escritórios e casas particulares, com referências.", autor: 12, local: "Base de Apoio" },
   { tipo: "procuro", categoria: "servicos", regiao: "lisboa", titulo: "Alguém que arranje máquinas de lavar", preco: "Pago", diasAtras: 3,
-    descricao: "Deixou de centrifugar. Antes de deitar fora, queria uma opinião de confiança.", autor: 13 },
+    descricao: "Deixou de centrifugar. Antes de deitar fora, queria uma opinião de confiança.", autor: 13, local: "GD Lisboa" },
   { tipo: "procuro", categoria: "objetos", regiao: "sines", titulo: "Preciso de uma mesa de cozinha", preco: "Até 40 €", diasAtras: 5,
-    descricao: "Pequena, para duas ou três pessoas. Mudámos de casa e ficámos sem.", autor: 14 },
+    descricao: "Pequena, para duas ou três pessoas. Mudámos de casa e ficámos sem.", autor: 14, local: "GD New — Sines" },
 ];
 
 async function main() {
-  console.log("A semear pessoas de exemplo…");
-  for (const p of PESSOAS) {
-    await db.doc(`pessoas/${p.id}`).set({
-      nome: p.nome, telefone: p.id.replace("tel_", ""), gdId: null, ativo: true, bases: {},
+  const pessoasReais = await pessoasReaisDeApoio();
+
+  console.log("A semear identidades de teste (nome/foto reais, telefone e ligação sempre fictícios)…");
+  for (const [i, p] of pessoasReais.entries()) {
+    const id = `tel_${String(i + 1).padStart(9, "0")}`;
+    await db.doc(`pessoas/${id}`).set({
+      nome: p.nome, foto: p.foto, telefone: id.replace("tel_", ""), gdId: null, ativo: true, bases: {},
       origemMural: true, exemploSeed: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
   }
 
   console.log("A semear anúncios de exemplo…");
   for (const [i, a] of ANUNCIOS.entries()) {
-    const pessoa = PESSOAS[a.autor];
+    const pessoa = pessoasReais[a.autor];
+    const autorId = `tel_${String(a.autor + 1).padStart(9, "0")}`;
     const agora = Date.now() - a.diasAtras * DIA;
     const id = `exemplo-${String(i + 1).padStart(2, "0")}`;
     await db.doc(`anuncios/${id}`).set({
       tipo: a.tipo, categoria: a.categoria, titulo: a.titulo, descricao: a.descricao,
       regiao: a.regiao, preco: a.gratis ? "" : a.preco, gratis: !!a.gratis,
-      estado: a.estado || "disponivel", ativo: true, fotos: [],
-      autorId: pessoa.id, autorNome: pessoa.nome, autorFoto: null, autorLocal: pessoa.local,
+      estado: a.estado || "disponivel", ativo: true,
+      fotos: a.foto ? [`https://picsum.photos/seed/${a.foto}/700/700`] : [],
+      autorId, autorNome: pessoa.nome, autorFoto: pessoa.foto, autorLocal: a.local,
       numReports: 0, reportadoPor: [], ultimosReports: [], lembreteEnviado: false, pedirConfirmacao: false,
       exemploSeed: true,
       criadoEm: admin.firestore.Timestamp.fromMillis(agora),
@@ -119,7 +132,7 @@ async function main() {
   await Promise.all(paraApagar.map((d) => d.ref.delete()));
   if (paraApagar.length) console.log(`${paraApagar.length} anúncios de exemplo antigos (ids automáticos) removidos.`);
 
-  console.log(`${PESSOAS.length} pessoas e ${ANUNCIOS.length} anúncios de exemplo semeados.`);
+  console.log(`${pessoasReais.length} identidades de teste e ${ANUNCIOS.length} anúncios de exemplo semeados.`);
   console.log("Para limpar tudo mais tarde: apagar em `anuncios` e `pessoas` onde exemploSeed==true.");
 }
 

@@ -75,8 +75,10 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
             {anuncio.autorFoto ? "" : anuncio.autorNome?.[0]}
           </span>
           <span>
-            <span className="nmt" style={{ fontSize: 15 }}>{anuncio.autorNome}</span>
-            <span className="ds">{anuncio.autorLocal || "Igreja Onda"} · publicou {relativo(anuncio.criadoEm)}</span>
+            <span className="nmt" style={{ fontSize: 15, display: "block" }}>{anuncio.autorNome}</span>
+            <span className="ds" style={{ display: "block", marginTop: 4 }}>
+              — {anuncio.autorLocal || "Igreja Onda"} · publicou {relativo(anuncio.criadoEm)}
+            </span>
           </span>
         </div>
 

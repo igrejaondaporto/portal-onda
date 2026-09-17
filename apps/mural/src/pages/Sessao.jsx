@@ -122,14 +122,14 @@ export default function Sessao({ eu, onPedirEntrar }) {
       )}
 
       {filtrados.map((a, i) => (
-        <button key={a.id} className={`linha${a.estado === "vendido" ? " vendido" : ""}`} style={{ width: "100%", background: "none", border: 0, borderBottom: "1px solid var(--fio)", textAlign: "left", cursor: "pointer", animationDelay: `${i * 20}ms` }} onClick={() => setAberto(a)}>
-          <FotoAnuncio anuncio={a} />
+        <button key={a.id} className={`linha${a.estado === "vendido" ? " vendido" : ""}`} style={{ width: "100%", background: "none", border: 0, borderBottom: "1px solid var(--fio)", textAlign: "left", cursor: "pointer", alignItems: "flex-start", gap: 14, animationDelay: `${i * 20}ms` }} onClick={() => setAberto(a)}>
+          <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
             <span className={`preco${a.gratis ? " gratis" : ""}`} style={{ display: "block" }}>
               {a.gratis ? "Grátis" : a.preco || "A combinar"}
             </span>
-            <span className="ds">
+            <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
               <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
               {a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
             </span>

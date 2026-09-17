@@ -71,17 +71,17 @@ export default function PainelAdmin() {
             <input type="search" placeholder="Procurar por título ou pessoa…" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
           {filtrados.map((a) => (
-            <div key={a.id} className="linha">
-              <FotoAnuncio anuncio={a} />
+            <div key={a.id} className="linha" style={{ alignItems: "flex-start", gap: 14 }}>
+              <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span className="nmt" style={{ display: "block", opacity: a.ativo ? 1 : 0.5 }}>{a.titulo}</span>
-                <span className="ds">
+                <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
                   <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
                   {a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} {!a.ativo && "· removido"}
                 </span>
               </span>
               {a.ativo && (
-                <button className="sair" style={{ padding: "6px 0", color: "var(--magenta)" }} disabled={aTrabalhar === a.id} onClick={() => window.confirm(`Remover "${a.titulo}"?`) && remover(a.id)}>
+                <button className="sair" style={{ padding: "6px 0", color: "var(--magenta)", alignSelf: "center" }} disabled={aTrabalhar === a.id} onClick={() => window.confirm(`Remover "${a.titulo}"?`) && remover(a.id)}>
                   Remover
                 </button>
               )}

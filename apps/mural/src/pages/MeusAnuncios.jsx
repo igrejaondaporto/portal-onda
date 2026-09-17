@@ -40,8 +40,8 @@ export default function MeusAnuncios() {
 
       {meus.map((a) => {
         return (
-          <div key={a.id} className={a.ativo ? "linha" : "linha vendido"} style={{ flexWrap: "wrap", alignItems: "flex-start" }}>
-            <FotoAnuncio anuncio={a} />
+          <div key={a.id} className={a.ativo ? "linha" : "linha vendido"} style={{ flexWrap: "wrap", alignItems: "flex-start", gap: 14 }}>
+            <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
               <span className="ds">{nomeCategoria(a.tipo, a.categoria)} · {a.gratis ? "grátis" : a.preco || "a combinar"}</span>
