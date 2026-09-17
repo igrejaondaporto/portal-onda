@@ -23,6 +23,31 @@ const ROTULOS = {
 
 const POR_DECIDIR = new Set(["submetido", "devolvido"]);
 
+// Enquanto a fatura em papel não chega à mão do líder o pedido não
+// anda — e é isso que a pessoa precisa de ver, não um "em aberto" que
+// parece que está tudo tratado. Só vale enquanto está por decidir:
+// depois de aprovado ou indeferido, o que importa é a decisão.
+const ROTULO_SEM_FATURA = { texto: { lider: "Falta a fatura", voluntario: "Ag. fatura física" }, tag: "lim" };
+
+const rotuloDe = (r) =>
+  r.estado === "submetido" && r.fatura && !r.fatura.comLider
+    ? ROTULO_SEM_FATURA
+    : ROTULOS[r.estado] ?? { texto: { lider: r.estado, voluntario: r.estado }, tag: "" };
+
+/** O que dizer sobre o papel, depois de o líder decidir o que lhe faz.
+ *  `null` quando não há nada de novo a dizer. */
+function textoFatura(r) {
+  if (r.fatura?.recebida) return "Fatura em papel já entregue ao Financeiro ✓";
+  if (r.fatura?.paraFinanceiro === "entregue") return "O líder entregou a fatura ao Financeiro — falta o Financeiro confirmar.";
+  if (r.fatura?.paraFinanceiro === "proximo_culto") return "O líder leva a fatura em papel ao Financeiro no próximo culto.";
+  return null;
+}
+
+const OPCOES_FATURA = [
+  ["entregue", "Já entreguei ao Financeiro"],
+  ["proximo_culto", "Entrego no próximo culto"],
+];
+
 const METODOS = [
   ["mbway", "MB Way"],
   ["transferencia", "Transferência"],
@@ -38,8 +63,13 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
   const [categoria, setCategoria] = useState(CATEGORIAS_DESPESA[0][0]);
   const [valor, setValor] = useState("");
   const [ficheiro, setFicheiro] = useState(null);
+  // null = ainda não respondeu. Obrigatório escolher antes de enviar —
+  // um checkbox por marcar não distingue "não entreguei" de "não li".
+  const [faturaComLider, setFaturaComLider] = useState(null);
   const [aEnviar, setAEnviar] = useState(false);
   const [aIndeferir, setAIndeferir] = useState(null);
+  const [aAprovar, setAAprovar] = useState(null);
+  const [paraFinanceiro, setParaFinanceiro] = useState(null);
   const [comentario, setComentario] = useState("");
   const [aProcessar, setAProcessar] = useState(false);
   // onde a pessoa recebe: lido uma vez, editável enquanto não houver
@@ -101,6 +131,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
     const v = parseFloat(String(valor).replace(",", "."));
     if (!v || v <= 0) return torrada("Falta o valor");
     if (!ficheiro) return torrada("Junta a foto da nota");
+    if (faturaComLider === null) return torrada("Diz se já entregaste a fatura em mãos ao líder");
 
     // sem isto ninguém te consegue pagar — é por isso que é obrigatório
     const usarGuardado = pagamento && !aMudarPagamento;
@@ -114,9 +145,9 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
       if (!usarGuardado) await guardarPagamento(uid, paraPagar);
       await criarReembolso(uid, {
         descricao: descricao.trim(), valor: v, ficheiro, categoria,
-        pessoaNome: eu?.nome ?? null, pagamento: paraPagar,
+        pessoaNome: eu?.nome ?? null, pagamento: paraPagar, faturaComLider,
       });
-      setDescricao(""); setValor(""); setFicheiro(null);
+      setDescricao(""); setValor(""); setFicheiro(null); setFaturaComLider(null);
       setPagamento(paraPagar); setAMudarPagamento(false);
       torrada(`Pedido enviado ao ${nomeLiderBase}`);
     } catch (e) {
@@ -126,10 +157,13 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
     }
   }
 
-  async function aprovar(id) {
+  async function confirmarAprovacao() {
+    if (!paraFinanceiro) return torrada("Diz o que vais fazer à fatura em papel");
     setAProcessar(true);
     try {
-      await aprovarReembolso(id);
+      await aprovarReembolso(aAprovar, paraFinanceiro);
+      setAAprovar(null);
+      setParaFinanceiro(null);
       torrada("Pedido aprovado");
     } catch (e) {
       torrada(e.message || "Não foi possível atualizar.");
@@ -179,6 +213,26 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
             <button className="btn sec full" style={{ marginTop: 8 }} onClick={() => inputRef.current.click()}>
               {ficheiro ? "Nota anexada ✓" : "Escolher ficheiro"}
             </button>
+
+            {/* A foto não chega: a contabilidade precisa do papel. Quem
+              * ainda não o entregou pode pedir na mesma — o pedido fica
+              * "Ag. fatura física" até o líder a ter em mãos. */}
+            <label className="rot">Já entregaste a fatura em mãos ao líder?</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 8 }}>
+              {[[true, "Sim, já entreguei"], [false, "Ainda não"]].map(([v, rotulo]) => (
+                <button
+                  key={String(v)}
+                  className="btn sec"
+                  style={{
+                    padding: "12px 10px", fontSize: 13.5,
+                    ...(faturaComLider === v ? { background: "var(--azul)", color: "#fff" } : null),
+                  }}
+                  onClick={() => setFaturaComLider(v)}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </div>
 
             <label className="rot">Onde queres receber</label>
             {mostrarFormPagamento ? (
@@ -240,7 +294,8 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
           {reembolsos.length ? (
             reembolsos.map((r) => {
               const p = voluntarios.find((x) => x.id === r.pessoaId);
-              const rotulo = ROTULOS[r.estado] ?? { texto: { lider: r.estado, voluntario: r.estado }, tag: "" };
+              const rotulo = rotuloDe(r);
+              const aviso = textoFatura(r);
               return (
                 <div key={r.id}>
                   <div className="linha">
@@ -252,9 +307,12 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                       </p>
                     </div>
                     {souLiderBase && POR_DECIDIR.has(r.estado) ? (
-                      aIndeferir === r.id ? null : (
+                      aIndeferir === r.id || aAprovar === r.id ? null : (
                         <div style={{ display: "flex", gap: 8, flex: "none" }}>
-                          <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }} disabled={aProcessar} onClick={() => aprovar(r.id)}>
+                          <button
+                            className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5 }}
+                            disabled={aProcessar} onClick={() => { setAAprovar(r.id); setParaFinanceiro(null); setAIndeferir(null); }}
+                          >
                             Aprovar
                           </button>
                           <button
@@ -283,6 +341,40 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
                         <button className="btn sec full" onClick={() => setAIndeferir(null)}>Cancelar</button>
                       </div>
                     </div>
+                  )}
+                  {aAprovar === r.id && (
+                    <div className="caixa" style={{ marginTop: -6, marginBottom: 14 }}>
+                      {r.fatura && !r.fatura.comLider && (
+                        <p className="ds" style={{ marginTop: 0, color: "var(--laranja)" }}>
+                          Quem pediu disse que ainda não te entregou a fatura em papel. Confirma que já a tens antes de aprovar.
+                        </p>
+                      )}
+                      <label className="rot" style={{ marginTop: r.fatura && !r.fatura.comLider ? 12 : 0 }}>
+                        A fatura em papel
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 8 }}>
+                        {OPCOES_FATURA.map(([v, texto]) => (
+                          <button
+                            key={v}
+                            className="btn sec"
+                            style={{
+                              padding: "12px 10px", fontSize: 13.5,
+                              ...(paraFinanceiro === v ? { background: "var(--azul)", color: "#fff" } : null),
+                            }}
+                            onClick={() => setParaFinanceiro(v)}
+                          >
+                            {texto}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        <button className="btn full" disabled={aProcessar} onClick={confirmarAprovacao}>Confirmar aprovação</button>
+                        <button className="btn sec full" onClick={() => setAAprovar(null)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                  {aviso && (
+                    <p className="ds" style={{ marginTop: -8, marginBottom: 14 }}>{aviso}</p>
                   )}
                   {r.estado === "devolvido" && r.devolvidoPorFinanceiro && (
                     <p className="ds" style={{ marginTop: -8, marginBottom: 14, color: "var(--laranja)" }}>

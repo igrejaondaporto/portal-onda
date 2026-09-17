@@ -103,10 +103,10 @@ Não tem coleção própria de reembolsos — lê `bases/*/reembolsos` de
 TODAS as bases por `collectionGroup` (`lib/reembolsosFinanceiro.js`),
 autorizado pelo bloco `match /{path=**}/reembolsos/{r}` em
 `firestore.rules`, guardado por `vejoTodosReembolsos()`. Ver
-`functions/index.js`: `marcarReembolsosPagos` (lote) e
-`devolverReembolso` são as únicas duas escritas — nunca escrita
-direta do cliente, porque mexem em dinheiro e cruzam bases (regra 3
-do `CLAUDE.md` raiz).
+`functions/index.js`: `marcarReembolsosPagos` (lote),
+`devolverReembolso` e `marcarFaturaFisica` são as únicas três
+escritas — nunca escrita direta do cliente, porque cruzam bases (e as
+duas primeiras mexem em dinheiro; regra 3 do `CLAUDE.md` raiz).
 
 Filtros: estado (Por pagar / Pagos / Devolvidos) em chips, mais dois
 seletores — **base** e **categoria de despesa**. As bases do seletor
@@ -125,6 +125,45 @@ app nunca lê `privado/pagamento` diretamente — só vê a cópia que já
 veio no pedido, e é o que aparece em `SheetDetalheReembolso`.
 Continua certo mesmo que a pessoa mude de banco depois de já ter
 sido paga uma vez.
+
+### A fatura em papel anda a outro ritmo que o dinheiro
+
+A foto da fatura viaja no pedido; o **original em papel** passa de mão
+em mão (voluntário → líder → Financeiro) e é esse que a contabilidade
+precisa de arquivar. O mapa `fatura` em cada reembolso é o rasto dessa
+viagem, e cada campo é escrito por uma pessoa diferente:
+
+```js
+fatura: {
+  comLider: true,               // o voluntário, ao submeter (obrigatório)
+  paraFinanceiro: "entregue",   // o líder, ao aprovar: "entregue" | "proximo_culto"
+  recebida: false,              // o Financeiro, aqui — a ÚNICA prova
+  recebidaEm: null,
+}
+```
+
+O que o líder declara é **intenção, não prova**: só `recebida` fecha o
+processo, e só se marca aqui, pedido a pedido (`marcarFaturaFisica`,
+Cloud Function — daqui só se LÊ `bases/*/reembolsos`). Pedido a pedido
+de propósito: o líder chega com quatro faturas de cinco, e um botão
+"recebi tudo desta base" faria o histórico mentir sobre a que falta.
+
+Não bloqueia nada. Dá para pagar sem ter o papel (e é o que acontece
+quase sempre — o dinheiro não espera pelo domingo seguinte) e dá para
+receber o papel de um pedido ainda por pagar. Por isso a conferência
+vive num filtro próprio ("Faturas", em Reembolsos), agrupado por base,
+que junta os por pagar E os já pagos que ainda tenham papel em falta —
+e num aviso no Início, que de outra forma daria o mês por fechado com
+uma pilha de faturas por arquivar.
+
+Nas outras 9 bases, o voluntário que diz "ainda não entreguei" vê o
+estado **"Ag. fatura física"** em vez de "À espera do líder" — o
+pedido está parado nele, não no líder, e sem isto ele ficaria à espera
+de uma decisão que nunca chega.
+
+Pedidos anteriores a isto não têm o mapa `fatura`. Lê-se como "sem
+informação do líder", nunca como "por entregar" — e a aprovação
+seguinte cria o mapa por notação de ponto.
 
 ## Oferta — a contagem do culto
 

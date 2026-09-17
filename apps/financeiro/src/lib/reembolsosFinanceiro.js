@@ -45,6 +45,21 @@ export const marcarReembolsosPagos = (pedidos, metodo, referencia, comprovativo)
 export const devolverReembolso = (baseId, id, motivo) =>
   chamar("devolverReembolso")({ baseId, id, motivo });
 
+/** Confere a fatura EM PAPEL, pedido a pedido — o líder pode ter
+ *  entregue quatro de cinco. Também por função: daqui só se lê
+ *  bases/{b}/reembolsos (ver o comentário no topo). */
+export const marcarFaturaFisica = (baseId, id, recebida) =>
+  chamar("marcarFaturaFisica")({ baseId, id, recebida });
+
+/** Um pedido só está "em papel" fechado quando o Financeiro confirmou.
+ *  O que o líder declarou (`paraFinanceiro`) é intenção, não prova. */
+export const faturaPorReceber = (r) => !r.fatura?.recebida;
+
+export const ROTULO_FATURA = {
+  entregue: "O líder diz que já entregou",
+  proximo_culto: "O líder traz no próximo culto",
+};
+
 /** Mesma formatação de apps/*\/src/lib/reembolsos.js (mostrarDestino)
  *  — sem partilhar módulo porque essa lib vive dentro de cada base,
  *  não em packages/shared; é só apresentação, sem risco de divergir. */

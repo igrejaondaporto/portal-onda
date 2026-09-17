@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { marcarReembolsosPagos, devolverReembolso, subirComprovativoPagamento, mostrarDestino, ROTULO_METODO } from "../lib/reembolsosFinanceiro";
+import { marcarReembolsosPagos, devolverReembolso, subirComprovativoPagamento, marcarFaturaFisica, mostrarDestino, ROTULO_METODO, ROTULO_FATURA } from "../lib/reembolsosFinanceiro";
 
 /** Detalhe de um pedido aprovado — pagar ou devolver. As duas ações
  *  são Cloud Function (ver lib/reembolsosFinanceiro.js); esta folha só
@@ -46,6 +46,19 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
     }
   }
 
+  async function alternarFatura() {
+    setAEnviar(true);
+    try {
+      await marcarFaturaFisica(pedido.baseId, pedido.id, !pedido.fatura?.recebida);
+      torrada(pedido.fatura?.recebida ? "Fatura em papel desmarcada" : "Fatura em papel conferida");
+      onFeito?.();
+    } catch (e) {
+      torrada(e.message || "Não foi possível marcar a fatura.");
+    } finally {
+      setAEnviar(false);
+    }
+  }
+
   async function confirmarDevolucao() {
     if (!motivo.trim()) return torrada("Escreve o que está mal no pedido");
     setAEnviar(true);
@@ -83,6 +96,20 @@ export default function SheetDetalheReembolso({ pedido, nomeBase, corBase, onFec
             <p className="ds"><a href={pedido.anexo} target="_blank" rel="noreferrer">Ver ficheiro</a></p>
           </>
         )}
+
+        {/* O papel é uma conferência à parte do dinheiro: dá para pagar
+          * sem ter a fatura em mãos, e dá para ter a fatura de um
+          * pedido que ainda não se pagou. Por isso não bloqueia nada —
+          * só se marca. */}
+        <label className="rot" style={{ marginTop: 14 }}>Fatura em papel</label>
+        <p className="ds">
+          {pedido.fatura?.recebida
+            ? "Já a tens — conferida."
+            : ROTULO_FATURA[pedido.fatura?.paraFinanceiro] ?? "Sem informação do líder."}
+        </p>
+        <button className="btn sec full" style={{ marginTop: 8 }} disabled={aEnviar} onClick={alternarFatura}>
+          {pedido.fatura?.recebida ? "Afinal não a tenho" : "Recebi a fatura em papel"}
+        </button>
 
         <label className="rot" style={{ marginTop: 14 }}>Pagar para</label>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 8 }}>
