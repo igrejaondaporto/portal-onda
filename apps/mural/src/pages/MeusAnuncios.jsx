@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ouvirMeusAnuncios, alterarEstadoAnuncio, renovarAnuncio, removerAnuncio, MAX_ATIVOS } from "../lib/anuncios.js";
-import { corPara, ESTADOS, nomeCategoria } from "../lib/util.js";
+import { ESTADOS, nomeCategoria } from "../lib/util.js";
+import FotoAnuncio from "../components/FotoAnuncio.jsx";
 
 export default function MeusAnuncios() {
   const [meus, setMeus] = useState([]);
@@ -40,7 +41,7 @@ export default function MeusAnuncios() {
       {meus.map((a) => {
         return (
           <div key={a.id} className={a.ativo ? "linha" : "linha vendido"} style={{ flexWrap: "wrap", alignItems: "flex-start" }}>
-            <span className="bola" style={{ background: corPara(a.titulo) }}>{a.titulo[0]}</span>
+            <FotoAnuncio anuncio={a} />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
               <span className="ds">{nomeCategoria(a.tipo, a.categoria)} · {a.gratis ? "grátis" : a.preco || "a combinar"}</span>

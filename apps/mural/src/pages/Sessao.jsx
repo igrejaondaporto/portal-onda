@@ -4,9 +4,11 @@ import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { corPara, CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/util.js";
+import { CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
+import FotoAnuncio from "../components/FotoAnuncio.jsx";
+import MiniAvatar from "../components/MiniAvatar.jsx";
 import Publicar from "./Publicar.jsx";
 import MeusAnuncios from "./MeusAnuncios.jsx";
 import PainelAdmin from "./PainelAdmin.jsx";
@@ -121,13 +123,16 @@ export default function Sessao({ eu, onPedirEntrar }) {
 
       {filtrados.map((a, i) => (
         <button key={a.id} className={`linha${a.estado === "vendido" ? " vendido" : ""}`} style={{ width: "100%", background: "none", border: 0, borderBottom: "1px solid var(--fio)", textAlign: "left", cursor: "pointer", animationDelay: `${i * 20}ms` }} onClick={() => setAberto(a)}>
-          <span className="bola" style={{ background: corPara(a.titulo) }}>{a.titulo[0]}</span>
+          <FotoAnuncio anuncio={a} />
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
             <span className={`preco${a.gratis ? " gratis" : ""}`} style={{ display: "block" }}>
               {a.gratis ? "Grátis" : a.preco || "A combinar"}
             </span>
-            <span className="ds">{a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}</span>
+            <span className="ds">
+              <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
+              {a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
+            </span>
           </span>
           <span className="tag" style={{ background: ESTADOS[a.estado]?.classe === "disp" ? "var(--verde)" : ESTADOS[a.estado]?.classe === "res" ? "var(--laranja)" : "var(--agua)", color: ESTADOS[a.estado]?.classe === "vend" ? "var(--cinza)" : "#fff" }}>
             {ESTADOS[a.estado]?.nome}

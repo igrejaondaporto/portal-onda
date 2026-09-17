@@ -132,6 +132,20 @@
   font-weight: 600;
 }
 
+/* mesmo espírito do .semFoto, só que a caber na miniatura de 42px
+ * das listas (FotoAnuncio.jsx) — sem borda tracejada aqui, o .bola já
+ * é redondo e destaca-se sozinho da lista à volta. */
+.bola.semFotoMini {
+  background: var(--agua);
+  color: var(--cinza);
+  display: grid;
+  place-items: center;
+}
+.bola.semFotoMini svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* busca do mural */
 .procura {
   display: flex;

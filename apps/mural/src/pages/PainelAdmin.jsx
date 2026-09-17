@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirTodosAnuncios, removerAnuncio, moderarAnuncio, resumoSemanalMural } from "../lib/anuncios.js";
-import { corPara, nomeCategoria } from "../lib/util.js";
+import { nomeCategoria } from "../lib/util.js";
+import FotoAnuncio from "../components/FotoAnuncio.jsx";
+import MiniAvatar from "../components/MiniAvatar.jsx";
 
 /** Painel de moderação — "caso queiramos excluir ou editar algum
  *  anúncio" (pedido explícito, 2026-09). Editar em si fica para uma
@@ -70,10 +72,13 @@ export default function PainelAdmin() {
           </div>
           {filtrados.map((a) => (
             <div key={a.id} className="linha">
-              <span className="bola" style={{ background: corPara(a.titulo) }}>{a.titulo[0]}</span>
+              <FotoAnuncio anuncio={a} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span className="nmt" style={{ display: "block", opacity: a.ativo ? 1 : 0.5 }}>{a.titulo}</span>
-                <span className="ds">{a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} {!a.ativo && "· removido"}</span>
+                <span className="ds">
+                  <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
+                  {a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} {!a.ativo && "· removido"}
+                </span>
               </span>
               {a.ativo && (
                 <button className="sair" style={{ padding: "6px 0", color: "var(--magenta)" }} disabled={aTrabalhar === a.id} onClick={() => window.confirm(`Remover "${a.titulo}"?`) && remover(a.id)}>
