@@ -2,21 +2,21 @@
  * Semeia o Mural Onda com anúncios de exemplo, para haver algo para
  * ver no primeiro deploy (mural nenhum convence vazio).
  *
- * Pessoas claramente fictícias, de propósito — é a convenção já
- * escrita em apps/pessoal/CLAUDE.md ("Dados de exemplo claramente
- * fictícios em seeds/demos, nunca nomes reais") e vale ainda mais
- * aqui: um anúncio inventado ("vendo o meu carro") atribuído a um
- * voluntário real e identificável, sem ele saber, é o tipo de coisa
- * que confunde ou constrange se alguém tropeçar nisso antes de saber
- * que é só demonstração. Cada pessoa fica marcada `exemploSeed:true`
- * — fácil de encontrar e apagar antes de o Mural abrir a sério à
- * igreja (ver a query no fim deste ficheiro).
+ * Pessoas fictícias, de propósito — nunca ligadas a um voluntário
+ * real e identificável (um anúncio inventado, "vendo o meu carro",
+ * atribuído a alguém real sem essa pessoa saber, é o tipo de coisa
+ * que confunde ou constrange se for encontrado antes de se perceber
+ * que é só demonstração). Nomes correntes, sem qualquer marca "de
+ * exemplo" no texto em si — o que os identifica como seed é só o
+ * campo `exemploSeed:true`, nunca visível na UI.
  *
  *   1. Firebase → Definições → Contas de serviço → Gerar chave privada
  *   2. guardar como service-account.json na raiz (está no .gitignore)
  *   3. node scripts/seedMural.mjs
  *
- * Corre uma vez. Repetir não duplica (ids fixos, merge:true).
+ * Idempotente: ids fixos (pessoas `tel_...`, anúncios `exemplo-NN`),
+ * merge:true — corre outra vez sem duplicar, e atualiza o que mudar
+ * aqui (nomes, textos…) nos documentos já semeados.
  */
 import { readFileSync } from "node:fs";
 import admin from "firebase-admin";
@@ -29,21 +29,21 @@ const db = admin.firestore();
 // pelo Mural a sério (ver idParaTelefone em functions/mural.js), só
 // que com um telefone que nunca vai bater com ninguém real.
 const PESSOAS = [
-  { id: "tel_000000001", nome: "Ricardo Matos (exemplo)", local: "Base Técnica" },
-  { id: "tel_000000002", nome: "Sofia Andrade (exemplo)", local: "Base Kinder" },
-  { id: "tel_000000003", nome: "Paulo Carvalho (exemplo)", local: "Base de Apoio" },
-  { id: "tel_000000004", nome: "Marta Ferreira (exemplo)", local: "Base New" },
-  { id: "tel_000000005", nome: "Vítor Nunes (exemplo)", local: "Base de Apoio" },
-  { id: "tel_000000006", nome: "Inês Bettencourt (exemplo)", local: "GD Lisboa" },
-  { id: "tel_000000007", nome: "Hugo Trindade (exemplo)", local: "GD Lisboa" },
-  { id: "tel_000000008", nome: "Bruno Lopes (exemplo)", local: "GD Santo André — Sines" },
-  { id: "tel_000000009", nome: "Tiago Palma (exemplo)", local: "GD Piscina — Sines" },
-  { id: "tel_000000010", nome: "Joana Pinheiro (exemplo)", local: "GD Fânzeres" },
-  { id: "tel_000000011", nome: "Nuno Resende (exemplo)", local: "Base Backstage" },
-  { id: "tel_000000012", nome: "Alzira Santos (exemplo)", local: "GD Gaia" },
-  { id: "tel_000000013", nome: "Elsa Maia (exemplo)", local: "Base de Apoio" },
-  { id: "tel_000000014", nome: "Carla Bastos (exemplo)", local: "GD Lisboa" },
-  { id: "tel_000000015", nome: "Rute Aleixo (exemplo)", local: "GD New — Sines" },
+  { id: "tel_000000001", nome: "Ricardo Matos", local: "Base Técnica" },
+  { id: "tel_000000002", nome: "Sofia Andrade", local: "Base Kinder" },
+  { id: "tel_000000003", nome: "Paulo Carvalho", local: "Base de Apoio" },
+  { id: "tel_000000004", nome: "Marta Ferreira", local: "Base New" },
+  { id: "tel_000000005", nome: "Vítor Nunes", local: "Base de Apoio" },
+  { id: "tel_000000006", nome: "Inês Bettencourt", local: "GD Lisboa" },
+  { id: "tel_000000007", nome: "Hugo Trindade", local: "GD Lisboa" },
+  { id: "tel_000000008", nome: "Bruno Lopes", local: "GD Santo André — Sines" },
+  { id: "tel_000000009", nome: "Tiago Palma", local: "GD Piscina — Sines" },
+  { id: "tel_000000010", nome: "Joana Pinheiro", local: "GD Fânzeres" },
+  { id: "tel_000000011", nome: "Nuno Resende", local: "Base Backstage" },
+  { id: "tel_000000012", nome: "Alzira Santos", local: "GD Gaia" },
+  { id: "tel_000000013", nome: "Elsa Maia", local: "Base de Apoio" },
+  { id: "tel_000000014", nome: "Carla Bastos", local: "GD Lisboa" },
+  { id: "tel_000000015", nome: "Rute Aleixo", local: "GD New — Sines" },
 ];
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -92,10 +92,11 @@ async function main() {
   }
 
   console.log("A semear anúncios de exemplo…");
-  for (const a of ANUNCIOS) {
+  for (const [i, a] of ANUNCIOS.entries()) {
     const pessoa = PESSOAS[a.autor];
     const agora = Date.now() - a.diasAtras * DIA;
-    await db.collection("anuncios").add({
+    const id = `exemplo-${String(i + 1).padStart(2, "0")}`;
+    await db.doc(`anuncios/${id}`).set({
       tipo: a.tipo, categoria: a.categoria, titulo: a.titulo, descricao: a.descricao,
       regiao: a.regiao, preco: a.gratis ? "" : a.preco, gratis: !!a.gratis,
       estado: a.estado || "disponivel", ativo: true, fotos: [],
@@ -105,10 +106,21 @@ async function main() {
       criadoEm: admin.firestore.Timestamp.fromMillis(agora),
       atualizadoEm: admin.firestore.Timestamp.fromMillis(agora),
       expiraEm: admin.firestore.Timestamp.fromMillis(agora + 30 * DIA),
-    });
+    }, { merge: true });
   }
+
+  // limpa anúncios de exemplo de uma versão anterior deste script,
+  // de quando os ids ainda eram gerados automaticamente (add(), não
+  // set(id)) — sem isto ficavam duplicados ao lado dos novos, ids
+  // determinísticos, para sempre.
+  const idsAtuais = new Set(ANUNCIOS.map((_, i) => `exemplo-${String(i + 1).padStart(2, "0")}`));
+  const antigos = await db.collection("anuncios").where("exemploSeed", "==", true).get();
+  const paraApagar = antigos.docs.filter((d) => !idsAtuais.has(d.id));
+  await Promise.all(paraApagar.map((d) => d.ref.delete()));
+  if (paraApagar.length) console.log(`${paraApagar.length} anúncios de exemplo antigos (ids automáticos) removidos.`);
+
   console.log(`${PESSOAS.length} pessoas e ${ANUNCIOS.length} anúncios de exemplo semeados.`);
-  console.log("Para limpar mais tarde: apagar tudo em `anuncios` e `pessoas` com exemploSeed==true.");
+  console.log("Para limpar tudo mais tarde: apagar em `anuncios` e `pessoas` onde exemploSeed==true.");
 }
 
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

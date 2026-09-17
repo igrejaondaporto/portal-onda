@@ -50,11 +50,13 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
             {anuncio.fotos.map((f, i) => <img key={i} src={f} alt="" />)}
           </div>
         ) : (
-          <div
-            className="cara"
-            style={{ width: 84, height: 84, fontSize: 30, background: corPara(anuncio.titulo) }}
-          >
-            {anuncio.titulo[0]}
+          <div className="semFoto" role="img" aria-label="Este anúncio não tem fotografia">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3l18 18" /><path d="M10.5 5h3l1 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6.5" />
+              <path d="M4.7 6.7A2 2 0 0 0 3 8.7V17a2 2 0 0 0 2 2h11.3" />
+              <circle cx="12" cy="12.5" r="3.2" />
+            </svg>
+            <span>Sem foto</span>
           </div>
         )}
         <span className="tag" style={{ marginTop: 14, display: "inline-block" }}>

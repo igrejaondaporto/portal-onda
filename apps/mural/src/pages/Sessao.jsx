@@ -29,7 +29,11 @@ export default function Sessao({ eu, onPedirEntrar }) {
   const [pagina, setPagina] = useState("mural");
   const [anuncios, setAnuncios] = useState([]);
   const [tipo, setTipo] = useState("ofereco");
-  const [regiao, setRegiao] = useState(REGIOES[0].id);
+  // "todas" por omissão — a região é um filtro como outro qualquer,
+  // só se aplica se a pessoa a escolher (pedido explícito, 2026-09:
+  // pré-selecionar Norte escondia tudo de quem procura em Lisboa/Sines
+  // sem a pessoa perceber porquê).
+  const [regiao, setRegiao] = useState("todas");
   const [categoria, setCategoria] = useState("todas");
   const [busca, setBusca] = useState("");
   const [aberto, setAberto] = useState(null);
@@ -40,7 +44,8 @@ export default function Sessao({ eu, onPedirEntrar }) {
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return anuncios
-      .filter((a) => a.tipo === tipo && a.regiao === regiao)
+      .filter((a) => a.tipo === tipo)
+      .filter((a) => regiao === "todas" || a.regiao === regiao)
       .filter((a) => categoria === "todas" || a.categoria === categoria)
       .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal}`.toLowerCase().includes(q));
   }, [anuncios, tipo, regiao, categoria, busca]);
@@ -69,20 +74,21 @@ export default function Sessao({ eu, onPedirEntrar }) {
 
   return casca(
     <>
-      <div className="subtabs">
+      <div className="segmentado">
         <button data-on={tipo === "ofereco" ? 1 : 0} onClick={() => setTipo("ofereco")}>Ofereço</button>
         <button data-on={tipo === "procuro" ? 1 : 0} onClick={() => setTipo("procuro")}>Procuro</button>
       </div>
 
-      <div className="menu" style={{ padding: "12px 0", position: "static" }}>
-        {REGIOES.map((r) => (
-          <button key={r.id} data-on={regiao === r.id ? 1 : 0} onClick={() => setRegiao(r.id)}>{r.nome}</button>
-        ))}
-      </div>
-      <div className="menu" style={{ padding: "0 0 12px", position: "static" }}>
+      <div className="menu" style={{ padding: "12px 0 0", position: "static" }}>
         <button data-on={categoria === "todas" ? 1 : 0} onClick={() => setCategoria("todas")}>Tudo</button>
         {CATEGORIAS[tipo].map((c) => (
           <button key={c.id} data-on={categoria === c.id ? 1 : 0} onClick={() => setCategoria(c.id)}>{c.nome}</button>
+        ))}
+      </div>
+      <div className="menu" style={{ padding: "8px 0 12px", position: "static" }}>
+        <button data-on={regiao === "todas" ? 1 : 0} onClick={() => setRegiao("todas")}>Todas as regiões</button>
+        {REGIOES.map((r) => (
+          <button key={r.id} data-on={regiao === r.id ? 1 : 0} onClick={() => setRegiao(r.id)}>{r.nome}</button>
         ))}
       </div>
 
@@ -94,7 +100,8 @@ export default function Sessao({ eu, onPedirEntrar }) {
       </div>
 
       <p className="ds" style={{ padding: "14px 0 2px" }}>
-        {filtrados.length} {tipo === "ofereco" ? "anúncios" : "pedidos"} na região {REGIOES.find((r) => r.id === regiao)?.nome}
+        {filtrados.length} {tipo === "ofereco" ? "anúncios" : "pedidos"}
+        {regiao !== "todas" && <> na região {REGIOES.find((r) => r.id === regiao)?.nome}</>}
       </p>
 
       {filtrados.length === 0 && (

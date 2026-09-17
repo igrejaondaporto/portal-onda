@@ -51,9 +51,14 @@ export default function App() {
     <>
       <Sessao eu={eu} onPedirEntrar={() => setAEntrar(true)} />
       {aEntrar && (
-        <div className="entradaModal">
-          <button className="fecharEntradaModal" aria-label="Fechar" onClick={() => setAEntrar(false)}>×</button>
-          <Entrada />
+        <div
+          className="entradaModal"
+          onClick={(e) => e.target === e.currentTarget && setAEntrar(false)}
+        >
+          <div className="entradaModalCartao">
+            <button className="fecharEntradaModal" aria-label="Fechar" onClick={() => setAEntrar(false)}>×</button>
+            <Entrada />
+          </div>
         </div>
       )}
     </>
