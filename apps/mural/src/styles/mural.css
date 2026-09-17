@@ -1,0 +1,171 @@
+/**
+ * Ajustes locais do Mural Onda, carregados DEPOIS do global.css
+ * partilhado (ver CLAUDE.md raiz, "Trabalhar numa base sem mexer nas
+ * outras") — vive só aqui, nunca entra no bundle de nenhuma base.
+ * O grosso da UI reaproveita classes do global.css tal e qual
+ * (.crista/.folha/.opcao/.g/.p/.av na Entrada; .linha/.bola/.nmt/.ds
+ * no feed; .menu/.subtabs nos filtros; .navb na barra de baixo) —
+ * isto é só o que faltava.
+ */
+
+/* avatarzinho inline, junto ao nome de quem publicou */
+.mini {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  background-size: cover;
+  margin-right: 3px;
+  vertical-align: -4px;
+}
+
+/* barra "3 de 5 no ar" — Publicar e Os meus */
+.limite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--agua);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+.limite b {
+  font-size: 12.5px;
+  font-weight: 700;
+  flex: none;
+}
+.limite .trilho {
+  flex: 1;
+  height: 7px;
+  border-radius: 7px;
+  background: #d3d9f2;
+  overflow: hidden;
+}
+.limite .trilho i {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  background: var(--azul);
+}
+
+/* números do painel de admin */
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.numeros div {
+  background: var(--agua);
+  border-radius: 16px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.numeros b {
+  display: block;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.numeros span {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* resumo semanal — texto pronto a copiar */
+.resumotexto {
+  background: var(--tinta);
+  color: #fff;
+  border-radius: 18px;
+  padding: 16px 17px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+  font-family: var(--o);
+}
+
+/* fotos já enviadas (Publicar) e do detalhe do anúncio */
+.fotoscolagem {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.fotoscolagem img {
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+/* busca do mural */
+.procura {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 14px 0 2px;
+  border: 1px solid var(--fio);
+  border-radius: 100px;
+  padding: 10px 16px;
+  background: #fff;
+}
+.procura svg {
+  width: 17px;
+  height: 17px;
+  color: var(--cinza);
+  flex: none;
+}
+.procura input {
+  border: 0;
+  outline: 0;
+  flex: 1;
+  font-size: 14.5px;
+  background: none;
+  min-width: 0;
+  font-family: inherit;
+  color: inherit;
+}
+.procura input::placeholder {
+  color: var(--cinza);
+}
+
+/* botão "falar no whatsapp" */
+.btn.zap {
+  background: var(--verde);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+}
+
+/* estado esbatido (regra 5 — nada se apaga, "vendido" fica visível mas apagado) */
+.vendido .nmt,
+.vendido .preco {
+  opacity: 0.45;
+}
+.vendido .bola {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.preco {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.preco.gratis {
+  color: var(--verde);
+}

@@ -23,10 +23,16 @@
  *   eventos/{e}/contagem/geral                       ← nove categorias, autoria e origem por categoria
  *   bases/{base}/enquetes/{AAAA-MM}                  ← indisponibilidade, igual a Técnica/Backstage
  *   bases/{base}/enquetes/{AAAA-MM}/respostas/{pessoa}
- *   bases/{base}/gds/{gd}                            ← catálogo de GDs, sugerido no Formulário
  *   bases/{base}/config/contactoPastor               ← whatsapp do pastor (não vai no doc bases/{base},
  *                                                       que é lido por autenticado() de QUALQUER base)
  *   contactos/{contacto}                             ← GLOBAL (fora de bases/) — Formulário de contacto
+ *   gds/{gd}                                          ← GLOBAL desde 2026-09 (era bases/pessoal/gds):
+ *                                                        o Mural Onda (apps/mural) passou a precisar do
+ *                                                        mesmo catálogo, e um GD não é "da Pessoal", é da
+ *                                                        igreja — mesma lógica de eventos/ (CLAUDE.md raiz,
+ *                                                        regra 7). A líder da Pessoal continua a única a
+ *                                                        escrever (ver firestore.rules); só o caminho de
+ *                                                        leitura deixou de estar preso a esta base.
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -47,7 +53,9 @@ export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
 export const cContagem    = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
-export const cGDs         = () => collection(db, `bases/${BASE_ID}/gds`);
+// global desde 2026-09 (ver nota "GLOBAL" no topo deste ficheiro) —
+// migrado de bases/pessoal/gds por scripts/migrarGDsParaGlobal.mjs
+export const cGDs         = () => collection(db, "gds");
 // global, fora de bases/ — ver comentário em firestore.rules
 export const cContactos   = () => collection(db, "contactos");
 export const cContacto    = (id) => doc(db, `contactos/${id}`);

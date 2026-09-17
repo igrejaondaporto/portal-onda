@@ -36,6 +36,16 @@ export {
   purgarFamiliasInativasKinder, purgarAnexosLicoesAntigasKinder,
 } from "./kinder.js";
 
+// Mural Onda: anúncios de dou/vendo/arrendo e de procuro, da igreja
+// toda — ficheiro próprio, mesmo motivo de kinder.js (ver o
+// comentário no topo de mural.js).
+export {
+  listarBasesMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
+  souAdminMuralAgora, pedirContactoAnuncio, criarAnuncio, editarAnuncio, definirFotosAnuncio, alterarEstadoAnuncio,
+  renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
+  resumoSemanalMural, manutencaoMural,
+} from "./mural.js";
+
 admin.initializeApp();
 const db = admin.firestore();
 
