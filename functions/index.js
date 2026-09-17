@@ -4532,42 +4532,12 @@ export const devolverReembolso = onCall(async (req) => {
   return { ok: true };
 });
 
-/** Bases com inventário em modo património (item individual com
- *  `valorCompra` opcional — ver criarEquipamento/guardarEquipamento).
- *  Lista fixa em código: uma base nova em modo património entra aqui
- *  manualmente, o mesmo custo que já existe para tudo o resto do
- *  Painel Financeiro (ver CATEGORIAS_DESPESA, por exemplo). */
-const BASES_PATRIMONIO = ["tecnica", "louvor"];
-
-/**
- * Soma o valor de compra dos equipamentos ativos das bases em modo
- * património, agrupado por `tipo` (Equipamento/Instrumento/
- * Mobiliário/Outro — ver TIPOS_PATRIMONIO em
- * packages/shared/src/lib/tiposPatrimonio.js), não por base: o
- * Relatório quer responder "quanto temos em quê", não "quanto tem
- * cada base" — só duas bases hoje, a distinção por base dizia pouco.
- * Sem `tipo` definido cai em "outro".
- *
- * `bases/{b}/inventario` é fechado por `minhaBase(b)` nas rules (ao
- * contrário de reembolsos, que já eram por documento e por isso a
- * collectionGroup do Financeiro serve) — aqui não há atalho de regra,
- * por isso é Admin SDK, mesmo molde do `escalasCrossBase` da
- * Backstage (ver MELHORIAS-ENTRE-BASES.md, "capacidade de base"
- * cross-base #2).
- */
-export const obterPatrimonioBases = onCall(async (req) => {
-  gateFinanceiro(req);
-  const porTipo = {};
-  let total = 0;
-  for (const baseId of BASES_PATRIMONIO) {
-    const snap = await db.collection(`bases/${baseId}/inventario`).where("ativo", "==", true).get();
-    for (const doc of snap.docs) {
-      const v = doc.data().valorCompra;
-      if (typeof v !== "number" || !v) continue;
-      const tipo = doc.data().tipo || "outro";
-      porTipo[tipo] = (porTipo[tipo] ?? 0) + v;
-      total += v;
-    }
-  }
-  return { porTipo, total };
-});
+/* O Financeiro já não lê património nenhum: `obterPatrimonioBases`
+ * (soma de `valorCompra` da Técnica e da Louvor por Admin SDK) foi
+ * removida em 2026-09, quando a base passou a fazer só duas coisas —
+ * pagar reembolsos e contar a oferta. Os campos `tipo`/`valorCompra`
+ * continuam a ser gravados no inventário dessas bases: são dado
+ * legítimo do inventário DELAS, independente deste painel. Se um dia
+ * voltar a ser preciso somar isso entre bases, o molde é o
+ * `escalasCrossBase` da Backstage — ver git log por
+ * "obterPatrimonioBases". */

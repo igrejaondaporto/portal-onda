@@ -324,61 +324,29 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // ── Financeiro: fornecedores e despesas fixas (Base Financeiro) ──
-      // Gastos fixos/recorrentes que não nascem de um pedido de
-      // reembolso de outra base (renda, subscrições, contrato de
-      // limpeza…) — dado só desta base, sem autoria mista, por isso
-      // escrita direta do cliente, mesmo padrão de funcoes/avisos.
-      // "Excluir" um fornecedor é sempre ativo:false (regra 5 do
-      // CLAUDE.md raiz). despesasFixas é o histórico de pagamento —
-      // só cria, nunca edita nem apaga, como inventario/movimentos.
-      match /fornecedores/{f} {
-        allow read:            if minhaBase(base);
-        allow create, update: if minhaBase(base);
-        allow delete:          if false;
-      }
-      match /despesasFixas/{d} {
-        allow read:   if minhaBase(base);
-        allow create: if minhaBase(base) && request.resource.data.criadoPor == request.auth.uid;
-        allow update, delete: if false;
-      }
-
-      // ── Financeiro: dinheiro que entra (Base Financeiro) — dízimos
-      // e ofertas do culto, lançados pelo próprio Financeiro (nenhuma
-      // outra base regista isto). Mesmo padrão de despesasFixas:
-      // registo imutável, só create, corrige-se com um lançamento
-      // novo. `fundo` e `metodo` validados para o Relatório conseguir
-      // somar por um e por outro sem lidar com texto livre. `fonteId`/
-      // `fonteNome` são opcionais (entrada recorrente ligada a uma
-      // fonte fixa) — texto livre, sem validação própria, mesmo
-      // tratamento de `referencia`.
+      // ── Financeiro: contagem da oferta (Base Financeiro) ──
+      // Nota a nota, moeda a moeda, depois do culto. Dado só desta
+      // base, sem autoria mista, por isso escrita direta do cliente
+      // (mesmo padrão de funcoes/avisos) e sem Cloud Function.
       //
-      // mantém esta lista igual a FUNDOS em
-      // apps/financeiro/src/lib/entradas.js — sem isso o Relatório não
-      // consegue somar "quanto entrou em quê".
-      match /entradas/{e} {
+      // Tudo em CÊNTIMOS, inteiros — ver lib/oferta.js. Ao contrário
+      // dos pagamentos já feitos (imutáveis), uma contagem PODE ser
+      // corrigida por cima: contar mal acontece, e obrigar a criar
+      // uma segunda contagem do mesmo culto só faria o histórico
+      // mentir. Nunca se apaga (regra 5 do CLAUDE.md raiz).
+      //
+      // A base financeiro não tem "caixa" nenhum: entradas, despesas
+      // fixas e fornecedores existiram aqui em 2026-09 e foram
+      // removidos (ver CLAUDE.md da app) — esta base paga reembolsos
+      // e conta a oferta, mais nada.
+      match /contagensOferta/{c} {
         allow read:   if minhaBase(base);
-        allow create: if minhaBase(base)
-                      && request.resource.data.criadoPor == request.auth.uid
-                      && request.resource.data.valor is number
-                      && request.resource.data.valor > 0
-                      && request.resource.data.fundo in
-                         ['dizimo', 'oferta', 'oferta_especial', 'missoes', 'obras', 'aluguel', 'evento', 'outro']
-                      && request.resource.data.metodo in
-                         ['dinheiro', 'mbway', 'transferencia'];
-        allow update, delete: if false;
-      }
-
-      // ── Financeiro: fontes fixas de entrada (Base Financeiro) ──
-      // Receita recorrente que não é dízimo/oferta de culto — aluguel
-      // de espaço, uma doação mensal combinada. Mesmo padrão de
-      // fornecedores (catálogo, "excluir" é sempre ativo:false): serve
-      // só para pré-preencher o registo em `entradas`, não é ela
-      // própria uma entrada.
-      match /fontesEntrada/{f} {
-        allow read:            if minhaBase(base);
-        allow create, update: if minhaBase(base);
-        allow delete:          if false;
+        allow create, update: if minhaBase(base)
+                      && request.resource.data.contadoPor == request.auth.uid
+                      && request.resource.data.total is number
+                      && request.resource.data.total >= 0
+                      && request.resource.data.data is string;
+        allow delete: if false;
       }
 
       // ── biblioteca de músicas (Base Louvor) — só o líder (ou

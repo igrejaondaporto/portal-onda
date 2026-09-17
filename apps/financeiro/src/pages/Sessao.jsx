@@ -9,9 +9,8 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import Inicio from "./Inicio";
 import Reembolsos from "./Reembolsos";
-import Entradas from "./Entradas";
-import Fornecedores from "./Fornecedores";
-import Caixa from "./Caixa";
+import Oferta from "./Oferta";
+import Relatorios from "./Relatorios";
 import Perfil from "./Perfil";
 
 // ícones que não existem no ICO padrão do NavBar (packages/shared,
@@ -19,23 +18,19 @@ import Perfil from "./Perfil";
 // ICONE_ENQUETES/ICONE_WIKI nas outras bases.
 const ICONE_INICIO = '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/>';
 const ICONE_REEMBOLSOS = '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>';
-const ICONE_ENTRADAS = '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>';
-const ICONE_FORNECEDORES = '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>';
-const ICONE_CAIXA = '<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16v-9"/><path d="M17 16v-3"/>';
+const ICONE_OFERTA = '<circle cx="9" cy="9" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7.5 7.5h1.5v3.5"/>';
+const ICONE_RELATORIOS = '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>';
 
-// Sem "Montar"/"Escala"/"Funções" — o Financeiro não gere voluntários
-// de nenhuma base, só reembolsos já aprovados por elas. Perfil não é
-// uma aba — entra-se tocando na foto, mesmo padrão do "Ver perfil" do
-// MenuEu nas outras bases. Início é a primeira aba — o ecrã de
-// abertura, pedido explícito do dono do produto ("quero MUITO,
-// deixar até como Início isso"); Caixa é sempre a última — é o
-// extrato para quem quer conferir a sério, não o que se abre primeiro.
+// Esta base faz duas coisas: paga os reembolsos que as outras bases
+// aprovam, e conta a oferta do culto. Tudo o resto (caixa, entradas,
+// fornecedores, património) foi tirado de propósito — ver CLAUDE.md
+// desta app. Perfil não é aba: entra-se tocando na foto, mesmo padrão
+// do "Ver perfil" do MenuEu nas outras bases.
 const ABAS = [
   ["inicio", "Início", ICONE_INICIO],
   ["reembolsos", "Reembolsos", ICONE_REEMBOLSOS],
-  ["entradas", "Entradas", ICONE_ENTRADAS],
-  ["fornecedores", "Fornecedores", ICONE_FORNECEDORES],
-  ["caixa", "Caixa", ICONE_CAIXA],
+  ["oferta", "Oferta", ICONE_OFERTA],
+  ["relatorios", "Relatórios", ICONE_RELATORIOS],
 ];
 
 /**
@@ -55,6 +50,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
 
   function irPara(p) {
     setPagina(p);
+    window.scrollTo({ top: 0 });
   }
 
   return (
@@ -102,24 +98,22 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
           </svg>
         </div>
         <div className="corpo">
-          {/* as cinco abas ficam sempre montadas (display:none no lugar
-              de desmontar) — preserva filtros e posição de scroll ao
-              trocar de aba; cada página só recalcula o cabeçalho
-              quando o prop `ativo` fica verdadeiro (ver Inicio.jsx). */}
+          {/* as quatro abas ficam sempre montadas (display:none no
+              lugar de desmontar) — preserva filtros e posição de
+              scroll ao trocar de aba; cada página só recalcula o
+              cabeçalho quando o prop `ativo` fica verdadeiro (ver
+              Inicio.jsx). */}
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
-            <Inicio ativo={pagina === "inicio"} definirCabecalho={setCab} />
+            <Inicio ativo={pagina === "inicio"} irPara={irPara} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "reembolsos" ? "" : "none" }}>
             <Reembolsos ativo={pagina === "reembolsos"} definirCabecalho={setCab} />
           </div>
-          <div style={{ display: pagina === "entradas" ? "" : "none" }}>
-            <Entradas uid={uid} ativo={pagina === "entradas"} definirCabecalho={setCab} />
+          <div style={{ display: pagina === "oferta" ? "" : "none" }}>
+            <Oferta uid={uid} ativo={pagina === "oferta"} definirCabecalho={setCab} />
           </div>
-          <div style={{ display: pagina === "fornecedores" ? "" : "none" }}>
-            <Fornecedores uid={uid} ativo={pagina === "fornecedores"} definirCabecalho={setCab} />
-          </div>
-          <div style={{ display: pagina === "caixa" ? "" : "none" }}>
-            <Caixa ativo={pagina === "caixa"} definirCabecalho={setCab} />
+          <div style={{ display: pagina === "relatorios" ? "" : "none" }}>
+            <Relatorios ativo={pagina === "relatorios"} definirCabecalho={setCab} />
           </div>
           {pagina === "perfil" && (
             <Perfil uid={uid} pessoa={pessoa} definirCabecalho={setCab} onAtualizarPessoa={setPessoa} />

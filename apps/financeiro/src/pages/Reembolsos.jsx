@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ouvirReembolsosPorEstado, ouvirReembolsosPagos, marcarReembolsosPagos } from "../lib/reembolsosFinanceiro";
+import { ouvirReembolsosPorEstado, marcarReembolsosPagos } from "../lib/reembolsosFinanceiro";
 import { ouvirBases } from "../lib/bases";
+import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
-
-const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetDetalheReembolso from "../components/SheetDetalheReembolso";
@@ -20,8 +19,9 @@ const FILTROS = [
 export default function Reembolsos({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const [filtro, setFiltro] = useState("aprovado");
+  const [base, setBase] = useState("todas");
+  const [categoria, setCategoria] = useState("todas");
   const [reembolsos, setReembolsos] = useState([]);
-  const [pagos, setPagos] = useState([]);
   const [bases, setBases] = useState({});
   const [aberto, setAberto] = useState(null);
   const [modoLote, setModoLote] = useState(false);
@@ -33,39 +33,36 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
     setSelecionados(new Set());
     return ouvirReembolsosPorEstado(filtro, setReembolsos);
   }, [filtro]);
-  // "resumo de pagos" (aba Pagos) precisa do histórico completo, não só
-  // do filtro do mês — reaproveita o mesmo listener que o Caixa usa.
-  useEffect(() => (filtro === "pago" ? ouvirReembolsosPagos(setPagos) : undefined), [filtro]);
 
-  const total = useMemo(() => reembolsos.reduce((s, r) => s + r.valor, 0), [reembolsos]);
   const nomeBase = (b) => bases[b]?.nome ?? b;
   const corBase = (b) => bases[b]?.cor ?? "#6a7192";
 
-  const hoje = useMemo(() => new Date(), []);
-  const chaveMesAtual = `${hoje.getFullYear()}-${hoje.getMonth()}`;
-  const pagoEsteMes = useMemo(
-    () => pagos.filter((r) => r.pagoEm?.toDate && `${r.pagoEm.toDate().getFullYear()}-${r.pagoEm.toDate().getMonth()}` === chaveMesAtual),
-    [pagos, chaveMesAtual],
+  // as bases do seletor saem do que há na fila, não da lista das 9 —
+  // filtrar por uma base que nunca pediu nada só dá lista vazia.
+  const basesNaLista = useMemo(
+    () => [...new Set(reembolsos.map((r) => r.baseId))].sort((a, b) => nomeBase(a).localeCompare(nomeBase(b))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reembolsos, bases],
   );
-  const pagoEsteAno = useMemo(() => pagos.filter((r) => r.pagoEm?.toDate?.().getFullYear() === hoje.getFullYear()), [pagos, hoje]);
-  const porBaseEsteAno = useMemo(() => {
-    const mapa = new Map();
-    for (const r of pagoEsteAno) mapa.set(r.baseId, (mapa.get(r.baseId) ?? 0) + r.valor);
-    return [...mapa.entries()].map(([baseId, total]) => ({ baseId, total })).sort((a, b) => b.total - a.total);
-  }, [pagoEsteAno]);
-  const maiorPorBase = porBaseEsteAno[0]?.total ?? 1;
+
+  const visiveis = useMemo(() => reembolsos.filter((r) => {
+    if (base !== "todas" && r.baseId !== base) return false;
+    if (categoria !== "todas" && r.categoria !== categoria) return false;
+    return true;
+  }), [reembolsos, base, categoria]);
+
+  const total = useMemo(() => visiveis.reduce((s, r) => s + r.valor, 0), [visiveis]);
+  const haFiltro = base !== "todas" || categoria !== "todas";
 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>{FILTROS.find(([e]) => e === filtro)?.[1] ?? "Reembolsos"}</em>,
       subtitulo: filtro === "aprovado" ? "Aprovados pelos líderes, à espera de ti" : "",
-      chips: filtro === "aprovado"
-        ? [eur(total), `${reembolsos.length} pedido${reembolsos.length !== 1 ? "s" : ""}`]
-        : [`${reembolsos.length} pedido${reembolsos.length !== 1 ? "s" : ""}`],
+      chips: [eur(total), `${visiveis.length} pedido${visiveis.length !== 1 ? "s" : ""}`],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, filtro, reembolsos.length, total]);
+  }, [ativo, filtro, visiveis.length, total]);
 
   function alternarSelecao(id) {
     setSelecionados((s) => {
@@ -75,7 +72,7 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
     });
   }
 
-  const escolhidos = reembolsos.filter((r) => selecionados.has(r.id));
+  const escolhidos = visiveis.filter((r) => selecionados.has(r.id));
   const totalEscolhidos = escolhidos.reduce((s, r) => s + r.valor, 0);
   // agrupado por pessoa: é assim que o Financeiro paga de facto — uma
   // transferência por pessoa, com os pedidos dela todos dentro.
@@ -111,13 +108,13 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
   return (
     <>
       {filtro === "aprovado" && (
-        <div className="destaque">
+        <div className="destaque" style={{ cursor: "default" }}>
           <div>
-            <p style={{ fontSize: 12.5, opacity: 0.85 }}>Por pagar agora</p>
+            <p style={{ fontSize: 12.5, opacity: 0.85 }}>Por pagar {haFiltro ? "(filtrado)" : "agora"}</p>
             <p style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.035em", marginTop: 2 }}>{eur(total)}</p>
           </div>
           <div style={{ textAlign: "right" }}>
-            <p style={{ fontSize: 12.5, opacity: 0.85 }}>{reembolsos.length} pedido{reembolsos.length !== 1 ? "s" : ""}</p>
+            <p style={{ fontSize: 12.5, opacity: 0.85 }}>{visiveis.length} pedido{visiveis.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
       )}
@@ -130,56 +127,31 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
         ))}
       </div>
 
-      {filtro === "pago" && (
-        <>
-          <div className="linha">
-            <div style={{ flex: 1 }}>
-              <p className="nmt">{eur(pagoEsteMes.reduce((s, r) => s + r.valor, 0))}</p>
-              <p className="ds">Pago em {MESES_PT[hoje.getMonth()]} · {pagoEsteMes.length} pedido{pagoEsteMes.length !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-          <div className="linha">
-            <div style={{ flex: 1 }}>
-              <p className="nmt">{eur(pagoEsteAno.reduce((s, r) => s + r.valor, 0))}</p>
-              <p className="ds">Pago em {hoje.getFullYear()} · {pagoEsteAno.length} pedido{pagoEsteAno.length !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-          {porBaseEsteAno.length > 0 && (
-            <div className="sect">
-              <div className="cabecalho"><h3>Por base</h3><span className="cap">{hoje.getFullYear()}</span></div>
-              {porBaseEsteAno.map(({ baseId, total: totalBase }) => (
-                <div className="fila" style={{ paddingTop: 13 }} key={baseId}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "-.02em", display: "flex", alignItems: "center" }}>
-                      <span className="quadmin" style={{ background: corBase(baseId) }} />
-                      {nomeBase(baseId)}
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", flex: "none" }}>{eur(totalBase)}</span>
-                  </div>
-                  <div className="barra" style={{ marginTop: 7 }}>
-                    <i style={{ width: `${(totalBase / maiorPorBase) * 100}%`, background: corBase(baseId) }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 4 }}>
+        <select className="campo" style={{ marginTop: 0 }} value={base} onChange={(e) => setBase(e.target.value)}>
+          <option value="todas">Todas as bases</option>
+          {basesNaLista.map((b) => <option key={b} value={b}>{nomeBase(b)}</option>)}
+        </select>
+        <select className="campo" style={{ marginTop: 0 }} value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+          <option value="todas">Todas as categorias</option>
+          {CATEGORIAS_DESPESA.map(([id, rotulo]) => <option key={id} value={id}>{rotulo}</option>)}
+        </select>
+      </div>
 
       <div className="sect">
         <div className="cabecalho">
           <h3>{filtro === "aprovado" ? "Fila de pagamento" : FILTROS.find(([e]) => e === filtro)?.[1]}</h3>
-          {filtro === "aprovado" && reembolsos.length > 1 && (
+          {filtro === "aprovado" && visiveis.length > 1 ? (
             <button className="cap" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={() => setModoLote((m) => !m)}>
               {modoLote ? "Cancelar" : "Selecionar"}
             </button>
-          )}
+          ) : <span className="cap">{eur(total)}</span>}
         </div>
 
-        {reembolsos.length ? (
-          reembolsos.map((r) => (
+        {visiveis.length ? (
+          visiveis.map((r) => (
             <div
-              className="linha" key={r.id} style={{ cursor: "pointer" }}
+              className="linha" key={`${r.baseId}-${r.id}`} style={{ cursor: "pointer" }}
               onClick={() => (modoLote ? alternarSelecao(r.id) : setAberto(r))}
             >
               {modoLote ? (
@@ -201,7 +173,10 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="nmt">{eur(r.valor)}</p>
-                <p className="ds">{r.pessoaNome ?? "…"} · {dataTimestamp(r.criadoEm)}</p>
+                <p className="ds">
+                  {r.pessoaNome ?? "…"} · {dataTimestamp(filtro === "pago" ? (r.pagoEm ?? r.criadoEm) : r.criadoEm)}
+                  {r.categoria ? ` · ${ROTULO_CATEGORIA_DESPESA[r.categoria] ?? r.categoria}` : ""}
+                </p>
                 <span className="tag" style={{ display: "inline-block", marginTop: 6, background: corBase(r.baseId) }}>
                   {nomeBase(r.baseId)}
                 </span>
@@ -215,7 +190,7 @@ export default function Reembolsos({ ativo, definirCabecalho }) {
             </div>
           ))
         ) : (
-          <div className="vaz">Nada por aqui.</div>
+          <div className="vaz">{haFiltro ? "Nada com estes filtros." : "Nada por aqui."}</div>
         )}
       </div>
 
