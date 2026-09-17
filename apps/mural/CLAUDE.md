@@ -95,7 +95,7 @@ anuncios/{id}                    GLOBAL — tipo, categoria, título,
                                   nomesDePessoas em index.js)
 gds/{id}                         GLOBAL desde 2026-09 (era
                                   bases/pessoal/gds) — o Mural só lê
-config/muralAdmins/{pessoaId}    fechado (catch-all) — quem modera
+config/muralAdmins/porPessoa/{pessoaId}   fechado (catch-all) — quem modera
 ```
 
 Toda a escrita em `anuncios/` passa por Cloud Function

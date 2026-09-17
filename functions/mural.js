@@ -64,7 +64,13 @@ function confere(pin, guardado) {
 
 const refGlobal = (p) => db().doc(`pessoas/${p}`);
 const refSegredo = (p) => db().doc(`pessoas/${p}/privado/auth`);
-const refAdminMural = (uid) => db().doc(`config/muralAdmins/${uid}`);
+// "config/muralAdmins/{uid}" (3 segmentos) não é um caminho de
+// documento válido — o Firestore alterna coleção/documento e exige
+// um número PAR de segmentos; 3 é uma coleção, não um documento (bug
+// real, apanhado 2026-09 ao tentar dar o primeiro acesso ao painel:
+// "Value for argument documentPath must point to a document"). Mesmo
+// padrão de 4 segmentos já usado em config/devAccess/privado/auth.
+const refAdminMural = (uid) => db().doc(`config/muralAdmins/porPessoa/${uid}`);
 
 /** "Apoio" → "Base Apoio"; "Base Louvor" → "Base Louvor" (sem
  *  duplicar) — mesmo helper de apps/mural/src/lib/util.js. O campo

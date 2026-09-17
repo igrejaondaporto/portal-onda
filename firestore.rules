@@ -75,11 +75,13 @@ service cloud.firestore {
     // capturada no token, expiração de 30 dias — nada disto dá para
     // garantir só com regras, por isso toda a escrita passa por
     // Cloud Function. `ativo:false` é como um anúncio "sai" do mural
-    // (regra 5 — nada se apaga a sério). `mural_admin` é uma claim
-    // carregada por entrarMural a partir de config/muralAdmins/{pessoa}
-    // (fechado pelo catch-all no fim deste ficheiro — só o Admin SDK,
-    // via scripts/definirAdminMural.mjs, lê/escreve lá).
-    // (mural_admin não precisa de função própria aqui: os reports
+    // (regra 5 — nada se apaga a sério). Quem modera é decidido por
+    // um documento em config/muralAdmins/porPessoa/{pessoa} — fechado
+    // pelo catch-all no fim deste ficheiro (só o Admin SDK, via
+    // scripts/definirAdminMural.mjs, lê/escreve lá); cada Cloud
+    // Function do painel lê-o na hora (souAdminMural em
+    // functions/mural.js), nunca uma claim do token.
+    // (não precisa de função própria aqui: os reports
     // ficam desnormalizados no próprio anúncio — ver reportarAnuncio
     // em functions/mural.js.)
     //

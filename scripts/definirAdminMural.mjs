@@ -4,8 +4,10 @@
  * e o ecrã "Painel" em apps/mural.
  *
  * Não é uma claim do token (como papel/baseId nas bases): é só um
- * documento em config/muralAdmins/{pessoaId}, fechado pelo catch-all
- * do firestore.rules — cada Cloud Function do painel lê-o na hora,
+ * documento em config/muralAdmins/porPessoa/{pessoaId} (4 segmentos —
+ * 3 seria uma coleção, não um documento, para o Firestore), fechado
+ * pelo catch-all do firestore.rules — cada Cloud Function do painel
+ * lê-o na hora,
  * por isso dar ou tirar acesso funciona sem a pessoa ter de voltar a
  * entrar. `pessoaId` é o mesmo id de sempre: `pessoas/{id}` — o de
  * quem já é voluntário nalguma base, ou `tel_<telefone>` para quem só
@@ -36,7 +38,7 @@ if (!pessoaSnap.exists) {
   process.exit(1);
 }
 
-const ref = db.doc(`config/muralAdmins/${pessoaId}`);
+const ref = db.doc(`config/muralAdmins/porPessoa/${pessoaId}`);
 if (tirar) {
   await ref.delete();
   console.log(`✓ ${pessoaSnap.data().nome || pessoaId} deixou de moderar o Mural.`);
