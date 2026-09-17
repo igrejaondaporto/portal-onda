@@ -6,13 +6,13 @@ import { auth, chamar, signInWithCustomToken, signOut } from "@portal/shared/lib
  * cada uma já sabe a sua (VITE_BASE_ID); o Mural serve a igreja
  * toda, por isso acrescenta só o passo de ESCOLHER a base primeiro.
  *
- * `SheetPin` (@portal/shared/components/SheetPin.jsx) importa
- * `entrarComPin(pessoaId, pin)` de "../lib/auth" — sem `baseId` no
- * meio, porque nas apps de base ele é sempre o mesmo. Aqui varia
- * conforme a base escolhida na Entrada, por isso fica guardado neste
- * módulo (`definirBaseEmCurso`, chamado assim que a pessoa escolhe a
- * base) — o suficiente para reaproveitar o `SheetPin` tal e qual,
- * bloqueio de tentativas incluído. */
+ * `SheetPinBase` (components/adaptados/ — cópia do SheetPin
+ * partilhado, ver o LEIA-ME dessa pasta) importa `entrarComPin
+ * (pessoaId, pin)` DESTE ficheiro — sem `baseId` no meio, porque nas
+ * apps de base ele é sempre o mesmo, fixo por VITE_BASE_ID. Aqui
+ * varia conforme a base escolhida na Entrada, por isso fica guardado
+ * neste módulo (`definirBaseEmCurso`, chamado assim que a pessoa
+ * escolhe a base) — bloqueio de tentativas herdado tal e qual. */
 let baseEmCurso = null;
 export const definirBaseEmCurso = (baseId) => { baseEmCurso = baseId; };
 

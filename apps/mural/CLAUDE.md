@@ -65,13 +65,25 @@ padrão do resto do repo (onde cada app serve UMA base, com
   `tel_<telefone>` — nunca um nome cru, regra 9 do CLAUDE.md raiz) ou
   `entrarMural` (conta já existente).
 
-`apps/mural/src/lib/auth.js` reaproveita o `SheetPin`/`TecladoNumerico`
-partilhados para o primeiro caminho (guarda a base escolhida num
-módulo local, `definirBaseEmCurso`, porque `SheetPin` espera
-`entrarComPin(pessoaId, pin)` sem `baseId` — cada app de base tem
-sempre o seu fixo, só o Mural varia). Sem `GatilhoDev`: o acesso de
-dev é por base (CLAUDE.md raiz, "Ao criar uma base nova", item 3) e o
-Mural não é uma — fica de fora de propósito.
+`apps/mural/src/lib/auth.js` guarda a base escolhida num módulo local
+(`definirBaseEmCurso`) para o primeiro caminho, porque
+`entrarComPin(pessoaId, pin)` não leva `baseId` — cada app de base
+tem sempre o seu fixo, só o Mural varia. **O ecrã de base+rostos usa
+`SheetPinBase` (`components/adaptados/`), uma cópia local do
+`SheetPin` partilhado, nunca o original** — o `SheetPin` de
+`packages/shared` importa `entrarComPin` de `"../lib/auth"`, caminho
+relativo AO PRÓPRIO FICHEIRO, que resolve sempre para
+`packages/shared/src/lib/auth.js` (o `entrarComPin` genérico, com
+`BASE_ID` fixo do `.env`) — nunca para o `lib/auth.js` desta app. Nas
+apps de base isso nunca aparece (cada uma só entra na sua própria
+base); no Mural fazia qualquer PIN certo parecer errado, porque a
+chamada ia sempre com `baseId: "mural"` (que não existe) em vez da
+base escolhida no ecrã — bug real, apanhado 2026-09 por quem estava a
+testar. Ver o LEIA-ME de `components/adaptados/` para o detalhe.
+`TecladoNumerico` continua reaproveitado sem cópia (não toca em
+auth). Sem `GatilhoDev`: o acesso de dev é por base (CLAUDE.md raiz,
+"Ao criar uma base nova", item 3) e o Mural não é uma — fica de fora
+de propósito.
 
 ## Modelo de dados
 

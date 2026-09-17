@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
-import SheetPin from "@portal/shared/components/SheetPin.jsx";
+import SheetPinBase from "../components/adaptados/SheetPinBase.jsx";
 import TecladoNumerico from "@portal/shared/components/TecladoNumerico.jsx";
 import { listarBasesMural, dadosEntradaBase, definirBaseEmCurso, pedirEntradaMural, entrarComPinMural, registarMural } from "../lib/auth.js";
 import { ouvirGDs } from "../lib/gds.js";
@@ -11,7 +11,10 @@ import { corPara, inicial, nomeBase } from "../lib/util.js";
  * Entrada do Mural — dois caminhos (ver CLAUDE.md desta app):
  *   "Sim, sirvo numa base" → mesmas Cloud Functions de sempre
  *     (dadosEntrada/entrar), só com um passo a mais (escolher a
- *     base). Reaproveita o SheetPin partilhado tal e qual.
+ *     base). Usa `SheetPinBase` (components/adaptados/), uma cópia
+ *     do SheetPin partilhado — nunca o original: ver o LEIA-ME dessa
+ *     pasta para o porquê (import relativo que quebrava a base
+ *     escolhida).
  *   "Não, sou da igreja" → telemóvel + PIN, próprio deste app
  *     (functions/mural.js) — GD é opcional, "ainda não estou nem sei"
  *     nunca bloqueia ninguém.
@@ -162,7 +165,7 @@ export default function Entrada() {
             ))}
           </div>
           <button className="sair" onClick={() => setPasso("bases")}>‹ Outra base</button>
-          {alvo && <SheetPin pessoa={alvo} nomeLider="líder da tua base" onFechar={() => setAlvo(null)} onDeveTrocarPin={() => {}} />}
+          {alvo && <SheetPinBase pessoa={alvo} nomeLider="líder da tua base" onFechar={() => setAlvo(null)} onDeveTrocarPin={() => {}} />}
         </div>
       )}
 

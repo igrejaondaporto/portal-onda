@@ -99,6 +99,24 @@ esquecimento, é registo.
   antes do visitante preencher (ver `apps/pessoal/CLAUDE.md`,
   "Fronteiras") — portar é trocar essa exigência por este caminho.
 
+- **Armadilha para o próximo app sem `VITE_BASE_ID` fixo**: vários
+  componentes de `packages/shared` (`SheetPin.jsx`, `MenuEu.jsx`,
+  `SheetAcessoDev.jsx`) importam de `"../lib/auth"` — um caminho
+  RELATIVO AO PRÓPRIO FICHEIRO, que por isso resolve sempre para
+  `packages/shared/src/lib/auth.js`, nunca para o `lib/auth.js` de
+  quem os usa. Nas apps de base isso não se nota, porque cada uma só
+  entra na sua própria base (`VITE_BASE_ID` fixo) e o `entrarComPin`
+  partilhado já faz a coisa certa sozinho. O Mural (2026-09) apanhou
+  o oposto: PIN certo a parecer errado, porque a chamada ia sempre
+  com `baseId: "mural"` (que não existe) em vez da base escolhida no
+  ecrã — ver `apps/mural/src/components/adaptados/LEIA-ME.md`. Regra
+  para o próximo app que precise de decidir a base em tempo de
+  execução (não fixa por `.env`): nunca reaproveitar `SheetPin`/
+  `MenuEu`/`SheetAcessoDev` diretamente — copiar para
+  `adaptados/` como o Mural fez, ou (melhor, se compensar mexer no
+  partilhado) mudar esses três componentes para receberem
+  `entrarComPin` por prop em vez de o importarem.
+
 ## Já portado
 
 | Data | Nasceu em | O quê | Portado para | Nota |
