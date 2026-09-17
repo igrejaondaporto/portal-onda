@@ -6,6 +6,7 @@ import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
 import { corPara, CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
+import FiltroSheet from "../components/FiltroSheet.jsx";
 import Publicar from "./Publicar.jsx";
 import MeusAnuncios from "./MeusAnuncios.jsx";
 import PainelAdmin from "./PainelAdmin.jsx";
@@ -37,6 +38,8 @@ export default function Sessao({ eu, onPedirEntrar }) {
   const [categoria, setCategoria] = useState("todas");
   const [busca, setBusca] = useState("");
   const [aberto, setAberto] = useState(null);
+  const [filtroAberto, setFiltroAberto] = useState(false);
+  const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
   useEffect(() => setCategoria("todas"), [tipo]);
@@ -79,30 +82,34 @@ export default function Sessao({ eu, onPedirEntrar }) {
         <button data-on={tipo === "procuro" ? 1 : 0} onClick={() => setTipo("procuro")}>Procuro</button>
       </div>
 
-      <div className="menu" style={{ padding: "12px 0 0", position: "static" }}>
-        <button data-on={categoria === "todas" ? 1 : 0} onClick={() => setCategoria("todas")}>Tudo</button>
-        {CATEGORIAS[tipo].map((c) => (
-          <button key={c.id} data-on={categoria === c.id ? 1 : 0} onClick={() => setCategoria(c.id)}>{c.nome}</button>
-        ))}
-      </div>
-      <div className="menu" style={{ padding: "8px 0 12px", position: "static" }}>
-        <button data-on={regiao === "todas" ? 1 : 0} onClick={() => setRegiao("todas")}>Todas as regiões</button>
-        {REGIOES.map((r) => (
-          <button key={r.id} data-on={regiao === r.id ? 1 : 0} onClick={() => setRegiao(r.id)}>{r.nome}</button>
-        ))}
-      </div>
-
-      <div className="procura">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
-        </svg>
-        <input type="search" placeholder="Procurar no mural…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div style={{ display: "flex", gap: 10, margin: "14px 0 4px" }}>
+        <div className="procura" style={{ margin: 0, flex: 1 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input type="search" placeholder="Procurar no mural…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        </div>
+        <button className="btn sec filtroBtn" onClick={() => setFiltroAberto(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+          Filtro
+          {filtrosAtivos > 0 && <span className="filtroContagem">{filtrosAtivos}</span>}
+        </button>
       </div>
 
       <p className="ds" style={{ padding: "14px 0 2px" }}>
         {filtrados.length} {tipo === "ofereco" ? "anúncios" : "pedidos"}
         {regiao !== "todas" && <> na região {REGIOES.find((r) => r.id === regiao)?.nome}</>}
+        {categoria !== "todas" && <> · {CATEGORIAS[tipo].find((c) => c.id === categoria)?.nome}</>}
       </p>
+
+      {filtroAberto && (
+        <FiltroSheet
+          tipo={tipo} regiao={regiao} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
+          onFechar={() => setFiltroAberto(false)}
+        />
+      )}
 
       {filtrados.length === 0 && (
         <p className="vaz">

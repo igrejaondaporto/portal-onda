@@ -276,11 +276,39 @@
   transition: 0.16s;
 }
 .segmentado button[data-on="1"] {
-  background: var(--azul);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(0, 25, 190, 0.25);
+  background: var(--lima);
+  color: var(--tinta);
+  box-shadow: 0 4px 14px rgba(216, 242, 75, 0.45);
 }
 .segmentado button:focus-visible {
   outline: 2px solid var(--azul);
   outline-offset: 2px;
+}
+
+/* botão "Filtro" — categoria + região vivem escondidas aqui dentro
+ * (FiltroSheet.jsx), em vez de duas fileiras de pílulas sempre à
+ * vista. */
+.filtroBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 18px;
+  position: relative;
+}
+.filtroBtn svg {
+  width: 18px;
+  height: 18px;
+}
+.filtroContagem {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 100px;
+  background: var(--azul);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
 }
