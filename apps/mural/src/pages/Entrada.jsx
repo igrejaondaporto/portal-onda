@@ -36,18 +36,14 @@ export default function Entrada() {
   const [nome, setNome] = useState("");
   const [digitosExistente, setDigitosExistente] = useState(4);
 
+  // Pede as bases e os GDs já ao abrir a Entrada, não só ao chegar a
+  // cada passo — as duas funções são públicas (sem sessão) e o pedido
+  // pode ir andando em fundo enquanto a pessoa ainda decide "sim/não
+  // sirvo numa base"; sem isto, era o próprio passo que disparava o
+  // pedido, e via-se a lista vazia/a carregar até a resposta chegar
+  // (2026-09, reportado como "demora a carregar").
   useEffect(() => {
-    if (passo === "bases" && !bases) {
-      listarBasesMural().then(setBases).catch(() => setErro("Não foi possível carregar as bases."));
-    }
-  }, [passo, bases]);
-
-  // Pede os GDs já ao abrir a Entrada, não só ao chegar ao passo — a
-  // função é pública (sem sessão) e o pedido pode ir andando em fundo
-  // enquanto a pessoa ainda preenche telemóvel; sem isto, o próprio
-  // passo do GD é que disparava o pedido, e via-se a lista vazia até
-  // a resposta chegar (2026-09, reportado como "demora a carregar").
-  useEffect(() => {
+    listarBasesMural().then(setBases).catch(() => setErro("Não foi possível carregar as bases."));
     listarGDs().then(setGds).catch(() => setGds([]));
   }, []);
 
