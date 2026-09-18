@@ -69,13 +69,21 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         <span className={`tag ${est.classe === "disp" ? "verd" : est.classe === "vend" ? "cinz" : ""}`}>
           {est.nome}
         </span>
-        <h2 style={{ marginTop: 10 }}>{anuncio.titulo}</h2>
+        <h2 style={{ marginTop: 10, textAlign: "left" }}>{anuncio.titulo}</h2>
         <p className="sb2" style={{ fontSize: 20, fontWeight: 800, color: "var(--tinta)", textAlign: "left" }}>
           {anuncio.gratis ? "Grátis" : anuncio.preco || "A combinar"}
         </p>
         {anuncio.descricao && <p className="ds" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8 }}>{anuncio.descricao}</p>}
         <div className="linha" style={{ marginTop: 6 }}>
-          <span className="bola" style={anuncio.autorFoto ? { backgroundImage: `url(${anuncio.autorFoto})` } : { background: corPara(anuncio.autorNome) }}>
+          <span
+            className="bola"
+            style={
+              anuncio.autorFoto
+                ? { backgroundImage: `url(${anuncio.autorFoto})`, cursor: "zoom-in" }
+                : { background: corPara(anuncio.autorNome) }
+            }
+            onClick={anuncio.autorFoto ? () => setImagemExpandida(anuncio.autorFoto) : undefined}
+          >
             {anuncio.autorFoto ? "" : anuncio.autorNome?.[0]}
           </span>
           <span>
