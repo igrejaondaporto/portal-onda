@@ -42,9 +42,14 @@ export default function Entrada() {
     }
   }, [passo, bases]);
 
+  // Pede os GDs já ao abrir a Entrada, não só ao chegar ao passo — a
+  // função é pública (sem sessão) e o pedido pode ir andando em fundo
+  // enquanto a pessoa ainda preenche telemóvel; sem isto, o próprio
+  // passo do GD é que disparava o pedido, e via-se a lista vazia até
+  // a resposta chegar (2026-09, reportado como "demora a carregar").
   useEffect(() => {
-    if (passo === "gd") listarGDs().then(setGds).catch(() => setGds([]));
-  }, [passo]);
+    listarGDs().then(setGds).catch(() => setGds([]));
+  }, []);
 
   function escolherBase(b) {
     setBaseEscolhida(b);
@@ -111,16 +116,16 @@ export default function Entrada() {
             <button className="opcao" onClick={() => setPasso("bases")}>
               <span className="bola" style={{ background: "var(--azul)" }}>S</span>
               <span>
-                <span className="nmt">Sim, sirvo numa base</span>
-                <span className="ds">Escolhe a tua base e o teu nome</span>
+                <span className="nmt" style={{ display: "block" }}>Sim, sirvo numa base</span>
+                <span className="ds" style={{ display: "block" }}>Escolhe a tua base e o teu nome</span>
               </span>
               <span className="seta">›</span>
             </button>
             <button className="opcao" onClick={() => setPasso("telemovel")}>
               <span className="bola" style={{ background: "var(--violeta)" }}>N</span>
               <span>
-                <span className="nmt">Não, sou da igreja</span>
-                <span className="ds">Entra pelo teu telemóvel</span>
+                <span className="nmt" style={{ display: "block" }}>Não, sou da igreja</span>
+                <span className="ds" style={{ display: "block" }}>Entra pelo teu telemóvel</span>
               </span>
               <span className="seta">›</span>
             </button>
@@ -202,8 +207,8 @@ export default function Entrada() {
             >
               <span className="bola" style={{ background: corPara(g.nome) }}>{inicial(g.nome)}</span>
               <span>
-                <span className="nmt">GD {g.nome}</span>
-                <span className="ds">{g.regiao}</span>
+                <span className="nmt" style={{ display: "block" }}>GD {g.nome}</span>
+                <span className="ds" style={{ display: "block" }}>— {g.regiao}</span>
               </span>
               <span className="seta">›</span>
             </button>
@@ -211,8 +216,8 @@ export default function Entrada() {
           <button className="opcao" onClick={() => { setGdEscolhido(null); setPasso("nome"); }}>
             <span className="bola" style={{ background: "var(--cinza)" }}>?</span>
             <span>
-              <span className="nmt">Ainda não estou num GD</span>
-              <span className="ds">Podes dizer mais tarde</span>
+              <span className="nmt" style={{ display: "block" }}>Ainda não estou num GD</span>
+              <span className="ds" style={{ display: "block" }}>Podes dizer mais tarde</span>
             </span>
             <span className="seta">›</span>
           </button>
