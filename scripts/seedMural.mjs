@@ -14,10 +14,14 @@
  * foto são copiados — nunca o telefone. Sem isto, o botão "Falar no
  * WhatsApp" de um anúncio inventado abriria o número verdadeiro de
  * alguém que nunca publicou nada, e mandava uma pessoa real e
- * inconsciente receber mensagens sobre um sofá que não existe. O
- * telefone de cada identidade de teste continua fictício
- * (`tel_000000001` → "000000001"), por isso o botão simplesmente não
- * encontra contacto — falha de forma segura, nunca contacta ninguém.
+ * inconsciente receber mensagens sobre um sofá que não existe. Por
+ * isso a identidade de teste NÃO leva telefone nenhum gravado (nem
+ * sequer o fictício do id `tel_000000001`) — `telefoneDoAutor`
+ * (functions/mural.js) só devolve `p.telefone` se existir, por isso
+ * sem o campo o botão falha de forma segura ("Sem contacto
+ * disponível"), em vez de abrir o WhatsApp com um número fictício
+ * tipo +351000000001 (bug real, apanhado 2026-09 — o campo estava lá
+ * preenchido com os dígitos do id, e o botão encontrava "contacto").
  *
  * As fotos dos ANÚNCIOS em si (picsum.photos, semente fixa por
  * anúncio) são só para testar o layout com fotos a sério — não são
@@ -122,11 +126,11 @@ const ANUNCIOS = [
 async function main() {
   const pessoas = await pessoasReais();
 
-  console.log("A semear identidades de teste (nome/foto/base reais, telefone e ligação sempre fictícios)…");
+  console.log("A semear identidades de teste (nome/foto/base reais, sem telefone nenhum — ver aviso no topo do ficheiro)…");
   for (const [i, p] of pessoas.entries()) {
     const id = `tel_${String(i + 1).padStart(9, "0")}`;
     await db.doc(`pessoas/${id}`).set({
-      nome: p.nome, foto: p.foto, telefone: id.replace("tel_", ""), gdId: null, ativo: true, bases: {},
+      nome: p.nome, foto: p.foto, telefone: "", gdId: null, ativo: true, bases: {},
       origemMural: true, exemploSeed: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
   }
