@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { ouvirMeusAnuncios, alterarEstadoAnuncio, renovarAnuncio, removerAnuncio, MAX_ATIVOS } from "../lib/anuncios.js";
 import { ESTADOS, nomeCategoria } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
+import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
 export default function MeusAnuncios() {
   const [meus, setMeus] = useState([]);
   const [aTrabalhar, setATrabalhar] = useState(null);
+  const [imagemExpandida, setImagemExpandida] = useState(null);
 
   useEffect(() => ouvirMeusAnuncios(setMeus), []);
   const ativos = meus.filter((a) => a.ativo);
@@ -41,7 +43,7 @@ export default function MeusAnuncios() {
       {meus.map((a) => {
         return (
           <div key={a.id} className={a.ativo ? "linha" : "linha vendido"} style={{ flexWrap: "wrap", alignItems: "flex-start", gap: 14 }}>
-            <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
+            <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} onExpandir={setImagemExpandida} />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
               <span className="ds">{nomeCategoria(a.tipo, a.categoria)} · {a.gratis ? "grátis" : a.preco || "a combinar"}</span>
@@ -76,6 +78,7 @@ export default function MeusAnuncios() {
           </div>
         );
       })}
+      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

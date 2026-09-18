@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
+import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
 import { CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/util.js";
@@ -40,6 +41,7 @@ export default function Sessao({ eu, onPedirEntrar }) {
   const [categoria, setCategoria] = useState("todas");
   const [busca, setBusca] = useState("");
   const [aberto, setAberto] = useState(null);
+  const [imagemExpandida, setImagemExpandida] = useState(null);
   const [filtroAberto, setFiltroAberto] = useState(false);
   const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0);
 
@@ -123,7 +125,7 @@ export default function Sessao({ eu, onPedirEntrar }) {
 
       {filtrados.map((a, i) => (
         <button key={a.id} className={`linha${a.estado === "vendido" ? " vendido" : ""}`} style={{ width: "100%", background: "none", border: 0, borderBottom: "1px solid var(--fio)", textAlign: "left", cursor: "pointer", alignItems: "flex-start", gap: 14, animationDelay: `${i * 20}ms` }} onClick={() => setAberto(a)}>
-          <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
+          <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} onExpandir={setImagemExpandida} />
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
             <span className={`preco${a.gratis ? " gratis" : ""}`} style={{ display: "block" }}>
@@ -148,6 +150,7 @@ export default function Sessao({ eu, onPedirEntrar }) {
           onPedirEntrar={onPedirEntrar}
         />
       )}
+      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

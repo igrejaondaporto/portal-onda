@@ -1,12 +1,15 @@
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db } from "@portal/shared/lib/firebase.js";
+import { chamar } from "@portal/shared/lib/firebase.js";
 
 /** Catálogo global de GDs (ver a nota "GLOBAL" em
- *  apps/pessoal/src/lib/modelo.js) — o mesmo que a Base Pessoal usa,
- *  só que aqui é só para o ecrã de entrada saber "onde" colocar quem
- *  não é voluntário. */
-export function ouvirGDs(cb) {
-  return onSnapshot(query(collection(db, "gds"), orderBy("regiao"), orderBy("nome")), (snap) =>
-    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-  );
+ *  apps/pessoal/src/lib/modelo.js), para o ecrã de entrada de quem
+ *  não é voluntário saber "onde" colocar a pessoa.
+ *
+ *  Por `listarGDsMural` (functions/mural.js), não por leitura direta
+ *  do Firestore: quem está neste ecrã ainda não tem sessão nenhuma
+ *  (só nasce depois de criar o PIN), e `gds/{id}` exige
+ *  `autenticado()` nas regras — uma leitura direta aqui vinha sempre
+ *  vazia, sem erro visível nenhum (bug real, apanhado 2026-09). */
+export async function listarGDs() {
+  const { data } = await chamar("listarGDsMural")();
+  return data.gds;
 }

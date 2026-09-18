@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { corPara, ESTADOS, nomeCategoria, relativo, linkWhatsApp } from "../lib/util.js";
 import { pedirContactoAnuncio, reportarAnuncio } from "../lib/anuncios.js";
+import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
 /** Folha de detalhe — mesmo padrão de SheetPin (veu + folha fixa em
  *  baixo). "Falar no WhatsApp" é público (2026-09: ver e contactar
@@ -15,6 +16,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
   const [aReportar, setAReportar] = useState(false);
   const [reportado, setReportado] = useState(false);
   const [erro, setErro] = useState("");
+  const [imagemExpandida, setImagemExpandida] = useState(null);
 
   const ehMeu = anuncio.autorId === meuUid;
   const est = ESTADOS[anuncio.estado] || ESTADOS.disponivel;
@@ -47,7 +49,9 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         <div className="pux" />
         {anuncio.fotos?.length ? (
           <div className="fotoscolagem" style={{ marginTop: 0 }}>
-            {anuncio.fotos.map((f, i) => <img key={i} src={f} alt="" />)}
+            {anuncio.fotos.map((f, i) => (
+              <img key={i} src={f} alt="" style={{ cursor: "zoom-in" }} onClick={() => setImagemExpandida(f)} />
+            ))}
           </div>
         ) : (
           <div className="semFoto" role="img" aria-label="Este anúncio não tem fotografia">
@@ -97,6 +101,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
           </button>
         )}
       </div>
+      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

@@ -4,7 +4,7 @@ import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import SheetPinBase from "../components/adaptados/SheetPinBase.jsx";
 import TecladoNumerico from "@portal/shared/components/TecladoNumerico.jsx";
 import { listarBasesMural, dadosEntradaBase, definirBaseEmCurso, pedirEntradaMural, entrarComPinMural, registarMural } from "../lib/auth.js";
-import { ouvirGDs } from "../lib/gds.js";
+import { listarGDs } from "../lib/gds.js";
 import { corPara, inicial, nomeBase } from "../lib/util.js";
 
 /**
@@ -43,7 +43,7 @@ export default function Entrada() {
   }, [passo, bases]);
 
   useEffect(() => {
-    if (passo === "gd") return ouvirGDs(setGds);
+    if (passo === "gd") listarGDs().then(setGds).catch(() => setGds([]));
   }, [passo]);
 
   function escolherBase(b) {

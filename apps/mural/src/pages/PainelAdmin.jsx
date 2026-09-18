@@ -3,6 +3,7 @@ import { ouvirTodosAnuncios, removerAnuncio, moderarAnuncio, resumoSemanalMural 
 import { nomeCategoria } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
 import MiniAvatar from "../components/MiniAvatar.jsx";
+import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
 /** Painel de moderação — "caso queiramos excluir ou editar algum
  *  anúncio" (pedido explícito, 2026-09). Editar em si fica para uma
@@ -17,6 +18,7 @@ export default function PainelAdmin() {
   const [aCarregarResumo, setACarregarResumo] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [aTrabalhar, setATrabalhar] = useState(null);
+  const [imagemExpandida, setImagemExpandida] = useState(null);
 
   useEffect(() => ouvirTodosAnuncios(setTodos), []);
 
@@ -72,7 +74,7 @@ export default function PainelAdmin() {
           </div>
           {filtrados.map((a) => (
             <div key={a.id} className="linha" style={{ alignItems: "flex-start", gap: 14 }}>
-              <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} />
+              <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} onExpandir={setImagemExpandida} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span className="nmt" style={{ display: "block", opacity: a.ativo ? 1 : 0.5 }}>{a.titulo}</span>
                 <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
@@ -129,6 +131,7 @@ export default function PainelAdmin() {
           )}
         </>
       )}
+      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

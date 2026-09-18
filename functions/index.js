@@ -40,7 +40,7 @@ export {
 // toda — ficheiro próprio, mesmo motivo de kinder.js (ver o
 // comentário no topo de mural.js).
 export {
-  listarBasesMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
+  listarBasesMural, listarGDsMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
   souAdminMuralAgora, pedirContactoAnuncio, criarAnuncio, editarAnuncio, definirFotosAnuncio, alterarEstadoAnuncio,
   renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
   resumoSemanalMural, manutencaoMural,

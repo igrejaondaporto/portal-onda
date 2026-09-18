@@ -157,6 +157,21 @@ export const listarBasesMural = onCall(async () => {
   return { bases };
 });
 
+/** Mesmo motivo de `listarBasesMural` acima — `gds/{id}` (global,
+ *  ver apps/pessoal/src/lib/modelo.js) exige `autenticado()` nas
+ *  regras, e quem está a escolher o GD no ecrã "Não, sou da igreja"
+ *  ainda não tem nenhuma sessão (só nasce depois de criar o PIN, em
+ *  registarMural). Sem isto, o passo do GD ficava sempre vazio, só
+ *  com "Ainda não estou num GD" — bug real, apanhado 2026-09. Nada
+ *  sensível em `gds/{id}` (nome/região), mesmo raciocínio de bases. */
+export const listarGDsMural = onCall(async () => {
+  const snap = await db().collection("gds").get();
+  const gds = snap.docs
+    .map((d) => ({ id: d.id, nome: d.data().nome || d.id, regiao: d.data().regiao || "" }))
+    .sort((a, b) => a.regiao.localeCompare(b.regiao, "pt") || a.nome.localeCompare(b.nome, "pt"));
+  return { gds };
+});
+
 /* Sem sessão (como `dadosEntrada`) — diz só se o telefone já existe
  * e quantos dígitos tem o PIN, nunca nome nem foto. */
 export const pedirEntradaMural = onCall(async (req) => {
