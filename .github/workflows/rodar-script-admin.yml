@@ -3,7 +3,7 @@
 # descarregar o service-account.json à mão a cada script de uso
 # único. Genérico: escolhe o script no campo do workflow_dispatch.
 #
-# Uso: gh workflow run rodar-script-admin.yml --repo igrejaondaporto/portal-onda -f script=scripts/nome.mjs
+# Uso: gh workflow run rodar-script-admin.yml --repo igrejaondaporto/portal-onda -f script=scripts/nome.mjs -f arg=valor
 name: Correr script admin (manual)
 
 on:
@@ -12,6 +12,9 @@ on:
       script:
         description: "Caminho do script (ex.: scripts/limparGdTeste.mjs)"
         required: true
+      arg:
+        description: "Argumento único, opcional (ex.: um pessoaId para scripts/definirAdminMural.mjs)"
+        required: false
 
 jobs:
   correr:
@@ -32,7 +35,7 @@ jobs:
           printf '%s' "$SA" > service-account.json
 
       - run: npm ci
-      - run: node "${{ github.event.inputs.script }}"
+      - run: node "${{ github.event.inputs.script }}" ${{ github.event.inputs.arg }}
 
       - if: always()
         run: rm -f service-account.json

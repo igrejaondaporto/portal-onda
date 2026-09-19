@@ -1,0 +1,328 @@
+/**
+ * Ajustes locais do Mural Onda, carregados DEPOIS do global.css
+ * partilhado (ver CLAUDE.md raiz, "Trabalhar numa base sem mexer nas
+ * outras") — vive só aqui, nunca entra no bundle de nenhuma base.
+ * O grosso da UI reaproveita classes do global.css tal e qual
+ * (.crista/.folha/.opcao/.g/.p/.av na Entrada; .linha/.bola/.nmt/.ds
+ * no feed; .menu/.subtabs nos filtros; .navb na barra de baixo) —
+ * isto é só o que faltava.
+ */
+
+/* avatarzinho inline, junto ao nome de quem publicou */
+/* sempre dentro de uma linha flex (ver .ds em Sessao.jsx/PainelAdmin.jsx)
+ * — o espaço até ao texto vem do gap do pai, não de margem própria. */
+.mini {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  background-size: cover;
+}
+
+/* barra "3 de 5 no ar" — Publicar e Os meus */
+.limite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--agua);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+.limite b {
+  font-size: 12.5px;
+  font-weight: 700;
+  flex: none;
+}
+.limite .trilho {
+  flex: 1;
+  height: 7px;
+  border-radius: 7px;
+  background: #d3d9f2;
+  overflow: hidden;
+}
+.limite .trilho i {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  background: var(--azul);
+}
+
+/* números do painel de admin */
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.numeros div {
+  background: var(--agua);
+  border-radius: 16px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.numeros b {
+  display: block;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.numeros span {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* resumo semanal — texto pronto a copiar */
+.resumotexto {
+  background: var(--tinta);
+  color: #fff;
+  border-radius: 18px;
+  padding: 16px 17px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+  font-family: var(--o);
+}
+
+/* fotos já enviadas (Publicar) e do detalhe do anúncio */
+.fotoscolagem {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.fotoscolagem img {
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+/* estado "sem foto" do detalhe — deliberadamente neutro (nunca uma
+ * cor viva), para nunca parecer uma imagem partida em vez de "este
+ * anúncio não tem foto". */
+.semFoto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 120px;
+  border-radius: 18px;
+  border: 1.5px dashed var(--fio);
+  background: var(--agua);
+  color: var(--cinza);
+}
+.semFoto svg {
+  width: 30px;
+  height: 30px;
+}
+.semFoto span {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* mesmo espírito do .semFoto, só que a caber na miniatura de 42px
+ * das listas (FotoAnuncio.jsx) — sem borda tracejada aqui, o .bola já
+ * é redondo e destaca-se sozinho da lista à volta. */
+.bola.semFotoMini {
+  background: var(--agua);
+  color: var(--cinza);
+  display: grid;
+  place-items: center;
+}
+.bola.semFotoMini svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* busca do mural */
+.procura {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 14px 0 2px;
+  border: 1px solid var(--fio);
+  border-radius: 100px;
+  padding: 10px 16px;
+  background: #fff;
+}
+.procura svg {
+  width: 17px;
+  height: 17px;
+  color: var(--cinza);
+  flex: none;
+}
+.procura input {
+  border: 0;
+  outline: 0;
+  flex: 1;
+  font-size: 14.5px;
+  background: none;
+  min-width: 0;
+  font-family: inherit;
+  color: inherit;
+}
+.procura input::placeholder {
+  color: var(--cinza);
+}
+
+/* botão "falar no whatsapp" */
+.btn.zap {
+  background: var(--verde);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+}
+
+/* estado esbatido (regra 5 — nada se apaga, "vendido" fica visível mas apagado) */
+.vendido .nmt,
+.vendido .preco {
+  opacity: 0.45;
+}
+.vendido .bola {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.preco {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.preco.gratis {
+  color: var(--verde);
+}
+
+/* overlay da Entrada (App.jsx) — o Mural em si fica por baixo,
+ * público; isto só aparece quando alguém pede para entrar. Clicar no
+ * fundo (fora do cartão) fecha — só o próprio .entradaModal recebe o
+ * onClick de fechar (ver App.jsx), nunca o cartão nem o que está
+ * dentro dele, senão qualquer toque no formulário fechava a Entrada. */
+.entradaModal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  animation: ap 0.22s;
+  background: #fff;
+}
+.entradaModalCartao {
+  position: relative;
+  min-height: 100%;
+  background: #fff;
+}
+.fecharEntradaModal {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top, 0px));
+  right: 14px;
+  z-index: 31;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(10, 15, 46, 0.35);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 900px) {
+  .entradaModal {
+    background: rgba(4, 8, 40, 0.55);
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .entradaModalCartao {
+    max-width: 900px;
+    width: 100%;
+    min-height: 0;
+    height: fit-content;
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(10, 15, 46, 0.35);
+  }
+}
+
+/* Ofereço/Procuro — alterna a SECÇÃO inteira (não é um filtro como
+ * os outros), por isso pediu mais peso: cheio, com o botão ativo a
+ * "flutuar" como um interruptor de dois estados, sempre visível no
+ * topo do ecrã ao rolar (sticky). */
+.segmentado {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  background: var(--agua);
+  border-radius: 100px;
+  padding: 5px;
+  margin: 14px 0 4px;
+}
+.segmentado button {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 13px 0;
+  border-radius: 100px;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--cinza);
+  cursor: pointer;
+  transition: 0.16s;
+}
+.segmentado button[data-on="1"] {
+  background: var(--lima);
+  color: var(--tinta);
+  box-shadow: 0 4px 14px rgba(216, 242, 75, 0.45);
+}
+.segmentado button:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+/* botão "Filtro" — categoria + região vivem escondidas aqui dentro
+ * (FiltroSheet.jsx), em vez de duas fileiras de pílulas sempre à
+ * vista. */
+.filtroBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 18px;
+  position: relative;
+}
+.filtroBtn svg {
+  width: 18px;
+  height: 18px;
+}
+.filtroContagem {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 100px;
+  background: var(--azul);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+}

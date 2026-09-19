@@ -31,6 +31,11 @@ apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.p
 apps/new/               App da Base New. Domínio: new.igrejaonda.pt
 apps/shift/             App da Base SHIFT. Domínio: shift.igrejaonda.pt
 apps/financeiro/        App do Financeiro. Domínio: financeiro.igrejaonda.pt
+apps/mural/              Mural Onda — anúncios de dou/vendo/arrendo e de
+                        procuro, da igreja toda. NÃO é uma base (é como
+                        eventos/: da igreja, não de uma equipa de
+                        voluntários) — mesmo assim é um Worker Cloudflare
+                        próprio, como qualquer app. Domínio: mural.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -84,6 +89,10 @@ bases, nunca no mesmo commit que uma correção local.
 | SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
 | Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |
 | Financeiro | `apps/financeiro` | `financeiro.igrejaonda.pt` | `apps/financeiro/CLAUDE.md` |
+
+Fora desta tabela de propósito — não é uma base, é da igreja toda
+(mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,
+`mural.igrejaonda.pt`, `apps/mural/CLAUDE.md`.
 
 ## Stack
 
