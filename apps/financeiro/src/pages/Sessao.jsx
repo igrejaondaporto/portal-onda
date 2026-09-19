@@ -39,7 +39,7 @@ const ABAS = [
  * Financeiro não serve noutra base ao mesmo tempo, é uma função à
  * parte (ver CLAUDE.md desta app).
  */
-export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
+export default function Sessao({ uid, baseId, papel, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [pagina, setPagina] = useState("inicio");
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
@@ -104,7 +104,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
               cabeçalho quando o prop `ativo` fica verdadeiro (ver
               Inicio.jsx). */}
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
-            <Inicio ativo={pagina === "inicio"} irPara={irPara} definirCabecalho={setCab} />
+            <Inicio ativo={pagina === "inicio"} papel={papel} irPara={irPara} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "reembolsos" ? "" : "none" }}>
             <Reembolsos ativo={pagina === "reembolsos"} definirCabecalho={setCab} />

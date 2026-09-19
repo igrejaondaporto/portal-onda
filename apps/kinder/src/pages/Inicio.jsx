@@ -20,6 +20,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import Calendario from "../components/Calendario";
 import ItensChecklist from "../components/sala/ItensChecklist";
+import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
   return (
@@ -178,6 +179,7 @@ export default function Inicio({
 
   return (
     <>
+      <RecadoPastoral papel={papel} />
       {salasSemLicao.length > 0 && (
         <Destaque
           rotulo="A precisar de ti" titulo={`Falta a lição de ${salasSemLicao.map((c) => c.nome).join(", ")}`}
