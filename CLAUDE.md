@@ -31,6 +31,7 @@ apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.p
 apps/new/               App da Base New. Domínio: new.igrejaonda.pt
 apps/shift/             App da Base SHIFT. Domínio: shift.igrejaonda.pt
 apps/financeiro/        App do Financeiro. Domínio: financeiro.igrejaonda.pt
+apps/pastoral/          Painel Pastoral. Domínio: pastoral.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -84,6 +85,7 @@ bases, nunca no mesmo commit que uma correção local.
 | SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
 | Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |
 | Financeiro | `apps/financeiro` | `financeiro.igrejaonda.pt` | `apps/financeiro/CLAUDE.md` |
+| Pastoral | `apps/pastoral` | `pastoral.igrejaonda.pt` | `apps/pastoral/CLAUDE.md` |
 
 ## Stack
 
@@ -202,7 +204,7 @@ negócio — fazer sempre, antes de dar a base por pronta:
    certo com essa porta — sem a linha, o `trocarBase` em localhost
    troca os claims na app em que estás e ficas a olhar para a UI
    errada, sem erro nenhum. A próxima porta livre depois das que já
-   existem (5173–5176). **O CORS das functions não precisa de
+   existem (5173–5183). **O CORS das functions não precisa de
    mudança**: aceita `localhost`/`127.0.0.1` em qualquer porta, de
    propósito, para uma base nova não disparar deploy de functions.
 

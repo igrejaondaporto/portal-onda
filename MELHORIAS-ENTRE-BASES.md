@@ -13,7 +13,87 @@ linha aqui. Se for óbvio que só serve àquela base (o modelo de
 ministérios da Técnica, por exemplo), diz isso e porquê — não é
 esquecimento, é registo.
 
+## O que a construção do Painel Pastoral fechou
+
+O Painel Pastoral (`apps/pastoral`, 2026-09) é a última base e a
+primeira que não produz nada — só lê o que as outras dez produzem.
+Construí-la não portou funcionalidade nenhuma entre bases; o que fez
+foi **usar quatro coisas que já estavam no repo à espera dela**, e
+abrir uma que serve a todas. Registo aqui para nenhuma delas voltar a
+parecer código morto:
+
+- **`eventos/{e}/estatisticasCulto/registo`** estava `read, write:
+  if false` para toda a gente, com o comentário *"arquivo para o
+  futuro Painel do Pastor"*. Era gravado a cada culto finalizado ao
+  vivo desde que a integração com o FreeShow existe, e nunca tinha
+  sido lido por nada. A leitura abriu-se para a claim nova
+  (`ve_tudo_pastoral`); a escrita continua só Admin SDK. As contas que
+  `arquivarCultoTerminado` deixou por fazer de propósito (*"ficam para
+  quando esse painel existir"*) são agora `resumirCulto`, em
+  `functions/pastoral.js`.
+- **A coleção global `contactos`** foi posta fora de `bases/` desde o
+  início pelo mesmo motivo, e as regras obrigavam a Base Pessoal a
+  criar sempre com `etapa: "visita"` porque *"o funil das etapas
+  seguintes é só do painel do pastor"*. As outras cinco etapas nascem
+  agora em `moverEtapaContacto`. **Nada do que já estava gravado
+  precisou de migração** — era exatamente o que essa decisão comprava.
+- **`origem: "manual"` em `eventos/{e}.ordem`** já era aceite por
+  `publicarOrdemCulto` (a Backstage grava-o quando o analisador do PDF
+  falha e o líder escreve tudo à mão). Por isso o compositor da ordem
+  do culto do painel não precisou de uma Cloud Function nova nem de um
+  campo novo: publica pela mesma função, com a mesma claim
+  `pode_publicar_culto`, e **nenhuma das dez bases mudou uma linha**
+  para saber ler uma ordem montada no painel. O PDF continua a ser o
+  caminho da Backstage, intacto.
+- **`claimsExtraDaBase`** absorveu a capacidade nova numa linha, como
+  tinha sido desenhado para fazer. Quatro das cinco capacidades da
+  base pastoral (`veEscalas`, `veReembolsos`, `culto.podePublicar`,
+  `eventos.podeCriarGlobal`) já existiam e não foram tocadas.
+
+E uma que passa a servir qualquer base:
+
+- **Recado de uma base para outra** (`recados/{id}` +
+  `packages/shared/src/lib/recados.js` +
+  `components/RecadoPastoral.jsx`) — nasceu já partilhado porque é
+  literalmente igual nas dez: chega, lê-se, dispensa-se. Duas linhas
+  por app (`<RecadoPastoral papel={papel} />` no topo do `Inicio.jsx`).
+  Hoje só o painel pastoral envia, mas **nada no modelo é específico
+  dele**: o documento tem `baseId` de destino e autor, e a regra de
+  leitura é `minhaBase(resource.data.baseId)`. Se um dia a Backstage
+  precisar de mandar um aviso à Técnica, é a função de envio que ganha
+  um caminho novo, não o componente. Cuidado ao reutilizar: **não é uma
+  `solicitacao`** — não tem prazo, atribuição, transferência nem
+  histórico de estados, e é isso que o mantém barato. Quem precisar de
+  resposta e de estado deve portar `solicitacoes`, não isto.
+
 ## Por portar (identificado, ainda não feito)
+
+- **O mapa de calor da acomodação, no Painel Pastoral**
+  (`bases/pessoal/acomodacaoResumos`, 2026-09). Os resumos são
+  gravados a cada culto com um comentário a dizer que são *"o que vai
+  alimentar o mapa de calor do painel do pastor mais tarde"*
+  (`ResumosAcomodacao.jsx`). O painel já existe desde 2026-09 e o mapa
+  ainda não — é a peça mais óbvia a seguir, e a única das quatro
+  "à espera do painel" que ficou por usar. Não precisa de Cloud
+  Function nova: os resumos já estão numa coleção da Pessoal e o
+  agregador `panoramaPastoral` já lê `bases/{b}/*` pelo Admin SDK.
+
+- **Gráficos como componentes partilhados**
+  (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
+  2026-09). São SVG à mão, sem biblioteca — ~30 pontos e uma polilinha
+  não justificam 40 kB de dependência (mesmo raciocínio das notas e
+  moedas em SVG do Financeiro). Ficam na app porque só ela tem
+  gráficos hoje; o `Barras.jsx` do Financeiro já foi generalizado aqui
+  (o `formatar` entra por prop, em vez de `eur` cravado) e essa versão
+  é a que deve ir para `packages/shared` quando uma segunda base
+  precisar. Três decisões a copiar em qualquer porte, e nenhuma é de
+  gosto: **um eixo por gráfico** (duas escalas no mesmo plot inventam
+  uma correlação que os dados não têm); **rampa de um tom só para
+  categorias ordenadas** — o funil de seis etapas começou com seis
+  cores e estava errado, é um caminho e não seis identidades, e em
+  daltonismo seis tons viram seis cinzentos iguais; e **atraso é
+  estado, não série**, por isso usa as cores `.oc-atraso-*` que a
+  ordem do culto ao vivo já usava, com os mesmos limiares.
 
 - **Registo/edição sem sessão nenhuma, por token no link** (Base
   Kinder, 2026-09 — `/registo` e `/familia/<token>`,
