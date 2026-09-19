@@ -243,10 +243,12 @@ Do lado das bases são duas linhas por app:
 `Inicio.jsx`. Usa o `.destaque` que o Início já usa para "isto precisa
 de ti" — um estilo novo só ensinaria a equipa a ler mais um formato.
 
-**Ninguém é notificado.** Nenhuma base tem push nem email (ver
-`MELHORIAS-ENTRE-BASES.md`); o recado aparece quando alguém abrir a
-app. A folha de envio diz isto ao pastor em voz alta, para ele não
-escrever "estou à porta" a achar que toca um telemóvel.
+**Também chega por push** (`notificarRecado`,
+`functions/notificacoes.js`), a quem o tiver ligado. O cartão no Início
+continua a ser o caminho garantido: nem toda a gente ativa
+notificações, e no iPhone elas só funcionam com a app instalada no ecrã
+principal. A folha de envio diz as duas coisas, em vez de prometer que
+toca um telemóvel.
 
 Toda a equipa lê; só o líder (ou auxiliar) dispensa — quem não pode
 não vê o botão, em vez de ver um botão que rebenta ao toque.
@@ -323,21 +325,27 @@ Três regras, e nenhuma é de gosto:
 
 ## Por fazer / débito consciente
 
-- **O mapa de calor da acomodação.** `bases/pessoal/acomodacaoResumos`
-  existe desde 2026-09 e diz, em comentário, que é "o que vai
-  alimentar o mapa de calor do painel do pastor mais tarde". O painel
-  já existe; o mapa ainda não. É a peça mais óbvia a seguir.
-- **Sem push/email**, como nenhuma base tem. O recado depende de o
-  líder abrir a app.
+- ~~O mapa de calor da acomodação~~ — feito (`components/MapaCalor.jsx`,
+  em Números). Era a quarta peça que estava no repo à espera deste
+  painel, e a única que tinha ficado por usar.
+- ~~Sem push/email~~ — o push existe desde 2026-09
+  (`functions/notificacoes.js`). **Email continua a não existir**: o
+  push cobre quem tem a app instalada, e um canal de email precisa de
+  um fornecedor e de uma conta — decisão com custo, não uma linha de
+  código. Se vier, o sítio é o `notificar()`, que já é o único ponto
+  por onde tudo passa.
 - **Os agregadores não têm cache.** `panoramaPastoral` são ~9 leituras
   × 10 bases a cada montagem da aba. Com o uso real (uma pessoa, umas
   vezes por semana) não é problema; se um dia a equipa pastoral
   crescer, o sítio para pôr uma cache de minutos é o próprio
   `panoramaPastoral`, não o cliente.
-- **A contagem da Kinder não entra no "nas salas".** A contagem da
-  Base Pessoal tem categorias manuais para as salas (`new`, `shift`,
-  `juniorFun`, `baby`) e a Kinder tem o check-in a sério
-  (`eventos/{e}/checkinKinder`, restrito a ela). São dois números da
-  mesma coisa; hoje o painel só mostra o da Pessoal, porque é o que
-  está aberto. Cruzá-los é trabalho para quando alguém reparar que não
-  batem certo.
+- ~~A contagem da Kinder não entra no "nas salas"~~ — cruzada em
+  Números ("Crianças: dois números da mesma coisa"). Compara só Baby e
+  Junior/Fun: a New e a SHIFT têm sala própria e não passam pelo
+  check-in da Kinder, por isso os **totais** nunca bateriam certo por
+  construção, e compará-los daria um alarme permanente e falso.
+- **O desgaste conta cultos, não horas.** Quem serve duas bases no
+  mesmo domingo conta um domingo — é o mais honesto que os dados
+  permitem, mas esconde que essa pessoa esteve lá o dobro do tempo. Se
+  um dia isso interessar, é a duração de cada função que falta gravar,
+  e isso não existe em lado nenhum hoje.

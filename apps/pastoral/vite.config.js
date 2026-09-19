@@ -13,6 +13,12 @@ export default defineConfig({
       // recarrega a página quando há versão nova (ver packages/shared
       // /src/lib/pwa.js).
       injectRegister: false,
+      // o service worker do PWA importa o handler das notificações
+      // de fundo (gerado por scripts/gerar-push-sw.mjs). É importado
+      // e não registado à parte: dois service workers no mesmo
+      // âmbito substituem-se um ao outro, e o que se perdia era a
+      // atualização automática da app.
+      workbox: { importScripts: ["push-sw.js"] },
       manifest: {
         name: "Pastoral — igrejaonda",
         short_name: "Pastoral",

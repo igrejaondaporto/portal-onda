@@ -8,6 +8,7 @@ import {
 import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
 import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import OrdemImprimivel from "../components/OrdemImprimivel";
 
 function janela() {
   const h = new Date();
@@ -358,6 +359,17 @@ export default function Ordem({ ativo, definirCabecalho }) {
         {aPublicar ? "A publicar…" : evento?.ordem ? "Republicar às dez bases" : "Publicar às dez bases"}
       </button>
 
+      {/* imprime o que está no formulário, publicado ou não — quem
+          monta quer ver a folha antes de publicar, e não depois. O
+          diálogo do browser dá "Guardar como PDF" na mesma. */}
+      <button
+        className="btn sec full" style={{ marginTop: 8 }}
+        disabled={!limparMomentos(momentos).length}
+        onClick={() => window.print()}
+      >
+        Imprimir / guardar em PDF
+      </button>
+
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         <input
           className="campo" style={{ marginTop: 0, flex: 1 }} value={nomeModelo}
@@ -371,6 +383,16 @@ export default function Ordem({ ativo, definirCabecalho }) {
           Retirar a ordem deste culto
         </button>
       )}
+
+      {/* fica sempre montado e escondido fora da impressão: montar só
+          ao carregar em Imprimir arriscava o window.print disparar
+          antes de o React pintar, e a folha saía em branco */}
+      <OrdemImprimivel
+        evento={evento}
+        momentos={limparMomentos(momentos)}
+        avisos={limparAvisos(avisos)}
+        horas={horas}
+      />
     </>
   );
 }

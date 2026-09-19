@@ -3,6 +3,7 @@ import { historicoPastoral } from "../lib/pastoral";
 import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import LinhaTempo from "../components/LinhaTempo";
 import Barras from "../components/Barras";
+import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
 
 const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -137,6 +138,38 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   const semOrdem = (dados?.cultos ?? []).filter((c) => !c.ordemPublicada).length;
 
+  /* ── crianças: dois números da mesma coisa ───────────────── */
+
+  /** A Base Pessoal preenche as salas à mão na contagem do culto; a
+   *  Kinder tem o check-in a sério, criança a criança. São duas
+   *  medidas do mesmo, e até agora ninguém as via lado a lado — cada
+   *  base só via a sua.
+   *
+   *  As salas da Pessoal são quatro (new, shift, juniorFun, baby) e as
+   *  da Kinder três (baby, fun, junior): a New e a SHIFT são bases
+   *  próprias, com sala própria, e não passam pelo check-in da Kinder.
+   *  Por isso compara-se só o que é comparável — baby + junior/fun do
+   *  lado da Kinder contra baby + juniorFun do lado da Pessoal —, e
+   *  não os totais, que nunca bateriam certo por construção. */
+  const criancas = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .filter((c) => c.kinder && c.contagem?.finalizada)
+      .map((c) => {
+        const pessoal = [c.contagem.baby, c.contagem.juniorFun]
+          .map((v) => (typeof v === "number" ? v : null));
+        if (pessoal.some((v) => v === null)) return null;
+        const manual = pessoal.reduce((t, v) => t + v, 0);
+        const checkin = c.kinder.baby + c.kinder.fun + c.kinder.junior;
+        return { eventoId: c.eventoId, data: c.data, manual, checkin, diff: checkin - manual };
+      })
+      .filter(Boolean);
+  }, [dados]);
+
+  const divergencia = criancas.length
+    ? Math.round(criancas.reduce((t, c) => t + Math.abs(c.diff), 0) / criancas.length)
+    : null;
+
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
@@ -189,6 +222,75 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho"><h3>Visitantes por domingo</h3></div>
             <LinhaTempo pontos={visitantes} vazio="Sem visitantes registados neste período." />
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>Quão cheio esteve o auditório</h3>
+              <span className="cap">toca num domingo</span>
+            </div>
+            <p className="ds" style={{ marginTop: 0 }}>
+              Sobre a capacidade útil — lugares totais menos os reservados e os bloqueados. A escala é fixa
+              de 0 a 100%, para os mapas de meses diferentes serem comparáveis entre si.
+            </p>
+            <MapaCalor
+              cultos={dados.cultos}
+              vazio="Nenhum mapa do auditório foi fechado neste período. A Base Pessoal fecha o mapa no fim de cada culto."
+            />
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho">
+              <h3>Crianças: dois números da mesma coisa</h3>
+              {divergencia !== null && <span className="cap">{divergencia} de diferença média</span>}
+            </div>
+            {criancas.length === 0 ? (
+              <div className="vaz">
+                Faltam cultos com as duas contagens fechadas — a da Base Pessoal (salas preenchidas à mão) e o
+                check-in da Kinder.
+              </div>
+            ) : (
+              <>
+                <p className="ds" style={{ marginTop: 0 }}>
+                  A Base Pessoal conta as salas à mão na contagem do culto; a Kinder faz check-in criança a
+                  criança. Compara-se só Baby e Junior/Fun — a New e a SHIFT têm sala própria e não passam
+                  pelo check-in da Kinder.
+                </p>
+                <div className="tabwrap" style={{ marginTop: 12 }}>
+                  <table className="tab">
+                    <thead>
+                      <tr>
+                        <th>Culto</th>
+                        <th style={{ textAlign: "right" }}>Pessoal</th>
+                        <th style={{ textAlign: "right" }}>Kinder</th>
+                        <th style={{ textAlign: "right" }}>Dif.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {criancas.slice(-12).reverse().map((c) => (
+                        <tr key={c.eventoId}>
+                          <td>{dataCurta(c.data)}</td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.manual}</td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.checkin}</td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                            {/* a cor marca só o que é grande; o sinal
+                                e o número dizem-no sem depender dela */}
+                            <span className={Math.abs(c.diff) >= 5 ? "oc-atraso-laranja" : undefined}>
+                              {c.diff > 0 ? "+" : ""}{c.diff}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="cap" style={{ marginTop: 10 }}>
+                  Uma diferença pequena é normal (uma criança que chega tarde entra no check-in e já não entra
+                  na contagem). Uma diferença grande e sempre no mesmo sentido quer dizer que uma das duas
+                  contagens tem um problema de método — e é isso que este quadro serve para apanhar.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="sect">

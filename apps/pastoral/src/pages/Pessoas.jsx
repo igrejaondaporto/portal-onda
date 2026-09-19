@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { pessoasPastoral } from "../lib/pastoral";
+import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
 import { contarPorEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
 import Funil from "../components/Funil";
 import Barras from "../components/Barras";
@@ -7,8 +7,21 @@ import SheetContacto from "../components/SheetContacto";
 
 const ABAS = [
   ["voluntarios", "Quem serve"],
+  ["desgaste", "Desgaste"],
   ["funil", "Visitantes"],
 ];
+
+/** A janela do desgaste: os últimos seis meses. Mais curto que isso e
+ *  umas férias distorcem tudo; mais longo e alguém que serviu muito na
+ *  primavera e parou continua no topo, que é o contrário do que se
+ *  quer ver. */
+const MESES_DESGASTE = 6;
+
+function janelaDesgaste() {
+  const h = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return [iso(new Date(h.getFullYear(), h.getMonth() - MESES_DESGASTE, h.getDate())), iso(h)];
+}
 
 /**
  * As pessoas — as que já servem, e as que ainda não.
@@ -26,6 +39,7 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   const [etapaFiltro, setEtapaFiltro] = useState(null);
   const [busca, setBusca] = useState("");
   const [contactoAberto, setContactoAberto] = useState(null);
+  const [desgaste, setDesgaste] = useState(null);
   const [erro, setErro] = useState(null);
 
   useEffect(() => {
@@ -36,9 +50,28 @@ export default function Pessoas({ ativo, definirCabecalho }) {
     return () => { vivo = false; };
   }, []);
 
+  // só quando o separador é aberto: percorre as escalas de ~26
+  // domingos × 10 bases, e não vale pagar isso a quem só veio ver a
+  // lista de quem serve
+  useEffect(() => {
+    if (aba !== "desgaste" || desgaste) return;
+    let vivo = true;
+    const [de, ate] = janelaDesgaste();
+    desgastePastoral(de, ate)
+      .then((d) => { if (vivo) setDesgaste(d); })
+      .catch((e) => { if (vivo) setErro(e.message || "Não foi possível calcular o desgaste."); });
+    return () => { vivo = false; };
+  }, [aba, desgaste]);
+
   useEffect(() => ouvirContactos(setContactos), []);
 
   /* ── quem serve ──────────────────────────────────────────── */
+
+  /** A cor da base, para a etiqueta. `dados` pode ainda não ter
+   *  chegado quando o separador do desgaste abre primeiro — o cinzento
+   *  é um fallback honesto, não um erro. */
+  const corBase = (baseId) =>
+    (dados?.bases ?? []).find((b) => b.baseId === baseId)?.cor ?? "var(--cinza)";
 
   const ativos = useMemo(
     () => (dados?.pessoas ?? []).filter((p) => p.bases.some((b) => b.ativo)),
@@ -86,18 +119,31 @@ export default function Pessoas({ ativo, definirCabecalho }) {
       .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true));
   }, [contactos, etapaFiltro, busca]);
 
+  /** Quem serviu em metade ou mais dos domingos do período. Metade não
+   *  é um número mágico nem um limite de alarme — é onde "serve às
+   *  vezes" passa a "serve quase sempre", e é a partir daí que vale a
+   *  pena alguém perguntar se está tudo bem. */
+  const gastos = useMemo(() => {
+    if (!desgaste?.totalCultos) return [];
+    return desgaste.pessoas.filter((p) => p.cultos / desgaste.totalCultos >= 0.5);
+  }, [desgaste]);
+
   useEffect(() => {
     if (!ativo) return;
-    definirCabecalho({
-      titulo: "Pessoas",
-      subtitulo: aba === "voluntarios"
-        ? "Quem serve na igreja, e em quantas bases"
-        : "De quem apareceu num culto a quem já serve",
-      chips: aba === "voluntarios"
-        ? (dados ? [`${ativos.length} a servir`, `${multiBase.length} em mais de uma base`] : [])
-        : [`${contactos.length} no funil`, parados.length ? `${parados.length} parados` : "nenhum parado"],
-    });
-  }, [ativo, definirCabecalho, aba, dados, ativos, multiBase, contactos, parados]);
+    const subtitulos = {
+      voluntarios: "Quem serve na igreja, e em quantas bases",
+      desgaste: `Quem serviu mais domingos nos últimos ${MESES_DESGASTE} meses`,
+      funil: "De quem apareceu num culto a quem já serve",
+    };
+    const chips = {
+      voluntarios: dados ? [`${ativos.length} a servir`, `${multiBase.length} em mais de uma base`] : [],
+      desgaste: desgaste
+        ? [`${desgaste.totalCultos} cultos`, gastos.length ? `${gastos.length} em metade ou mais` : "ninguém acima de metade"]
+        : [],
+      funil: [`${contactos.length} no funil`, parados.length ? `${parados.length} parados` : "nenhum parado"],
+    };
+    definirCabecalho({ titulo: "Pessoas", subtitulo: subtitulos[aba], chips: chips[aba] });
+  }, [ativo, definirCabecalho, aba, dados, ativos, multiBase, contactos, parados, desgaste, gastos]);
 
   return (
     <>
@@ -168,6 +214,60 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )
+      ) : aba === "desgaste" ? (
+        !desgaste ? (
+          <div className="vaz" style={{ marginTop: 12 }}>A percorrer as escalas dos últimos {MESES_DESGASTE} meses…</div>
+        ) : (
+          <>
+            <div className="caixa" style={{ marginTop: 12 }}>
+              <p className="ds" style={{ marginTop: 0 }}>
+                O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto. O que nunca mostrou a
+                ninguém é quem está a servir em semanas alternadas em bases diferentes: o líder da Apoio vê
+                metade, o da Kinder vê a outra metade, e ninguém vê o todo.
+              </p>
+              <p className="cap" style={{ marginTop: 8 }}>
+                Conta <b>cultos</b>, não escalas — servir em duas bases no mesmo domingo é um domingo, não dois.
+              </p>
+            </div>
+
+            {gastos.length > 0 && (
+              <div className="caixa destaque" style={{ marginTop: 12 }}>
+                <p className="ds" style={{ marginTop: 0 }}>
+                  <b>{gastos.length} pessoa{gastos.length === 1 ? "" : "s"}</b> serviu em metade ou mais dos{" "}
+                  {desgaste.totalCultos} domingos deste período.
+                </p>
+              </div>
+            )}
+
+            <div className="sect">
+              <div className="cabecalho">
+                <h3>Mais domingos servidos</h3>
+                <span className="cap">de {desgaste.totalCultos}</span>
+              </div>
+              {desgaste.pessoas.length ? desgaste.pessoas.slice(0, 40).map((p) => {
+                const pct = Math.round((p.cultos / desgaste.totalCultos) * 100);
+                return (
+                  <div className="linha" key={p.uid}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="nmt">{p.nome}</p>
+                      <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {p.bases.map((b) => (
+                          <span className="tag" key={b.baseId} style={{ background: corBase(b.baseId) }}>{b.nome}</span>
+                        ))}
+                      </p>
+                      <div className="barra" style={{ marginTop: 7 }}>
+                        <i style={{ width: `${pct}%`, background: pct >= 50 ? "var(--laranja)" : "var(--azul)" }} />
+                      </div>
+                    </div>
+                    <span style={{ flex: "none", fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>
+                      {p.cultos}
+                    </span>
+                  </div>
+                );
+              }) : <div className="vaz">Nenhuma escala publicada neste período.</div>}
             </div>
           </>
         )

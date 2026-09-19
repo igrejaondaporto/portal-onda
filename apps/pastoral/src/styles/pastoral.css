@@ -255,3 +255,172 @@
   opacity: 0.55;
   cursor: default;
 }
+
+/* ── mapa de calor da ocupação do auditório ──────────────────
+ * Uma grelha de quadrados, um por culto. Não é um calendário: os
+ * cultos especiais não caem ao domingo e uma grelha de 7 colunas
+ * deixaria buracos que não significam nada. Quebra em quantas caibam
+ * na largura, que num telemóvel é o que interessa. */
+.pa-calor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+.pa-calor-q {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  /* o anel é da cor da superfície: separa quadrados vizinhos sem
+     desenhar um contorno a mais por cima da cor dos dados */
+  box-shadow: 0 0 0 2px #fff;
+}
+/* zero não é o passo mais claro da rampa — é um quadrado vazio.
+   "Ninguém" e "poucos" são coisas diferentes e têm de se distinguir
+   sem contar tons. */
+.pa-calor-q.vazio {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--fio);
+}
+/* o selecionado ganha um anel escuro, não outra cor: a cor aqui está
+   ocupada a dizer quanta gente esteve */
+.pa-calor-q.on {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--tinta);
+}
+.pa-calor-legenda {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--cinza);
+}
+.pa-calor-legenda i {
+  width: 18px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* ── a ordem do culto em papel ───────────────────────────────
+ * Escondida no ecrã, é tudo o que existe no papel. A regra do
+ * `@media print` esconde a app inteira em vez de listar o que tirar:
+ * assim, uma tela nova nesta app nunca aparece por engano numa folha
+ * impressa — o padrão é não imprimir, e imprimir é a exceção.
+ *
+ * Mede-se em `pt` e não em `px`: `px` numa impressora é uma unidade
+ * inventada pelo browser, `pt` é um ponto tipográfico a sério e sai
+ * igual em qualquer impressora. */
+.pa-print {
+  display: none;
+}
+
+@media print {
+  /* nada da app vai para o papel… */
+  .app,
+  .navb,
+  .veu,
+  .pin,
+  .torrada,
+  .tour-veu,
+  .tour-balao {
+    display: none !important;
+  }
+
+  /* …exceto isto */
+  .pa-print {
+    display: block;
+    font-family: var(--o);
+    color: #000;
+    padding: 0;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  .pa-print h1 {
+    font-size: 19pt;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+  .pa-print h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 14pt 0 4pt;
+  }
+  .pa-print-sub {
+    font-size: 10pt;
+    margin: 3pt 0 12pt;
+    color: #444;
+  }
+
+  .pa-print-tab {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  .pa-print-tab th {
+    text-align: left;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #555;
+    border-bottom: 0.7pt solid #000;
+    padding: 0 6pt 3pt 0;
+  }
+  .pa-print-tab td {
+    padding: 5pt 6pt 5pt 0;
+    border-bottom: 0.4pt solid #ccc;
+    vertical-align: top;
+  }
+  /* uma linha do culto nunca é partida ao meio por uma quebra de
+     página — ler "Mensagem" no fim de uma folha e a hora dela no
+     início da seguinte é pior do que uma folha com um espaço vazio */
+  .pa-print-tab tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* o cabeçalho repete-se em cada folha: numa ordem de duas páginas,
+     a segunda sem cabeçalho é uma grelha de números sem legenda */
+  .pa-print-tab thead {
+    display: table-header-group;
+  }
+  .pa-print-hora,
+  .pa-print-min {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .pa-print-min {
+    text-align: right;
+  }
+  .pa-print-det {
+    display: block;
+    font-size: 8.5pt;
+    color: #555;
+    margin-top: 1pt;
+  }
+
+  .pa-print-avisos {
+    margin: 0;
+    padding-left: 12pt;
+    font-size: 10pt;
+  }
+  .pa-print-avisos li {
+    margin-top: 4pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .pa-print-rodape {
+    margin-top: 16pt;
+    font-size: 8pt;
+    color: #777;
+  }
+}

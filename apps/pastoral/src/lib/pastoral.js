@@ -25,6 +25,12 @@ export const patrimonioPastoral = () => chamar("patrimonioPastoral")({}).then((r
 export const historicoPastoral = (desde, ate) =>
   chamar("historicoPastoral")({ desde, ate }).then((r) => r.data);
 
+/** Quem serviu quantos dos domingos do período, somando todas as
+ *  bases. Conta CULTOS e não escalas: servir em duas bases no mesmo
+ *  domingo é um domingo. */
+export const desgastePastoral = (desde, ate) =>
+  chamar("desgastePastoral")({ desde, ate }).then((r) => r.data);
+
 /** Move um visitante no funil. Andar para trás é permitido — quem foi
  *  marcado por engano tem de poder voltar (o histórico regista as
  *  duas direções). */

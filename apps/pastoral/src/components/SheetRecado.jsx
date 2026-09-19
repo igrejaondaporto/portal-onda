@@ -17,11 +17,12 @@ const MAX = 600;
  * modelo daria ao pastor uma fila de pedidos por despachar que ninguém
  * pediu.
  *
- * O que NÃO acontece, e é preciso dizer em voz alta: ninguém é
- * notificado. Nenhuma base tem push nem email (ver
- * MELHORIAS-ENTRE-BASES.md) — o recado aparece quando o líder abrir a
- * app. O aviso no fundo desta folha existe para o pastor não escrever
- * "estou à porta" a achar que toca um telemóvel.
+ * Desde 2026-09 o recado TAMBÉM chega por notificação push, a quem a
+ * tiver ligado (`notificarRecado`, functions/notificacoes.js). Nem
+ * toda a gente liga, e no iPhone só funciona com a app instalada — por
+ * isso o cartão no Início continua a ser o caminho garantido, e o
+ * aviso no fundo desta folha diz as duas coisas em vez de prometer que
+ * toca um telemóvel.
  *
  * Todo sheet leva um botão de fechar, mesmo tendo ação primária —
  * regra sem exceção desde o Financeiro (um popup sem saída visível já
@@ -73,7 +74,7 @@ export default function SheetRecado({ base, onFechar }) {
         </div>
 
         <p className="cap" style={{ marginTop: 14 }}>
-          Ninguém recebe notificação — o recado aparece quando o líder abrir a app.
+          Quem tiver notificações ligadas recebe no telemóvel; quem não tiver vê quando abrir a app.
         </p>
 
         <button className="btn full" style={{ marginTop: 14 }} disabled={aEnviar} onClick={enviar}>
