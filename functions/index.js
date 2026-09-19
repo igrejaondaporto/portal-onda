@@ -43,8 +43,26 @@ export {
 // claim pode_publicar_culto que a Backstage já usava.
 export {
   panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
-  moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
+  desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
 } from "./pastoral.js";
+
+// Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio
+// por apagar dados a sério, sozinha, todos os dias — ver os três
+// travões no topo de retencao.js. `ensaiarRetencao` diz o que ia
+// apagar sem apagar nada.
+export {
+  purgarChamadasAntigas, purgarDadosDeVoluntariosInativos,
+  purgarReembolsosAntigos, ensaiarRetencao,
+} from "./retencao.js";
+
+// Notificações push — a infraestrutura que faltava ao produto inteiro
+// (nenhuma base tinha push nem email). São quatro gatilhos, e três
+// deles estavam registados como débito no repo: o recado do pastor, o
+// reembolso decidido e o lembrete de confirmação da Louvor.
+export {
+  notificarRecado, notificarReembolso, notificarEscala,
+  lembrarConfirmacaoPresenca,
+} from "./notificacoes.js";
 
 admin.initializeApp();
 const db = admin.firestore();

@@ -328,13 +328,24 @@ export const historicoPastoral = onCall(async (req) => {
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const detalhes = await Promise.all(eventos.map(async (e) => {
-    const [contagem, estatisticas] = await Promise.allSettled([
+    const [contagem, estatisticas, acomodacao, kinder] = await Promise.allSettled([
       db().doc(`eventos/${e.id}/contagem/geral`).get(),
       db().doc(`eventos/${e.id}/estatisticasCulto/registo`).get(),
+      // O resumo do mapa do auditório, fechado pela Base Pessoal no fim
+      // de cada culto. Está gravado desde 2026-09 com um comentário a
+      // dizer que era "o que vai alimentar o mapa de calor do painel do
+      // pastor mais tarde" (ResumosAcomodacao.jsx) — é aqui.
+      db().doc(`bases/pessoal/acomodacaoResumos/${e.id}`).get(),
+      // O check-in a sério da Kinder, para cruzar com as salas que a
+      // Pessoal preenche à mão. `select` porque só interessam dois
+      // campos: a leitura continua a ser um documento por criança
+      // (~50 por culto), mas o payload fica mínimo.
+      db().collection(`eventos/${e.id}/checkinKinder`).select("categoria", "anulado").get(),
     ]);
     const ok = (r) => (r.status === "fulfilled" && r.value?.exists ? r.value.data() : null);
     const c = ok(contagem);
     const s = ok(estatisticas);
+    const a = ok(acomodacao);
 
     return {
       eventoId: e.id,
@@ -346,6 +357,8 @@ export const historicoPastoral = onCall(async (req) => {
       // total é a soma, e não um campo gravado (foi assim que nasceu)
       contagem: c ? resumirContagem(c) : null,
       culto: s ? resumirCulto(s) : null,
+      acomodacao: a ? resumirAcomodacao(a) : null,
+      kinder: kinder.status === "fulfilled" ? resumirKinder(kinder.value) : null,
     };
   }));
 
@@ -399,7 +412,48 @@ function resumirContagem(c) {
     visitantes: valor("visitantes"),
     voluntarios: valor("voluntarios"),
     apelo: valor("apelo"),
+    // as salas uma a uma, para o painel poder cruzar as duas que a
+    // Kinder também conta (baby e juniorFun) com o check-in dela, sem
+    // somar a New e a SHIFT — que têm sala própria e nunca passam pelo
+    // check-in da Kinder, e fariam a comparação nunca bater certo
+    new: valor("new"),
+    shift: valor("shift"),
+    juniorFun: valor("juniorFun"),
+    baby: valor("baby"),
   };
+}
+
+/** O mapa do auditório, fechado no fim do culto pela Base Pessoal.
+ *  `percentagem` já vem calculada de lá (`resumoAcomodacao`,
+ *  index.js) sobre a capacidade ÚTIL — lugares totais menos os
+ *  reservados e os bloqueados. Não se recalcula aqui: seria a mesma
+ *  conta em dois sítios, a divergir no dia em que um mudasse. */
+function resumirAcomodacao(a) {
+  return {
+    ocupados: a.ocupados ?? 0,
+    visitantes: a.visitantes ?? 0,
+    livres: a.livres ?? 0,
+    reservados: a.reservados ?? 0,
+    bloqueados: a.bloqueados ?? 0,
+    capacidadeUtil: a.capacidadeUtil ?? 0,
+    percentagem: a.percentagem ?? 0,
+  };
+}
+
+/** O check-in da Kinder, por sala. `anulado` é um check-in desfeito
+ *  (engano à porta), não uma criança que saiu — a saída tem campo
+ *  próprio (`saidaEm`) e continua a contar como "esteve cá", que é o
+ *  que interessa para comparar com uma contagem de presenças. */
+function resumirKinder(snap) {
+  const contagem = { baby: 0, fun: 0, junior: 0 };
+  let total = 0;
+  snap.forEach((d) => {
+    const k = d.data();
+    if (k.anulado === true) return;
+    total++;
+    if (k.categoria in contagem) contagem[k.categoria]++;
+  });
+  return { total, ...contagem };
 }
 
 /** Previsto (o que a ordem do culto dizia) vs. real (o que o FreeShow
@@ -464,6 +518,104 @@ function resumirCulto(s) {
     extras: [...porNome.keys()].filter((k) => !correspondidos.has(k)).length,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════
+ *  DESGASTE — quem está a servir domingo sim, domingo sim
+ * ══════════════════════════════════════════════════════════════
+ *
+ * A pergunta que nenhuma base consegue fazer sozinha, por
+ * construção: o líder da Apoio vê que a Joana serviu 4 dos últimos 8
+ * domingos dele e acha pouco; o da Kinder vê os outros 4 e acha o
+ * mesmo. Ninguém vê os 8.
+ *
+ * O sistema já IMPEDE escalar a mesma pessoa em duas bases no mesmo
+ * culto (`eventos/{e}/indisponibilidades`) — o que nunca fez foi
+ * mostrar quem está a carregar dois compromissos em semanas
+ * alternadas, que é onde as pessoas se gastam sem ninguém reparar.
+ *
+ * Conta CULTOS, não escalas: servir em duas bases no mesmo domingo é
+ * um domingo, não dois. Quem serve nas duas está lá o dia inteiro, e
+ * contar 2 daria a essa pessoa um número maior do que os domingos que
+ * existem no período — o que faria a lista parecer avariada em vez de
+ * grave.
+ *
+ * Lê as duas formas de escala do repo, a mesma deteção de
+ * `escalasCrossBase`: lista simples (`pessoas[]`) e lugares por
+ * ministério (`lugares[]`, titular e aprendiz contam os dois — um
+ * aprendiz está lá o culto todo).
+ */
+export const desgastePastoral = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { desde, ate } = req.data || {};
+  if (!ISO.test(String(desde || "")) || !ISO.test(String(ate || ""))) {
+    throw new HttpsError("invalid-argument", "Período inválido.");
+  }
+  if (desde > ate) throw new HttpsError("invalid-argument", "O período está ao contrário.");
+
+  const bases = await basesDaIgreja();
+  const eventosSnap = await db().collection("eventos")
+    .where(admin.firestore.FieldPath.documentId(), ">=", desde)
+    .where(admin.firestore.FieldPath.documentId(), "<=", ate)
+    .get();
+
+  const eventos = eventosSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((e) => e.ativo !== false)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  // uid → { cultos: Set, bases: Set }. O Set de cultos é o que faz
+  // "duas bases no mesmo domingo" contar uma vez só.
+  const porPessoa = new Map();
+  const registar = (uid, eventoId, baseId) => {
+    if (!uid) return;
+    if (!porPessoa.has(uid)) porPessoa.set(uid, { cultos: new Set(), bases: new Set() });
+    const p = porPessoa.get(uid);
+    p.cultos.add(eventoId);
+    p.bases.add(baseId);
+  };
+
+  await Promise.all(eventos.map(async (e) => {
+    const escalas = await Promise.all(bases.map((b) =>
+      db().doc(`eventos/${e.id}/escalas/${b.id}`).get().catch(() => null)));
+    escalas.forEach((snap, i) => {
+      if (!snap?.exists) return;
+      const d = snap.data();
+      const baseId = bases[i].id;
+      if (Array.isArray(d.lugares) && d.lugares.length) {
+        for (const l of d.lugares) {
+          registar(l.titularId, e.id, baseId);
+          registar(l.aprendizId, e.id, baseId);
+        }
+      } else {
+        for (const uid of d.pessoas || []) registar(uid, e.id, baseId);
+      }
+    });
+  }));
+
+  // o nome vem de pessoas/{uid} (global) — nunca de bases/{b}/pessoas
+  // de uma base específica, que daria nomes diferentes conforme a
+  // base por onde se entrasse primeiro
+  const uids = [...porPessoa.keys()];
+  const globais = await Promise.all(uids.map((u) => db().doc(`pessoas/${u}`).get().catch(() => null)));
+  const nomeDe = Object.fromEntries(
+    globais.filter((s) => s?.exists).map((s) => [s.id, s.data().nome ?? null]));
+
+  const nomeBase = Object.fromEntries(bases.map((b) => [b.id, b.nome ?? b.id]));
+
+  const pessoas = uids.map((uid) => {
+    const p = porPessoa.get(uid);
+    return {
+      uid,
+      nome: nomeDe[uid] ?? null,
+      cultos: p.cultos.size,
+      bases: [...p.bases].map((b) => ({ baseId: b, nome: nomeBase[b] ?? b })),
+    };
+  })
+    .filter((p) => p.nome)          // o uid "dev-admin" nunca existe em pessoas/{uid}
+    .sort((a, b) => b.cultos - a.cultos || (a.nome || "").localeCompare(b.nome || "", "pt"));
+
+  return { pessoas, totalCultos: eventos.length };
+});
 
 /* ══════════════════════════════════════════════════════════════
  *  FUNIL DE VISITANTES
