@@ -78,6 +78,8 @@ async function pessoasReais() {
     console.log("Nenhuma base tem gente semeada — a usar nomes fictícios (corre `npm run seed` primeiro para nomes/fotos/bases reais).");
     return Array.from({ length: NUM_PESSOAS }, (_, i) => ({ nome: `Pessoa de Exemplo ${i + 1}`, foto: null, telefone: "", local: "Igreja Onda" }));
   }
+  const comTelefone = pessoas.filter((p) => p.telefone).length;
+  console.log(`${pessoas.length} voluntários reais encontrados, ${comTelefone} com telefone preenchido no perfil da base.`);
   // repete a lista se houver menos de NUM_PESSOAS voluntários semeados no total
   return Array.from({ length: NUM_PESSOAS }, (_, i) => pessoas[i % pessoas.length]);
 }
@@ -164,7 +166,7 @@ async function main() {
   await Promise.all(paraApagar.map((d) => d.ref.delete()));
   if (paraApagar.length) console.log(`${paraApagar.length} anúncios de exemplo antigos (ids automáticos) removidos.`);
 
-  console.log(`${pessoasReais.length} identidades de teste e ${ANUNCIOS.length} anúncios de exemplo semeados.`);
+  console.log(`${pessoas.length} identidades de teste e ${ANUNCIOS.length} anúncios de exemplo semeados.`);
   console.log("Para limpar tudo mais tarde: apagar em `anuncios` e `pessoas` onde exemploSeed==true.");
 }
 
