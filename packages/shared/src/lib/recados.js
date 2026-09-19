@@ -12,10 +12,10 @@
  * histórico de estados, e nada disso se aplica a "no próximo domingo
  * chegamos às 9h".
  *
- * Ninguém é notificado: nenhuma base tem push nem email (ver
- * MELHORIAS-ENTRE-BASES.md). O recado aparece quando alguém abrir a
- * app — e a folha de envio, no painel, diz isso ao pastor em voz alta,
- * para ele não escrever "estou à porta" a achar que toca um telemóvel.
+ * Desde 2026-09 o recado também chega por push a quem a tiver ligado
+ * (`notificarRecado`, functions/notificacoes.js). Este cartão continua
+ * a ser o caminho garantido: nem toda a gente ativa notificações, e no
+ * iPhone só funcionam com a app instalada no ecrã principal.
  */
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db, BASE_ID } from "./firebase.js";

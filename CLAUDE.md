@@ -155,6 +155,25 @@ Fotos, nomes, telefones e faturas de pessoas identificadas. O aviso
 curto no primeiro login basta — não há formulário em papel. Retenção:
 operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
 
+**Os prazos são cumpridos por código** desde 2026-09, em
+`functions/retencao.js` (antes só a Kinder os aplicava; as outras nove
+acumulavam). Três funções agendadas, uma por prazo, mais um
+`ensaiarRetencao` que diz o que ia apagar sem apagar nada — usa-o antes
+de mexer em qualquer prazo.
+
+A tensão com a regra 5 ("nada é apagado, é desativado") resolve-se
+assim: **anonimiza-se a pessoa, não se apaga o registo.** Sai o que
+identifica alguém e já não serve (telefone, foto, PIN, IBAN); fica o
+documento e o `nome`, porque as escalas passadas apontam para aquele
+uid — apagá-lo deixaria o histórico de domingos com buracos sem
+ninguém perceber porquê. Manter o `nome` é uma decisão do responsável
+pelo tratamento, não do código: está isolada numa linha de
+`purgarDadosDeVoluntariosInativos` para poder ser mudada.
+
+Uma pessoa inativa numa base mas ativa noutra **nunca** é tocada:
+`pessoas/{uid}` e o PIN são globais (regra 2), e limpá-los por causa de
+uma base deixava-a sem entrar na outra.
+
 ## Ao criar uma base nova
 
 Usa o skill `nova-base` (`.claude/skills/nova-base/SKILL.md`) — é o

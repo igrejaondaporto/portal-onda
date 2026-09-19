@@ -7,6 +7,7 @@ import Tour from "@portal/shared/components/Tour.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
+import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import Inicio from "./Inicio";
 import Reembolsos from "./Reembolsos";
 import Oferta from "./Oferta";
@@ -61,6 +62,7 @@ export default function Sessao({ uid, baseId, papel, mostrarTourAoEntrar }) {
       <div className="app">
         <AvisoOffline />
         <AvisoInstalarPWA />
+        <AvisoNotificacoes />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">

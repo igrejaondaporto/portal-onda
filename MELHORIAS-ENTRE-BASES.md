@@ -66,17 +66,84 @@ E uma que passa a servir qualquer base:
   histórico de estados, e é isso que o mantém barato. Quem precisar de
   resposta e de estado deve portar `solicitacoes`, não isto.
 
-## Por portar (identificado, ainda não feito)
+## Notificações push — a infraestrutura que faltava ao produto inteiro
 
-- **O mapa de calor da acomodação, no Painel Pastoral**
-  (`bases/pessoal/acomodacaoResumos`, 2026-09). Os resumos são
-  gravados a cada culto com um comentário a dizer que são *"o que vai
-  alimentar o mapa de calor do painel do pastor mais tarde"*
-  (`ResumosAcomodacao.jsx`). O painel já existe desde 2026-09 e o mapa
-  ainda não — é a peça mais óbvia a seguir, e a única das quatro
-  "à espera do painel" que ficou por usar. Não precisa de Cloud
-  Function nova: os resumos já estão numa coleção da Pessoal e o
-  agregador `panoramaPastoral` já lê `bases/{b}/*` pelo Admin SDK.
+2026-09. Até aqui **nenhuma base tinha push nem email**, e isso estava
+escrito em três sítios do repo como razão para não fazer outras
+coisas. Três funcionalidades estavam explicitamente paradas à espera
+disto, e as três saíram do papel no mesmo dia:
+
+- **O lembrete de confirmação de presença da Louvor** (pedido do líder
+  em 2026-09, "combinado explicitamente para ficar parado até todas as
+  bases estarem prontas"). É agora `lembrarConfirmacaoPresenca` — corre
+  uma vez por dia e avisa quem serve daqui a dois dias e ainda não
+  confirmou. Só a Louvor por agora, porque só ela tem confirmação de
+  presença; `BASES_COM_CONFIRMACAO` é uma constante de um elemento à
+  espera da segunda.
+- **O aviso de reembolso pago/devolvido** (débito registado no
+  `CLAUDE.md` do Financeiro). É `notificarReembolso`. O cartão
+  `.destaque` no Início **fica** — não é redundância, é o caminho para
+  quem não ligou notificações.
+- **O recado do pastor**, construído umas horas antes e já a nascer com
+  um aviso a dizer que ninguém era notificado. É `notificarRecado`.
+
+Mais um quarto gatilho que ninguém tinha pedido mas que é o mais óbvio
+assim que existe canal: **entraste na escala** (`notificarEscala`).
+
+Cinco decisões a conhecer antes de lhe mexer:
+
+- **Payload só de `data`, nunca `notification`.** Com o bloco
+  `notification`, o browser desenha a notificação sozinho **e** chama o
+  handler do service worker — a pessoa recebe duas. É o erro mais fácil
+  de cometer aqui e o mais difícil de diagnosticar.
+- **Um service worker, não dois.** O handler de fundo
+  (`push-sw.js`, gerado por `scripts/gerar-push-sw.mjs`) é *importado*
+  pelo service worker do PWA via `workbox.importScripts`. Registar um
+  segundo no mesmo âmbito substituiria o primeiro — e o que se perdia
+  era a atualização automática da app.
+- **No iPhone só funciona com a app instalada** no ecrã principal. Um
+  site em separador nunca recebe push no Safari, e o
+  `Notification.permission` mente, devolvendo `"default"` como se
+  valesse a pena pedir. `suportado()` distingue o caso para a interface
+  poder dizer "instala primeiro" em vez de mostrar um botão morto.
+- **Notificar só quem entrou, nunca a escala toda.** O líder mexe na
+  escala várias vezes até a fechar; avisar toda a gente a cada gravação
+  seria a forma mais rápida de a equipa desligar as notificações no
+  primeiro mês.
+- **Tokens mortos apagam-se na resposta do envio.** Um token de quem
+  desinstalou a app falha para sempre se ninguém o limpar, a somar
+  latência a cada envio.
+
+**Continua sem email.** O push cobre quem tem a app instalada; um canal
+de email precisa de um fornecedor e de uma conta — é uma decisão com
+custo, não uma linha de código. Se um dia existir, o sítio para o pôr é
+o `notificar()` de `functions/notificacoes.js`, que já é o único ponto
+por onde tudo passa.
+
+## Retenção RGPD, em código
+
+2026-09. Os prazos estavam no `CLAUDE.md` da raiz desde o início
+("operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano")
+e só a Kinder os cumpria a sério. As outras nove acumulavam — o que é
+pior do que não ter política, porque a política escrita cria a
+expectativa de que é cumprida.
+
+`functions/retencao.js` aplica os três. A decisão de desenho que o
+resolve sem partir a regra 5 do `CLAUDE.md` ("nada é apagado, é
+desativado"): **anonimiza-se a pessoa, não se apaga o registo.** Sai o
+que identifica (telefone, foto, PIN, IBAN); fica o documento e o
+`nome`, porque as escalas passadas apontam para aquele uid e apagá-lo
+deixaria dois anos de domingos com buracos.
+
+Três travões, e nenhum é opcional: **multi-base** (uma pessoa inativa
+numa base mas ativa noutra nunca é tocada — `pessoas/{uid}` e o PIN
+são globais), **data de referência explícita** (sem data fiável não se
+toca, a dúvida nunca resolve a favor de apagar), e **rasto**
+(`logs/retencao`, porque uma purga silenciosa é indistinguível de um
+bug que apagou dados). Há um `ensaiarRetencao` que diz o que ia apagar
+sem apagar nada — é por aí que se começa antes de confiar nisto.
+
+## Por portar (identificado, ainda não feito)
 
 - **Gráficos como componentes partilhados**
   (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
@@ -114,18 +181,6 @@ E uma que passa a servir qualquer base:
   subdivisões coloridas — a Técnica já tem cor por ministério
   (`corMinisterio`), só nunca precisou de um seletor a filtrar o
   ecrã inteiro por ela.
-- **Lembrete de confirmação de presença perto do culto** (pedido do
-  líder da Louvor, 2026-09). Hoje a confirmação de presença
-  (`eventos/{e}/escalas/louvor/confirmacoes/{pessoaId}`, ver
-  `apps/louvor/CLAUDE.md`) depende só de a pessoa abrir a app e ver o
-  balão/popup — não há nenhum empurrão de fora. A ideia é notificar
-  (push/email, quando essa infraestrutura existir — hoje não existe
-  nenhuma, nem push nem email, em nenhuma base) quem ainda não
-  confirmou, 1-2 dias antes do culto. **Combinado explicitamente para
-  ficar parado até todas as bases estarem prontas** — não é para
-  construir isto isolado só para a Louvor; espera o resto do produto
-  amadurecer (e a confirmação de presença em si só existe na Louvor
-  por agora, ver decisão da Apoio de não a ter).
 - **O logo leva ao Início** (`apps/tecnica/src/pages/Sessao.jsx` e
   `apps/kinder/src/pages/Sessao.jsx`/`src/kiosk/KioskChamadas.jsx`,
   classes `.tec-logo-botao`/`.kin-logo-botao` — caminho atualizado
