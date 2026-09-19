@@ -7,6 +7,7 @@ import Tour from "@portal/shared/components/Tour.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
+import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import Inicio from "./Inicio";
 import Reembolsos from "./Reembolsos";
 import Oferta from "./Oferta";
@@ -39,7 +40,7 @@ const ABAS = [
  * Financeiro não serve noutra base ao mesmo tempo, é uma função à
  * parte (ver CLAUDE.md desta app).
  */
-export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
+export default function Sessao({ uid, baseId, papel, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [pagina, setPagina] = useState("inicio");
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
@@ -61,6 +62,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
       <div className="app">
         <AvisoOffline />
         <AvisoInstalarPWA />
+        <AvisoNotificacoes />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">
@@ -104,7 +106,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
               cabeçalho quando o prop `ativo` fica verdadeiro (ver
               Inicio.jsx). */}
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
-            <Inicio ativo={pagina === "inicio"} irPara={irPara} definirCabecalho={setCab} />
+            <Inicio ativo={pagina === "inicio"} papel={papel} irPara={irPara} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "reembolsos" ? "" : "none" }}>
             <Reembolsos ativo={pagina === "reembolsos"} definirCabecalho={setCab} />

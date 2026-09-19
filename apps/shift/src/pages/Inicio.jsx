@@ -18,6 +18,7 @@ import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
+import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -222,6 +223,7 @@ export default function Inicio({
 
   return (
     <>
+      <RecadoPastoral papel={papel} />
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>

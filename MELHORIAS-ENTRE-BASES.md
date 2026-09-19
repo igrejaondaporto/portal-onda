@@ -13,7 +13,154 @@ linha aqui. Se for óbvio que só serve àquela base (o modelo de
 ministérios da Técnica, por exemplo), diz isso e porquê — não é
 esquecimento, é registo.
 
+## O que a construção do Painel Pastoral fechou
+
+O Painel Pastoral (`apps/pastoral`, 2026-09) é a última base e a
+primeira que não produz nada — só lê o que as outras dez produzem.
+Construí-la não portou funcionalidade nenhuma entre bases; o que fez
+foi **usar quatro coisas que já estavam no repo à espera dela**, e
+abrir uma que serve a todas. Registo aqui para nenhuma delas voltar a
+parecer código morto:
+
+- **`eventos/{e}/estatisticasCulto/registo`** estava `read, write:
+  if false` para toda a gente, com o comentário *"arquivo para o
+  futuro Painel do Pastor"*. Era gravado a cada culto finalizado ao
+  vivo desde que a integração com o FreeShow existe, e nunca tinha
+  sido lido por nada. A leitura abriu-se para a claim nova
+  (`ve_tudo_pastoral`); a escrita continua só Admin SDK. As contas que
+  `arquivarCultoTerminado` deixou por fazer de propósito (*"ficam para
+  quando esse painel existir"*) são agora `resumirCulto`, em
+  `functions/pastoral.js`.
+- **A coleção global `contactos`** foi posta fora de `bases/` desde o
+  início pelo mesmo motivo, e as regras obrigavam a Base Pessoal a
+  criar sempre com `etapa: "visita"` porque *"o funil das etapas
+  seguintes é só do painel do pastor"*. As outras cinco etapas nascem
+  agora em `moverEtapaContacto`. **Nada do que já estava gravado
+  precisou de migração** — era exatamente o que essa decisão comprava.
+- **`origem: "manual"` em `eventos/{e}.ordem`** já era aceite por
+  `publicarOrdemCulto` (a Backstage grava-o quando o analisador do PDF
+  falha e o líder escreve tudo à mão). Por isso o compositor da ordem
+  do culto do painel não precisou de uma Cloud Function nova nem de um
+  campo novo: publica pela mesma função, com a mesma claim
+  `pode_publicar_culto`, e **nenhuma das dez bases mudou uma linha**
+  para saber ler uma ordem montada no painel. O PDF continua a ser o
+  caminho da Backstage, intacto.
+- **`claimsExtraDaBase`** absorveu a capacidade nova numa linha, como
+  tinha sido desenhado para fazer. Quatro das cinco capacidades da
+  base pastoral (`veEscalas`, `veReembolsos`, `culto.podePublicar`,
+  `eventos.podeCriarGlobal`) já existiam e não foram tocadas.
+
+E uma que passa a servir qualquer base:
+
+- **Recado de uma base para outra** (`recados/{id}` +
+  `packages/shared/src/lib/recados.js` +
+  `components/RecadoPastoral.jsx`) — nasceu já partilhado porque é
+  literalmente igual nas dez: chega, lê-se, dispensa-se. Duas linhas
+  por app (`<RecadoPastoral papel={papel} />` no topo do `Inicio.jsx`).
+  Hoje só o painel pastoral envia, mas **nada no modelo é específico
+  dele**: o documento tem `baseId` de destino e autor, e a regra de
+  leitura é `minhaBase(resource.data.baseId)`. Se um dia a Backstage
+  precisar de mandar um aviso à Técnica, é a função de envio que ganha
+  um caminho novo, não o componente. Cuidado ao reutilizar: **não é uma
+  `solicitacao`** — não tem prazo, atribuição, transferência nem
+  histórico de estados, e é isso que o mantém barato. Quem precisar de
+  resposta e de estado deve portar `solicitacoes`, não isto.
+
+## Notificações push — a infraestrutura que faltava ao produto inteiro
+
+2026-09. Até aqui **nenhuma base tinha push nem email**, e isso estava
+escrito em três sítios do repo como razão para não fazer outras
+coisas. Três funcionalidades estavam explicitamente paradas à espera
+disto, e as três saíram do papel no mesmo dia:
+
+- **O lembrete de confirmação de presença da Louvor** (pedido do líder
+  em 2026-09, "combinado explicitamente para ficar parado até todas as
+  bases estarem prontas"). É agora `lembrarConfirmacaoPresenca` — corre
+  uma vez por dia e avisa quem serve daqui a dois dias e ainda não
+  confirmou. Só a Louvor por agora, porque só ela tem confirmação de
+  presença; `BASES_COM_CONFIRMACAO` é uma constante de um elemento à
+  espera da segunda.
+- **O aviso de reembolso pago/devolvido** (débito registado no
+  `CLAUDE.md` do Financeiro). É `notificarReembolso`. O cartão
+  `.destaque` no Início **fica** — não é redundância, é o caminho para
+  quem não ligou notificações.
+- **O recado do pastor**, construído umas horas antes e já a nascer com
+  um aviso a dizer que ninguém era notificado. É `notificarRecado`.
+
+Mais um quarto gatilho que ninguém tinha pedido mas que é o mais óbvio
+assim que existe canal: **entraste na escala** (`notificarEscala`).
+
+Cinco decisões a conhecer antes de lhe mexer:
+
+- **Payload só de `data`, nunca `notification`.** Com o bloco
+  `notification`, o browser desenha a notificação sozinho **e** chama o
+  handler do service worker — a pessoa recebe duas. É o erro mais fácil
+  de cometer aqui e o mais difícil de diagnosticar.
+- **Um service worker, não dois.** O handler de fundo
+  (`push-sw.js`, gerado por `scripts/gerar-push-sw.mjs`) é *importado*
+  pelo service worker do PWA via `workbox.importScripts`. Registar um
+  segundo no mesmo âmbito substituiria o primeiro — e o que se perdia
+  era a atualização automática da app.
+- **No iPhone só funciona com a app instalada** no ecrã principal. Um
+  site em separador nunca recebe push no Safari, e o
+  `Notification.permission` mente, devolvendo `"default"` como se
+  valesse a pena pedir. `suportado()` distingue o caso para a interface
+  poder dizer "instala primeiro" em vez de mostrar um botão morto.
+- **Notificar só quem entrou, nunca a escala toda.** O líder mexe na
+  escala várias vezes até a fechar; avisar toda a gente a cada gravação
+  seria a forma mais rápida de a equipa desligar as notificações no
+  primeiro mês.
+- **Tokens mortos apagam-se na resposta do envio.** Um token de quem
+  desinstalou a app falha para sempre se ninguém o limpar, a somar
+  latência a cada envio.
+
+**Continua sem email.** O push cobre quem tem a app instalada; um canal
+de email precisa de um fornecedor e de uma conta — é uma decisão com
+custo, não uma linha de código. Se um dia existir, o sítio para o pôr é
+o `notificar()` de `functions/notificacoes.js`, que já é o único ponto
+por onde tudo passa.
+
+## Retenção RGPD, em código
+
+2026-09. Os prazos estavam no `CLAUDE.md` da raiz desde o início
+("operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano")
+e só a Kinder os cumpria a sério. As outras nove acumulavam — o que é
+pior do que não ter política, porque a política escrita cria a
+expectativa de que é cumprida.
+
+`functions/retencao.js` aplica os três. A decisão de desenho que o
+resolve sem partir a regra 5 do `CLAUDE.md` ("nada é apagado, é
+desativado"): **anonimiza-se a pessoa, não se apaga o registo.** Sai o
+que identifica (telefone, foto, PIN, IBAN); fica o documento e o
+`nome`, porque as escalas passadas apontam para aquele uid e apagá-lo
+deixaria dois anos de domingos com buracos.
+
+Três travões, e nenhum é opcional: **multi-base** (uma pessoa inativa
+numa base mas ativa noutra nunca é tocada — `pessoas/{uid}` e o PIN
+são globais), **data de referência explícita** (sem data fiável não se
+toca, a dúvida nunca resolve a favor de apagar), e **rasto**
+(`logs/retencao`, porque uma purga silenciosa é indistinguível de um
+bug que apagou dados). Há um `ensaiarRetencao` que diz o que ia apagar
+sem apagar nada — é por aí que se começa antes de confiar nisto.
+
 ## Por portar (identificado, ainda não feito)
+
+- **Gráficos como componentes partilhados**
+  (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
+  2026-09). São SVG à mão, sem biblioteca — ~30 pontos e uma polilinha
+  não justificam 40 kB de dependência (mesmo raciocínio das notas e
+  moedas em SVG do Financeiro). Ficam na app porque só ela tem
+  gráficos hoje; o `Barras.jsx` do Financeiro já foi generalizado aqui
+  (o `formatar` entra por prop, em vez de `eur` cravado) e essa versão
+  é a que deve ir para `packages/shared` quando uma segunda base
+  precisar. Três decisões a copiar em qualquer porte, e nenhuma é de
+  gosto: **um eixo por gráfico** (duas escalas no mesmo plot inventam
+  uma correlação que os dados não têm); **rampa de um tom só para
+  categorias ordenadas** — o funil de seis etapas começou com seis
+  cores e estava errado, é um caminho e não seis identidades, e em
+  daltonismo seis tons viram seis cinzentos iguais; e **atraso é
+  estado, não série**, por isso usa as cores `.oc-atraso-*` que a
+  ordem do culto ao vivo já usava, com os mesmos limiares.
 
 - **Registo/edição sem sessão nenhuma, por token no link** (Base
   Kinder, 2026-09 — `/registo` e `/familia/<token>`,
@@ -34,18 +181,6 @@ esquecimento, é registo.
   subdivisões coloridas — a Técnica já tem cor por ministério
   (`corMinisterio`), só nunca precisou de um seletor a filtrar o
   ecrã inteiro por ela.
-- **Lembrete de confirmação de presença perto do culto** (pedido do
-  líder da Louvor, 2026-09). Hoje a confirmação de presença
-  (`eventos/{e}/escalas/louvor/confirmacoes/{pessoaId}`, ver
-  `apps/louvor/CLAUDE.md`) depende só de a pessoa abrir a app e ver o
-  balão/popup — não há nenhum empurrão de fora. A ideia é notificar
-  (push/email, quando essa infraestrutura existir — hoje não existe
-  nenhuma, nem push nem email, em nenhuma base) quem ainda não
-  confirmou, 1-2 dias antes do culto. **Combinado explicitamente para
-  ficar parado até todas as bases estarem prontas** — não é para
-  construir isto isolado só para a Louvor; espera o resto do produto
-  amadurecer (e a confirmação de presença em si só existe na Louvor
-  por agora, ver decisão da Apoio de não a ter).
 - **O logo leva ao Início** (`apps/tecnica/src/pages/Sessao.jsx` e
   `apps/kinder/src/pages/Sessao.jsx`/`src/kiosk/KioskChamadas.jsx`,
   classes `.tec-logo-botao`/`.kin-logo-botao` — caminho atualizado

@@ -5,6 +5,7 @@ import { ouvirBases } from "../lib/bases";
 import Barras from "../components/Barras";
 import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib/categoriasDespesa.js";
 import { eur, dataPorExtenso } from "@portal/shared/lib/data.js";
+import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const DIAS_A_ESPERAR = 7;   // a partir daqui um pedido aprovado está a arrastar-se
@@ -34,7 +35,7 @@ function Aviso({ texto, accao, onAccao }) {
 /** Início — o que falta fazer agora, e um resumo curto. O histórico
  *  completo, os filtros e os gráficos a sério vivem em Relatórios;
  *  aqui só entra o que responde a "tenho alguma coisa para tratar?". */
-export default function Inicio({ ativo, irPara, definirCabecalho }) {
+export default function Inicio({ ativo, papel, irPara, definirCabecalho }) {
   const [porPagar, setPorPagar] = useState([]);
   const [devolvidos, setDevolvidos] = useState([]);
   const [pagos, setPagos] = useState([]);
@@ -106,6 +107,7 @@ export default function Inicio({ ativo, irPara, definirCabecalho }) {
 
   return (
     <>
+      <RecadoPastoral papel={papel} />
       <div className="destaque" onClick={() => irPara("reembolsos")}>
         <div>
           <p style={{ fontSize: 12.5, opacity: 0.85 }}>Por pagar agora</p>

@@ -36,6 +36,34 @@ export {
   purgarFamiliasInativasKinder, purgarAnexosLicoesAntigasKinder,
 } from "./kinder.js";
 
+// Painel Pastoral: ler as 10 bases de uma vez, nunca escrever nelas —
+// ficheiro próprio pelo mesmo motivo do kinder.js (ver o comentário no
+// topo de pastoral.js). A ordem do culto que o pastor publica NÃO
+// passa por lá: usa a publicarOrdemCulto que já existe aqui, com a
+// claim pode_publicar_culto que a Backstage já usava.
+export {
+  panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
+  desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
+} from "./pastoral.js";
+
+// Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio
+// por apagar dados a sério, sozinha, todos os dias — ver os três
+// travões no topo de retencao.js. `ensaiarRetencao` diz o que ia
+// apagar sem apagar nada.
+export {
+  purgarChamadasAntigas, purgarDadosDeVoluntariosInativos,
+  purgarReembolsosAntigos, ensaiarRetencao,
+} from "./retencao.js";
+
+// Notificações push — a infraestrutura que faltava ao produto inteiro
+// (nenhuma base tinha push nem email). São quatro gatilhos, e três
+// deles estavam registados como débito no repo: o recado do pastor, o
+// reembolso decidido e o lembrete de confirmação da Louvor.
+export {
+  notificarRecado, notificarReembolso, notificarEscala,
+  lembrarConfirmacaoPresenca,
+} from "./notificacoes.js";
+
 admin.initializeApp();
 const db = admin.firestore();
 
@@ -88,6 +116,12 @@ async function claimsExtraDaBase(baseId) {
   if (b.culto?.podePublicar === true) extra.pode_publicar_culto = true;
   if (b.eventos?.podeCriarGlobal === true) extra.pode_criar_evento_global = true;
   if (b.feedbackAberto === true) extra.feedback_aberto = true;
+  // Painel Pastoral (bases/pastoral) — vê o resumo de todas as bases
+  // por Cloud Function (ver pastoral.js) e o funil de visitantes/o
+  // arquivo dos cultos direto do Firestore. Como as outras, é uma
+  // CAPACIDADE DE BASE e não um papel novo: não existe "admin_igreja"
+  // neste sistema, e não é agora que passa a existir.
+  if (b.visaoPastoral === true) extra.ve_tudo_pastoral = true;
   return extra;
 }
 

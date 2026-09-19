@@ -242,9 +242,17 @@ denormalizado no `criarReembolso`).
 
 ## Por fazer / débito consciente
 
-- Sem push/email (nenhuma base tem — ver `MELHORIAS-ENTRE-BASES.md`).
-  O aviso de "pago"/"devolvido" é só o cartão `.destaque` no Início
-  de cada base, como o de "indeferido" já era.
+- ~~Sem push/email~~ — resolvido em 2026-09: `notificarReembolso`
+  (`functions/notificacoes.js`) avisa quem pediu quando o pedido fica
+  "pago", "devolvido" ou "indeferido". O cartão `.destaque` no Início
+  de cada base **fica**, e não é redundância: nem toda a gente liga as
+  notificações, e no iPhone elas só funcionam com a app instalada no
+  ecrã principal. "Aprovado" continua sem notificação de propósito —
+  é o pedido a andar, não uma decisão final, e três notificações por
+  reembolso ensinam a ignorá-las todas.
+- Continua sem **email**. O push cobre quem tem a app; um canal de
+  email precisa de um fornecedor e de uma conta, que é uma decisão com
+  custo e não uma linha de código.
 - A contagem da oferta não está ligada a `eventos/{AAAA-MM-DD}` por
   chave estrangeira — guarda só a data em texto, no mesmo formato. Se
   um dia fizer falta cruzar com o culto a sério (tipo de culto, nome),
