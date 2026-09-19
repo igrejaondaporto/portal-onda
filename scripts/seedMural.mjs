@@ -8,20 +8,19 @@
  * preenchido, como ficaria a sério, e para a "base" ao lado do nome
  * ser sempre a base real da pessoa (ver `pessoasReais()` abaixo).
  *
- * O que NÃO fica ligado ao voluntário real, mesmo assim: o "autor"
- * de cada anúncio de exemplo continua a ser uma identidade só de
- * teste (`pessoas/tel_...`, nunca o pessoaId real). Só o nome e a
- * foto são copiados — nunca o telefone. Sem isto, o botão "Falar no
- * WhatsApp" de um anúncio inventado abriria o número verdadeiro de
- * alguém que nunca publicou nada, e mandava uma pessoa real e
- * inconsciente receber mensagens sobre um sofá que não existe. Por
- * isso a identidade de teste NÃO leva telefone nenhum gravado (nem
- * sequer o fictício do id `tel_000000001`) — `telefoneDoAutor`
- * (functions/mural.js) só devolve `p.telefone` se existir, por isso
- * sem o campo o botão falha de forma segura ("Sem contacto
- * disponível"), em vez de abrir o WhatsApp com um número fictício
- * tipo +351000000001 (bug real, apanhado 2026-09 — o campo estava lá
- * preenchido com os dígitos do id, e o botão encontrava "contacto").
+ * O "autor" de cada anúncio de exemplo continua a ser uma identidade
+ * só de teste (`pessoas/tel_...`, nunca o pessoaId real do
+ * voluntário) — nunca escreve nem lê o documento da pessoa real. Mas,
+ * a pedido explícito do dono do produto (2026-09, depois de ver o
+ * botão "Falar no WhatsApp" a falhar com "sem contacto"), o telefone
+ * COPIADO para essa identidade de teste É o telefone real do
+ * voluntário (`bases/{baseId}/pessoas/{id}.telefone`, se ele já o
+ * tiver preenchido) — para o botão funcionar a sério ao testar. Ficas
+ * a saber o preço disto: quem vir estes anúncios de exemplo (o Mural
+ * é público) pode mandar mensagem a sério a esse voluntário sobre um
+ * Golf/berço/etc. que ele nunca publicou. Se um voluntário ainda não
+ * tiver telefone preenchido na base, fica sem — o botão mostra "Sem
+ * contacto disponível" só para esses.
  *
  * As fotos dos ANÚNCIOS em si (picsum.photos, semente fixa por
  * anúncio) são só para testar o layout com fotos a sério — não são
@@ -72,12 +71,12 @@ async function pessoasReais() {
       continue; // base sem essa subcoleção, ou sem índice — não é o essencial aqui
     }
     for (const d of snap.docs) {
-      pessoas.push({ nome: d.data().nome, foto: d.data().foto ?? null, local });
+      pessoas.push({ nome: d.data().nome, foto: d.data().foto ?? null, telefone: d.data().telefone || "", local });
     }
   }
   if (!pessoas.length) {
     console.log("Nenhuma base tem gente semeada — a usar nomes fictícios (corre `npm run seed` primeiro para nomes/fotos/bases reais).");
-    return Array.from({ length: NUM_PESSOAS }, (_, i) => ({ nome: `Pessoa de Exemplo ${i + 1}`, foto: null, local: "Igreja Onda" }));
+    return Array.from({ length: NUM_PESSOAS }, (_, i) => ({ nome: `Pessoa de Exemplo ${i + 1}`, foto: null, telefone: "", local: "Igreja Onda" }));
   }
   // repete a lista se houver menos de NUM_PESSOAS voluntários semeados no total
   return Array.from({ length: NUM_PESSOAS }, (_, i) => pessoas[i % pessoas.length]);
@@ -126,11 +125,11 @@ const ANUNCIOS = [
 async function main() {
   const pessoas = await pessoasReais();
 
-  console.log("A semear identidades de teste (nome/foto/base reais, sem telefone nenhum — ver aviso no topo do ficheiro)…");
+  console.log("A semear identidades de teste (nome/foto/base/telefone reais — ver aviso no topo do ficheiro)…");
   for (const [i, p] of pessoas.entries()) {
     const id = `tel_${String(i + 1).padStart(9, "0")}`;
     await db.doc(`pessoas/${id}`).set({
-      nome: p.nome, foto: p.foto, telefone: "", gdId: null, ativo: true, bases: {},
+      nome: p.nome, foto: p.foto, telefone: p.telefone, gdId: null, ativo: true, bases: {},
       origemMural: true, exemploSeed: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
   }

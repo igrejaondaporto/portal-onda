@@ -144,8 +144,14 @@ voluntário, guarda o telefone na sua base).
 - **Ícones/og-image gerados por script** (`scripts/gerarIconesMural.mjs`,
   CLAUDE.md raiz "Ao criar uma base nova", item 1) — já correu uma vez;
   volta a correr só se quiseres outro texto ou cor.
-- **Pessoas de exemplo do seed são fictícias, nunca reais** — mesma
-  convenção já escrita em `apps/pessoal/CLAUDE.md`: um anúncio
-  inventado atribuído a um voluntário real, sem ele saber, confunde
-  ou constrange se alguém tropeçar nisso antes de perceber que é
-  demonstração.
+- **Pessoas de exemplo do seed usam nome, foto E telefone reais de
+  voluntários** (`bases/{baseId}/pessoas`, de qualquer base já
+  semeada) — ao contrário da convenção em `apps/pessoal/CLAUDE.md`,
+  aqui foi pedido explicitamente pelo dono do produto (2026-09), para
+  o botão "Falar no WhatsApp" funcionar a sério ao testar. O "autor"
+  em si continua a ser uma identidade só de teste (`pessoas/tel_...`,
+  nunca o pessoaId do voluntário) — só o nome/foto/telefone são
+  copiados. Preço consciente e aceite: como o Mural é público, quem
+  vir um anúncio de exemplo pode mandar mensagem a sério a esse
+  voluntário sobre algo que ele nunca publicou. Ver o aviso completo
+  no topo de `scripts/seedMural.mjs`.
