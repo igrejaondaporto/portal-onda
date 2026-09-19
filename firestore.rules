@@ -64,6 +64,28 @@ service cloud.firestore {
                      && request.resource.data.destino is string
                      && request.resource.data.destino.size() > 0;
       }
+
+      // ── onde esta pessoa recebe notificações ──
+      // Um documento por dispositivo (telemóvel, tablet, portátil) —
+      // o id é o token do FCM, que já é único por dispositivo+app e
+      // poupa gerar um id nosso só para o mesmo efeito.
+      //
+      // Só a dona lê e escreve; nenhum líder vê os dispositivos de
+      // ninguém. As Cloud Functions leem pelo Admin SDK para enviar
+      // (e apagam o token quando o FCM o declara morto) — nunca o
+      // cliente de outra pessoa.
+      //
+      // Fica em `pessoas/{uid}` (global) e não em `bases/{b}/pessoas`
+      // porque o telemóvel é da pessoa, não da base: quem serve em
+      // duas bases tem um dispositivo, não dois, e receberia tudo a
+      // dobrar se isto fosse por base.
+      match /dispositivos/{token} {
+        allow read:   if euSou(pessoa);
+        allow create, update: if euSou(pessoa)
+                      && request.resource.data.baseId is string
+                      && request.resource.data.ativo == true;
+        allow delete: if euSou(pessoa);
+      }
     }
 
     // ── ponteiro do culto ao vivo — qual eventoId está a gravar agora,
