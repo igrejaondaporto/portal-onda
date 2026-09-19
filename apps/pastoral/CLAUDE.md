@@ -39,8 +39,9 @@ dele.
 
 ## Isto estava previsto no código antes de existir
 
-Três sítios guardavam dados **de propósito**, à espera desta app.
-Não são coincidências — cada um tem um comentário a dizê-lo:
+Quatro sítios guardavam dados **de propósito**, à espera desta app.
+Não são coincidências — cada um tem um comentário a dizê-lo, e nenhum
+ficou por usar:
 
 - **`eventos/{e}/estatisticasCulto/registo`** (`firestore.rules`):
   *"arquivo para o futuro Painel do Pastor — nenhuma base lê isto
@@ -58,8 +59,13 @@ Não são coincidências — cada um tem um comentário a dizê-lo:
   regras obrigam — e as outras cinco etapas nascem aqui.
 - **Os resumos de acomodação** (`apps/pessoal/src/components/
   acomodacao/ResumosAcomodacao.jsx`): *"é o que vai alimentar o mapa
-  de calor do painel do pastor mais tarde"*. **Ainda não usado** — ver
-  "Por fazer" no fim.
+  de calor do painel do pastor mais tarde"*. É o `MapaCalor.jsx`, em
+  Números — a `percentagem` vem de lá calculada (sobre a capacidade
+  útil) e não se recalcula aqui: a mesma conta em dois sítios divergia
+  no dia em que uma mudasse.
+- E a **chave VAPID** (`VITE_FB_VAPID_KEY`, em `.env.production`),
+  provisionada desde sempre e nunca usada, é o que as notificações
+  push finalmente gastam (`functions/notificacoes.js`).
 
 Ao mexer aqui, vale a pena procurar `pastor` no repo antes de inventar
 uma estrutura nova: é provável que já exista uma à espera.
