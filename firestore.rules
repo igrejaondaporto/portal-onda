@@ -31,6 +31,15 @@ service cloud.firestore {
     // claimsExtraDaBase). Lê os reembolsos de qualquer base; quem paga
     // é a Cloud Function, esta claim só abre a LEITURA.
     function vejoTodosReembolsos() { return autenticado() && request.auth.token.ve_todos_reembolsos == true; }
+    // idem para o Painel Pastoral: bases/{b}.visaoPastoral == true (ver
+    // claimsExtraDaBase). Abre só DUAS leituras aqui — o funil de
+    // visitantes e o arquivo de cada culto —, que são listas a sério e
+    // perderiam o tempo real se passassem por uma função. Tudo o resto
+    // que o painel vê das outras bases (inventário, melhorias, wiki,
+    // pessoas) vem do Admin SDK em functions/pastoral.js, de propósito:
+    // eram ~15 blocos a ganhar uma condição nova cada um, neste
+    // ficheiro que faz deploy sozinho ao entrar na main.
+    function vejoTudoPastoral() { return autenticado() && request.auth.token.ve_tudo_pastoral == true; }
 
     // ── identidade global — só nome/foto/quais bases, para o login
     // único e o seletor de base. O que é específico de cada base
@@ -132,6 +141,18 @@ service cloud.firestore {
         allow write: if souLiderBase(base);
       }
       match /avisosModelos/{modelo} {
+        allow read, write: if souLiderBase(base);
+      }
+
+      // ── modelos de ordem do culto (Painel Pastoral) ──
+      // O domingo típico, guardado para não ser remontado de raiz toda
+      // a semana. Mesmo padrão dos avisosModelos acima: é um rascunho
+      // reutilizável de quem manda na base, sem autoria mista e sem
+      // nada a calcular no servidor — escrita direta chega. O que SAI
+      // daqui para a igreja (a ordem publicada) continua a passar pela
+      // publicarOrdemCulto, como sempre. Genérico por `base`, como
+      // tudo neste ficheiro: não é uma regra "da pastoral".
+      match /modelosOrdem/{modelo} {
         allow read, write: if souLiderBase(base);
       }
 
@@ -483,7 +504,14 @@ service cloud.firestore {
     // baseOrigemId, criadoEm) é que ficam de fora, nunca se tocam
     // depois de criado. Nunca apagado a sério.
     match /contactos/{contacto} {
-      allow read: if minhaBase('pessoal');
+      // "quando o painel do pastor nascer, a leitura abre-se para ele
+      // sem mexer no que já está gravado" — é esta linha, e nada mais
+      // mudou aqui: a Pessoal continua a criar sempre com
+      // etapa:"visita" e a poder corrigir os mesmos campos de sempre.
+      // O painel NÃO escreve por esta via: mover de etapa é a Cloud
+      // Function moverEtapaContacto (grava o histórico na mesma
+      // escrita, coisa que uma regra não garante).
+      allow read: if minhaBase('pessoal') || vejoTudoPastoral();
       allow create: if minhaBase('pessoal')
                     && request.resource.data.baseOrigemId == 'pessoal'
                     && request.resource.data.etapa == 'visita'
@@ -627,11 +655,14 @@ service cloud.firestore {
         allow write: if false;                     // só por função
       }
 
-      // arquivo para o futuro Painel do Pastor — nenhuma base lê isto
-      // hoje, de propósito (só estatística, gravado quando o culto
-      // termina de vez, ver sondarFreeshow). Só Admin SDK.
+      // arquivo do culto terminado (só estatística, gravado por
+      // arquivarCultoTerminado ao finalizar o culto ao vivo). Nasceu
+      // fechado a toda a gente "para o futuro Painel do Pastor" — esse
+      // painel existe desde 2026-09 e é o único que lê. Escrita
+      // continua só Admin SDK: nem o painel escreve aqui.
       match /estatisticasCulto/{doc} {
-        allow read, write: if false;
+        allow read:  if vejoTudoPastoral();
+        allow write: if false;
       }
     }
 
@@ -646,6 +677,31 @@ service cloud.firestore {
     match /solicitacoes/{id} {
       allow read:  if minhaBase(resource.data.baseSolicitanteId) || minhaBase('comunicacao');
       allow write: if false;                     // só por função
+    }
+
+    // ── recados do Painel Pastoral para uma base ───────────
+    // De ida, sem resposta e sem estado (decisão do dono do produto,
+    // 2026-09): o pastor escreve, o líder lê e dispensa. Não é uma
+    // `solicitacao` — essa tem prazo, transferência e histórico de
+    // estados, e nada disso se aplica aqui.
+    //
+    // Raiz, e não bases/{b}/avisos: os avisos são do líder para a
+    // equipa dele, e só a Louvor tem tela para eles. Uma coleção
+    // própria deixa cada base mostrar o recado com um componente
+    // partilhado pequeno, sem que nenhuma das dez tenha de ganhar o
+    // ecrã de avisos inteiro nem distinguir origens no mesmo sítio.
+    //
+    // Toda a base LÊ o que é dela (é para a equipa saber, não só o
+    // líder); só o LÍDER dispensa, e dispensar é a única escrita que
+    // o cliente pode fazer — dois campos e mais nada, para um líder
+    // não poder reescrever o texto do recado que recebeu. Criar é só
+    // por função (enviarRecadoPastoral); apagar, nunca (regra 5).
+    match /recados/{id} {
+      allow read:   if minhaBase(resource.data.baseId) || vejoTudoPastoral();
+      allow update: if souLiderBase(resource.data.baseId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['dispensado', 'dispensadoEm']);
+      allow create, delete: if false;            // só por função
     }
 
     // ── Brand: marcas + acervo ──────────────────────────────
