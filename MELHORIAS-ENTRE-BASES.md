@@ -13,6 +13,39 @@ linha aqui. Se for óbvio que só serve àquela base (o modelo de
 ministérios da Técnica, por exemplo), diz isso e porquê — não é
 esquecimento, é registo.
 
+## Uma armadilha encontrada ao construir o Painel Pastoral: duas telas, a mesma claim, o mesmo documento
+
+Registo à parte, porque é um padrão que qualquer base futura com uma
+capacidade "cross-base" pode repetir sem querer. `publicarOrdemCulto`
+dá a claim `pode_publicar_culto` a quem a tiver — hoje a Backstage, e
+quase a Pastoral também — e a função **substitui o campo inteiro**
+(`eventos/{e}.ordem = {...}`), sem merge por secção. Isso é seguro
+enquanto só uma base publica; deixa de ser no dia em que uma segunda
+tela ganha a mesma claim: a segunda a publicar apaga o que a primeira
+tinha posto, sem aviso nenhum. Foi encontrado a testar (2026-09-20): o
+conteúdo que a Backstage tinha subido por PDF desapareceu depois de
+mexer na aba nova do painel.
+
+A correção não foi mudar `publicarOrdemCulto` para fazer merge (isso
+resolveria "apagar tudo" mas não "duas fontes de verdade a decidir a
+mesma ordem ao mesmo tempo", que é o problema a sério) — foi manter a
+tela nova pronta mas **desligada** até haver uma decisão explícita de
+qual caminho fica ativo: `bases/pastoral.culto.podePublicar = false`
+por omissão (`scripts/seedPastoral.mjs`), e o próprio
+`podePublicarCulto` (a claim que já protege a função no servidor) a
+decidir do lado do cliente se a tela mostra o formulário ou uma
+explicação (`apps/pastoral/src/pages/Ordem.jsx`). Nenhuma flag nova:
+reutilizar o sinal que já existia em vez de inventar um `ativo:
+true/false` a mais para alguém esquecer de verificar num sítio.
+
+A pergunta a fazer sempre que uma capacidade nova (`ve_algo_todas`,
+`pode_algo`) for concedida a uma segunda base: **o que ela escreve é
+um campo que se soma, ou um documento que se substitui?** Se for
+substituição — como esta, como qualquer `.set(..., {merge:true})` com
+um objeto aninhado inteiro — duas fontes com a mesma claim têm de se
+coordenar por fora do código (uma decisão de produto, um interruptor),
+nunca só por "as duas sabem escrever lá".
+
 ## O que a construção do Painel Pastoral fechou
 
 O Painel Pastoral (`apps/pastoral`, 2026-09) é a última base e a

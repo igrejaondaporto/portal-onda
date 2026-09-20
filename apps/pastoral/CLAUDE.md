@@ -179,6 +179,38 @@ esquecimento.
 
 ## A ordem do culto
 
+### Desligada por omissão (2026-09)
+
+**A aba existe, mas não compõe nem publica enquanto `bases/pastoral.
+culto.podePublicar` não for `true`** (`scripts/seedPastoral.mjs` grava
+`false` de propósito). Sem essa claim, `Ordem.jsx` mostra uma
+explicação em vez do formulário, e `Domingo.jsx` não oferece o botão
+"Montar a ordem deste culto".
+
+Motivo: `publicarOrdemCulto` **substitui** o campo `ordem` inteiro, sem
+merge por secção. Isso é seguro enquanto só a Backstage publica — é o
+que já acontecia sempre — e deixa de ser seguro no dia em que duas
+telas com a mesma claim escrevem no mesmo documento sem se avisarem:
+publicar pelo painel depois de a Backstage já ter subido o PDF apaga o
+que lá estava, sem aviso nenhum. Foi assim que a equipa encontrou isto
+a testar (2026-09-20) — o "corpo" que a Backstage tinha subido por PDF
+desapareceu depois de mexer na aba Ordem do painel.
+
+O gatilho é a claim que já existe, não uma flag nova: `podePublicarCulto`
+(o mesmo booleano que protege a Cloud Function do lado do servidor)
+decide, do lado do cliente, se esta tela mostra o formulário. Sem essa
+claim, deixar o formulário visível levaria a publicar e a apanhar
+`permission-denied` só depois de já ter composto tudo — pior do que
+não mostrar a tela.
+
+**Para ativar:** troca `culto: { podePublicar: false }` para `true`
+em `scripts/seedPastoral.mjs`, corre o script outra vez, e combina com
+quem cuida da Backstage qual dos dois caminhos fica ativo — os dois ao
+mesmo tempo continuam a ter o mesmo risco de sobrescrita, só que
+deliberado em vez de acidental. Quem já tinha sessão aberta só vê a
+aba desbloquear depois de sair e voltar a entrar (os claims recalculam
+só em `entrar`/`trocarBase`).
+
 ### O que mudou, e o que não
 
 O PDF **continua a existir e a Backstage continua a poder subi-lo**

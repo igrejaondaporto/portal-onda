@@ -54,7 +54,7 @@ const ABAS = [
  * equipa pastoral não serve noutra base ao mesmo tempo, é uma função à
  * parte (mesma decisão do Financeiro).
  */
-export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
+export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEntrar }) {
   const [pessoa, setPessoa] = useState(null);
   const [pagina, setPagina] = useState("domingo");
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
@@ -127,7 +127,10 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
               título parava de seguir a navegação (bug já reportado no
               Financeiro, que tem a mesma casca). */}
           <div style={{ display: pagina === "domingo" ? "" : "none" }}>
-            <Domingo ativo={pagina === "domingo"} definirCabecalho={setCab} onAoVivo={setAoVivo} irPara={irPara} />
+            <Domingo
+              ativo={pagina === "domingo"} definirCabecalho={setCab} onAoVivo={setAoVivo} irPara={irPara}
+              podePublicarCulto={podePublicarCulto}
+            />
           </div>
           <div style={{ display: pagina === "bases" ? "" : "none" }}>
             <Bases ativo={pagina === "bases"} definirCabecalho={setCab} />
@@ -139,7 +142,7 @@ export default function Sessao({ uid, baseId, mostrarTourAoEntrar }) {
             <Numeros ativo={pagina === "numeros"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "ordem" ? "" : "none" }}>
-            <Ordem ativo={pagina === "ordem"} definirCabecalho={setCab} />
+            <Ordem ativo={pagina === "ordem"} definirCabecalho={setCab} podePublicarCulto={podePublicarCulto} />
           </div>
           {pagina === "perfil" && (
             <Perfil uid={uid} pessoa={pessoa} definirCabecalho={setCab} onAtualizarPessoa={setPessoa} />

@@ -34,7 +34,7 @@ function janela() {
  * dispensa. Marcar uma checklist continua a ser de quem está na escala
  * dessa base, e as regras já o garantem.
  */
-export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara }) {
+export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, podePublicarCulto }) {
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
   const [escalas, setEscalas] = useState(null);       // null = a carregar
@@ -279,13 +279,18 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara }) {
               </p>
             )}
           </>
-        ) : (
+        ) : podePublicarCulto ? (
           <>
             <div className="vaz">Este culto ainda não tem ordem publicada.</div>
             <button className="btn full" style={{ marginTop: 10 }} onClick={() => irPara("ordem")}>
               Montar a ordem deste culto
             </button>
           </>
+        ) : (
+          // sem a claim, a aba Ordem não compõe nada — um botão que
+          // levasse lá só para ler "ainda não está ativo" seria pior
+          // do que dizer isso já aqui
+          <div className="vaz">Este culto ainda não tem ordem publicada — a Backstage sobe o PDF, como sempre.</div>
         )}
       </div>
 

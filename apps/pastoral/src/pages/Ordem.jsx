@@ -41,8 +41,25 @@ function janela() {
  * aprovação. A Backstage continua a poder editar por cima (tem a mesma
  * claim) e continua a ser dona das notas dela, que aparecem por cima
  * da ordem e nunca se confundem com o que o pastor escreveu.
+ *
+ * ── Desligada por omissão (2026-09) ──────────────────────────────
+ *
+ * `publicarOrdemCulto` SUBSTITUI o campo `ordem` inteiro — não há
+ * merge por secção. Isso é ótimo enquanto só a Backstage publica (é o
+ * que já fazia sempre) e perigoso no dia em que duas telas com a mesma
+ * claim escrevem no mesmo documento sem se avisarem uma à outra:
+ * publicar pelo painel depois de a Backstage já ter subido o PDF apaga
+ * o que lá estava, sem aviso nenhum.
+ *
+ * Por isso `culto.podePublicar` fica `false` em `bases/pastoral`
+ * (`scripts/seedPastoral.mjs`) até a equipa decidir mudar para este
+ * caminho a sério — e o gatilho é literalmente essa claim: em vez de
+ * uma flag nova, `podePublicarCulto` (o mesmo booleano que já protege
+ * a Cloud Function) decide se esta tela mostra o formulário ou uma
+ * explicação. Sem ele, publicar falharia com permission-denied depois
+ * de a pessoa já ter composto tudo — pior do que não mostrar a tela.
  */
-export default function Ordem({ ativo, definirCabecalho }) {
+export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const torrada = useTorrada();
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
@@ -86,6 +103,14 @@ export default function Ordem({ ativo, definirCabecalho }) {
 
   useEffect(() => {
     if (!ativo) return;
+    if (!podePublicarCulto) {
+      definirCabecalho({
+        titulo: "Ordem do culto",
+        subtitulo: "Ainda pela Backstage, como sempre",
+        chips: [],
+      });
+      return;
+    }
     definirCabecalho({
       titulo: "Ordem do culto",
       subtitulo: evento ? nomeEvento(evento) : "Escolhe o culto",
@@ -94,7 +119,27 @@ export default function Ordem({ ativo, definirCabecalho }) {
         evento?.ordem ? "Já publicada" : "Por publicar",
       ],
     });
-  }, [ativo, definirCabecalho, evento, total]);
+  }, [ativo, definirCabecalho, podePublicarCulto, evento, total]);
+
+  // Sem a claim, esta tela não compõe nem publica — ver o porquê no
+  // cabeçalho do ficheiro. Depois de TODOS os hooks (nunca antes: um
+  // return condicional acima deles quebraria a ordem dos hooks entre
+  // renderizações, o mesmo bug de regra que já derrubou a Técnica uma
+  // vez — ver eslint.config.js raiz).
+  if (!podePublicarCulto) {
+    return (
+      <div className="caixa" style={{ marginTop: 14 }}>
+        <p className="ds" style={{ marginTop: 0 }}>
+          A ordem do culto continua a subir pela Backstage, em PDF — como sempre.
+        </p>
+        <p className="ds" style={{ marginTop: 10 }}>
+          Esta tela já monta e publica a ordem diretamente, mas fica desligada até a equipa decidir usar este
+          caminho a sério: publicar por aqui e pela Backstage é o mesmo documento, e o segundo a publicar
+          apaga o que o primeiro tinha posto.
+        </p>
+      </div>
+    );
+  }
 
   /* ── momentos ────────────────────────────────────────────── */
   const atualizar = (i, campo, valor) =>

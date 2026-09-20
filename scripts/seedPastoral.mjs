@@ -52,7 +52,22 @@ async function main() {
     // ── as capacidades desta base ──────────────────────────────
     veEscalas: "todas",                  // → ve_todas_escalas    (já existia: Backstage)
     veReembolsos: "todas",               // → ve_todos_reembolsos (já existia: Financeiro)
-    culto: { podePublicar: true },       // → pode_publicar_culto (já existia: Backstage)
+    // `pode_publicar_culto` fica DESLIGADA de propósito (2026-09): é a
+    // mesma claim que a Backstage já usa para publicar a ordem do
+    // culto pela mesma Cloud Function, no MESMO documento
+    // (eventos/{e}.ordem) — publicar pelo painel depois de a Backstage
+    // já ter subido o PDF sobrescreve tudo o que lá estava (não há
+    // merge por secção, `publicarOrdemCulto` substitui o campo `ordem`
+    // inteiro). Enquanto a equipa não decidir usar o painel para isto
+    // a sério, o caminho tem de continuar a ser só a Backstage, como
+    // sempre foi.
+    //
+    // Para ativar quando chegar a altura: troca para `true` aqui e
+    // corre este script outra vez (quem já tinha sessão aberta só vê a
+    // aba "Ordem" desbloquear depois de sair e voltar a entrar — os
+    // claims só se recalculam em `entrar`/`trocarBase`). A tela já
+    // está pronta e só falta esta linha.
+    culto: { podePublicar: false },
     eventos: { podeCriarGlobal: true },  // → pode_criar_evento_global
     visaoPastoral: true,                 // → ve_tudo_pastoral    ← a única nova
   }, { merge: true });
