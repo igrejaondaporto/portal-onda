@@ -1879,12 +1879,22 @@ export const fecharAcomodacao = onCall(async (req) => {
   return { ok: true, resumo: { ...resumo, fechadoEm: null } };
 });
 
-/** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
- *  "aberto" (fechado:false), para poder corrigir e fechar de novo.
- *  Mesma permissão de quem fecha (líder ou quem tem a função Mapa
- *  desse culto). O lápis "Editar" na lista de "Cultos fechados"
+/** Desfaz um fecho: apaga o resumo arquivado (se houver) e devolve o
+ *  mapa a "aberto" (fechado:false), para poder corrigir e fechar de
+ *  novo. Mesma permissão de quem fecha (líder ou quem tem a função
+ *  Mapa desse culto). O lápis "Editar" na lista de "Cultos fechados"
  *  (ResumosAcomodacao.jsx) chama isto — as regras não deixam apagar
- *  `acomodacaoResumos` direto do cliente, só por aqui. */
+ *  `acomodacaoResumos` direto do cliente, só por aqui.
+ *
+ *  A condição é o MAPA estar fechado, não o resumo existir: um mapa
+ *  pode ficar `fechado:true` sem resumo nenhum arquivado (aconteceu
+ *  em produção — um documento antigo, de antes do mapa passar a
+ *  seguir sempre a data real de hoje, tinha o campo já assim). Exigir
+ *  o resumo deixava esse caso sem saída nenhuma: não aparecia em
+ *  "Cultos fechados" (que lista por resumo) e este endpoint recusava
+ *  reabrir por falta dele — um mapa preso, sem botão que o resolvesse.
+ *  Reabrir é sempre seguro mesmo sem resumo: no pior caso, não há
+ *  nada para apagar. */
 export const reabrirAcomodacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1903,11 +1913,13 @@ export const reabrirAcomodacao = onCall(async (req) => {
   const resumoRef = db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`);
   const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
   const [resumo, mapa] = await Promise.all([resumoRef.get(), mapaRef.get()]);
-  if (!resumo.exists) throw new HttpsError("not-found", "Este culto não tem resumo fechado.");
+  if (!mapa.exists || !mapa.data().fechado) {
+    throw new HttpsError("not-found", "Este mapa não está fechado.");
+  }
 
   const lote = db.batch();
-  lote.delete(resumoRef);
-  if (mapa.exists) lote.update(mapaRef, { fechado: false });
+  if (resumo.exists) lote.delete(resumoRef);
+  lote.update(mapaRef, { fechado: false });
   await lote.commit();
 
   return { ok: true };
