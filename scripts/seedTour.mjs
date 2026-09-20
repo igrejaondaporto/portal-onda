@@ -723,7 +723,7 @@ const TOURS = {
       {
         chave: "nav-ordem",
         titulo: "Ordem do culto",
-        texto: "Montar a ordem aqui, em vez de mandar o PDF. Guarda o domingo típico como modelo e, das próximas vezes, só mudas o que for diferente.",
+        texto: "A ordem continua a subir pela Backstage, em PDF, como sempre — este separador explica isso, por agora.",
         alvo: "nav-ordem", pagina: "ordem",
       },
       {
@@ -735,7 +735,7 @@ const TOURS = {
       {
         chave: "fechamento",
         titulo: "Pronto a começar",
-        texto: "Publicar a ordem do culto chega às dez bases de uma vez. O resto é para olhar.",
+        texto: "Este painel mostra as dez bases num sítio só. O resto é para olhar.",
         alvo: null, pagina: null,
       },
     ],
