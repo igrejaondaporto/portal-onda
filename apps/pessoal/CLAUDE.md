@@ -143,11 +143,18 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   conta só sobre `capacidadeUtil` (144 menos reservados e bloqueados)
   — reservados e bloqueados contam como indisponíveis, tal como
   ocupados, nunca como livres. Alimenta o futuro mapa de calor do
-  painel do pastor. Um "X" na lista de "Cultos fechados"
-  (`ResumosAcomodacao.jsx`, só a líder vê) chama a Cloud Function
-  `reabrirAcomodacao` — apaga este resumo e devolve o mapa a
-  `fechado: false`, para corrigir e fechar de novo. Mesma permissão de
-  `fecharAcomodacao`.
+  painel do pastor. O lápis "Editar" na lista de "Cultos fechados"
+  (`ResumosAcomodacao.jsx`, só a líder vê os ícones) chama a Cloud
+  Function `reabrirAcomodacao` — apaga este resumo (se houver) e
+  devolve o mapa a `fechado: false`, para corrigir e fechar de novo.
+  Mesma permissão de `fecharAcomodacao`. **A condição para reabrir é o
+  MAPA estar `fechado:true`, não o resumo existir** — um mapa pode
+  ficar fechado sem resumo nenhum (aconteceu em produção com um
+  documento de antes de o mapa passar a seguir sempre a data real de
+  hoje), e nesse caso não aparece em "Cultos fechados" nenhuma. Por
+  isso `pages/Acomodacao.jsx` também mostra "Reabrir para marcar de
+  novo" direto no aviso de culto fechado, para quem tem acesso
+  (`souDrive`) — sem depender de estar naquela lista.
 - Estados possíveis de um lugar: `livre | ocupado | visitante |
   reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
   livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto

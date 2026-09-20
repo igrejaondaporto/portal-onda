@@ -141,6 +141,19 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     }
   }
 
+  // Direto no aviso de fechado — não obriga a ir a "Cultos fechados"
+  // (que lista por resumo arquivado; um mapa fechado sem resumo, ex.:
+  // um documento antigo de antes de o mapa passar a seguir sempre a
+  // data de hoje, nem aparecia lá, e ficava preso sem botão nenhum).
+  async function reabrirCulto() {
+    try {
+      await chamar("reabrirAcomodacao")({ eventoId });
+      torrada("Mapa reaberto — já dá para marcar");
+    } catch (e) {
+      torrada(e.message || "Não foi possível reabrir.");
+    }
+  }
+
   if (!planta) return null;
 
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
@@ -205,6 +218,11 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
       {mapa?.fechado && (
         <div className="caixa" style={{ marginTop: 12 }}>
           <p className="ds">Este culto já foi fechado — o mapa ficou só de leitura.</p>
+          {souDrive && (
+            <button className="btn sec full" style={{ marginTop: 8 }} onClick={reabrirCulto}>
+              Reabrir para marcar de novo
+            </button>
+          )}
         </div>
       )}
 
