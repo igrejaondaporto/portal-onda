@@ -47,6 +47,22 @@ export const reportarAnuncio = (id, motivo) => chamar("reportarAnuncio")({ id, m
 export const moderarAnuncio = (id, acao) => chamar("moderarAnuncio")({ id, acao }).then((r) => r.data);
 export const resumoSemanalMural = () => chamar("resumoSemanalMural")().then((r) => r.data);
 export const souAdminMuralAgora = () => chamar("souAdminMuralAgora")().then((r) => r.data.admin);
+
+/** Gesto de 5 toques no logo (GatilhoModeracao/SheetDesbloquearModeracao)
+ *  — mesmo formato de retorno do `entrarComoDev` partilhado, mas sem
+ *  token nenhum: só marca quem já está autenticado como admin. */
+export async function desbloquearModeracaoMural(senha) {
+  try {
+    await chamar("desbloquearModeracaoMural")({ senha });
+    return { ok: true };
+  } catch (e) {
+    const d = e.details || {};
+    if (e.message === "bloqueado" || d.bloqueado) {
+      return { ok: false, bloqueado: true, faltamSegundos: d.faltamSegundos ?? 900 };
+    }
+    return { ok: false, restam: d.restam ?? null };
+  }
+}
 export const pedirContactoAnuncio = (id) => chamar("pedirContactoAnuncio")({ id }).then((r) => r.data.telefone);
 
 /** Sobe até 4 fotos para `anuncios/{uid}/{anuncioId}/` (ver

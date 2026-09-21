@@ -314,6 +314,66 @@ export const souAdminMuralAgora = onCall(async (req) => {
   return { admin: uid ? await souAdminMural(uid) : false };
 });
 
+// "config/moderacaoMural/{uid}" não é um caminho de documento válido —
+// mesmo motivo de refAdminMural acima. 4 segmentos, mesmo padrão de
+// config/devAccess/privado/auth.
+const refSegredoModeracao = () => db().doc("config/moderacaoMural/privado/auth");
+
+/** Concede o painel de moderação a quem já está autenticado, sem
+ *  precisar de correr `scripts/definirAdminMural.mjs` à mão por
+ *  pessoa — mesmo gesto do acesso de dev de cada base (5 toques no
+ *  logo, ver GatilhoModeracao/SheetDesbloquearModeracao em
+ *  apps/mural/src/components), com senha e bloqueio próprios do
+ *  Mural (config/moderacaoMural, nunca config/devAccess — são
+ *  privilégios diferentes). Ao contrário de `entrarComoDev`, isto não
+ *  cria sessão nenhuma: só marca a pessoa JÁ autenticada como admin,
+ *  por isso exige `req.auth`. Tirar o acesso continua só pelo script
+ *  (`--tirar`) — o gesto só concede, nunca revoga. */
+export const desbloquearModeracaoMural = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Entra primeiro.");
+
+  const { senha } = req.data || {};
+  if (!senha) throw new HttpsError("invalid-argument", "Falta a senha.");
+
+  const segredoRef = refSegredoModeracao();
+  const sSnap = await segredoRef.get();
+  if (!sSnap.exists) throw new HttpsError("permission-denied", "errado");
+
+  const s = sSnap.data();
+  const agora = Date.now();
+  const bloqueadoAte = s.bloqueadoAte?.toMillis?.() ?? 0;
+
+  if (bloqueadoAte > agora) {
+    throw new HttpsError("resource-exhausted", "bloqueado", {
+      faltamSegundos: Math.ceil((bloqueadoAte - agora) / 1000),
+    });
+  }
+
+  if (!confere(String(senha), s.hash)) {
+    const falhas = (s.falhas ?? 0) + 1;
+    const limite = s.jaBloqueou ? MAX_2 : MAX_1;
+    const bloqueia = falhas >= limite;
+    await segredoRef.set({
+      falhas: bloqueia ? 0 : falhas,
+      jaBloqueou: s.jaBloqueou || bloqueia,
+      bloqueadoAte: bloqueia ? admin.firestore.Timestamp.fromMillis(agora + BLOQUEIO_MS) : null,
+    }, { merge: true });
+    throw new HttpsError("permission-denied", bloqueia ? "bloqueado" : "errado",
+      { restam: bloqueia ? 0 : limite - falhas, bloqueado: bloqueia });
+  }
+
+  await segredoRef.set({ falhas: 0, jaBloqueou: false, bloqueadoAte: null }, { merge: true });
+  // mesmo formato do doc que scripts/definirAdminMural.mjs já grava —
+  // souAdminMural só olha para snap.exists, nunca para os campos.
+  await refAdminMural(uid).set({ desde: admin.firestore.FieldValue.serverTimestamp(), origem: "gatilho" });
+  await db().collection("logs/acessosModeracaoMural/entradas").add({
+    uid, em: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { ok: true };
+});
+
 /** Telefone de quem publicou — nunca gravado dentro do anúncio (isso
  *  abriria o número a qualquer pessoa autenticada que leia o
  *  documento, mesmo sem carregar em nenhum botão). Só sai daqui, na

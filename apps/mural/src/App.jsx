@@ -36,6 +36,14 @@ export default function App() {
     return () => parar();
   }, []);
 
+  // depois do gesto de 5 toques (GatilhoModeracao) conceder o painel
+  // — souAdminMuralAgora já vê o documento nesse instante, sem
+  // precisar de sair/voltar a entrar.
+  async function atualizarAdmin() {
+    const admin = await souAdminMuralAgora().catch(() => false);
+    setEu((atual) => (atual ? { ...atual, admin } : atual));
+  }
+
   if (!pronto) {
     return (
       <div className="acarregar">
@@ -49,7 +57,7 @@ export default function App() {
 
   return (
     <>
-      <Sessao eu={eu} onPedirEntrar={() => setAEntrar(true)} />
+      <Sessao eu={eu} onPedirEntrar={() => setAEntrar(true)} onAdminConcedido={atualizarAdmin} />
       {aEntrar && (
         <div
           className="entradaModal"

@@ -105,6 +105,26 @@ garantir só com Regras (CLAUDE.md raiz, regra 3). "Remover" é sempre
 `ativo:false` (regra 5 — nada se apaga a sério); o histórico do dono
 continua visível em "Os meus".
 
+## Ganhar acesso ao painel — o mesmo gesto das bases, adaptado
+
+`config/muralAdmins/porPessoa/{pessoaId}` continua a ser só um
+documento (não uma claim — ver acima), mas ganhá-lo já não depende só
+de alguém correr `scripts/definirAdminMural.mjs <pessoaId>` à mão: 5
+toques no logo do cabeçalho (`GatilhoModeracao`, em
+`components/`) abrem `SheetDesbloquearModeracao`, que pede uma senha
+partilhada (`config/moderacaoMural`, via `desbloquearModeracaoMural`
+em `functions/mural.js`) — mesmo desenho do `GatilhoDev`/
+`SheetAcessoDev` partilhado (5 toques, senha com bloqueio por
+tentativas), mas **não** é esse mecanismo: `entrarComoDev` cria uma
+sessão nova sem pessoa nenhuma por trás; isto marca quem **já está
+autenticado** como admin, por isso só reage a 5 toques com sessão
+aberta (`ativo={!!eu && !eu.admin}` em `Sessao.jsx`) — sem conta não
+há ninguém para conceder. Define a senha com
+`node scripts/definirSenhaModeracaoMural.mjs "senha"`, à parte da
+senha de dev (é outro documento, outro privilégio). O script antigo
+não desapareceu: **o gesto só concede, nunca revoga** — tirar o
+acesso continua a ser `node scripts/definirAdminMural.mjs <id> --tirar`.
+
 **Sem índices compostos no Firestore, de propósito.** O feed lê só
 `where(ativo==true)` (uma igualdade, indexada automaticamente) e
 filtra/ordena tipo, região, categoria e busca no cliente — com o

@@ -9,6 +9,7 @@ import { CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/ut
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
+import GatilhoModeracao from "../components/GatilhoModeracao.jsx";
 import MiniAvatar from "../components/MiniAvatar.jsx";
 import Publicar from "./Publicar.jsx";
 import MeusAnuncios from "./MeusAnuncios.jsx";
@@ -29,7 +30,7 @@ const PAGINAS_COM_SESSAO = new Set(["publicar", "meus", "painel"]);
  *  QUALQUER PESSOA sem conta (2026-09, pedido explícito); só
  *  publicar/gerir pede sessão. `onPedirEntrar` abre o overlay de
  *  Entrada (ver App.jsx). */
-export default function Sessao({ eu, onPedirEntrar }) {
+export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
   const [pagina, setPagina] = useState("mural");
   const [anuncios, setAnuncios] = useState([]);
   const [tipo, setTipo] = useState("ofereco");
@@ -70,7 +71,7 @@ export default function Sessao({ eu, onPedirEntrar }) {
   if (eu?.admin) itens.push(["painel", "Painel", ICONES.painel]);
 
   const casca = (conteudo) => (
-    <Casca pagina={pagina} onIr={irPara} itens={itens} eu={eu} onPedirEntrar={onPedirEntrar}>
+    <Casca pagina={pagina} onIr={irPara} itens={itens} eu={eu} onPedirEntrar={onPedirEntrar} onAdminConcedido={onAdminConcedido}>
       {conteudo}
     </Casca>
   );
@@ -155,17 +156,19 @@ export default function Sessao({ eu, onPedirEntrar }) {
   );
 }
 
-function Casca({ children, pagina, onIr, itens, eu, onPedirEntrar }) {
+function Casca({ children, pagina, onIr, itens, eu, onPedirEntrar, onAdminConcedido }) {
   return (
     <div className="app on">
       <AvisoOffline />
       <AvisoInstalarPWA />
       <div className="crista topo" style={{ paddingBottom: 0 }}>
         <div className="lin">
-          <span className="logo">
-            <i>mural</i>
-            <b>onda</b>
-          </span>
+          <GatilhoModeracao ativo={!!eu && !eu.admin} onConcedido={onAdminConcedido}>
+            <span className="logo">
+              <i>mural</i>
+              <b>onda</b>
+            </span>
+          </GatilhoModeracao>
           {eu ? (
             <div className="eu">
               <div style={{ textAlign: "right" }}>
