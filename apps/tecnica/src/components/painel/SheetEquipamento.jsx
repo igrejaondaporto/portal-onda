@@ -3,6 +3,7 @@ import { criarEquipamento, guardarEquipamento, desativarEquipamento, novoEquipam
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
 import { TIPOS_PATRIMONIO } from "@portal/shared/lib/tiposPatrimonio.js";
+import { largarAoRodar } from "../../lib/campos";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 const TAMANHO_MAX_FATURA = 10 * 1024 * 1024;   // PDF de fatura é maior que uma foto comprimida
@@ -104,7 +105,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
           * "COB central", e o sítio onde está pendurado não é identidade
           * do equipamento. Qual delas avariou diz-se na avaria. */}
         <label className="rot">Quantas unidades</label>
-        <input className="campo" type="number" inputMode="numeric" min="1" max="999"
+        <input className="campo" type="number" onWheel={largarAoRodar} inputMode="numeric" min="1" max="999"
           value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
 
         <label className="rot">Modelo</label>
@@ -123,7 +124,7 @@ export default function SheetEquipamento({ equipamento, ministerios, onFechar, o
           ))}
         </select>
         <label className="rot">Valor de compra (opcional)</label>
-        <input className="campo" type="number" inputMode="decimal" value={valorCompra} onChange={(e) => setValorCompra(e.target.value)} placeholder="0,00" />
+        <input className="campo" type="number" onWheel={largarAoRodar} inputMode="decimal" value={valorCompra} onChange={(e) => setValorCompra(e.target.value)} placeholder="0,00" />
         {ministerios?.length > 0 && (
           <>
             <label className="rot">Ministério</label>

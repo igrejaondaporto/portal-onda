@@ -178,6 +178,19 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **A roda do rato muda números em silêncio** (`apps/tecnica/src/lib/campos.js`,
+  `largarAoRodar`). Num computador, rodar por cima de um
+  `<input type="number">` com foco muda o valor em vez de rolar — o
+  Júlio escreveu 17 no dia de um culto especial, rodou para chegar ao
+  botão, e o culto foi criado a 16. Reproduzido com roda real pelo
+  DevTools Protocol. Nos reembolsos é pior: "25,00" vira "24,99". A
+  correção é uma linha por campo, `onWheel={largarAoRodar}` (tira o
+  foco, a roda volta a rolar, o valor fica). Na Técnica estão os 5
+  campos corrigidos. **Falta nas outras**: Apoio 7, Pessoal 8,
+  Backstage 5, New 5, SHIFT 5, Comunicação 3, Louvor 3 (contagem de
+  `type="number"` a 2026-09-21). Candidato a ir para `packages/shared`
+  se aparecer numa quarta base.
+
 - **Gráficos como componentes partilhados**
   (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
   2026-09). São SVG à mão, sem biblioteca — ~30 pontos e uma polilinha
