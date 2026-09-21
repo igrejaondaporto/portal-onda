@@ -114,9 +114,18 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   A1–A4, bloqueios permanentes (cadeira partida), parâmetros de
   desenho, preferência de cores invertidas da líder. Muda sem deploy.
   Leitura: qualquer pessoa da base. Escrita: só a líder.
-- **Estado ao vivo por culto** — `eventos/{AAAA-MM-DD}/acomodacao/mapa`
+- **Estado ao vivo, sempre o de HOJE** — `eventos/{AAAA-MM-DD}/acomodacao/mapa`
   (doc único): campo `lugares` (mapa id→estado, as 144 chaves sempre
   preenchidas desde a criação), `fechado`, `criadoEm`, `iniciadoPor`.
+  O `AAAA-MM-DD` da chave **é sempre a data real de hoje**
+  (`hojeLocal()`, `pages/Acomodacao.jsx`) — não o culto em que a
+  pessoa está escalada. Nasceu de um bug real: `obterMeuEvento`
+  (pensado para "quando sirvo a seguir") podia saltar para o domingo
+  seguinte assim que a escala futura ainda não tinha saído, e a líder
+  deixava de conseguir ver o mapa de hoje já fechado — abria a app e
+  via um mapa em branco de uma semana à frente. Por isso já não existe
+  "corrigir data" (nem a Cloud Function `corrigirDataMapaAcomodacao`,
+  removida): a data nunca está errada, porque nunca se escolhe.
   Escrita por lugar via `updateDoc` com dot-notation
   (`lugares.A1`), nunca reescrevendo o doc inteiro — é o que torna o
   offline seguro. **Escreve só quem tem a função Mapa nesse culto**
@@ -134,11 +143,18 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   conta só sobre `capacidadeUtil` (144 menos reservados e bloqueados)
   — reservados e bloqueados contam como indisponíveis, tal como
   ocupados, nunca como livres. Alimenta o futuro mapa de calor do
-  painel do pastor. Um "X" na lista de "Cultos fechados"
-  (`ResumosAcomodacao.jsx`, só a líder vê) chama a Cloud Function
-  `reabrirAcomodacao` — apaga este resumo e devolve o mapa a
-  `fechado: false`, para corrigir e fechar de novo. Mesma permissão de
-  `fecharAcomodacao`.
+  painel do pastor. O lápis "Editar" na lista de "Cultos fechados"
+  (`ResumosAcomodacao.jsx`, só a líder vê os ícones) chama a Cloud
+  Function `reabrirAcomodacao` — apaga este resumo (se houver) e
+  devolve o mapa a `fechado: false`, para corrigir e fechar de novo.
+  Mesma permissão de `fecharAcomodacao`. **A condição para reabrir é o
+  MAPA estar `fechado:true`, não o resumo existir** — um mapa pode
+  ficar fechado sem resumo nenhum (aconteceu em produção com um
+  documento de antes de o mapa passar a seguir sempre a data real de
+  hoje), e nesse caso não aparece em "Cultos fechados" nenhuma. Por
+  isso `pages/Acomodacao.jsx` também mostra "Reabrir para marcar de
+  novo" direto no aviso de culto fechado, para quem tem acesso
+  (`souDrive`) — sem depender de estar naquela lista.
 - Estados possíveis de um lugar: `livre | ocupado | visitante |
   reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
   livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto

@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { chamar } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import { cPlanta } from "../lib/modelo";
-import { obterMeuEvento } from "../lib/culto";
 import { maiorBlocoLivre, estadoInicialLugares } from "../lib/geometriaAuditorio";
 import { useMapaAcomodacao } from "../hooks/useMapaAcomodacao";
 import { useSelecaoGrupo } from "../hooks/useSelecaoGrupo";
@@ -13,6 +12,16 @@ import MapaAuditorio from "../components/acomodacao/MapaAuditorio";
 import PainelContadores from "../components/acomodacao/PainelContadores";
 import BotoesGrupo from "../components/acomodacao/BotoesGrupo";
 import ResumosAcomodacao from "../components/acomodacao/ResumosAcomodacao";
+
+/** "AAAA-MM-DD" de hoje, no fuso do próprio telemóvel — quem usa isto
+ *  já está na igreja, por isso é sempre a data certa. Componentes
+ *  locais (não `toISOString`, que é UTC e trocaria o dia perto da
+ *  meia-noite) — mesmo cuidado de `dataPorExtenso`/`diaSemanaAbrev`
+ *  em packages/shared/src/lib/data.js. */
+function hojeLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar) {
   if (modoReservar) return { texto: "Modo reservar — toque num lugar para o marcar (ou desmarcar) a azul.", alerta: false };
@@ -29,18 +38,19 @@ function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar) 
 export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   const torrada = useTorrada();
   const [planta, setPlanta] = useState(null);
-  const [meuEvento, setMeuEvento] = useState(null);
   const [modoReservar, setModoReservar] = useState(false);
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
   const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
-  const [aCorrigirData, setACorrigirData] = useState(false);
-  const [novoEventoId, setNovoEventoId] = useState("");
-  const [aMoverMapa, setAMoverMapa] = useState(false);
 
   useEffect(() => onSnapshot(cPlanta(), (s) => setPlanta(s.exists() ? s.data() : null)), []);
-  useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
 
-  const eventoId = meuEvento?.id ?? null;
+  // O mapa é sempre o de HOJE — não o culto em que a pessoa está
+  // escalada (`obterMeuEvento` podia saltar para o domingo seguinte
+  // assim que ninguém da escala de hoje tivesse uma escala futura
+  // gerada, e a líder deixava de conseguir ver o mapa de hoje já
+  // fechado). Sem "corrigir data": a data nunca está errada, porque
+  // nunca se escolhe — é sempre a de agora.
+  const eventoId = useMemo(() => hojeLocal(), []);
   const { mapa, carregado, souDrive, marcar, garantirMapa, limparMapa } = useMapaAcomodacao(eventoId, uid, papel);
   // antes de quem tem a função Mapa, a líder da base ou o Responsável
   // do culto abrirem o mapa hoje, o doc do culto ainda não existe —
@@ -59,11 +69,11 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Mapa</em>,
-      subtitulo: meuEvento ? `Auditório · ${meuEvento.data}` : "",
+      subtitulo: `Auditório · ${dataPorExtenso(eventoId)}`,
       chips: souDrive ? [] : ["Só leitura — não tens a função Mapa nem és o responsável deste culto"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, meuEvento, souDrive]);
+  }, [ativo, eventoId, souDrive]);
 
   // Quem não tem a função Mapa, não é a líder nem é o Responsável do
   // culto continua a ver o mapa ao vivo (acompanha em tempo real o
@@ -123,7 +133,6 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   }
 
   async function fecharCulto() {
-    if (!eventoId) return;
     try {
       await chamar("fecharAcomodacao")({ eventoId });
       torrada("Culto fechado — resumo guardado");
@@ -132,27 +141,20 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
     }
   }
 
-  async function corrigirDataMapa() {
-    if (!novoEventoId) { torrada("Escolhe a data correta do culto."); return; }
-    setAMoverMapa(true);
+  // Direto no aviso de fechado — não obriga a ir a "Cultos fechados"
+  // (que lista por resumo arquivado; um mapa fechado sem resumo, ex.:
+  // um documento antigo de antes de o mapa passar a seguir sempre a
+  // data de hoje, nem aparecia lá, e ficava preso sem botão nenhum).
+  async function reabrirCulto() {
     try {
-      const r = await chamar("corrigirDataMapaAcomodacao")({ eventoId, novoEventoId });
-      setACorrigirData(false);
-      setNovoEventoId("");
-      torrada(r.data.fechado ? "Mapa movido e guardado no histórico." : "Mapa movido para a data escolhida.");
+      await chamar("reabrirAcomodacao")({ eventoId });
+      torrada("Mapa reaberto — já dá para marcar");
     } catch (e) {
-      torrada(e.message || "Não foi possível corrigir a data do mapa.");
-    } finally {
-      setAMoverMapa(false);
+      torrada(e.message || "Não foi possível reabrir.");
     }
   }
 
   if (!planta) return null;
-  // meuEvento fica null quando não há nenhum culto futuro gerado
-  // ainda (obterMeuEvento nunca recua para um culto passado) — raro,
-  // mas sem isto a página ficava em branco, como se tivesse
-  // travado, em vez de dizer o que se passa.
-  if (!meuEvento) return <div className="vaz" style={{ marginTop: 16 }}>Ainda sem culto marcado.</div>;
 
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
   Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
@@ -187,9 +189,6 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
               {modoReservar ? "✓ A reservar" : "Reservas"}
             </button>
             <button className="btn sec" onClick={desfazer}>↩ Desfazer</button>
-            {papel === "lider_base" && mapa && (
-              <button className="btn sec" onClick={() => setACorrigirData(true)}>Corrigir data</button>
-            )}
             <button className="btn sec" style={{ color: "var(--magenta)" }} onClick={() => setAConfirmarLimpar(true)}>
               Limpar tudo
             </button>
@@ -214,32 +213,16 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
               </div>
             </div>
           )}
-          {aCorrigirData && (
-            <>
-              <div className="veu on" onClick={() => !aMoverMapa && setACorrigirData(false)} />
-              <div className="pin on" role="dialog" aria-modal="true" aria-label="Corrigir data do mapa">
-                <div className="pux" />
-                <h2>Corrigir data do mapa</h2>
-                <p className="sb2">
-                  Os lugares preenchidos de {dataPorExtenso(eventoId)} vão para a data escolhida. Este mapa fica limpo para o próximo culto.
-                </p>
-                <label className="rot" style={{ marginTop: 14 }}>Data correta do culto</label>
-                <input className="campo" type="date" value={novoEventoId} onChange={(e) => setNovoEventoId(e.target.value)} disabled={aMoverMapa} />
-                <p className="ds" style={{ marginTop: 10 }}>
-                  Só podes escolher um culto já criado sem lugares ocupados ou visitantes. Se a data já passou, o registo fica guardado no histórico.
-                </p>
-                <button className="btn full" style={{ marginTop: 16 }} disabled={aMoverMapa} onClick={corrigirDataMapa}>
-                  {aMoverMapa ? "A mover…" : "Mover mapa para esta data"}
-                </button>
-                <button className="btn sec full" style={{ marginTop: 9 }} disabled={aMoverMapa} onClick={() => setACorrigirData(false)}>Cancelar</button>
-              </div>
-            </>
-          )}
         </>
       )}
       {mapa?.fechado && (
         <div className="caixa" style={{ marginTop: 12 }}>
           <p className="ds">Este culto já foi fechado — o mapa ficou só de leitura.</p>
+          {souDrive && (
+            <button className="btn sec full" style={{ marginTop: 8 }} onClick={reabrirCulto}>
+              Reabrir para marcar de novo
+            </button>
+          )}
         </div>
       )}
 

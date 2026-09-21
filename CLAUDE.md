@@ -31,7 +31,8 @@ apps/comunicacao/       App da Comunicação. Domínio: comunicacao.igrejaonda.p
 apps/new/               App da Base New. Domínio: new.igrejaonda.pt
 apps/shift/             App da Base SHIFT. Domínio: shift.igrejaonda.pt
 apps/financeiro/        App do Financeiro. Domínio: financeiro.igrejaonda.pt
-apps/mural/              Mural Onda — anúncios de dou/vendo/arrendo e de
+apps/pastoral/          Painel Pastoral. Domínio: pastoral.igrejaonda.pt
+apps/mural/             Mural Onda — anúncios de dou/vendo/arrendo e de
                         procuro, da igreja toda. NÃO é uma base (é como
                         eventos/: da igreja, não de uma equipa de
                         voluntários) — mesmo assim é um Worker Cloudflare
@@ -89,6 +90,7 @@ bases, nunca no mesmo commit que uma correção local.
 | SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
 | Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |
 | Financeiro | `apps/financeiro` | `financeiro.igrejaonda.pt` | `apps/financeiro/CLAUDE.md` |
+| Pastoral | `apps/pastoral` | `pastoral.igrejaonda.pt` | `apps/pastoral/CLAUDE.md` |
 
 Fora desta tabela de propósito — não é uma base, é da igreja toda
 (mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,
@@ -162,6 +164,25 @@ Fotos, nomes, telefones e faturas de pessoas identificadas. O aviso
 curto no primeiro login basta — não há formulário em papel. Retenção:
 operacional 2 meses, reembolsos 5 anos, voluntários inativos 1 ano.
 
+**Os prazos são cumpridos por código** desde 2026-09, em
+`functions/retencao.js` (antes só a Kinder os aplicava; as outras nove
+acumulavam). Três funções agendadas, uma por prazo, mais um
+`ensaiarRetencao` que diz o que ia apagar sem apagar nada — usa-o antes
+de mexer em qualquer prazo.
+
+A tensão com a regra 5 ("nada é apagado, é desativado") resolve-se
+assim: **anonimiza-se a pessoa, não se apaga o registo.** Sai o que
+identifica alguém e já não serve (telefone, foto, PIN, IBAN); fica o
+documento e o `nome`, porque as escalas passadas apontam para aquele
+uid — apagá-lo deixaria o histórico de domingos com buracos sem
+ninguém perceber porquê. Manter o `nome` é uma decisão do responsável
+pelo tratamento, não do código: está isolada numa linha de
+`purgarDadosDeVoluntariosInativos` para poder ser mudada.
+
+Uma pessoa inativa numa base mas ativa noutra **nunca** é tocada:
+`pessoas/{uid}` e o PIN são globais (regra 2), e limpá-los por causa de
+uma base deixava-a sem entrar na outra.
+
 ## Ao criar uma base nova
 
 Usa o skill `nova-base` (`.claude/skills/nova-base/SKILL.md`) — é o
@@ -211,7 +232,7 @@ negócio — fazer sempre, antes de dar a base por pronta:
    certo com essa porta — sem a linha, o `trocarBase` em localhost
    troca os claims na app em que estás e ficas a olhar para a UI
    errada, sem erro nenhum. A próxima porta livre depois das que já
-   existem (5173–5176). **O CORS das functions não precisa de
+   existem (5173–5183). **O CORS das functions não precisa de
    mudança**: aceita `localhost`/`127.0.0.1` em qualquer porta, de
    propósito, para uma base nova não disparar deploy de functions.
 

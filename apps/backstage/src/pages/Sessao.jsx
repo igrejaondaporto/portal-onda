@@ -11,6 +11,7 @@ import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
+import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -161,6 +162,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
       <div className="app">
         <AvisoOffline />
         <AvisoInstalarPWA />
+        <AvisoNotificacoes />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">

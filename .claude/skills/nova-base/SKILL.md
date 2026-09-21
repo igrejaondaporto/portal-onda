@@ -54,7 +54,7 @@ Em `apps/<slug>/vite.config.js`, dentro do `manifest` do
 `background_color`/`theme_color` (a cor da base, hex).
 
 No mesmo ficheiro, no `defineConfig` (fora do plugin PWA), uma porta
-fixa — a próxima livre depois das que já existem (hoje 5173–5176):
+fixa — a próxima livre depois das que já existem (hoje 5173–5183):
 ```js
 server: { port: <N>, strictPort: true },
 ```
@@ -95,7 +95,7 @@ VITE_* são build-time").
 (`apps/*` no `package.json` da raiz) — só falta:
 
 `.github/workflows/cloudflare.yml` → `strategy.matrix.app`, acrescentar
-`<slug>` à lista `[apoio, tecnica, backstage, comunicacao]`. **Sem
+`<slug>` à lista `[apoio, tecnica, backstage, comunicacao, pessoal, kinder, louvor, new, shift, financeiro, pastoral]`. **Sem
 isto o deploy automático nunca publica a base nova** — é uma lista
 fixa, não descobre pastas sozinha.
 

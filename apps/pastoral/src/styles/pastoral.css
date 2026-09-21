@@ -1,0 +1,426 @@
+/**
+ * Ajustes visuais do Painel Pastoral.
+ *
+ * Carregado DEPOIS do `global.css` partilhado (ver `main.jsx`) — como
+ * o CSS aplica a última regra de igual peso, tudo o que está aqui
+ * ganha ao partilhado sem lhe tocar. E, por viver dentro desta app,
+ * nada daqui entra no bundle de outra base: é o sítio por omissão de
+ * qualquer mudança visual desta app (ver CLAUDE.md da raiz).
+ *
+ * Prefixo `pa-` em tudo, pelo mesmo motivo que a Técnica usa `tec-` e
+ * a Louvor `lv-`: se um dia uma destas classes for para
+ * `packages/shared`, o nome não colide com nada.
+ */
+
+/* ── o número grande de um cartão de resumo ──────────────────
+ * Existe porque o mesmo bloco aparece em quatro telas (a servir, no
+ * auditório, voluntários ativos, presença média) e estava a ser
+ * escrito em `style={{...}}` em cada uma. `tabular-nums` é o que
+ * impede o número de saltitar de largura enquanto uma contagem ao
+ * vivo sobe. */
+.pa-num {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* ── gráfico de linha ────────────────────────────────────────
+ * O SVG estica à largura (`preserveAspectRatio: none`); os pontos e
+ * os rótulos ficam por cima, em HTML posicionado em percentagem,
+ * porque dentro do SVG esticariam com ele — um círculo viraria uma
+ * elipse e o texto ficaria deformado. */
+.pa-graf {
+  position: relative;
+  margin-top: 14px;
+  padding-bottom: 26px;
+}
+.pa-graf-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pa-graf-pt {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--azul);
+  /* o anel é da cor da superfície, não uma borda escura: separa o
+     ponto da linha por baixo sem desenhar um contorno a mais */
+  box-shadow: 0 0 0 2px #fff;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+/* alvo de toque maior do que a marca — 9px é legível, mas não é
+   tocável a um polegar */
+.pa-graf-pt::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+.pa-graf-pt.on {
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+}
+.pa-graf-rot {
+  position: absolute;
+  transform: translate(-50%, -168%);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  /* texto usa tinta, nunca a cor da série: a marca ao lado já carrega
+     a identidade */
+  color: var(--cinza);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pa-graf-rot.on {
+  color: var(--tinta);
+  font-size: 13px;
+}
+.pa-graf-eixo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cinza);
+}
+.pa-graf-eixo b {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+/* ── funil de visitantes ─────────────────────────────────────
+ * Barras e não um triângulo: a área de cada fatia de um triângulo não
+ * é proporcional a nada e os rótulos nunca cabem nas de baixo. */
+.pa-funil {
+  margin-top: 8px;
+}
+.pa-funil-linha {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--fio);
+  padding: 13px 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+/* a etapa escolhida ganha um anel, não outra cor: a cor aqui já está
+   ocupada a dizer em que ponto do caminho a etapa está */
+.pa-funil-linha.on {
+  box-shadow: inset 0 0 0 2px var(--azul);
+  border-radius: 14px;
+  padding: 13px 12px;
+  border-bottom-color: transparent;
+}
+.pa-funil-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.pa-funil-nome {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.pa-funil-num {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.pa-funil-num i {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--cinza);
+}
+.pa-funil-linha .barra {
+  margin-top: 7px;
+}
+.pa-funil-desc {
+  display: block;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--cinza);
+}
+
+/* ── atraso (estado, não série) ──────────────────────────────
+ * As cores vêm de `.oc-atraso-*` do global.css — as mesmas que a
+ * ordem do culto ao vivo já usa na Técnica, com os mesmos limiares.
+ * Um atraso verde num ecrã e laranja no outro seria pior do que não
+ * mostrar nada. */
+.pa-atraso {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+.pa-atraso b {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.pa-atraso i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--cinza);
+  margin-top: 2px;
+}
+
+/* ── lista de pendências de uma base ─────────────────────────
+ * O que é grave não é só vermelho: leva também um ponto maior e o
+ * texto a negrito, para continuar a destacar-se em daltonismo. */
+.pa-lista {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pa-lista li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--cinza);
+  margin-top: 7px;
+  line-height: 1.45;
+}
+.pa-lista li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cinza);
+}
+.pa-lista li.grave {
+  color: var(--tinta);
+  font-weight: 600;
+}
+.pa-lista li.grave::before {
+  width: 8px;
+  height: 8px;
+  top: 5px;
+  left: -1px;
+  background: var(--magenta);
+}
+
+/* ── escolher a etapa do funil, dentro da folha ──────────────
+ * As etapas já percorridas ficam apagadas em vez de escondidas: o
+ * caminho todo tem de continuar visível para se poder voltar atrás. */
+.pa-etapas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pa-etapa {
+  background: #fff;
+  border: 1px solid var(--fio);
+  border-radius: 100px;
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+  cursor: pointer;
+}
+.pa-etapa.feita {
+  color: var(--cinza);
+  background: #f6f7fc;
+}
+.pa-etapa.on {
+  color: #fff;
+  cursor: default;
+}
+.pa-etapa:disabled:not(.on) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── mapa de calor da ocupação do auditório ──────────────────
+ * Uma grelha de quadrados, um por culto. Não é um calendário: os
+ * cultos especiais não caem ao domingo e uma grelha de 7 colunas
+ * deixaria buracos que não significam nada. Quebra em quantas caibam
+ * na largura, que num telemóvel é o que interessa. */
+.pa-calor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+.pa-calor-q {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  /* o anel é da cor da superfície: separa quadrados vizinhos sem
+     desenhar um contorno a mais por cima da cor dos dados */
+  box-shadow: 0 0 0 2px #fff;
+}
+/* zero não é o passo mais claro da rampa — é um quadrado vazio.
+   "Ninguém" e "poucos" são coisas diferentes e têm de se distinguir
+   sem contar tons. */
+.pa-calor-q.vazio {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--fio);
+}
+/* o selecionado ganha um anel escuro, não outra cor: a cor aqui está
+   ocupada a dizer quanta gente esteve */
+.pa-calor-q.on {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--tinta);
+}
+.pa-calor-legenda {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--cinza);
+}
+.pa-calor-legenda i {
+  width: 18px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* ── a ordem do culto em papel ───────────────────────────────
+ * Escondida no ecrã, é tudo o que existe no papel. A regra do
+ * `@media print` esconde a app inteira em vez de listar o que tirar:
+ * assim, uma tela nova nesta app nunca aparece por engano numa folha
+ * impressa — o padrão é não imprimir, e imprimir é a exceção.
+ *
+ * Mede-se em `pt` e não em `px`: `px` numa impressora é uma unidade
+ * inventada pelo browser, `pt` é um ponto tipográfico a sério e sai
+ * igual em qualquer impressora. */
+.pa-print {
+  display: none;
+}
+
+@media print {
+  /* nada da app vai para o papel… */
+  .app,
+  .navb,
+  .veu,
+  .pin,
+  .torrada,
+  .tour-veu,
+  .tour-balao {
+    display: none !important;
+  }
+
+  /* …exceto isto */
+  .pa-print {
+    display: block;
+    font-family: var(--o);
+    color: #000;
+    padding: 0;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  .pa-print h1 {
+    font-size: 19pt;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+  .pa-print h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 14pt 0 4pt;
+  }
+  .pa-print-sub {
+    font-size: 10pt;
+    margin: 3pt 0 12pt;
+    color: #444;
+  }
+
+  .pa-print-tab {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  .pa-print-tab th {
+    text-align: left;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #555;
+    border-bottom: 0.7pt solid #000;
+    padding: 0 6pt 3pt 0;
+  }
+  .pa-print-tab td {
+    padding: 5pt 6pt 5pt 0;
+    border-bottom: 0.4pt solid #ccc;
+    vertical-align: top;
+  }
+  /* uma linha do culto nunca é partida ao meio por uma quebra de
+     página — ler "Mensagem" no fim de uma folha e a hora dela no
+     início da seguinte é pior do que uma folha com um espaço vazio */
+  .pa-print-tab tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* o cabeçalho repete-se em cada folha: numa ordem de duas páginas,
+     a segunda sem cabeçalho é uma grelha de números sem legenda */
+  .pa-print-tab thead {
+    display: table-header-group;
+  }
+  .pa-print-hora,
+  .pa-print-min {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .pa-print-min {
+    text-align: right;
+  }
+  .pa-print-det {
+    display: block;
+    font-size: 8.5pt;
+    color: #555;
+    margin-top: 1pt;
+  }
+
+  .pa-print-avisos {
+    margin: 0;
+    padding-left: 12pt;
+    font-size: 10pt;
+  }
+  .pa-print-avisos li {
+    margin-top: 4pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .pa-print-rodape {
+    margin-top: 16pt;
+    font-size: 8pt;
+    color: #777;
+  }
+}

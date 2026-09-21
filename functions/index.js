@@ -41,10 +41,39 @@ export {
 // comentário no topo de mural.js).
 export {
   listarBasesMural, listarGDsMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
-  souAdminMuralAgora, pedirContactoAnuncio, criarAnuncio, editarAnuncio, definirFotosAnuncio, alterarEstadoAnuncio,
+  souAdminMuralAgora, desbloquearModeracaoMural, pedirContactoAnuncio, criarAnuncio, editarAnuncio,
+  definirFotosAnuncio, alterarEstadoAnuncio,
   renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
   resumoSemanalMural, manutencaoMural,
 } from "./mural.js";
+
+// Painel Pastoral: ler as 10 bases de uma vez, nunca escrever nelas —
+// ficheiro próprio pelo mesmo motivo do kinder.js (ver o comentário no
+// topo de pastoral.js). A ordem do culto que o pastor publica NÃO
+// passa por lá: usa a publicarOrdemCulto que já existe aqui, com a
+// claim pode_publicar_culto que a Backstage já usava.
+export {
+  panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
+  desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
+} from "./pastoral.js";
+
+// Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio
+// por apagar dados a sério, sozinha, todos os dias — ver os três
+// travões no topo de retencao.js. `ensaiarRetencao` diz o que ia
+// apagar sem apagar nada.
+export {
+  purgarChamadasAntigas, purgarDadosDeVoluntariosInativos,
+  purgarReembolsosAntigos, ensaiarRetencao,
+} from "./retencao.js";
+
+// Notificações push — a infraestrutura que faltava ao produto inteiro
+// (nenhuma base tinha push nem email). São quatro gatilhos, e três
+// deles estavam registados como débito no repo: o recado do pastor, o
+// reembolso decidido e o lembrete de confirmação da Louvor.
+export {
+  notificarRecado, notificarReembolso, notificarEscala,
+  lembrarConfirmacaoPresenca,
+} from "./notificacoes.js";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -98,6 +127,12 @@ async function claimsExtraDaBase(baseId) {
   if (b.culto?.podePublicar === true) extra.pode_publicar_culto = true;
   if (b.eventos?.podeCriarGlobal === true) extra.pode_criar_evento_global = true;
   if (b.feedbackAberto === true) extra.feedback_aberto = true;
+  // Painel Pastoral (bases/pastoral) — vê o resumo de todas as bases
+  // por Cloud Function (ver pastoral.js) e o funil de visitantes/o
+  // arquivo dos cultos direto do Firestore. Como as outras, é uma
+  // CAPACIDADE DE BASE e não um papel novo: não existe "admin_igreja"
+  // neste sistema, e não é agora que passa a existir.
+  if (b.visaoPastoral === true) extra.ve_tudo_pastoral = true;
   return extra;
 }
 
@@ -1836,42 +1871,14 @@ export const atribuirFuncao = onCall(async (req) => {
   return { ok: true };
 });
 
-/* ── ACOMODAÇÃO (Base Pessoal): fechar/corrigir o mapa do culto ─
+/* ── ACOMODAÇÃO (Base Pessoal): fechar o mapa do culto ─────────
  * Marcar lugares é escrita direta do cliente (ver firestore.rules,
  * eventos/{evento}/acomodacao/mapa), porque tem de funcionar offline.
- * Fechar e corrigir a data, porém, passam pelo servidor: os números do
- * resumo têm de vir do estado realmente gravado e uma mudança de data
- * não pode deixar o mapa antigo por engano no próximo domingo. */
-
-function lugaresIniciaisAcomodacao(planta) {
-  const fileiras = Array.isArray(planta?.fileiras) ? planta.fileiras : [];
-  const porFileira = fileiras[0]?.lugares ?? 12;
-  const reservados = new Set(planta?.reservados ?? []);
-  const bloqueados = new Set(planta?.bloqueiosPermanentes ?? []);
-  const lugares = {};
-
-  fileiras.forEach((fileira) => {
-    for (let n = 1; n <= porFileira; n++) {
-      const id = `${fileira.id}${n}`;
-      lugares[id] = reservados.has(id) ? "reservado" : bloqueados.has(id) ? "bloqueado" : "livre";
-    }
-  });
-  (planta?.fileirasExtra ?? []).forEach((fileira) => {
-    if (!fileiras.some((f) => f.id === fileira.atras)) return;
-    (fileira.colunas ?? []).forEach((_, indice) => {
-      const id = `${fileira.id}${indice + 1}`;
-      lugares[id] = reservados.has(id) ? "reservado" : bloqueados.has(id) ? "bloqueado" : "livre";
-    });
-  });
-  return lugares;
-}
-
-/** Reservas/bloqueios e o número de lugares podem mudar entre duas
- * versões da planta. Para decidir se um mapa tem trabalho real, só
- * contam os estados que registam presença: ocupado e visitante. */
-function mapaTemOcupacao(lugares) {
-  return Object.values(lugares || {}).some((estado) => estado === "ocupado" || estado === "visitante");
-}
+ * Fechar, porém, passa pelo servidor: os números do resumo têm de vir
+ * do estado realmente gravado. `eventoId` é sempre a data real de
+ * hoje (o cliente já não deixa escolher outra — ver Acomodacao.jsx),
+ * por isso não existe mais "corrigir data": nunca há data errada para
+ * corrigir. */
 
 function resumoAcomodacao(eventoId, lugares, uid) {
   const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
@@ -1887,13 +1894,6 @@ function resumoAcomodacao(eventoId, lugares, uid) {
   };
 }
 
-function hojeEmLisboa() {
-  const partes = new Intl.DateTimeFormat("en", {
-    timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const valor = (tipo) => partes.find((p) => p.type === tipo)?.value;
-  return `${valor("year")}-${valor("month")}-${valor("day")}`;
-}
 export const fecharAcomodacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -1924,75 +1924,22 @@ export const fecharAcomodacao = onCall(async (req) => {
   return { ok: true, resumo: { ...resumo, fechadoEm: null } };
 });
 
-/** Move um mapa preenchido para a data certa e reinicia o mapa de
- * origem. Só a líder da Base Pessoal pode fazê-lo: é uma correção de
- * histórico, não uma marcação operacional. O destino tem de ser um
- * culto real e não pode ter presença registada nem resumo, para nunca apagar dados.
- * Se a data escolhida já passou, o mapa chega fechado e com o resumo
- * calculado, para aparecer imediatamente no histórico. */
-export const corrigirDataMapaAcomodacao = onCall(async (req) => {
-  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
-  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  if (baseId !== "pessoal" || !PAPEIS_LIDER.has(req.auth.token.papel)) {
-    throw new HttpsError("permission-denied", "Só a líder da Base Pessoal pode corrigir a data do mapa.");
-  }
-
-  const { eventoId, novoEventoId } = req.data || {};
-  const dataValida = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dataValida.test(eventoId || "") || !dataValida.test(novoEventoId || "")) {
-    throw new HttpsError("invalid-argument", "Escolhe datas de culto válidas.");
-  }
-  if (eventoId === novoEventoId) throw new HttpsError("invalid-argument", "Escolhe uma data diferente.");
-
-  const origemRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
-  const destinoRef = db.doc(`eventos/${novoEventoId}/acomodacao/mapa`);
-  const eventoDestinoRef = db.doc(`eventos/${novoEventoId}`);
-  const resumoDestinoRef = db.doc(`bases/pessoal/acomodacaoResumos/${novoEventoId}`);
-  const plantaRef = db.doc("bases/pessoal/acomodacao/planta");
-  const fecharDestino = novoEventoId < hojeEmLisboa();
-
-  await db.runTransaction(async (tx) => {
-    const [origem, destino, eventoDestino, resumoDestino, planta] = await Promise.all([
-      tx.get(origemRef), tx.get(destinoRef), tx.get(eventoDestinoRef), tx.get(resumoDestinoRef), tx.get(plantaRef),
-    ]);
-    if (!origem.exists) throw new HttpsError("not-found", "O mapa que queres corrigir já não existe.");
-    if (origem.data().fechado) throw new HttpsError("failed-precondition", "Reabre este mapa antes de corrigir a data.");
-    if (!eventoDestino.exists) throw new HttpsError("not-found", "Não existe um culto nessa data.");
-    if (!planta.exists) throw new HttpsError("failed-precondition", "A planta do auditório não está configurada.");
-    const lugaresIniciais = lugaresIniciaisAcomodacao(planta.data());
-    const destinoTemDados = destino.exists
-      && (destino.data().fechado || mapaTemOcupacao(destino.data().lugares));
-    if (destinoTemDados || resumoDestino.exists) {
-      throw new HttpsError("already-exists", "Já há dados de mapa para a data escolhida. Não substituímos dados existentes.");
-    }
-
-    const dadosOrigem = origem.data();
-    const lugares = dadosOrigem.lugares || {};
-    const agora = admin.firestore.FieldValue.serverTimestamp();
-    tx.set(destinoRef, {
-      eventoId: novoEventoId,
-      lugares,
-      fechado: fecharDestino,
-      criadoEm: dadosOrigem.criadoEm ?? agora,
-      iniciadoPor: dadosOrigem.iniciadoPor ?? uid,
-      movidoDe: eventoId, movidoEm: agora, movidoPor: uid,
-    });
-    tx.update(origemRef, {
-      lugares: lugaresIniciais, fechado: false,
-      atualizadoEm: agora, reiniciadoPor: uid, reiniciadoEm: agora,
-    });
-    if (fecharDestino) tx.set(resumoDestinoRef, resumoAcomodacao(novoEventoId, lugares, uid));
-  });
-
-  return { ok: true, fechado: fecharDestino };
-});
-
-/** Desfaz um fecho: apaga o resumo arquivado e devolve o mapa a
- *  "aberto" (fechado:false), para poder corrigir e fechar de novo.
- *  Mesma permissão de quem fecha (líder ou quem tem a função Mapa
- *  desse culto). O lápis "Editar" na lista de "Cultos fechados"
+/** Desfaz um fecho: apaga o resumo arquivado (se houver) e devolve o
+ *  mapa a "aberto" (fechado:false), para poder corrigir e fechar de
+ *  novo. Mesma permissão de quem fecha (líder ou quem tem a função
+ *  Mapa desse culto). O lápis "Editar" na lista de "Cultos fechados"
  *  (ResumosAcomodacao.jsx) chama isto — as regras não deixam apagar
- *  `acomodacaoResumos` direto do cliente, só por aqui. */
+ *  `acomodacaoResumos` direto do cliente, só por aqui.
+ *
+ *  A condição é o MAPA estar fechado, não o resumo existir: um mapa
+ *  pode ficar `fechado:true` sem resumo nenhum arquivado (aconteceu
+ *  em produção — um documento antigo, de antes do mapa passar a
+ *  seguir sempre a data real de hoje, tinha o campo já assim). Exigir
+ *  o resumo deixava esse caso sem saída nenhuma: não aparecia em
+ *  "Cultos fechados" (que lista por resumo) e este endpoint recusava
+ *  reabrir por falta dele — um mapa preso, sem botão que o resolvesse.
+ *  Reabrir é sempre seguro mesmo sem resumo: no pior caso, não há
+ *  nada para apagar. */
 export const reabrirAcomodacao = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
@@ -2011,11 +1958,13 @@ export const reabrirAcomodacao = onCall(async (req) => {
   const resumoRef = db.doc(`bases/pessoal/acomodacaoResumos/${eventoId}`);
   const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
   const [resumo, mapa] = await Promise.all([resumoRef.get(), mapaRef.get()]);
-  if (!resumo.exists) throw new HttpsError("not-found", "Este culto não tem resumo fechado.");
+  if (!mapa.exists || !mapa.data().fechado) {
+    throw new HttpsError("not-found", "Este mapa não está fechado.");
+  }
 
   const lote = db.batch();
-  lote.delete(resumoRef);
-  if (mapa.exists) lote.update(mapaRef, { fechado: false });
+  if (resumo.exists) lote.delete(resumoRef);
+  lote.update(mapaRef, { fechado: false });
   await lote.commit();
 
   return { ok: true };

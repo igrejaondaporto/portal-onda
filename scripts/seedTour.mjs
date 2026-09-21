@@ -687,6 +687,60 @@ const TOURS = {
     ],
     passosLider: [],
   },
+
+  pastoral: {
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Painel Pastoral",
+        texto: "As dez bases da igreja num sítio só. Este painel mostra — não decide: a escala, a checklist e os reembolsos continuam a ser de cada líder.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-domingo",
+        titulo: "Domingo",
+        texto: "O culto que vem aí, ou o que está a acontecer agora: quem está escalado em cada base, as checklists a serem marcadas ao vivo, e quanta gente está na sala.",
+        alvo: "nav-domingo", pagina: "domingo",
+      },
+      {
+        chave: "nav-bases",
+        titulo: "Bases",
+        texto: "As dez equipas, ordenadas por quem precisa de atenção. O que está no topo é o que estraga um domingo mais depressa — não é uma nota da base.",
+        alvo: "nav-bases", pagina: "bases",
+      },
+      {
+        chave: "nav-pessoas",
+        titulo: "Pessoas",
+        texto: "Quem serve, e quem serve em mais do que uma base. E o funil: de quem apareceu num culto pela primeira vez a quem já está numa escala.",
+        alvo: "nav-pessoas", pagina: "pessoas",
+      },
+      {
+        chave: "nav-numeros",
+        titulo: "Números",
+        texto: "Presença domingo a domingo, oferta por mês, e se o culto começa a horas. Está tudo gravado há meses — só nunca tinha sido olhado em conjunto.",
+        alvo: "nav-numeros", pagina: "numeros",
+      },
+      {
+        chave: "nav-ordem",
+        titulo: "Ordem do culto",
+        texto: "A ordem continua a subir pela Backstage, em PDF, como sempre — este separador explica isso, por agora.",
+        alvo: "nav-ordem", pagina: "ordem",
+      },
+      {
+        chave: "recado",
+        titulo: "Falar com uma base",
+        texto: "Em cada base há um botão de recado. Aparece no Início dela e o líder dispensa quando ler — não há resposta, e ninguém recebe notificação.",
+        alvo: null, pagina: "bases",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a começar",
+        texto: "Este painel mostra as dez bases num sítio só. O resto é para olhar.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [],
+  },
 };
 
 async function main() {

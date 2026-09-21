@@ -13,6 +13,7 @@ import Calendario from "../components/Calendario";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetPassarEquipamento from "../components/inicio/SheetPassarEquipamento";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
+import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -196,6 +197,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
 
   return (
     <>
+      <RecadoPastoral papel={papel} />
       {transferencias.map((s) => (
         <div className="destaque" style={{ background: "var(--violeta)" }} key={s.id}>
           <div>
