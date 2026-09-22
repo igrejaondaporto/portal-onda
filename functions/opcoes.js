@@ -26,4 +26,18 @@ export const ORIGENS_PERMITIDAS = [
 ];
 
 // Portugal → o datacenter mais próximo. Poupa ~80ms por chamada.
-setGlobalOptions({ region: "europe-west1", maxInstances: 10, cors: ORIGENS_PERMITIDAS });
+//
+// `invoker: "public"` — reportado 2026-09: funções NOVAS (chamadas
+// pela primeira vez depois de criadas) davam "CORS policy: no
+// 'Access-Control-Allow-Origin' header" no preflight, e o cliente via
+// isso como "internal" (a chamada nem chega ao corpo da função — o
+// SDK falha antes, sem resposta nenhuma para interpretar). Cloud
+// Functions 2ª geração corre sobre Cloud Run, que por defeito exige
+// uma política de IAM (`roles/run.invoker`) antes de aceitar qualquer
+// pedido — incluindo o OPTIONS do preflight, que nunca chega a `cors`
+// acima. `setGlobalOptions({ cors })` cobre as origens; não cobre o
+// IAM. A segurança a sério já está dentro de cada função
+// (`exigeVisaoPastoral`/`exigeLider`/etc., por claim do token) — nunca
+// foi para depender do IAM do Cloud Run, por isso tornar as funções
+// publicamente invocáveis não abre nada que já não estivesse aberto.
+setGlobalOptions({ region: "europe-west1", maxInstances: 10, cors: ORIGENS_PERMITIDAS, invoker: "public" });

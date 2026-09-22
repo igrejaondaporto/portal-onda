@@ -112,6 +112,19 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
 
+  /** Quantos visitantes ficaram CADASTRADOS no Formulário da Base
+   *  Pessoal, por culto — pedido 2026-09, complementar ao gráfico
+   *  acima (que é a contagem manual de bulto, `contagem.visitantes`,
+   *  nem sempre fechada). É o mesmo universo de "Pessoas → Visitantes"
+   *  (o funil) — cada domingo aqui é quantos desses contactos
+   *  chegaram naquele culto. */
+  const visitantesCadastrados = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .filter((c) => c.visitantesCadastrados > 0)
+      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.visitantesCadastrados }));
+  }, [dados]);
+
   /** Quantos foram escalados em cada culto, somando as dez bases —
    *  pedido 2026-09. Só entram os cultos com pelo menos um escalado:
    *  zero aqui quase sempre quer dizer "ninguém publicou escala ainda
@@ -301,8 +314,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
           </div>
 
           <div className="sect">
+            <div className="cabecalho"><h3>Visitantes cadastrados</h3><span className="cap">no Formulário da Pessoal</span></div>
+            <LinhaTempo pontos={visitantesCadastrados} vazio="Ainda não há contactos registados neste período." />
+          </div>
+
+          <div className="sect">
             <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">nas dez bases</span></div>
-            <LinhaTempo pontos={voluntariosPorCulto} vazio="Ainda não há escalas publicadas neste período." />
+            <LinhaTempo pontos={voluntariosPorCulto} todosRotulados vazio="Ainda não há escalas publicadas neste período." />
           </div>
 
           <div className="sect">

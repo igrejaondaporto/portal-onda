@@ -417,6 +417,22 @@ export const historicoPastoral = onCall(async (req) => {
   // uma vez só para a janela inteira, não por culto
   const bases = await basesDaIgreja();
 
+  // visitantes CADASTRADOS no Formulário da Base Pessoal (contactos,
+  // `eventoId` = o culto onde chegaram — regra 7 do CLAUDE.md raiz),
+  // não a contagem manual de bulto (`contagem.visitantes`, já lida
+  // abaixo). Pedido 2026-09: um gráfico complementar em Números, com o
+  // mesmo universo que "Pessoas → Visitantes" já mostra — por isso
+  // exclui arquivados, o mesmo filtro de `ouvirContactos`. Uma
+  // chamada só para a janela inteira, como a oferta mais abaixo.
+  const contactosSnap = await db().collection("contactos")
+    .where("eventoId", ">=", desde).where("eventoId", "<=", ate).get();
+  const cadastradosPorEvento = new Map();
+  for (const doc of contactosSnap.docs) {
+    const d = doc.data();
+    if (d.arquivado === true || !d.eventoId) continue;
+    cadastradosPorEvento.set(d.eventoId, (cadastradosPorEvento.get(d.eventoId) ?? 0) + 1);
+  }
+
   const detalhes = await Promise.all(eventos.map(async (e) => {
     const [contagem, estatisticas, acomodacao, mapaAoVivo, kinder, escalas] = await Promise.allSettled([
       db().doc(`eventos/${e.id}/contagem/geral`).get(),
@@ -470,6 +486,7 @@ export const historicoPastoral = onCall(async (req) => {
       acomodacao: a ? resumirAcomodacao(a) : (mapa?.lugares ? resumoAcomodacaoAoVivo(mapa.lugares) : null),
       kinder: kinder.status === "fulfilled" ? resumirKinder(kinder.value) : null,
       voluntarios,
+      visitantesCadastrados: cadastradosPorEvento.get(e.id) ?? 0,
     };
   }));
 
