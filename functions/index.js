@@ -55,6 +55,7 @@ export {
 export {
   panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
   desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
+  definirLiderBase, corrigirDuracaoSecaoCulto, arquivarContactoPastoral,
 } from "./pastoral.js";
 
 // Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio

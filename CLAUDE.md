@@ -124,19 +124,29 @@ função a sério. Não dês um deploy de Functions por terminado sem isto
 passar.
 
 **`npm run smoke` só cobre `dadosEntrada` — uma Cloud Function `onCall`
-NOVA precisa de ser testada à parte.** Reportado 2026-09: uma função
-recém-criada (`arquivarContactoPastoral`) dava "internal" no cliente,
-e a consola do browser mostrava CORS a bloquear o preflight. A causa
-não era CORS nem código da função — `setGlobalOptions({ cors })`
-(`functions/opcoes.js`) só cobre as origens aceites, não o IAM.
+NOVA precisa de ser testada à parte.** Reportado 2026-09: três funções
+novas (`definirLiderBase`, `corrigirDuracaoSecaoCulto`,
+`arquivarContactoPastoral`) davam "internal" no cliente, com a consola
+do browser a mostrar CORS a bloquear o preflight. Parecia IAM do Cloud
+Run — mas a causa real era mais simples e mais fácil de repetir: as
+três estavam exportadas de `functions/pastoral.js` mas **nunca
+chegaram ao `export { ... } from "./pastoral.js"` em
+`functions/index.js`** — o Firebase só descobre uma função pelo que
+sai desse ficheiro de entrada. Sem lá estar, a função nunca é criada
+no Cloud Run; o pedido dá 404 puro (sem cabeçalhos de CORS nenhuns,
+por isso o browser via isto como bloqueio de CORS), e nem aparece no
+log do deploy — nem como criada, nem como ignorada. `firebase deploy`
+não avisa, `node --check` não apanha (o ficheiro compila bem), e
+`npm run smoke` também não, porque só chama `dadosEntrada`. **Ao criar
+uma Cloud Function num ficheiro próprio (padrão de `kinder.js`/
+`mural.js`/`pastoral.js`), o `export { ... } from "./ficheiro.js"`
+correspondente em `index.js` tem de listar o nome dela — confirma
+sempre antes de dar o deploy por terminado.** `functions/opcoes.js`
+também tem `invoker: "public"` em `setGlobalOptions`, por segurança —
 Functions de 2ª geração correm sobre Cloud Run, que por omissão exige
-`roles/run.invoker` antes de aceitar QUALQUER pedido — incluindo o
-OPTIONS do preflight, que nunca chega ao corpo da função nem ao `cors`
-configurado. `functions/opcoes.js` já tem `invoker: "public"` em
-`setGlobalOptions` por causa disto (a segurança a sério já está
-dentro de cada função, por claim do token — nunca dependeu do IAM do
-Cloud Run), mas se uma função nova voltar a dar este erro exato,
-é esta a primeira coisa a verificar.
+`roles/run.invoker`; isto não depende de nenhuma função em concreto,
+mas se uma função existente (já exportada em `index.js`) começar a dar
+este erro exato, é a segunda coisa a verificar.
 
 ## Regras que não se negoceiam (valem em qualquer base)
 
