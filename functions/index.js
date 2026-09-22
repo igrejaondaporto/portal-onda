@@ -1690,7 +1690,10 @@ export const escalasCrossBase = onCall(async (req) => {
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
 
   const resultado = await Promise.all(bases.map(async (b) => {
-    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null };
+    // aditivo, para quem precisar de distinguir uma base que nunca
+    // serve no culto (Financeiro, Pastoral) — ver semEscalaDeCulto no
+    // Painel Pastoral. Não muda o que já existia para mais ninguém.
+    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null, semEscalaDeCulto: b.semEscalaDeCulto === true };
     const escalaSnap = await db.doc(`eventos/${eventoId}/escalas/${b.id}`).get();
     if (!escalaSnap.exists) return { ...base, tipo: "vazio" };
     const escala = escalaSnap.data();

@@ -195,6 +195,23 @@
   margin-top: 2px;
 }
 
+/* ── aviso forte (verde-água) ─────────────────────────────────
+ * Para o que precisa de se notar mas não é uma emergência (a `caixa
+ * destaque` do global.css, em gradiente azul, fica para isso) — o
+ * banner de "bases sem escala" em Domingo.jsx nasceu no fundo suave
+ * `--agua` e ficava "ruim de ver" (relato 2026-09); isto é o meio
+ * termo pedido a seguir: uma cor forte, mas não a mesma dos avisos
+ * mais graves. */
+.pa-aviso {
+  background: var(--verde);
+  color: #fff;
+  border-color: transparent;
+}
+.pa-aviso p,
+.pa-aviso b {
+  color: #fff;
+}
+
 /* ── lista de pendências de uma base ─────────────────────────
  * O que é grave não é só vermelho: leva também um ponto maior e o
  * texto a negrito, para continuar a destacar-se em daltonismo. */
@@ -295,6 +312,14 @@
 .pa-calor-q.vazio {
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--fio);
+}
+/* um domingo sem mapa fechado — cinzento sólido, sem cursor de toque,
+   de propósito diferente do "vazio" (0% de ocupação, branco com
+   contorno): uma coisa é "esteve vazio", outra é "ninguém fechou o
+   mapa ainda", e são perguntas diferentes */
+.pa-calor-q.porfechar {
+  background: rgba(10, 15, 46, 0.09);
+  cursor: default;
 }
 /* o selecionado ganha um anel escuro, não outra cor: a cor aqui está
    ocupada a dizer quanta gente esteve */

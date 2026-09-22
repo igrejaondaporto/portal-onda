@@ -187,6 +187,12 @@ async function resumoDaBase(b, eventoId) {
     escalaFeita: escalados > 0,
     escalados,
     temLiderEscala: !!dadosEscala?.liderEscala,
+    // `bases/{b}.semEscalaDeCulto` marca uma base que nunca serve no
+    // culto de domingo (Financeiro, Pastoral) — sem isto, "sem escala"
+    // ficava permanentemente vermelho para elas, todas as semanas, o
+    // mesmo problema que o Financeiro já tinha antes deste painel
+    // existir (reportado 2026-09: "nunca vai ter escala mesmo").
+    escalaAplicavel: b.semEscalaDeCulto !== true,
 
     inventarioTotal: consumiveis.length,
     inventarioEmFalta: emFalta.length,
@@ -503,12 +509,23 @@ function resumirKinder(snap) {
  *    "gargalo") NÃO pode ser a mesma conta — um momento que começa
  *    tarde porque o anterior se alongou não é ele que está atrasado, é
  *    o anterior. Por isso é a diferença entre quanto o bloco DUROU a
- *    sério (a entrada do próximo menos a entrada deste) e quanto devia
- *    durar (`minutos`, escrito na ordem). O último bloco nunca tem
- *    "próximo" a seguir, por isso nunca tem duração real conhecida, e
- *    fica de fora do "onde aparece o atraso" — reportado 2026-09
- *    ("Atraso é a diferença de tempo que durou o bloco real, do tempo
- *    previsto, não a hora que terminou").
+ *    sério e quanto devia durar (`minutos`, escrito na ordem) —
+ *    reportado 2026-09 ("Atraso é a diferença de tempo que durou o
+ *    bloco real, do tempo previsto, não a hora que terminou").
+ *
+ *    A duração real vem da ORDEM CRONOLÓGICA a sério
+ *    (`timestampReal`, em milissegundos — não `horaReal`, que só tem
+ *    o minuto), não da ordem PREVISTA: o mesmo raciocínio de
+ *    `cruzarComReal` (@portal/shared/lib/ordemAoVivo.js), porque o que
+ *    foi ao ar pode não bater com o que estava escrito (um vídeo
+ *    extra, uma troca de ordem ao vivo). Contar pela ordem prevista
+ *    juntava a duração ao momento errado sempre que isso acontecia —
+ *    reportado 2026-09 ("os tempos previstos estão contados errado").
+ *    O último momento a ir ao ar fecha contra `finalizadoEm` (o clique
+ *    em "Finalizar culto", a única hora de fim que existe em todo o
+ *    sistema) em vez de ficar sem duração — sem isto, o que por acaso
+ *    fecha o culto (quase sempre Mensagem ou Apelo) nunca tinha atraso
+ *    nenhum e desaparecia da lista ("as categorias só mostra 4").
  *
  *  Casa por nome normalizado, o mesmo critério de `cruzarComReal`
  *  (@portal/shared/lib/ordemAoVivo.js) e de `normalizarNome` em
@@ -534,8 +551,25 @@ function resumirCulto(s) {
     if (k && !porNome.has(k)) porNome.set(k, sec);
   }
 
-  // casados, na ordem prevista — é a partir desta lista que se conta
-  // tanto o desvio de relógio ("No fim") como a duração de cada bloco
+  // a duração real de cada momento, pela ordem em que foi ao ar de
+  // verdade (timestampReal, ms) — não pela ordem prevista
+  const cronologico = [...porNome.values()]
+    .filter((sec) => typeof sec.timestampReal?.toMillis === "function")
+    .sort((a, b) => a.timestampReal.toMillis() - b.timestampReal.toMillis());
+
+  const fimDoCultoMs = typeof s.finalizadoEm?.toMillis === "function" ? s.finalizadoEm.toMillis() : null;
+  const duracaoMsPorChave = new Map();
+  for (let i = 0; i < cronologico.length; i++) {
+    const atual = cronologico[i];
+    const fimMs = i + 1 < cronologico.length ? cronologico[i + 1].timestampReal.toMillis() : fimDoCultoMs;
+    if (fimMs === null) continue;
+    const ms = fimMs - atual.timestampReal.toMillis();
+    if (ms >= 0) duracaoMsPorChave.set(chaveNome(atual.nomeCorrespondente || atual.nomeFreeshow), ms);
+  }
+
+  // casados, na ordem prevista — é a partir desta lista que se conta o
+  // desvio de relógio ("No fim"); a duração de cada bloco vem do mapa
+  // cronológico acima, não desta lista
   const casados = previstos
     .map((m) => {
       const real = porNome.get(chaveNome(m.momento));
@@ -550,9 +584,9 @@ function resumirCulto(s) {
     })
     .filter(Boolean);
 
-  const atrasos = casados.map((m, i) => {
-    const proximo = casados[i + 1];
-    const duracaoReal = proximo ? proximo.realMin - m.realMin : null;
+  const atrasos = casados.map((m) => {
+    const duracaoMs = duracaoMsPorChave.get(chaveNome(m.momento));
+    const duracaoReal = duracaoMs !== undefined ? Math.round(duracaoMs / 60000) : null;
     const atraso = (duracaoReal !== null && m.duracaoPrevista !== null) ? duracaoReal - m.duracaoPrevista : null;
     return {
       momento: m.momento, previsto: m.previstoHora, real: m.realHora,
@@ -686,6 +720,10 @@ export const desgastePastoral = onCall(async (req) => {
       foto: infoDe[uid]?.foto ?? null,
       telefone: telefoneDe[uid] ?? "",
       cultos: p.cultos.size,
+      // eventoId JÁ é a data (eventos/{AAAA-MM-DD}, regra 7 do CLAUDE.md
+      // raiz) — o Set de cultos é, sem mais nada, o Set de datas.
+      // Serve para comprovar o número ao tocar na pessoa.
+      datas: [...p.cultos].sort(),
       bases: [...p.bases].map((b) => ({ baseId: b, nome: nomeBase[b] ?? b })),
     };
   })

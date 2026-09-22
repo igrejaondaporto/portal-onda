@@ -37,19 +37,34 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
   // período novo parecia não fazer nada porque a informação já
   // esperada (o último domingo) só reaparecia ao tocar duas vezes
   useEffect(() => setFoco(null), [cultos]);
-  const comMapa = cultos.filter((c) => c.acomodacao);
-  if (!comMapa.length) return <div className="vaz">{vazio}</div>;
+  if (!cultos.length) return <div className="vaz">{vazio}</div>;
 
-  const mostrado = foco ?? comMapa.at(-1);
-  const a = mostrado.acomodacao;
-  const pct = Math.round(a.percentagem * 100);
+  const comMapa = cultos.filter((c) => c.acomodacao);
+  const mostrado = foco ?? comMapa.at(-1) ?? null;
+  const a = mostrado?.acomodacao ?? null;
+  const pct = a ? Math.round(a.percentagem * 100) : null;
 
   return (
     <>
       <div className="pa-calor">
-        {comMapa.map((c) => {
+        {/* TODOS os cultos do período entram, não só os fechados — um
+            domingo sem mapa some da grelha em vez de aparecer, e é
+            isso que parecia bug ("não dá pra clicar, pq não fechou é
+            isso?", reportado 2026-09). Aqui aparece, cinzento e sem
+            toque, para responder à própria pergunta. */}
+        {cultos.map((c) => {
+          if (!c.acomodacao) {
+            return (
+              <span
+                key={c.eventoId}
+                className="pa-calor-q porfechar"
+                aria-label={`${c.data}: mapa ainda por fechar`}
+                title="A Base Pessoal ainda não fechou o mapa deste domingo"
+              />
+            );
+          }
           const cor = passo(c.acomodacao.percentagem);
-          const ativo = c.eventoId === mostrado.eventoId;
+          const ativo = mostrado && c.eventoId === mostrado.eventoId;
           return (
             <button
               key={c.eventoId}
@@ -62,17 +77,23 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         })}
       </div>
 
-      <div className="caixa" style={{ marginTop: 14 }}>
-        <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
-        <p className="pa-num">{pct}%</p>
-        <p className="ds" style={{ marginTop: 2 }}>
-          {a.ocupados + a.visitantes} de {a.capacidadeUtil} lugares úteis
-          {a.visitantes > 0 ? ` · ${a.visitantes} de visitante` : ""}
-          {a.reservados > 0 || a.bloqueados > 0
-            ? ` · ${a.reservados + a.bloqueados} fora de contagem`
-            : ""}
+      {mostrado ? (
+        <div className="caixa" style={{ marginTop: 14 }}>
+          <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
+          <p className="pa-num">{pct}%</p>
+          <p className="ds" style={{ marginTop: 2 }}>
+            {a.ocupados + a.visitantes} de {a.capacidadeUtil} lugares úteis
+            {a.visitantes > 0 ? ` · ${a.visitantes} de visitante` : ""}
+            {a.reservados > 0 || a.bloqueados > 0
+              ? ` · ${a.reservados + a.bloqueados} fora de contagem`
+              : ""}
+          </p>
+        </div>
+      ) : (
+        <p className="ds" style={{ marginTop: 10 }}>
+          Os quadrados cinzentos são domingos cujo mapa a Base Pessoal ainda não fechou.
         </p>
-      </div>
+      )}
     </>
   );
 }

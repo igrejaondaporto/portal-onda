@@ -167,7 +167,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
         if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [], previstos: [], ocorrencias: [] });
         const registo = mapa.get(chave);
         registo.valores.push(a.atraso);
-        registo.ocorrencias.push({ eventoId: c.eventoId, data: c.data, previsto: a.previsto, real: a.real, atraso: a.atraso });
+        registo.ocorrencias.push({
+          eventoId: c.eventoId, data: c.data, atraso: a.atraso,
+          duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal,
+        });
         const [h, m] = String(a.previsto || "").split(":").map(Number);
         if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
       }
@@ -333,7 +336,11 @@ export default function Numeros({ ativo, definirCabecalho }) {
                                 <div className="linha" key={o.eventoId} style={{ padding: "8px 0" }}>
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <p className="ds" style={{ margin: 0 }}>{dataCurta(o.data)}</p>
-                                    <p className="cap" style={{ marginTop: 2 }}>previsto {o.previsto} · entrou {o.real}</p>
+                                    {/* atraso nunca é null aqui (filtrado antes), por isso
+                                        durações também nunca são — sempre os dois números */}
+                                    <p className="cap" style={{ marginTop: 2 }}>
+                                      previsto {o.duracaoPrevista} min · durou {o.duracaoReal} min
+                                    </p>
                                   </div>
                                   <Atraso minutos={o.atraso} />
                                 </div>
