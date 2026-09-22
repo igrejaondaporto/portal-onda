@@ -64,11 +64,11 @@ const ABAS = [
   ["funil", "Visitantes"],
 ];
 
-/** A janela do desgaste: os últimos seis meses. Mais curto que isso e
- *  umas férias distorcem tudo; mais longo e alguém que serviu muito na
- *  primavera e parou continua no topo, que é o contrário do que se
- *  quer ver. */
-const MESES_DESGASTE = 6;
+/** A janela do desgaste: os últimos dois meses. É o período que
+ *  interessa para equilibrar quem serve agora — quem esteve sobrecarregado
+ *  na primavera e já parou não é hoje um caso a corrigir, e ficar no
+ *  topo da lista escondia quem está a servir demais ESTA fase. */
+const MESES_DESGASTE = 2;
 
 function janelaDesgaste() {
   const h = new Date();
@@ -186,6 +186,14 @@ export default function Pessoas({ ativo, definirCabecalho }) {
     return desgaste.pessoas.filter((p) => p.cultos / desgaste.totalCultos >= 0.5);
   }, [desgaste]);
 
+  /** Quem serve 1 ou 2 domingos em dois meses é o normal de qualquer
+   *  voluntário — listar toda a gente ensinaria a ignorar a lista. Só
+   *  a partir de 3 é que há algo a olhar. */
+  const desgastePorEquilibrar = useMemo(
+    () => (desgaste?.pessoas ?? []).filter((p) => p.cultos > 2),
+    [desgaste],
+  );
+
   useEffect(() => {
     if (!ativo) return;
     const subtitulos = {
@@ -300,7 +308,10 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 <h3>Mais domingos servidos</h3>
                 <span className="cap">de {desgaste.totalCultos}</span>
               </div>
-              {desgaste.pessoas.length ? desgaste.pessoas.slice(0, 40).map((p) => (
+              {/* servir 1 ou 2 domingos em dois meses é o normal de
+                  qualquer voluntário — só a partir de 3 é que vale a
+                  pena olhar para o equilíbrio */}
+              {desgastePorEquilibrar.length ? desgastePorEquilibrar.slice(0, 40).map((p) => (
                 <LinhaDesgaste
                   key={p.uid} pessoa={p} cultos={p.cultos}
                   pct={Math.round((p.cultos / desgaste.totalCultos) * 100)}
@@ -308,7 +319,13 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                   aberta={linhaAberta === `desgaste:${p.uid}`}
                   onToggle={() => alternarLinha(`desgaste:${p.uid}`)}
                 />
-              )) : <div className="vaz">Nenhuma escala publicada neste período.</div>}
+              )) : (
+                <div className="vaz">
+                  {desgaste.pessoas.length
+                    ? "Ninguém serviu mais de 2 domingos neste período."
+                    : "Nenhuma escala publicada neste período."}
+                </div>
+              )}
             </div>
           </>
         )

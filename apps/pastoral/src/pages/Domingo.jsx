@@ -223,7 +223,7 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
       {/* ── quem ainda não tem escala ───────────────────────── */}
       {escalas && semEscala.length > 0 && (
-        <div className="caixa destaque" style={{ marginTop: 10 }}>
+        <div className="caixa" style={{ marginTop: 10, background: "var(--agua)", borderColor: "transparent" }}>
           <p className="ds" style={{ marginTop: 0 }}>
             <b>{semEscala.length} base{semEscala.length === 1 ? "" : "s"} sem escala</b> neste culto:{" "}
             {semEscala.map((b) => b.nome).join(", ")}.

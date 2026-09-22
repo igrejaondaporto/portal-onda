@@ -71,7 +71,6 @@ function pendencias(b) {
   if (b.equipamentosAvariados) p.push({ chave: "avarias", texto: `Avariado${b.equipamentosAvariados === 1 ? "" : "s"}: ${b.equipamentosAvariadosNomes.join(", ")}` });
   if (b.reembolsosPorAprovar) p.push({ chave: "reemb", texto: `${b.reembolsosPorAprovar} reembolso${b.reembolsosPorAprovar === 1 ? "" : "s"} à espera do líder` });
   if (b.inventarioEmFalta) p.push({ chave: "stock", texto: `Em falta: ${b.inventarioEmFaltaNomes.join(", ")}` });
-  if (b.listasComprasAbertas) p.push({ chave: "compras", texto: "Lista de compras aberta" });
   if (b.duvidasSemResposta) p.push({ chave: "duvidas", texto: `${b.duvidasSemResposta} dúvida${b.duvidasSemResposta === 1 ? "" : "s"} sem resposta na Wiki` });
   return p;
 }
@@ -256,6 +255,10 @@ export default function Bases({ ativo, definirCabecalho }) {
 
       <div className="sect">
         <div className="cabecalho"><h3>Património por base</h3><span className="cap">valor de compra</span></div>
+        <p className="ds" style={{ marginTop: 0 }}>
+          O líder de cada base acrescenta os equipamentos no Painel dele, em Inventário — é de lá que estes
+          números saem.
+        </p>
         <Barras
           linhas={valorPorBase}
           formatar={eur}
