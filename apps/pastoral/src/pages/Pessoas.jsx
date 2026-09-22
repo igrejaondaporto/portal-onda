@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
 import { contarPorEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
-import { linkWhatsApp } from "@portal/shared/lib/data.js";
+import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Funil from "../components/Funil";
@@ -52,6 +52,13 @@ function LinhaDesgaste({ pessoa, cultos, pct, bases, aberta, onToggle }) {
           ) : (
             <p className="ds">Sem contacto no perfil.</p>
           )}
+          {/* os domingos a sério, não só o número — é o que comprova
+              o "serviu X vezes" sem ter de confiar de olhos fechados */}
+          {pessoa.datas?.length > 0 && (
+            <p className="ds" style={{ marginTop: 10 }}>
+              Serviu em: {pessoa.datas.map((d) => dataCurta(d)).join(" · ")}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -62,6 +69,15 @@ const ABAS = [
   ["voluntarios", "Quem serve"],
   ["desgaste", "Desgaste"],
   ["funil", "Visitantes"],
+];
+
+/** Filtro por quando a visita chegou — não por etapa (essa já é o
+ *  Funil) nem por nome (esse já é a busca). "Todos" fica primeiro e é
+ *  o omisso: a maior parte das vezes quer-se ver toda a gente. */
+const PERIODOS_CHEGADA = [
+  ["todos", "Todos"],
+  ["30d", "Últimos 30 dias"],
+  ["90d", "Últimos 90 dias"],
 ];
 
 /** A janela do desgaste: os últimos dois meses. É o período que
@@ -91,6 +107,7 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   const [contactos, setContactos] = useState([]);
   const [etapaFiltro, setEtapaFiltro] = useState(null);
   const [busca, setBusca] = useState("");
+  const [periodoChegada, setPeriodoChegada] = useState("todos");
   const [contactoAberto, setContactoAberto] = useState(null);
   const [desgaste, setDesgaste] = useState(null);
   const [erro, setErro] = useState(null);
@@ -172,10 +189,13 @@ export default function Pessoas({ ativo, definirCabecalho }) {
 
   const listaFunil = useMemo(() => {
     const termo = busca.trim().toLowerCase();
+    const dias = periodoChegada === "30d" ? 30 : periodoChegada === "90d" ? 90 : null;
+    const limite = dias ? Date.now() - dias * 86400000 : null;
     return contactos
       .filter((c) => (etapaFiltro ? c.etapa === etapaFiltro : true))
-      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true));
-  }, [contactos, etapaFiltro, busca]);
+      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true))
+      .filter((c) => (limite ? (c.criadoEm?.toDate?.().getTime() ?? 0) >= limite : true));
+  }, [contactos, etapaFiltro, busca, periodoChegada]);
 
   /** Quem serviu em metade ou mais dos domingos do período. Metade não
    *  é um número mágico nem um limite de alarme — é onde "serve às
@@ -291,6 +311,8 @@ export default function Pessoas({ ativo, definirCabecalho }) {
               </p>
               <p className="cap" style={{ marginTop: 8 }}>
                 Conta <b>cultos</b>, não escalas — servir em duas bases no mesmo domingo é um domingo, não dois.
+                Sempre dos últimos {MESES_DESGASTE} meses: é quem está sobrecarregado agora que interessa, não
+                quem esteve há seis meses.
               </p>
             </div>
 
@@ -306,7 +328,7 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             <div className="sect">
               <div className="cabecalho">
                 <h3>Mais domingos servidos</h3>
-                <span className="cap">de {desgaste.totalCultos}</span>
+                <span className="cap">últimos {MESES_DESGASTE} meses · {desgaste.totalCultos} cultos</span>
               </div>
               {/* servir 1 ou 2 domingos em dois meses é o normal de
                   qualquer voluntário — só a partir de 3 é que vale a
@@ -353,6 +375,12 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             onChange={(e) => setBusca(e.target.value)} style={{ marginTop: 12 }}
           />
 
+          <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
+            {PERIODOS_CHEGADA.map(([id, rotulo]) => (
+              <button key={id} data-on={periodoChegada === id ? "1" : "0"} onClick={() => setPeriodoChegada(id)}>{rotulo}</button>
+            ))}
+          </div>
+
           <div className="sect">
             <div className="cabecalho">
               <h3>{etapaFiltro ? etapas.find((e) => e.id === etapaFiltro)?.nome : "Todos"}</h3>
@@ -372,6 +400,11 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                     <p className="ds">
                       {[c.freguesia, c.concelho].filter(Boolean).join(", ") || "sem localidade"}
                     </p>
+                    {/* a data de chegada, pedida a olho — "há X dias"
+                        enquanto é recente, a data a sério depois de
+                        uma semana (mesma lógica de `haAtras` em toda
+                        a app) */}
+                    {c.criadoEm && <p className="cap" style={{ marginTop: 3 }}>chegou {haAtras(c.criadoEm)}</p>}
                   </div>
                   <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)" }}>
                     {etapa?.nome ?? c.etapa}

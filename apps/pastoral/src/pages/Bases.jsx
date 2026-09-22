@@ -102,7 +102,11 @@ export default function Bases({ ativo, definirCabecalho }) {
 
   const ordenadas = useMemo(
     () => (panorama ?? [])
-      .map((b) => ({ ...b, semEscalaConta: !b.escalaFeita && diasParaFimDoMes < 7 }))
+      // `escalaAplicavel` é false para o Financeiro (e a Pastoral, já de
+      // fora de `panorama`): nunca escalam ninguém para o culto, e sem
+      // isto "sem escala" ficava vermelho todas as semanas para sempre
+      // — reportado 2026-09 ("nunca vai ter escala mesmo").
+      .map((b) => ({ ...b, semEscalaConta: b.escalaAplicavel !== false && !b.escalaFeita && diasParaFimDoMes < 7 }))
       .map((b) => ({ ...b, urgencia: urgencia(b), pendencias: pendencias(b) }))
       .sort((a, b) => b.urgencia - a.urgencia || a.nome.localeCompare(b.nome, "pt")),
     [panorama, diasParaFimDoMes],
@@ -112,7 +116,9 @@ export default function Bases({ ativo, definirCabecalho }) {
     if (!panorama) return null;
     return {
       pessoas: panorama.reduce((t, b) => t + b.pessoasAtivas, 0),
-      semEscala: diasParaFimDoMes < 7 ? panorama.filter((b) => !b.escalaFeita).length : 0,
+      semEscala: diasParaFimDoMes < 7
+        ? panorama.filter((b) => b.escalaAplicavel !== false && !b.escalaFeita).length
+        : 0,
       avarias: panorama.reduce((t, b) => t + b.equipamentosAvariados, 0),
       porAprovar: panorama.reduce((t, b) => t + b.reembolsosPorAprovar, 0),
     };
@@ -128,6 +134,22 @@ export default function Bases({ ativo, definirCabecalho }) {
       .map((b) => ({
         chave: b.baseId, rotulo: b.nome, cor: b.cor,
         valor: b.itens.reduce((t, i) => t + (i.valorCompra ?? 0), 0) / 100,
+      }))
+      .filter((l) => l.valor > 0)
+      .sort((a, b) => b.valor - a.valor);
+  }, [patrimonio]);
+
+  /** Quantos itens de património (equipamento, não consumível) cada
+   *  base tem — todos, tenham ou não valor de compra gravado. O
+   *  gráfico de valor sozinho escondia uma base inteira de
+   *  equipamento por não ter o euro escrito (reportado 2026-09:
+   *  "mostra os items, mesmo sem ter o valor"). */
+  const equipamentosPorBase = useMemo(() => {
+    if (!patrimonio) return [];
+    return patrimonio
+      .map((b) => ({
+        chave: b.baseId, rotulo: b.nome, cor: b.cor,
+        valor: b.itens.filter((i) => i.modo === "patrimonio").length,
       }))
       .filter((l) => l.valor > 0)
       .sort((a, b) => b.valor - a.valor);
@@ -254,11 +276,17 @@ export default function Bases({ ativo, definirCabecalho }) {
       </div>
 
       <div className="sect">
-        <div className="cabecalho"><h3>Património por base</h3><span className="cap">valor de compra</span></div>
+        <div className="cabecalho"><h3>Património por base</h3><span className="cap">equipamentos</span></div>
         <p className="ds" style={{ marginTop: 0 }}>
           O líder de cada base acrescenta os equipamentos no Painel dele, em Inventário — é de lá que estes
           números saem.
         </p>
+        <Barras
+          linhas={equipamentosPorBase}
+          vazio="Nenhuma base tem equipamentos registados."
+        />
+
+        <p className="ds" style={{ marginTop: 18 }}>Valor de compra conhecido</p>
         <Barras
           linhas={valorPorBase}
           formatar={eur}

@@ -83,7 +83,16 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
     let vivo = true;
     setEscalas(null); setCatalogo(null); setErro(null); setBaseAberta(null); setContactoAberto(null);
     Promise.all([obterEscalasDeTodasAsBases(eventoId), obterCatalogoChecklist(eventoId)])
-      .then(([e, c]) => { if (vivo) { setEscalas(e); setCatalogo(c); } })
+      .then(([e, c]) => {
+        if (!vivo) return;
+        // Financeiro e Pastoral nunca escalam ninguém para o culto —
+        // sem isto apareciam sempre como "sem escala", tanto na lista
+        // de base a base como no banner lá em cima (reportado 2026-09:
+        // "nao considera que o Pastoral nao tenha escala, nunca vai
+        // ter mesmo. Nem o Financeiro").
+        setEscalas(e.filter((b) => b.semEscalaDeCulto !== true));
+        setCatalogo(c);
+      })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar as bases."); });
     return () => { vivo = false; };
   }, [eventoId]);
@@ -223,8 +232,8 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
       {/* ── quem ainda não tem escala ───────────────────────── */}
       {escalas && semEscala.length > 0 && (
-        <div className="caixa" style={{ marginTop: 10, background: "var(--agua)", borderColor: "transparent" }}>
-          <p className="ds" style={{ marginTop: 0 }}>
+        <div className="caixa pa-aviso" style={{ marginTop: 10 }}>
+          <p style={{ marginTop: 0 }}>
             <b>{semEscala.length} base{semEscala.length === 1 ? "" : "s"} sem escala</b> neste culto:{" "}
             {semEscala.map((b) => b.nome).join(", ")}.
           </p>
