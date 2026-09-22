@@ -133,13 +133,28 @@ export default function LinhaTempo({
         {formatar(mostrado.ponto.valor)}
       </span>
 
-      {/* a data de cada domingo com informação à vista, sempre por
-          baixo da própria bolinha — não numa faixa fixa lá em baixo,
-          que só dava para mostrar três datas de cada vez e confundia
-          qual pertencia a qual (mesmo relato: "a data devia estar
-          abaixo da bolinha com a informação") */}
+      {/* a data de cada domingo com informação à vista. Com poucos
+          rótulos (o normal, 3-4) fica sempre por baixo da própria
+          bolinha — não numa faixa fixa lá em baixo, que só dava para
+          mostrar três datas de cada vez e confundia qual pertencia a
+          qual (mesmo relato: "a data devia estar abaixo da bolinha
+          com a informação"). Com `todosRotulados` (10 pontos, todos
+          rotulados) isso já não serve: um ponto baixo (perto de
+          y:100%) empurrava a própria data para fora do cartão —
+          "o 14 ago fica pra baixo do gráfico" (relato 2026-09). Nesse
+          caso a data desce sempre para a MESMA linha fixa no fundo —
+          sem ambiguidade nenhuma, porque o X de cada uma já a liga à
+          bolinha certa; só o Y deixa de seguir o valor. */}
       {validos.map((p, i) => (rotulados.has(i) || i === mostrado.i ? (
-        <span key={`d${p.chave ?? i}`} className="pa-graf-data" style={{ left: `${x(i)}%`, top: `${y(p.valor)}%` }}>
+        <span
+          key={`d${p.chave ?? i}`}
+          className={`pa-graf-data${todosRotulados ? " pa-graf-data-denso" : ""}`}
+          style={
+            todosRotulados
+              ? { left: `${x(i)}%`, top: "100%", transform: "translate(-50%, 4px)" }
+              : { left: `${x(i)}%`, top: `${y(p.valor)}%` }
+          }
+        >
           {p.rotulo}
         </span>
       ) : null))}

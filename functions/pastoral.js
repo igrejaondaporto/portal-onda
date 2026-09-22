@@ -310,7 +310,13 @@ export const pessoasPastoral = onCall(async (req) => {
         });
       }
       const registo = pessoas.get(p.id);
-      registo.bases.push({ baseId, nome: nomeBase, cor, papel: p.papel ?? "voluntario", ativo: p.ativo !== false });
+      registo.bases.push({
+        baseId, nome: nomeBase, cor, papel: p.papel ?? "voluntario", ativo: p.ativo !== false,
+        // sala fixa da Kinder (baby/fun/junior) — null em qualquer
+        // outra base, que não tem este campo (pedido 2026-09: mostrar
+        // em qual sala cada líder/auxiliar da Kinder serve).
+        categoria: p.categoria ?? null,
+      });
       // o telefone pode estar preenchido numa base e vazio noutra —
       // fica o primeiro que exista, em vez de o último a ser lido
       if (!registo.telefone && p.telefone) registo.telefone = p.telefone;

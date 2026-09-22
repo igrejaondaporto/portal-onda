@@ -29,6 +29,23 @@
   font-weight: 900;
 }
 
+/* ── etiqueta em cima da data, no início ──────────────────────
+ * "Próximo culto:" (ou "A acontecer agora:" com o culto ao vivo) por
+ * cima do h1 — pedido 2026-09, para não deixar a data grande sozinha
+ * sem dizer que data é essa. `.sob` (o subtítulo, por baixo do h1) já
+ * usa branco a 88% de opacidade sobre o azul do cabeçalho; isto é o
+ * mesmo tom, só que em maiúsculas pequenas, para ler como rótulo e
+ * não como frase. */
+.pa-rotulo-topo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 0.72;
+  margin-top: 22px;
+}
+
 /* ── o número grande de um cartão de resumo ──────────────────
  * Existe porque o mesmo bloco aparece em quatro telas (a servir, no
  * auditório, voluntários ativos, presença média) e estava a ser
@@ -127,6 +144,13 @@
   color: var(--cinza);
   white-space: nowrap;
   pointer-events: none;
+}
+/* série curta com TODOS os pontos rotulados (`todosRotulados` em
+   LinhaTempo.jsx, ex.: "Voluntários por culto") — dez datas lado a
+   lado têm menos espaço cada uma do que as 3-4 de uma série longa;
+   uma fonte um pouco menor reduz o risco de colidir com a vizinha. */
+.pa-graf-data-denso {
+  font-size: 9.5px;
 }
 
 /* ── funil de visitantes ─────────────────────────────────────

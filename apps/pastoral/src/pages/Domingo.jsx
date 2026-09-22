@@ -11,6 +11,18 @@ import SheetRecado from "../components/SheetRecado";
 import NavCulto from "../components/NavCulto";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
+/** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
+ *  lá, ver `apps/kinder/src/lib/modelo.js`). Cores iguais às de lá,
+ *  copiadas em vez de importadas — cada app só carrega o seu próprio
+ *  bundle (ver CLAUDE.md da raiz), e são três linhas que não mudam. Só
+ *  para etiquetar quem serve em qual sala aqui no painel (pedido
+ *  2026-09); Mestra/quadro do mês continuam só na Kinder. */
+const SALAS_KINDER = {
+  baby: { nome: "Baby", cor: "#7b5cff" },
+  fun: { nome: "Fun", cor: "#f5c400" },
+  junior: { nome: "Júnior", cor: "#1e7bf0" },
+};
+
 /** Janela de cultos que a tela carrega: o mês passado e os dois
  *  seguintes. Chega para "o próximo domingo" e para rever o anterior,
  *  sem puxar o histórico inteiro a cada abertura — isso é a aba
@@ -103,7 +115,15 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
   useEffect(() => {
     if (!ativo) return;
+    // etiqueta em cima da data: o mesmo culto pode estar a acontecer
+    // agora, ainda por vir, ou já ter passado (NavCulto deixa andar
+    // para trás) — "Próximo culto:" só faz sentido no primeiro caso
+    // de "ainda não aconteceu".
+    const rotulo = aoVivoId === eventoId && aoVivoId
+      ? "A acontecer agora:"
+      : evento && evento.data < hoje ? "Culto de:" : "Próximo culto:";
     definirCabecalho({
+      rotulo,
       titulo: evento ? nomeEvento(evento) : "Domingo",
       subtitulo: aoVivoId === eventoId && aoVivoId
         ? "A acontecer agora"
@@ -113,27 +133,37 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
         evento?.ordem ? "Ordem publicada" : "Sem ordem publicada",
       ].filter(Boolean),
     });
-  }, [ativo, definirCabecalho, evento, aoVivoId, eventoId]);
+  }, [ativo, definirCabecalho, evento, aoVivoId, eventoId, hoje]);
 
   /* ── checklist: percentagem por base, ao vivo ────────────── */
   const porBase = useMemo(() => {
     if (!escalas) return [];
     const cat = Object.fromEntries((catalogo ?? []).map((b) => [b.baseId, b]));
-    return escalas.map((b) => {
-      const funcoes = cat[b.baseId]?.funcoes ?? [];
-      const feitas = funcoes.filter((f) => checklist[f.id]).length;
-      const escalados = b.tipo === "lugares" ? b.itens.length : (b.pessoas?.length ?? 0);
-      return {
-        ...b,
-        escalados,
-        tarefas: funcoes.length,
-        feitas,
-        // sem tarefas não é 0% — é "não se aplica". Uma base sem
-        // checklist a aparecer a vermelho todas as semanas ensina a
-        // ignorar a cor, e aí a cor deixa de servir para o resto.
-        pct: funcoes.length ? Math.round((feitas / funcoes.length) * 100) : null,
-      };
-    });
+    return escalas
+      .map((b) => {
+        const funcoes = cat[b.baseId]?.funcoes ?? [];
+        const feitas = funcoes.filter((f) => checklist[f.id]).length;
+        const escalados = b.tipo === "lugares" ? b.itens.length : (b.pessoas?.length ?? 0);
+        return {
+          ...b,
+          escalados,
+          tarefas: funcoes.length,
+          feitas,
+          // sem tarefas não é 0% — é "não se aplica". Uma base sem
+          // checklist a aparecer a vermelho todas as semanas ensina a
+          // ignorar a cor, e aí a cor deixa de servir para o resto.
+          pct: funcoes.length ? Math.round((feitas / funcoes.length) * 100) : null,
+        };
+      })
+      // quem tem mais checklist feita sobe; quem ainda nem tem
+      // checklist criada (tarefas:0, "não se aplica") desce para o
+      // fim — antes ficavam por ordem alfabética, misturadas com as
+      // que têm progresso a sério (pedido 2026-09).
+      .sort((a, b) => {
+        const semChecklistA = a.tarefas === 0, semChecklistB = b.tarefas === 0;
+        if (semChecklistA !== semChecklistB) return semChecklistA ? 1 : -1;
+        return (b.pct ?? -1) - (a.pct ?? -1);
+      });
   }, [escalas, catalogo, checklist]);
 
   const semEscala = porBase.filter((b) => b.tipo === "vazio");
@@ -263,7 +293,7 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
                   <p className="ds">
                     {b.tipo === "vazio"
                       ? "Sem escala"
-                      : `${b.escalados} a servir${b.tarefas ? ` · ${b.feitas}/${b.tarefas} feitas` : ""}`}
+                      : `${b.escalados} a servir${b.tarefas ? ` · ${b.feitas}/${b.tarefas} checklists feitas` : " · sem checklist criada"}`}
                   </p>
                   {b.pct !== null && (
                     <div className="barra" style={{ marginTop: 7 }}>
@@ -280,11 +310,20 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
                   {b.tipo === "pessoas" && b.pessoas.map((p) => {
                     const chave = `${b.baseId}:${p.id}`;
+                    const sala = b.baseId === "kinder" ? SALAS_KINDER[p.categoria] : null;
                     return (
                       <LinhaPessoaContacto
                         key={p.id} pessoa={p}
-                        resumo={p.id === b.liderEscalaId ? "Líder de escala · toca para chamar no WhatsApp" : "Toca para chamar no WhatsApp"}
-                        tagExtra={p.id === b.liderEscalaId ? <span className="tag lim">Líder de escala</span> : null}
+                        resumo={
+                          p.id === b.liderEscalaId
+                            ? "Líder de escala · toca para chamar no WhatsApp"
+                            : sala ? `Sala ${sala.nome} · toca para chamar no WhatsApp` : "Toca para chamar no WhatsApp"
+                        }
+                        tagExtra={
+                          p.id === b.liderEscalaId
+                            ? <span className="tag lim">Líder de escala</span>
+                            : sala ? <span className="tag" style={{ background: sala.cor }}>{sala.nome}</span> : null
+                        }
                         aberta={contactoAberto === chave}
                         onToggle={() => setContactoAberto((c) => (c === chave ? null : chave))}
                       />

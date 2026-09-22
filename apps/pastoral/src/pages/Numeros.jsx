@@ -299,7 +299,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
           <div className="sect">
             <div className="cabecalho">
-              <h3>Presença no auditório</h3>
+              <h3>Presença na igreja</h3>
               <span className="cap">membros + visitantes + equipa</span>
             </div>
             <LinhaTempo
@@ -309,12 +309,12 @@ export default function Numeros({ ativo, definirCabecalho }) {
           </div>
 
           <div className="sect">
-            <div className="cabecalho"><h3>Visitantes por domingo</h3></div>
+            <div className="cabecalho"><h3>Visitantes por domingo</h3><span className="cap">(Contados pela base pessoal)</span></div>
             <LinhaTempo pontos={visitantes} vazio="Sem visitantes registados neste período." />
           </div>
 
           <div className="sect">
-            <div className="cabecalho"><h3>Visitantes cadastrados</h3><span className="cap">no Formulário da Pessoal</span></div>
+            <div className="cabecalho"><h3>Visitantes cadastrados</h3><span className="cap">(foram na salinha)</span></div>
             <LinhaTempo pontos={visitantesCadastrados} vazio="Ainda não há contactos registados neste período." />
           </div>
 

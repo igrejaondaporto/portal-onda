@@ -12,6 +12,7 @@ import MapaAuditorio from "../components/acomodacao/MapaAuditorio";
 import PainelContadores from "../components/acomodacao/PainelContadores";
 import BotoesGrupo from "../components/acomodacao/BotoesGrupo";
 import ResumosAcomodacao from "../components/acomodacao/ResumosAcomodacao";
+import MapasPorFechar from "../components/acomodacao/MapasPorFechar";
 
 /** "AAAA-MM-DD" de hoje, no fuso do próprio telemóvel — quem usa isto
  *  já está na igreja, por isso é sempre a data certa. Componentes
@@ -231,6 +232,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
       </div>
 
       <ResumosAcomodacao souLiderBase={papel === "lider_base"} />
+      <MapasPorFechar souLiderBase={papel === "lider_base"} />
 
       {avisoBloqueio && (
         <>
