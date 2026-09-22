@@ -176,7 +176,13 @@ async function basesDaPessoa(uid) {
 async function nomesDePessoas(baseId, ids) {
   const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
   return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [
-    s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+    s.id, {
+      nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "",
+      // sala fixa da Kinder (baby/fun/junior); undefined/null em
+      // qualquer outra base, que não tem este campo — sem custo para
+      // quem não usa (só escalasCrossBase lê `categoria` hoje).
+      categoria: s.data().categoria ?? null,
+    },
   ]));
 }
 
@@ -2000,6 +2006,108 @@ export const arquivarResumoAcomodacao = onCall(async (req) => {
   if (!resumo.exists) throw new HttpsError("not-found", "Este culto não tem resumo fechado.");
 
   await resumoRef.set({ arquivado: true }, { merge: true });
+  return { ok: true };
+});
+
+/** Conta os lugares dum mapa, sem `fechadoEm`/`fechadoPor`/`eventoId`
+ *  — mesma conta de `resumoAcomodacao`, mas para um mapa que ainda
+ *  não fechou (nada para gravar, só para mostrar). */
+function contarLugares(lugares) {
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
+  const ocupados = contagem.ocupado + contagem.visitante;
+  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  return {
+    ocupados: contagem.ocupado, visitantes: contagem.visitante, livres: contagem.livre,
+    reservados: contagem.reservado, bloqueados: contagem.bloqueado,
+    capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
+  };
+}
+
+const MESES_JANELA_MAPAS_POR_FECHAR = 6;
+
+/** Cultos com mapa AO VIVO por fechar: o mapa existe, tem gente
+ *  marcada (pelo menos um lugar diferente de "livre") e nunca foi
+ *  fechado. Reportado 2026-09: "Cultos fechados" (ResumosAcomodacao.jsx)
+ *  mostrava "nenhum ainda" enquanto o Painel Pastoral já tinha dados
+ *  de ocupação de domingos passados — porque `historicoPastoral` lê o
+ *  mapa AO VIVO sempre que não há resumo fechado (decisão de 2026-09:
+ *  "alguém preencheu mas não fechou, os números vão pros painéis da
+ *  mesma forma"). Até agora não havia como ver, corrigir nem zerar
+ *  esses mapas: `Acomodacao.jsx` só mostra o de HOJE, nunca um
+ *  domingo passado (de propósito — ver o comentário lá sobre porque
+ *  "corrigir data" foi removida). Esta função é o que falta: uma
+ *  lista, para o líder decidir por cada um — fechar a sério
+ *  (`fecharAcomodacao`, já aceita qualquer `eventoId`) ou limpar
+ *  (`limparMapaAcomodacaoAoVivo`, abaixo).
+ *
+ *  Só os últimos `MESES_JANELA_MAPAS_POR_FECHAR` meses — é uma lista
+ *  de atenção, não um histórico (esse já existe, é "Cultos fechados"). */
+export const mapasAcomodacaoPorFechar = onCall(async (req) => {
+  if (!req.auth?.uid || req.auth?.token?.baseId !== "pessoal") {
+    throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+  }
+  const hoje = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const desde = iso(new Date(hoje.getFullYear(), hoje.getMonth() - MESES_JANELA_MAPAS_POR_FECHAR, hoje.getDate()));
+  const antesDeHoje = iso(hoje); // hoje fica de fora — é o que o Mapa já mostra, sempre
+
+  const eventosSnap = await db.collection("eventos")
+    .where(admin.firestore.FieldPath.documentId(), ">=", desde)
+    .where(admin.firestore.FieldPath.documentId(), "<", antesDeHoje)
+    .get();
+  const eventos = eventosSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => e.ativo !== false);
+
+  const resultados = await Promise.all(eventos.map(async (e) => {
+    const mapaSnap = await db.doc(`eventos/${e.id}/acomodacao/mapa`).get();
+    if (!mapaSnap.exists || mapaSnap.data().fechado === true) return null;
+    const lugares = mapaSnap.data().lugares || {};
+    // "reservado"/"bloqueado" já vêm da PLANTA (A1-A4 fixos, a cadeira
+    // partida) mesmo num mapa que ninguém tocou — `estadoInicialLugares`
+    // grava-os assim desde a criação do documento. Só "ocupado" e
+    // "visitante" provam que alguém sentou gente a sério; é a mesma
+    // conta que `ocupados` usa no resumo (e no Painel Pastoral) — um
+    // mapa sem ninguém marcado não entra aqui, mesmo que o documento já
+    // exista.
+    const resumo = contarLugares(lugares);
+    if (resumo.ocupados + resumo.visitantes === 0) return null;
+    return { eventoId: e.id, data: e.data ?? e.id, ...resumo };
+  }));
+
+  return { cultos: resultados.filter(Boolean).sort((a, b) => b.eventoId.localeCompare(a.eventoId)) };
+});
+
+/** "Excluir" um mapa ao vivo que nunca chegou a fechar — zera todos
+ *  os lugares de volta a "livre", sem marcar `fechado`. Nunca apaga o
+ *  documento a sério (regra 5 do CLAUDE.md raiz): o mapa continua a
+ *  existir, só sem gente marcada, por isso some da lista acima e do
+ *  calor do Painel Pastoral (que passa a ler um mapa todo "livre" —
+ *  0 ocupados, não um culto ausente). Mesma permissão de fechar/
+ *  reabrir: líder da base, ou quem tinha a função Mapa nesse culto. */
+export const limparMapaAcomodacaoAoVivo = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal") throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
+  if (!souLiderBase) {
+    const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
+    const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Mapa neste culto pode excluir.");
+  }
+
+  const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
+  const mapa = await mapaRef.get();
+  if (!mapa.exists) throw new HttpsError("not-found", "Este culto ainda não tem mapa.");
+  if (mapa.data().fechado) throw new HttpsError("failed-precondition", "Este culto já foi fechado — reabre antes de limpar.");
+
+  const lugares = mapa.data().lugares || {};
+  const limpos = Object.fromEntries(Object.keys(lugares).map((id) => [id, "livre"]));
+  await mapaRef.update({ lugares: limpos });
+
   return { ok: true };
 });
 

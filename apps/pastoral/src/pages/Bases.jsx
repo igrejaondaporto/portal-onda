@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { panoramaPastoral, patrimonioPastoral } from "../lib/pastoral";
 import { ouvirRecadosEnviados } from "../lib/culto";
-import { eur, haAtras } from "@portal/shared/lib/data.js";
+import { eur, haAtras, singularizar } from "@portal/shared/lib/data.js";
 import Barras from "../components/Barras";
 import SheetRecado from "../components/SheetRecado";
 import SheetTrocarLider from "../components/SheetTrocarLider";
@@ -84,6 +84,12 @@ export default function Bases({ ativo, definirCabecalho }) {
   const [recadoPara, setRecadoPara] = useState(null);
   const [liderPara, setLiderPara] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual base está aberta em "Património por base" (as duas barras —
+  // contagem e valor — abrem a mesma), e dentro dela qual item
+  // mostra os detalhes (pedido 2026-09: "poder clicar em cada base e
+  // ver os equipamentos, e clicar nos equipamentos e ver os detalhes")
+  const [baseAbertaPatrimonio, setBaseAbertaPatrimonio] = useState(null);
+  const [itemAberto, setItemAberto] = useState(null);
   // sobe quando um líder é trocado, para o panorama vir buscar o nome
   // novo — sem isto, "Trocar líder" trocava a sério mas continuava a
   // mostrar o nome antigo até sair e voltar à aba
@@ -167,6 +173,20 @@ export default function Bases({ ativo, definirCabecalho }) {
       (t, b) => t + b.itens.filter((i) => i.modo === "patrimonio" && i.valorCompra === null).length, 0,
     );
   }, [patrimonio]);
+
+  /** Os equipamentos (não consumíveis) da base aberta em "Património
+   *  por base" — os dados já vieram todos com `patrimonioPastoral()`,
+   *  não precisa de nova chamada nenhuma para abrir o detalhe. */
+  const itensDaBaseAberta = useMemo(() => {
+    if (!baseAbertaPatrimonio || !patrimonio) return [];
+    const b = patrimonio.find((x) => x.baseId === baseAbertaPatrimonio);
+    return (b?.itens ?? []).filter((i) => i.modo === "patrimonio");
+  }, [baseAbertaPatrimonio, patrimonio]);
+
+  function alternarBasePatrimonio(baseId) {
+    setBaseAbertaPatrimonio((atual) => (atual === baseId ? null : baseId));
+    setItemAberto(null);
+  }
 
   const porLer = recados.filter((r) => !r.dispensado);
 
@@ -292,7 +312,7 @@ export default function Bases({ ativo, definirCabecalho }) {
       </div>
 
       <div className="sect">
-        <div className="cabecalho"><h3>Património por base</h3><span className="cap">equipamentos</span></div>
+        <div className="cabecalho"><h3>Património por base</h3><span className="cap">toca numa base</span></div>
         <p className="ds" style={{ marginTop: 0 }}>
           O líder de cada base acrescenta os equipamentos no Painel dele, em Inventário — é de lá que estes
           números saem.
@@ -300,13 +320,60 @@ export default function Bases({ ativo, definirCabecalho }) {
         <Barras
           linhas={equipamentosPorBase}
           vazio="Nenhuma base tem equipamentos registados."
+          aoClicar={alternarBasePatrimonio}
+          selecionada={baseAbertaPatrimonio}
         />
+
+        {baseAbertaPatrimonio && (
+          <div className="aberto">
+            {itensDaBaseAberta.length === 0 ? (
+              <div className="vaz">Sem equipamentos registados nesta base.</div>
+            ) : itensDaBaseAberta.map((item) => {
+              const abertoItem = itemAberto === item.id;
+              return (
+                <div key={item.id}>
+                  <div
+                    className="linha cabtoque"
+                    onClick={() => setItemAberto(abertoItem ? null : item.id)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setItemAberto(abertoItem ? null : item.id); }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="nmt">{item.nome}</p>
+                      <p className="ds">
+                        {[item.categoria, item.local].filter(Boolean).join(" · ") || "Sem categoria nem local definidos"}
+                      </p>
+                    </div>
+                    {item.estado === "avariado" && <span className="tag" style={{ flex: "none", background: "var(--magenta)" }}>Avariado</span>}
+                    <span className="cabtoque-seta" aria-hidden="true">{abertoItem ? "⌃" : "›"}</span>
+                  </div>
+
+                  {abertoItem && (
+                    <ul className="pa-lista" style={{ padding: "0 0 14px" }}>
+                      <li className={item.estado === "avariado" ? "grave" : undefined}>
+                        Estado: {item.estado === "avariado" ? "Avariado" : item.estado === "ok" ? "Em bom estado" : "Não registado"}
+                      </li>
+                      {item.quantidade !== null && (
+                        <li>Quantidade: {item.quantidade} {item.unidade ? singularizar(item.quantidade, item.unidade) : ""}</li>
+                      )}
+                      {item.local && <li>Local: {item.local}</li>}
+                      {item.tipo && <li>Tipo: {item.tipo}</li>}
+                      <li>{item.valorCompra !== null ? `Valor de compra: ${eur(item.valorCompra / 100)}` : "Sem valor de compra gravado"}</li>
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <p className="ds" style={{ marginTop: 18 }}>Valor de compra conhecido</p>
         <Barras
           linhas={valorPorBase}
           formatar={eur}
           vazio="Nenhum item tem valor de compra gravado."
+          aoClicar={alternarBasePatrimonio}
+          selecionada={baseAbertaPatrimonio}
         />
         {itensSemValor > 0 && (
           <p className="cap" style={{ marginTop: 10 }}>

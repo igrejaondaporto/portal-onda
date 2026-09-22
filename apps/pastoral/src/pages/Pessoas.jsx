@@ -8,6 +8,16 @@ import Funil from "../components/Funil";
 import Barras from "../components/Barras";
 import SheetContacto from "../components/SheetContacto";
 
+/** As três salas fixas da Kinder — mesma cópia pequena de Domingo.jsx
+ *  (ver o comentário lá: cada app carrega só o seu bundle, três linhas
+ *  não valem a pena partilhar). Só para "Líderes e auxiliares" dizer
+ *  em qual sala cada um da Kinder serve (pedido 2026-09). */
+const SALAS_KINDER = {
+  baby: "Baby",
+  fun: "Fun",
+  junior: "Júnior",
+};
+
 /** As etiquetas de base de uma pessoa, como `tagExtra` de
  *  `LinhaPessoaContacto` — pode ser mais do que uma (quem serve em
  *  duas ou mais bases), por isso nunca o slot de badge único. */
@@ -270,32 +280,16 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 <LinhaPessoaContacto
                   key={p.id} pessoa={p}
                   resumo={p.bases.filter((b) => b.ativo && (b.papel === "lider_base" || b.papel === "auxiliar"))
-                    .map((b) => `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}`).join(" · ")}
+                    .map((b) => {
+                      const sala = b.baseId === "kinder" ? SALAS_KINDER[b.categoria] : null;
+                      return `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}${sala ? ` · Sala ${sala}` : ""}`;
+                    }).join(" · ")}
                   aberta={linhaAberta === `lider:${p.id}`}
                   onToggle={() => alternarLinha(`lider:${p.id}`)}
                 />
               ))}
             </div>
 
-            <div className="sect">
-              <div className="cabecalho">
-                <h3>Servem em mais de uma base</h3>
-                <span className="cap">{multiBase.length}</span>
-              </div>
-              <p className="ds" style={{ marginTop: 0 }}>
-                O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto — o que não mostra a
-                ninguém é quem está a carregar dois compromissos ao mesmo tempo.
-              </p>
-              {multiBase.length ? multiBase.map((p) => (
-                <LinhaPessoaContacto
-                  key={p.id} pessoa={p}
-                  resumo="Toca para chamar no WhatsApp"
-                  tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
-                  aberta={linhaAberta === `multi:${p.id}`}
-                  onToggle={() => alternarLinha(`multi:${p.id}`)}
-                />
-              )) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
-            </div>
           </>
         )
       ) : aba === "desgaste" ? (
@@ -348,6 +342,31 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                     : "Nenhuma escala publicada neste período."}
                 </div>
               )}
+            </div>
+
+            {/* pedido 2026-09: "quem serve em mais de uma base"
+                mudou-se para dentro de Desgaste — é aqui que a
+                pergunta pertence a sério (é onde o desgaste começa,
+                ver o comentário de `multiBase` acima), não em "Quem
+                serve", que é só a lista de quem está ativo. */}
+            <div className="sect">
+              <div className="cabecalho">
+                <h3>Servem em mais de uma base</h3>
+                <span className="cap">{multiBase.length}</span>
+              </div>
+              <p className="ds" style={{ marginTop: 0 }}>
+                O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto — o que não mostra a
+                ninguém é quem está a carregar dois compromissos ao mesmo tempo.
+              </p>
+              {multiBase.length ? multiBase.map((p) => (
+                <LinhaPessoaContacto
+                  key={p.id} pessoa={p}
+                  resumo="Toca para chamar no WhatsApp"
+                  tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
+                  aberta={linhaAberta === `multi:${p.id}`}
+                  onToggle={() => alternarLinha(`multi:${p.id}`)}
+                />
+              )) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
             </div>
           </>
         )
