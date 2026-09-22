@@ -438,10 +438,13 @@ export const historicoPastoral = onCall(async (req) => {
       // (~50 por culto), mas o payload fica mínimo.
       db().collection(`eventos/${e.id}/checkinKinder`).select("categoria", "anulado").get(),
       // Quantos foram escalados neste culto, nas dez bases — o gráfico
-      // "Voluntários por culto" pedido em 2026-09. É mais dez leituras
-      // por culto (uma escala por base); a mesma conta que
-      // `desgastePastoral` já paga numa janela mais curta.
-      Promise.all(bases.map((b) => db().doc(`eventos/${e.id}/escalas/${b.id}`).get())),
+      // "Voluntários por culto" pedido em 2026-09. `allSettled`
+      // dentro de `allSettled`: uma leitura falhada (rede, o que for)
+      // não pode zerar o culto inteiro — antes, uma só base a falhar
+      // fazia o Promise.all rejeitar tudo, e o domingo desaparecia do
+      // gráfico sem ninguém perceber porquê (reportado 2026-09: "falta
+      // as informações dos outros cultos").
+      Promise.allSettled(bases.map((b) => db().doc(`eventos/${e.id}/escalas/${b.id}`).get())),
     ]);
     const ok = (r) => (r.status === "fulfilled" && r.value?.exists ? r.value.data() : null);
     const c = ok(contagem);
@@ -449,7 +452,7 @@ export const historicoPastoral = onCall(async (req) => {
     const a = ok(acomodacao);
     const mapa = ok(mapaAoVivo);
     const voluntarios = escalas.status === "fulfilled"
-      ? escalas.value.reduce((t, snap) => t + (snap.exists ? contarEscalados(snap.data()) : 0), 0)
+      ? escalas.value.reduce((t, r) => t + (r.status === "fulfilled" && r.value.exists ? contarEscalados(r.value.data()) : 0), 0)
       : 0;
 
     return {
@@ -622,6 +625,15 @@ function resumirKinder(snap) {
  *    fecha o culto (quase sempre Mensagem ou Apelo) nunca tinha atraso
  *    nenhum e desaparecia da lista ("as categorias só mostra 4").
  *
+ *  Corrigir um bloco (`corrigirDuracaoSecaoCulto`) grava
+ *  `duracaoCorrigidaMin` NA PRÓPRIA secção — sobrepõe-se ao cálculo
+ *  cronológico para aquele momento, sempre. É de propósito uma
+ *  correção de DURAÇÃO, não de hora de relógio: a primeira versão
+ *  desta função deixava corrigir a hora de entrada, mas isso é a
+ *  pergunta errada — reportado 2026-09 ("a correção está para a hora
+ *  do relógio, mas precisa ser para a duração do bloco"). Ninguém
+ *  sabe de cor a que horas um momento entrou; sabe quanto tempo durou.
+ *
  *  Casa por nome normalizado, o mesmo critério de `cruzarComReal`
  *  (@portal/shared/lib/ordemAoVivo.js) e de `normalizarNome` em
  *  freeshow.js — repetido aqui em três linhas porque as Functions não
@@ -634,37 +646,6 @@ const emMinutos = (hora) => {
   const [h, m] = hora.split(":").map(Number);
   return h * 60 + m;
 };
-
-/** Quantos minutos Lisboa está à frente de UTC no instante `ms` — o
- *  offset muda com a hora de verão, por isso não é uma constante.
- *  Truque padrão: lê a hora local via `Intl` e compara com o mesmo
- *  instante interpretado como UTC. */
-function offsetLisboaMin(ms) {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Lisbon", hour12: false,
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
-  const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
-  const comoUTC = Date.UTC(+p.year, +p.month - 1, +p.day, p.hour === "24" ? 0 : +p.hour, +p.minute, +p.second);
-  return (comoUTC - ms) / 60000;
-}
-
-/** Constrói o `Timestamp` de uma data+hora em Lisboa (não em UTC) — a
- *  data vem do `eventoId` (`eventos/{AAAA-MM-DD}`, regra 7 do CLAUDE.md
- *  raiz), a hora do formulário de correção. Precisa de existir porque
- *  `editarSecaoAoVivo` (functions/index.js) só sabe gravar "agora"
- *  (`Timestamp.now()`) — não serve para corrigir um culto já fechado,
- *  onde "agora" não tem nada a ver com quando o momento foi ao ar. Uma
- *  primeira aproximação (lê como UTC) e depois corrige pelo offset real
- *  de Lisboa nesse instante — erra só na própria hora da troca do
- *  horário de verão, uma janela de uma hora, duas vezes por ano. */
-function timestampLisboa(dataISO, horaHHMM) {
-  const [ano, mes, dia] = dataISO.split("-").map(Number);
-  const [h, m] = horaHHMM.split(":").map(Number);
-  const palpite = Date.UTC(ano, mes - 1, dia, h, m, 0);
-  const ms = palpite - offsetLisboaMin(palpite) * 60000;
-  return admin.firestore.Timestamp.fromMillis(ms);
-}
 
 function resumirCulto(s) {
   const reais = Array.isArray(s.secoesReais) ? s.secoesReais : [];
@@ -691,6 +672,13 @@ function resumirCulto(s) {
     if (fimMs === null) continue;
     const ms = fimMs - atual.timestampReal.toMillis();
     if (ms >= 0) duracaoMsPorChave.set(chaveNome(atual.nomeCorrespondente || atual.nomeFreeshow), ms);
+  }
+  // a correção manual (`corrigirDuracaoSecaoCulto`) ganha sempre ao
+  // cálculo automático, para o momento que foi corrigido — inclusive
+  // quando o automático não tinha conseguido calcular nada (o último
+  // momento do culto, por exemplo)
+  for (const [chave, sec] of porNome) {
+    if (typeof sec.duracaoCorrigidaMin === "number") duracaoMsPorChave.set(chave, sec.duracaoCorrigidaMin * 60000);
   }
 
   // casados, na ordem prevista — é a partir desta lista que se conta o
@@ -745,22 +733,29 @@ function resumirCulto(s) {
   };
 }
 
-/** Corrige a hora de um momento de um culto JÁ FECHADO — pedido
+/** Corrige a duração de um momento de um culto JÁ FECHADO — pedido
  *  explícito (2026-09: "os tempos agora marcam certos, mas preciso de
- *  poder editar tempos de cultos já fechados. Onde faço isso?"). Não
- *  existia caminho nenhum para isto: `editarSecaoAoVivo`
- *  (functions/index.js) só mexe em `cultoAoVivo/registo`, o rascunho
- *  ao vivo — depois de "Finalizar culto" copiar tudo para
- *  `estatisticasCulto/registo` (`arquivarCultoTerminado`), esse
- *  rascunho já não é lido por nada, e o arquivo ficava congelado para
- *  sempre, erro incluído.
+ *  poder editar tempos de cultos já fechados. Onde faço isso?", depois
+ *  ajustado: "a correção está para a hora do relógio, mas precisa ser
+ *  para a duração do bloco"). Não existia caminho nenhum para isto:
+ *  `editarSecaoAoVivo` (functions/index.js) só mexe em
+ *  `cultoAoVivo/registo`, o rascunho ao vivo — depois de "Finalizar
+ *  culto" copiar tudo para `estatisticasCulto/registo`
+ *  (`arquivarCultoTerminado`), esse rascunho já não é lido por nada, e
+ *  o arquivo ficava congelado para sempre, erro incluído.
+ *
+ *  Grava só `duracaoCorrigidaMin` na secção — não mexe em `horaReal`
+ *  nem em `timestampReal` (ninguém sabe de cor a que horas um momento
+ *  entrou; sabe quanto tempo durou). `resumirCulto` lê este campo e
+ *  sobrepõe-se sempre ao cálculo automático para aquele momento.
  *
  *  Só a equipa pastoral corrige — nenhuma base tem tela para isto, e
  *  não faria sentido dar-lhes: o arquivo é só lido por este painel. */
-export const corrigirHoraSecaoCulto = onCall(async (req) => {
+export const corrigirDuracaoSecaoCulto = onCall(async (req) => {
   const uid = exigeVisaoPastoral(req);
-  const { eventoId, nome, horaReal } = req.data || {};
-  if (!eventoId || !String(nome || "").trim() || !/^\d{1,2}:\d{2}$/.test(String(horaReal || ""))) {
+  const { eventoId, nome, duracaoMin } = req.data || {};
+  const duracao = Number(duracaoMin);
+  if (!eventoId || !String(nome || "").trim() || !Number.isFinite(duracao) || duracao < 0 || duracao > 600) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
 
@@ -775,8 +770,7 @@ export const corrigirHoraSecaoCulto = onCall(async (req) => {
 
   const corrigida = {
     ...secoes[i],
-    horaReal,
-    timestampReal: timestampLisboa(eventoId, horaReal),
+    duracaoCorrigidaMin: duracao,
     corrigidoManualmente: true,
     corrigidoPor: uid,
     corrigidoEm: admin.firestore.FieldValue.serverTimestamp(),
@@ -958,10 +952,20 @@ export const arquivarContactoPastoral = onCall(async (req) => {
   const { contactoId } = req.data || {};
   if (!contactoId) throw new HttpsError("invalid-argument", "Falta o contacto.");
   const ref = db().doc(`contactos/${contactoId}`);
-  const snap = await ref.get();
-  if (!snap.exists) throw new HttpsError("not-found", "Contacto não encontrado.");
-  await ref.set({ arquivado: true }, { merge: true });
-  return { ok: true };
+  try {
+    const snap = await ref.get();
+    if (!snap.exists) throw new HttpsError("not-found", "Contacto não encontrado.");
+    await ref.set({ arquivado: true }, { merge: true });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    // reportado 2026-09 como "internal" sem mais detalhe — o cliente
+    // nunca vê a mensagem real de um erro que não é HttpsError (Cloud
+    // Functions esconde-a por segurança). Isto grava o erro a sério no
+    // Cloud Logging, para a próxima falha dar para diagnosticar.
+    console.error("arquivarContactoPastoral falhou", { contactoId }, e);
+    throw new HttpsError("internal", "Não foi possível excluir — tenta outra vez.");
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════

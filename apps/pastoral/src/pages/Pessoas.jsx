@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
-import { contarPorEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
+import { contarPorEtapa, corTextoEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
 import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
@@ -406,7 +406,7 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                         a app) */}
                     {c.criadoEm && <p className="cap" style={{ marginTop: 3 }}>chegou {haAtras(c.criadoEm)}</p>}
                   </div>
-                  <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)" }}>
+                  <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)", color: corTextoEtapa(c.etapa) }}>
                     {etapa?.nome ?? c.etapa}
                   </span>
                 </div>

@@ -32,7 +32,7 @@ inventário. O que escreve, e porquê:
 | A etapa de um visitante | `contactos/{id}.etapa` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
 | Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
-| Corrigir a hora de um momento | `eventos/{e}/estatisticasCulto/registo.secoesReais[]` | Depois de "Finalizar culto" copiar tudo para o arquivo, nada mais o edita — um erro ficava congelado para sempre (pedido 2026-09) |
+| Corrigir a DURAÇÃO de um momento | `eventos/{e}/estatisticasCulto/registo.secoesReais[].duracaoCorrigidaMin` | Depois de "Finalizar culto" copiar tudo para o arquivo, nada mais o edita — um erro ficava congelado para sempre (pedido 2026-09). Corrige a duração, não a hora de relógio — ninguém sabe de cor a que horas algo entrou |
 | Trocar o líder de uma base | `bases/{b}/pessoas/{id}.papel` | A ÚNICA escrita numa base que não é a própria — decisão nova do dono do produto (2026-09), ver "Trocar líder" abaixo |
 
 Escalas continuam do líder de cada base — o painel não monta nem

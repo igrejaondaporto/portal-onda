@@ -15,13 +15,18 @@
 /* ── o título de cada aba, em verde-água ──────────────────────
  * `.crista` (o cabeçalho partilhado — título + subtítulo + chips)
  * continua em `var(--grad)`, o azul de sempre: é a cor principal do
- * painel, não muda. O que muda é só a FONTE do título — `h1` passa a
- * `--verde`, o mesmo tom já usado no `.pa-aviso` abaixo (2026-09:
- * primeiro tinha ido para o fundo inteiro do cabeçalho, pedido depois
- * para ser só o texto). Só aqui: o `global.css` fica intacto, as
- * outras nove bases nem sabem que isto existe. */
+ * painel, não muda. O que muda é só a FONTE do título — `h1`. Um tom
+ * mais claro e saturado do que o `--verde` do resto da app
+ * (`--pa-verde-titulo`): contra o azul do cabeçalho, o `--verde` de
+ * base ficava "apagado" (relato 2026-09) — este é o mesmo tom mais
+ * vivo, escolhido para se destacar a sério a este tamanho de letra.
+ * `font-weight: 900` (o máximo do Outfit) por cima do 800 que o
+ * `global.css` já dava ao h1 — pedido explícito de "em negrito". Só
+ * aqui: o `global.css` fica intacto, as outras nove bases nem sabem
+ * que isto existe. */
 .crista h1 {
-  color: var(--verde);
+  color: #00e6a0;
+  font-weight: 900;
 }
 
 /* ── o número grande de um cartão de resumo ──────────────────
