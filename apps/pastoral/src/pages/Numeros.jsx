@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { historicoPastoral } from "../lib/pastoral";
+import { corrigirHoraSecaoCulto, historicoPastoral } from "../lib/pastoral";
 import { dataCurta, eur } from "@portal/shared/lib/data.js";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
@@ -42,6 +43,7 @@ function janelaDe(periodo) {
  * ninguém reparar.
  */
 export default function Numeros({ ativo, definirCabecalho }) {
+  const torrada = useTorrada();
   const [periodo, setPeriodo] = useState("12m");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
@@ -49,6 +51,15 @@ export default function Numeros({ ativo, definirCabecalho }) {
   // expandido a mostrar o horário de cada culto — mesmo padrão de
   // uma chave só, nunca mais que uma aberta ao mesmo tempo
   const [momentoAberto, setMomentoAberto] = useState(null);
+  // qual ocorrência está a ser corrigida (eventoId+momento) — nunca
+  // mais que uma de cada vez, mesmo padrão de tudo o resto nesta app
+  const [aCorrigir, setACorrigir] = useState(null);
+  const [novaHora, setNovaHora] = useState("");
+  const [aGuardarHora, setAGuardarHora] = useState(false);
+  // sobe a cada correção guardada, para o efeito abaixo recarregar o
+  // histórico — sem isto, corrigir uma hora não se via em lado nenhum
+  // até trocar de período e voltar
+  const [recarregar, setRecarregar] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -58,7 +69,22 @@ export default function Numeros({ ativo, definirCabecalho }) {
       .then((d) => { if (vivo) setDados(d); })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar o histórico."); });
     return () => { vivo = false; };
-  }, [periodo]);
+  }, [periodo, recarregar]);
+
+  async function guardarHora() {
+    if (!aCorrigir || !novaHora) return;
+    setAGuardarHora(true);
+    try {
+      await corrigirHoraSecaoCulto(aCorrigir.eventoId, aCorrigir.nome, novaHora);
+      torrada("Hora corrigida");
+      setACorrigir(null);
+      setRecarregar((n) => n + 1);
+    } catch (e) {
+      torrada(e.message || "Não foi possível corrigir.");
+    } finally {
+      setAGuardarHora(false);
+    }
+  }
 
   /* ── presença domingo a domingo ──────────────────────────── */
 
@@ -86,12 +112,23 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
 
-  /** Se não há um mapa fechado sequer, a grelha do calor não desenha
-   *  nenhum quadrado — e a legenda "toca num domingo" por cima de uma
-   *  grelha vazia é o que parecia bugado (mesmo relato: "não tem onde
-   *  clicar"). Sem isto, o pedido de toque ficava visível mesmo quando
-   *  não havia nada para tocar. */
-  const temMapaFechado = useMemo(() => (dados?.cultos ?? []).some((c) => c.acomodacao), [dados]);
+  /** Quantos foram escalados em cada culto, somando as dez bases —
+   *  pedido 2026-09. Só entram os cultos com pelo menos um escalado:
+   *  zero aqui quase sempre quer dizer "ninguém publicou escala ainda
+   *  para este domingo", não "zero voluntários a sério" — mesmo
+   *  raciocínio de "zero significa zero, não se aplica não é zero". */
+  const voluntariosPorCulto = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .filter((c) => c.voluntarios > 0)
+      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.voluntarios }));
+  }, [dados]);
+
+  /** Se não há dado nenhum de acomodação (fechado ou ao vivo), a
+   *  grelha do calor não desenha nenhum quadrado clicável — e a
+   *  legenda "toca num domingo" por cima de uma grelha vazia é o que
+   *  parecia bugado (mesmo relato: "não tem onde clicar"). */
+  const temDadosAcomodacao = useMemo(() => (dados?.cultos ?? []).some((c) => c.acomodacao), [dados]);
 
   /* ── ofertas ──────────────────────────────────────────────── */
 
@@ -168,8 +205,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
         const registo = mapa.get(chave);
         registo.valores.push(a.atraso);
         registo.ocorrencias.push({
-          eventoId: c.eventoId, data: c.data, atraso: a.atraso,
-          duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal,
+          eventoId: c.eventoId, data: c.data, atraso: a.atraso, nome: a.momento,
+          duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal, real: a.real,
         });
         const [h, m] = String(a.previsto || "").split(":").map(Number);
         if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
@@ -260,9 +297,14 @@ export default function Numeros({ ativo, definirCabecalho }) {
           </div>
 
           <div className="sect">
+            <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">nas dez bases</span></div>
+            <LinhaTempo pontos={voluntariosPorCulto} vazio="Ainda não há escalas publicadas neste período." />
+          </div>
+
+          <div className="sect">
             <div className="cabecalho">
               <h3>Quão cheio esteve o auditório</h3>
-              {temMapaFechado && <span className="cap">toca num domingo</span>}
+              {temDadosAcomodacao && <span className="cap">toca num domingo</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
               Sobre a capacidade útil — lugares totais menos os reservados e os bloqueados. A escala é fixa
@@ -270,7 +312,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
             </p>
             <MapaCalor
               cultos={dados.cultos}
-              vazio="Nenhum mapa do auditório foi fechado neste período. A Base Pessoal fecha o mapa no fim de cada culto."
+              vazio="Nenhum mapa do auditório foi começado neste período."
             />
           </div>
 
@@ -332,19 +374,48 @@ export default function Numeros({ ativo, definirCabecalho }) {
                           </div>
                           {aberto && (
                             <div className="aberto" style={{ paddingBottom: 10 }}>
-                              {m.ocorrencias.map((o) => (
-                                <div className="linha" key={o.eventoId} style={{ padding: "8px 0" }}>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <p className="ds" style={{ margin: 0 }}>{dataCurta(o.data)}</p>
-                                    {/* atraso nunca é null aqui (filtrado antes), por isso
-                                        durações também nunca são — sempre os dois números */}
-                                    <p className="cap" style={{ marginTop: 2 }}>
-                                      previsto {o.duracaoPrevista} min · durou {o.duracaoReal} min
-                                    </p>
+                              {m.ocorrencias.map((o) => {
+                                const chaveCorrigir = `${o.eventoId}:${o.nome}`;
+                                const aEditarEsta = aCorrigir && `${aCorrigir.eventoId}:${aCorrigir.nome}` === chaveCorrigir;
+                                return (
+                                  <div key={o.eventoId} style={{ padding: "8px 0" }}>
+                                    <div className="linha" style={{ padding: 0 }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p className="ds" style={{ margin: 0 }}>{dataCurta(o.data)}</p>
+                                        {/* atraso nunca é null aqui (filtrado antes), por isso
+                                            durações também nunca são — sempre os dois números */}
+                                        <p className="cap" style={{ marginTop: 2 }}>
+                                          previsto {o.duracaoPrevista} min · durou {o.duracaoReal} min
+                                        </p>
+                                      </div>
+                                      <Atraso minutos={o.atraso} />
+                                      <button
+                                        className="btn sec" style={{ padding: "6px 10px", fontSize: 12, marginLeft: 8 }}
+                                        onClick={() => {
+                                          if (aEditarEsta) { setACorrigir(null); return; }
+                                          setACorrigir({ eventoId: o.eventoId, nome: o.nome });
+                                          setNovaHora(o.real ?? "");
+                                        }}
+                                      >
+                                        Corrigir
+                                      </button>
+                                    </div>
+                                    {aEditarEsta && (
+                                      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                                        <p className="cap" style={{ margin: 0 }}>entrou às</p>
+                                        <input
+                                          className="campo" type="time" value={novaHora}
+                                          onChange={(e) => setNovaHora(e.target.value)}
+                                          style={{ width: 118 }}
+                                        />
+                                        <button className="btn" style={{ padding: "8px 16px", fontSize: 13 }} disabled={aGuardarHora} onClick={guardarHora}>
+                                          Guardar
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
-                                  <Atraso minutos={o.atraso} />
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>

@@ -41,10 +41,21 @@ export default function LinhaTempo({
 
   const valores = validos.map((p) => p.valor);
   const max = Math.max(...valores);
-  // o eixo começa em zero de propósito: numa contagem de presenças, um
-  // eixo que começa no mínimo transforma uma oscilação de 5% num
-  // precipício, e é a forma mais fácil de um gráfico mentir sem mentir
-  const topo = max * 1.15 || 1;
+
+  // a grelha define o topo, não o contrário: a última linha fica
+  // sempre ACIMA do maior valor de verdade, nunca abaixo — bug real,
+  // reportado 2026-09 ("em 13 de set teve 13 visitantes, e a linha
+  // maior do gráfico é o 10"), porque antes o topo vinha de max*1.15 e
+  // a grelha parava na última linha ANTES desse topo, que podia cair
+  // abaixo do máximo. O eixo começa em zero de propósito: numa
+  // contagem de presenças, um eixo que começa no mínimo transforma
+  // uma oscilação de 5% num precipício, e é a forma mais fácil de um
+  // gráfico mentir sem mentir.
+  const passo = passoAgradavel((max || 1) / 3);
+  const linhasGrelha = [];
+  for (let v = passo; v <= max; v += passo) linhasGrelha.push(v);
+  linhasGrelha.push((linhasGrelha.at(-1) ?? 0) + passo); // sempre uma acima do máximo
+  const topo = linhasGrelha.at(-1);
 
   const x = (i) => L + (i / (validos.length - 1)) * (100 - 2 * L);
   const y = (v) => 100 - (v / topo) * 100;
@@ -64,10 +75,9 @@ export default function LinhaTempo({
 
   // grelha com o valor que cada fio representa, em números fechados —
   // sem isto ("falta legenda", mesmo relato) os fios não diziam nada,
-  // só cortavam o gráfico ao meio
-  const passo = passoAgradavel(topo / 3.5);
-  const grelha = [];
-  for (let v = passo; v < topo; v += passo) grelha.push({ chave: v, y: 100 - (v / topo) * 100, valor: v });
+  // só cortavam o gráfico ao meio. Os valores já saíram calculados
+  // acima (é o que define o topo); só falta a posição de cada um.
+  const grelha = linhasGrelha.map((v) => ({ chave: v, y: 100 - (v / topo) * 100, valor: v }));
 
   return (
     <div className="pa-graf" style={{ height: altura }}>

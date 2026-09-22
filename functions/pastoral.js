@@ -77,6 +77,18 @@ async function basesDaIgreja() {
 
 const contar = (snap) => snap.size;
 
+/** Quantos estão escalados num documento de escala — as duas formas
+ *  que o repo usa (lista simples e lugares por ministério), a mesma
+ *  deteção de `escalasCrossBase`. Extraído porque passou a ser
+ *  precisa em três sítios (`resumoDaBase`, `desgastePastoral` e agora
+ *  o "voluntários por culto" de `historicoPastoral`), não só um. */
+function contarEscalados(d) {
+  if (!d) return 0;
+  return Array.isArray(d.lugares) && d.lugares.length
+    ? d.lugares.filter((l) => l.titularId).length
+    : (d.pessoas || []).length;
+}
+
 /** "Hoje" em Lisboa — mesmo cálculo de `hojeISOLisboa` em index.js,
  *  duplicado aqui em vez de importado (mesma convenção de mural.js:
  *  este ficheiro fica lido de ponta a ponta sem saltar para outro). */
@@ -166,14 +178,14 @@ async function resumoDaBase(b, eventoId) {
 
   const e = ok(escala);
   const dadosEscala = e?.exists ? e.data() : null;
-  // as duas formas de escala do repo (lista simples e lugares por
-  // ministério) — a mesma deteção de `escalasCrossBase`, que nunca
-  // precisou de saber o nome da base para escolher
-  const escalados = dadosEscala
-    ? (Array.isArray(dadosEscala.lugares) && dadosEscala.lugares.length
-        ? dadosEscala.lugares.filter((l) => l.titularId).length
-        : (dadosEscala.pessoas || []).length)
-    : 0;
+  const escalados = contarEscalados(dadosEscala);
+
+  // o líder da base, a sério — para "Trocar líder" (Bases.jsx) mostrar
+  // quem já é, sem mais uma chamada. Já estava na memória (a mesma
+  // leitura de `pessoasAtivas` acima), só faltava procurar.
+  const pessoasDocs = docs(pessoas);
+  const liderDoc = pessoasDocs.find((p) => p.papel === "lider_base");
+  const liderBase = liderDoc ? { id: liderDoc.id, nome: liderDoc.nome ?? liderDoc.id } : null;
 
   return {
     baseId: b.id,
@@ -193,6 +205,7 @@ async function resumoDaBase(b, eventoId) {
     // mesmo problema que o Financeiro já tinha antes deste painel
     // existir (reportado 2026-09: "nunca vai ter escala mesmo").
     escalaAplicavel: b.semEscalaDeCulto !== true,
+    liderBase,
 
     inventarioTotal: consumiveis.length,
     inventarioEmFalta: emFalta.length,
@@ -222,6 +235,41 @@ export const panoramaPastoral = onCall(async (req) => {
   const [bases, alvo] = await Promise.all([basesDaIgreja(), eventoId ? eventoId : proximoEventoId()]);
   const resumos = await Promise.all(bases.map((b) => resumoDaBase(b, alvo)));
   return { bases: resumos, eventoId: alvo, geradoEm: Date.now() };
+});
+
+/** Troca o líder de uma base — pedido 2026-09 ("um menu onde o pastor
+ *  possa alterar os líderes de cada base"). É uma decisão nova do
+ *  dono do produto: até aqui só o próprio líder trocava
+ *  (`editarVoluntario`, functions/index.js) — essa função só mexe na
+ *  base de quem chama (`baseId` sai do TOKEN, nunca de um parâmetro,
+ *  regra 4 do CLAUDE.md raiz), por isso não serve para o pastor mudar
+ *  o líder de uma base onde ele próprio não está. Esta é a exceção:
+ *  `baseId` entra como argumento, protegida por `ve_tudo_pastoral` em
+ *  vez de "sou desta base". Mesmo invariante de sempre — só um líder
+ *  de cada vez, promover alguém demove quem lá estava para
+ *  "voluntario". */
+export const definirLiderBase = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { baseId, pessoaId } = req.data || {};
+  if (!baseId || !pessoaId) throw new HttpsError("invalid-argument", "Falta a base ou a pessoa.");
+
+  const base = await db().doc(`bases/${baseId}`).get();
+  if (!base.exists || base.data().ativa === false) throw new HttpsError("not-found", "Base desconhecida.");
+  if (base.data().visaoPastoral === true) throw new HttpsError("invalid-argument", "A base pastoral não tem líder de base.");
+
+  const ref = db().doc(`bases/${baseId}/pessoas/${pessoaId}`);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data().ativo === false) {
+    throw new HttpsError("not-found", "Pessoa não encontrada ou inativa nesta base.");
+  }
+
+  const outros = await db().collection(`bases/${baseId}/pessoas`).where("papel", "==", "lider_base").get();
+  const lote = db().batch();
+  outros.forEach((d) => { if (d.id !== pessoaId) lote.update(d.ref, { papel: "voluntario" }); });
+  lote.update(ref, { papel: "lider_base" });
+  await lote.commit();
+
+  return { ok: true };
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -364,8 +412,13 @@ export const historicoPastoral = onCall(async (req) => {
     .filter((e) => e.ativo !== false)
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  // as dez bases, para contar voluntários por culto — a mesma lista
+  // que `panoramaPastoral`/`desgastePastoral` já buscam, só que aqui
+  // uma vez só para a janela inteira, não por culto
+  const bases = await basesDaIgreja();
+
   const detalhes = await Promise.all(eventos.map(async (e) => {
-    const [contagem, estatisticas, acomodacao, kinder] = await Promise.allSettled([
+    const [contagem, estatisticas, acomodacao, mapaAoVivo, kinder, escalas] = await Promise.allSettled([
       db().doc(`eventos/${e.id}/contagem/geral`).get(),
       db().doc(`eventos/${e.id}/estatisticasCulto/registo`).get(),
       // O resumo do mapa do auditório, fechado pela Base Pessoal no fim
@@ -373,16 +426,31 @@ export const historicoPastoral = onCall(async (req) => {
       // dizer que era "o que vai alimentar o mapa de calor do painel do
       // pastor mais tarde" (ResumosAcomodacao.jsx) — é aqui.
       db().doc(`bases/pessoal/acomodacaoResumos/${e.id}`).get(),
+      // O mapa AO VIVO, fechado ou não — pedido explícito (2026-09):
+      // "alguém preencheu mas não salvou/fechou, azar dela, os números
+      // vão pros painéis da mesma forma". Sem fecho, `resumoAcomodacao`
+      // nunca corre (só `fecharAcomodacao` a chama), por isso a conta
+      // sobre `lugares` é refeita aqui — ver `resumoAcomodacaoAoVivo`.
+      db().doc(`eventos/${e.id}/acomodacao/mapa`).get(),
       // O check-in a sério da Kinder, para cruzar com as salas que a
       // Pessoal preenche à mão. `select` porque só interessam dois
       // campos: a leitura continua a ser um documento por criança
       // (~50 por culto), mas o payload fica mínimo.
       db().collection(`eventos/${e.id}/checkinKinder`).select("categoria", "anulado").get(),
+      // Quantos foram escalados neste culto, nas dez bases — o gráfico
+      // "Voluntários por culto" pedido em 2026-09. É mais dez leituras
+      // por culto (uma escala por base); a mesma conta que
+      // `desgastePastoral` já paga numa janela mais curta.
+      Promise.all(bases.map((b) => db().doc(`eventos/${e.id}/escalas/${b.id}`).get())),
     ]);
     const ok = (r) => (r.status === "fulfilled" && r.value?.exists ? r.value.data() : null);
     const c = ok(contagem);
     const s = ok(estatisticas);
     const a = ok(acomodacao);
+    const mapa = ok(mapaAoVivo);
+    const voluntarios = escalas.status === "fulfilled"
+      ? escalas.value.reduce((t, snap) => t + (snap.exists ? contarEscalados(snap.data()) : 0), 0)
+      : 0;
 
     return {
       eventoId: e.id,
@@ -394,8 +462,11 @@ export const historicoPastoral = onCall(async (req) => {
       // total é a soma, e não um campo gravado (foi assim que nasceu)
       contagem: c ? resumirContagem(c) : null,
       culto: s ? resumirCulto(s) : null,
-      acomodacao: a ? resumirAcomodacao(a) : null,
+      // fechado primeiro (é a fonte oficial, já com fechadoEm/fechadoPor);
+      // sem fecho, calcula-se em cima do mapa ao vivo — nunca os dois
+      acomodacao: a ? resumirAcomodacao(a) : (mapa?.lugares ? resumoAcomodacaoAoVivo(mapa.lugares) : null),
       kinder: kinder.status === "fulfilled" ? resumirKinder(kinder.value) : null,
+      voluntarios,
     };
   }));
 
@@ -460,7 +531,7 @@ function resumirContagem(c) {
   };
 }
 
-/** O mapa do auditório, fechado no fim do culto pela Base Pessoal.
+/** O mapa do auditório, FECHADO no fim do culto pela Base Pessoal.
  *  `percentagem` já vem calculada de lá (`resumoAcomodacao`,
  *  index.js) sobre a capacidade ÚTIL — lugares totais menos os
  *  reservados e os bloqueados. Não se recalcula aqui: seria a mesma
@@ -474,6 +545,30 @@ function resumirAcomodacao(a) {
     bloqueados: a.bloqueados ?? 0,
     capacidadeUtil: a.capacidadeUtil ?? 0,
     percentagem: a.percentagem ?? 0,
+  };
+}
+
+/** A mesma conta de `resumoAcomodacao` (functions/index.js), para um
+ *  mapa que ainda NÃO foi fechado — sem `fechadoEm`/`fechadoPor`, que
+ *  só fazem sentido num fecho a sério. Duplicada, não importada: as
+ *  duas versões calculam a mesma coisa a partir de `lugares`, e uma
+ *  função interna do `index.js` não está exportada — repetir dez
+ *  linhas aqui é mais simples do que abrir uma exportação só para
+ *  isto. Pedido explícito (2026-09): "azar dela" — quem preencheu o
+ *  mapa mas não fechou não deve sumir das estatísticas por isso. */
+function resumoAcomodacaoAoVivo(lugares) {
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
+  const ocupados = contagem.ocupado + contagem.visitante;
+  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  return {
+    ocupados: contagem.ocupado,
+    visitantes: contagem.visitante,
+    livres: contagem.livre,
+    reservados: contagem.reservado,
+    bloqueados: contagem.bloqueado,
+    capacidadeUtil,
+    percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
   };
 }
 
@@ -539,6 +634,37 @@ const emMinutos = (hora) => {
   const [h, m] = hora.split(":").map(Number);
   return h * 60 + m;
 };
+
+/** Quantos minutos Lisboa está à frente de UTC no instante `ms` — o
+ *  offset muda com a hora de verão, por isso não é uma constante.
+ *  Truque padrão: lê a hora local via `Intl` e compara com o mesmo
+ *  instante interpretado como UTC. */
+function offsetLisboaMin(ms) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Lisbon", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  const comoUTC = Date.UTC(+p.year, +p.month - 1, +p.day, p.hour === "24" ? 0 : +p.hour, +p.minute, +p.second);
+  return (comoUTC - ms) / 60000;
+}
+
+/** Constrói o `Timestamp` de uma data+hora em Lisboa (não em UTC) — a
+ *  data vem do `eventoId` (`eventos/{AAAA-MM-DD}`, regra 7 do CLAUDE.md
+ *  raiz), a hora do formulário de correção. Precisa de existir porque
+ *  `editarSecaoAoVivo` (functions/index.js) só sabe gravar "agora"
+ *  (`Timestamp.now()`) — não serve para corrigir um culto já fechado,
+ *  onde "agora" não tem nada a ver com quando o momento foi ao ar. Uma
+ *  primeira aproximação (lê como UTC) e depois corrige pelo offset real
+ *  de Lisboa nesse instante — erra só na própria hora da troca do
+ *  horário de verão, uma janela de uma hora, duas vezes por ano. */
+function timestampLisboa(dataISO, horaHHMM) {
+  const [ano, mes, dia] = dataISO.split("-").map(Number);
+  const [h, m] = horaHHMM.split(":").map(Number);
+  const palpite = Date.UTC(ano, mes - 1, dia, h, m, 0);
+  const ms = palpite - offsetLisboaMin(palpite) * 60000;
+  return admin.firestore.Timestamp.fromMillis(ms);
+}
 
 function resumirCulto(s) {
   const reais = Array.isArray(s.secoesReais) ? s.secoesReais : [];
@@ -618,6 +744,46 @@ function resumirCulto(s) {
     extras: [...porNome.keys()].filter((k) => !correspondidos.has(k)).length,
   };
 }
+
+/** Corrige a hora de um momento de um culto JÁ FECHADO — pedido
+ *  explícito (2026-09: "os tempos agora marcam certos, mas preciso de
+ *  poder editar tempos de cultos já fechados. Onde faço isso?"). Não
+ *  existia caminho nenhum para isto: `editarSecaoAoVivo`
+ *  (functions/index.js) só mexe em `cultoAoVivo/registo`, o rascunho
+ *  ao vivo — depois de "Finalizar culto" copiar tudo para
+ *  `estatisticasCulto/registo` (`arquivarCultoTerminado`), esse
+ *  rascunho já não é lido por nada, e o arquivo ficava congelado para
+ *  sempre, erro incluído.
+ *
+ *  Só a equipa pastoral corrige — nenhuma base tem tela para isto, e
+ *  não faria sentido dar-lhes: o arquivo é só lido por este painel. */
+export const corrigirHoraSecaoCulto = onCall(async (req) => {
+  const uid = exigeVisaoPastoral(req);
+  const { eventoId, nome, horaReal } = req.data || {};
+  if (!eventoId || !String(nome || "").trim() || !/^\d{1,2}:\d{2}$/.test(String(horaReal || ""))) {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+
+  const ref = db().doc(`eventos/${eventoId}/estatisticasCulto/registo`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Este culto ainda não foi finalizado ao vivo.");
+
+  const secoes = snap.data().secoesReais || [];
+  const chave = chaveNome(nome);
+  const i = secoes.findIndex((sec) => chaveNome(sec.nomeCorrespondente || sec.nomeFreeshow) === chave);
+  if (i < 0) throw new HttpsError("not-found", "Este momento não está registado neste culto.");
+
+  const corrigida = {
+    ...secoes[i],
+    horaReal,
+    timestampReal: timestampLisboa(eventoId, horaReal),
+    corrigidoManualmente: true,
+    corrigidoPor: uid,
+    corrigidoEm: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  await ref.set({ secoesReais: secoes.with(i, corrigida) }, { merge: true });
+  return { ok: true };
+});
 
 /* ══════════════════════════════════════════════════════════════
  *  DESGASTE — quem está a servir domingo sim, domingo sim
@@ -776,6 +942,26 @@ export const moverEtapaContacto = onCall(async (req) => {
   }, { merge: true });
 
   return { ok: true, de: anterior, para: etapa };
+});
+
+/** "Excluir" um contacto do funil — pedido 2026-09. Nunca é um delete
+ *  a sério (regra 5 do CLAUDE.md raiz: nada é apagado, é desativado):
+ *  `arquivado:true` é o MESMO campo que a Base Pessoal já usa no
+ *  Formulário dela (`arquivarContacto`, apps/pessoal/src/lib/
+ *  contactos.js) — `ouvirContactos` já filtra por ele, dos dois
+ *  lados. As regras só deixam a Pessoal escrever em `contactos/{id}`
+ *  (`firestore.rules`: "o painel NÃO escreve por esta via"); por isso
+ *  isto é Cloud Function, como `moverEtapaContacto`, não escrita
+ *  direta. */
+export const arquivarContactoPastoral = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { contactoId } = req.data || {};
+  if (!contactoId) throw new HttpsError("invalid-argument", "Falta o contacto.");
+  const ref = db().doc(`contactos/${contactoId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Contacto não encontrado.");
+  await ref.set({ arquivado: true }, { merge: true });
+  return { ok: true };
 });
 
 /* ══════════════════════════════════════════════════════════════

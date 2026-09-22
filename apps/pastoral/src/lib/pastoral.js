@@ -37,6 +37,21 @@ export const desgastePastoral = (desde, ate) =>
 export const moverEtapaContacto = (contactoId, etapa, nota) =>
   chamar("moverEtapaContacto")({ contactoId, etapa, nota: nota ?? null }).then((r) => r.data);
 
+/** "Excluir" um contacto — nunca um delete a sério, `arquivado:true`
+ *  (regra 5 do CLAUDE.md raiz). */
+export const arquivarContactoPastoral = (contactoId) =>
+  chamar("arquivarContactoPastoral")({ contactoId }).then((r) => r.data);
+
+/** Corrige a hora de um momento de um culto já fechado — o registo
+ *  ao vivo, uma vez finalizado, fica congelado sem isto. */
+export const corrigirHoraSecaoCulto = (eventoId, nome, horaReal) =>
+  chamar("corrigirHoraSecaoCulto")({ eventoId, nome, horaReal }).then((r) => r.data);
+
+/** Troca o líder de uma base. Um líder de cada vez — promover alguém
+ *  demove quem lá estava para "voluntario". */
+export const definirLiderBase = (baseId, pessoaId) =>
+  chamar("definirLiderBase")({ baseId, pessoaId }).then((r) => r.data);
+
 /** Recado de ida para uma base. Sem resposta e sem estado — o líder lê
  *  e dispensa, e é tudo (decisão do dono do produto). */
 export const enviarRecadoPastoral = (baseId, texto, urgente) =>

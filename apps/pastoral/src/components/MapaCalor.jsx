@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { corAtraso, textoAtraso } from "./Atraso";
 
 /**
  * Ocupação do auditório, domingo a domingo.
@@ -37,9 +38,17 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
   // período novo parecia não fazer nada porque a informação já
   // esperada (o último domingo) só reaparecia ao tocar duas vezes
   useEffect(() => setFoco(null), [cultos]);
-  if (!cultos.length) return <div className="vaz">{vazio}</div>;
 
-  const comMapa = cultos.filter((c) => c.acomodacao);
+  // só do primeiro domingo com dados para a frente — antes disso são
+  // domingos que existem no calendário mas nunca passaram por este
+  // sistema, e mostrá-los como "por fechar" era ruído, não informação
+  // (reportado 2026-09: "não quero que mostre cultos que não houveram
+  // anteriormente")
+  const primeiroComDados = cultos.findIndex((c) => c.acomodacao);
+  const visiveis = primeiroComDados < 0 ? [] : cultos.slice(primeiroComDados);
+  if (!visiveis.length) return <div className="vaz">{vazio}</div>;
+
+  const comMapa = visiveis.filter((c) => c.acomodacao);
   const mostrado = foco ?? comMapa.at(-1) ?? null;
   const a = mostrado?.acomodacao ?? null;
   const pct = a ? Math.round(a.percentagem * 100) : null;
@@ -47,19 +56,19 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
   return (
     <>
       <div className="pa-calor">
-        {/* TODOS os cultos do período entram, não só os fechados — um
-            domingo sem mapa some da grelha em vez de aparecer, e é
-            isso que parecia bug ("não dá pra clicar, pq não fechou é
-            isso?", reportado 2026-09). Aqui aparece, cinzento e sem
-            toque, para responder à própria pergunta. */}
-        {cultos.map((c) => {
+        {/* todos os domingos desde o primeiro com dados entram, não só
+            os fechados — um domingo com o mapa começado mas nunca
+            fechado tem os números na mesma (pedido 2026-09: "azar
+            dela, os números vão pros painéis da mesma forma"); só
+            fica cinzento quem não tem NENHUM dado */}
+        {visiveis.map((c) => {
           if (!c.acomodacao) {
             return (
               <span
                 key={c.eventoId}
                 className="pa-calor-q porfechar"
-                aria-label={`${c.data}: mapa ainda por fechar`}
-                title="A Base Pessoal ainda não fechou o mapa deste domingo"
+                aria-label={`${c.data}: sem mapa nenhum`}
+                title="Nenhum mapa foi começado para este domingo"
               />
             );
           }
@@ -88,10 +97,30 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
               ? ` · ${a.reservados + a.bloqueados} fora de contagem`
               : ""}
           </p>
+
+          {/* "ver todas as estatísticas" (2026-09) — tudo o que este
+              domingo já trazia no `cultos` prop, sem chamada nova
+              nenhuma: a contagem, os voluntários e o atraso já vêm de
+              `historicoPastoral` junto com a acomodação. */}
+          {mostrado.contagem && (
+            <p className="ds" style={{ marginTop: 8 }}>
+              {mostrado.contagem.auditorio ?? "—"} no auditório
+              {mostrado.contagem.visitantes ? ` · ${mostrado.contagem.visitantes} visitantes` : ""}
+              {!mostrado.contagem.finalizada ? " (contagem ainda a decorrer)" : ""}
+            </p>
+          )}
+          {mostrado.voluntarios > 0 && (
+            <p className="ds" style={{ marginTop: 4 }}>{mostrado.voluntarios} voluntários escalados</p>
+          )}
+          {mostrado.culto?.atrasoFinal != null && (
+            <p className="ds" style={{ marginTop: 4 }}>
+              No fim, o culto estava <b className={corAtraso(mostrado.culto.atrasoFinal)}>{textoAtraso(mostrado.culto.atrasoFinal)}</b>
+            </p>
+          )}
         </div>
       ) : (
         <p className="ds" style={{ marginTop: 10 }}>
-          Os quadrados cinzentos são domingos cujo mapa a Base Pessoal ainda não fechou.
+          Os quadrados cinzentos são domingos sem nenhum mapa começado.
         </p>
       )}
     </>
