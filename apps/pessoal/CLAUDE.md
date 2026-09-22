@@ -260,11 +260,17 @@ de sempre, que qualquer pessoa autenticada de QUALQUER base lê; ver
 
 ### Catálogo de GDs
 
-`bases/pessoal/gds/{id}` (`nome`, `regiao`) — mesmo padrão do
-catálogo de funções: só a líder escreve (secção "Gerir" dentro do
-Formulário), toda a base lê. Sem cadastro real ainda (nomes/regiões
-verdadeiros entram à mão pela líder) — ver "Não há cadastro de GDs"
-em "Fronteiras" no topo deste ficheiro.
+`gds/{id}` (`nome`, `regiao`) — **global desde 2026-09** (era
+`bases/pessoal/gds`; migrado por `scripts/migrarGDsParaGlobal.mjs`).
+Um GD não é "da Pessoal", é da igreja — o Mural Onda (`apps/mural`)
+passou a precisar do mesmo catálogo para o ecrã de entrada de quem
+não é voluntário, mesma lógica de `eventos/` (CLAUDE.md raiz, regra
+7). Continua o mesmo padrão do catálogo de funções: só a líder da
+Pessoal escreve (secção "Gerir" dentro do Formulário — ver
+`souLiderBase('pessoal')` no `firestore.rules`), agora qualquer base
+autenticada lê. Sem cadastro real ainda (nomes/regiões verdadeiros
+entram à mão pela líder) — ver "Não há cadastro de GDs" em
+"Fronteiras" no topo deste ficheiro.
 
 ### Inventário do café — subaba de Culto
 
@@ -304,7 +310,8 @@ Só a líder da base cria no catálogo.
 - **Sem UI para gerir GDs** — a lista e o formulário de "Gerir" que
   existiam por baixo do Formulário foram tirados (pedido explícito,
   ficava a repetir informação e ninguém geria dali). O catálogo
-  (`bases/pessoal/gds`) só se mexe por `scripts/seedGDsPessoal.mjs` +
+  (`gds/{id}`, global — ver secção acima) só se mexe por
+  `scripts/seedGDsPessoal.mjs` +
   `.github/workflows/rodar-script-admin.yml` — adicionar/editar um GD
   é correr esse script (ou um novo, no mesmo padrão) contra a
   produção. `criarGD` continua em `lib/contactos.js`, sem uso na UI

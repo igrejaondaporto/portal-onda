@@ -36,6 +36,17 @@ export {
   purgarFamiliasInativasKinder, purgarAnexosLicoesAntigasKinder,
 } from "./kinder.js";
 
+// Mural Onda: anúncios de dou/vendo/arrendo e de procuro, da igreja
+// toda — ficheiro próprio, mesmo motivo de kinder.js (ver o
+// comentário no topo de mural.js).
+export {
+  listarBasesMural, listarGDsMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
+  souAdminMuralAgora, desbloquearModeracaoMural, pedirContactoAnuncio, criarAnuncio, editarAnuncio,
+  definirFotosAnuncio, alterarEstadoAnuncio,
+  renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
+  resumoSemanalMural, manutencaoMural,
+} from "./mural.js";
+
 // Painel Pastoral: ler as 10 bases de uma vez, nunca escrever nelas —
 // ficheiro próprio pelo mesmo motivo do kinder.js (ver o comentário no
 // topo de pastoral.js). A ordem do culto que o pastor publica NÃO

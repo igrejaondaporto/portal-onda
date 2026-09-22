@@ -115,6 +115,16 @@ service firebase.storage {
       allow read:  if autenticado();
       allow write: if lider('comunicacao') && imagem();
     }
+    // Mural Onda: fotos de cada anúncio, uma pasta por autor — só
+    // quem publicou sobe/substitui as suas (uid no caminho, como
+    // bases/{base}/pessoas/{pessoa} acima). Leitura pública de
+    // propósito: os anúncios em si já são visíveis a qualquer pessoa
+    // autenticada (ver firestore.rules), e uma foto de sofá não tem
+    // nada de sensível a esconder de quem tem o link direto.
+    match /anuncios/{autor}/{anuncio}/{ficheiro} {
+      allow read:  if true;
+      allow write: if request.auth.uid == autor && imagem();
+    }
     match /eventos/{evento}/ordem.pdf {
       allow read:  if autenticado();
       // no delete, request.resource é sempre null — só se exige o

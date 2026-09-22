@@ -11,6 +11,7 @@
     "build": "npm run build --workspaces --if-present",
     "seed": "node scripts/seed.mjs",
     "seed:tour": "node scripts/seedTour.mjs",
+    "seed:mural": "node scripts/seedMural.mjs",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules",
     "lint": "eslint .",

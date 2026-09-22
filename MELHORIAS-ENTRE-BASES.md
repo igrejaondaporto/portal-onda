@@ -244,6 +244,47 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   largo começa à esquerda de um rótulo curto. Qualquer base que leia
   grelhas de PDF deve copiar esta ideia, não a versão da data.
 
+- **Contacto (telefone) nunca dentro do documento partilhável — só
+  buscado na hora, por quem pede** (Mural Onda, 2026-09,
+  `pedirContactoAnuncio`/`telefoneDoAutor` em `functions/mural.js`).
+  O anúncio é lido por qualquer pessoa autenticada; gravar o telefone
+  lá dentro abria o número a toda a gente, mesmo sem clicar em nada.
+  Em vez disso, o botão "Falar no WhatsApp" chama uma Cloud Function
+  que só devolve o número na hora, para quem já entrou. Serve
+  qualquer base que precise de "ligar a alguém" sem expor o contacto
+  em bruto num documento de leitura larga — hoje `nomesDePessoas`
+  (index.js) já não devolve o telefone a quem não tem
+  `ve_todas_escalas`, o mesmo raciocínio, este é o caso de "qualquer
+  pessoa, não só quem tem uma claim elevada".
+- **Entrada por telemóvel + PIN, sem base nenhuma** (Mural Onda,
+  2026-09, `pedirEntradaMural`/`entrarMural`/`registarMural`,
+  `functions/mural.js`). Identidade global (`pessoas/tel_<telefone>`)
+  para quem nunca foi voluntário — sem passar por `criarVoluntario`
+  nem por nenhuma base. Serve qualquer produto futuro que precise de
+  login da igreja toda (não de uma equipa), como o Formulário de
+  contacto da Pessoal citava como exemplo já antes disto existir. Não
+  portado ainda porque a Pessoal continua a pedir sessão de voluntário
+  antes do visitante preencher (ver `apps/pessoal/CLAUDE.md`,
+  "Fronteiras") — portar é trocar essa exigência por este caminho.
+
+- **Armadilha para o próximo app sem `VITE_BASE_ID` fixo**: vários
+  componentes de `packages/shared` (`SheetPin.jsx`, `MenuEu.jsx`,
+  `SheetAcessoDev.jsx`) importam de `"../lib/auth"` — um caminho
+  RELATIVO AO PRÓPRIO FICHEIRO, que por isso resolve sempre para
+  `packages/shared/src/lib/auth.js`, nunca para o `lib/auth.js` de
+  quem os usa. Nas apps de base isso não se nota, porque cada uma só
+  entra na sua própria base (`VITE_BASE_ID` fixo) e o `entrarComPin`
+  partilhado já faz a coisa certa sozinho. O Mural (2026-09) apanhou
+  o oposto: PIN certo a parecer errado, porque a chamada ia sempre
+  com `baseId: "mural"` (que não existe) em vez da base escolhida no
+  ecrã — ver `apps/mural/src/components/adaptados/LEIA-ME.md`. Regra
+  para o próximo app que precise de decidir a base em tempo de
+  execução (não fixa por `.env`): nunca reaproveitar `SheetPin`/
+  `MenuEu`/`SheetAcessoDev` diretamente — copiar para
+  `adaptados/` como o Mural fez, ou (melhor, se compensar mexer no
+  partilhado) mudar esses três componentes para receberem
+  `entrarComPin` por prop em vez de o importarem.
+
 ## Já portado
 
 | Data | Nasceu em | O quê | Portado para | Nota |
