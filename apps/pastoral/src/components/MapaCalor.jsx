@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Ocupação do auditório, domingo a domingo.
@@ -31,6 +31,12 @@ function passo(pct) {
 
 export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de auditório fechados." }) {
   const [foco, setFoco] = useState(null);
+  // sem isto, trocar de período (3 meses/12 meses/Este ano) deixava o
+  // quadrado tocado de um período anterior "preso" — a folha de baixo
+  // continuava a mostrar o domingo antigo, e tocar num quadrado do
+  // período novo parecia não fazer nada porque a informação já
+  // esperada (o último domingo) só reaparecia ao tocar duas vezes
+  useEffect(() => setFoco(null), [cultos]);
   const comMapa = cultos.filter((c) => c.acomodacao);
   if (!comMapa.length) return <div className="vaz">{vazio}</div>;
 
@@ -56,16 +62,7 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         })}
       </div>
 
-      {/* legenda: a escala é fixa, por isso pode ser desenhada uma vez
-          e não muda com o período — é o que a torna comparável entre
-          janelas de datas */}
-      <div className="pa-calor-legenda">
-        <span>0%</span>
-        {RAMPA.map((c) => <i key={c} style={{ background: c }} />)}
-        <span>100%</span>
-      </div>
-
-      <div className="caixa" style={{ marginTop: 12 }}>
+      <div className="caixa" style={{ marginTop: 14 }}>
         <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
         <p className="pa-num">{pct}%</p>
         <p className="ds" style={{ marginTop: 2 }}>

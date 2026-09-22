@@ -82,7 +82,19 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
 
-  /* ── oferta por mês ──────────────────────────────────────── */
+  /* ── ofertas ──────────────────────────────────────────────── */
+
+  /** A evolução domingo a domingo — `dados.oferta` já vem ordenado por
+   *  data (ver historicoPastoral). Gráfico separado do acumulado por
+   *  mês: um é "está a subir ou a descer de domingo para domingo?", o
+   *  outro é "quanto entrou em cada mês?" — perguntas diferentes,
+   *  cada uma com o gráfico que já responde a ela no resto desta
+   *  tela (LinhaTempo para evolução, Barras para magnitude por
+   *  categoria). */
+  const ofertaPorDomingo = useMemo(() => {
+    if (!dados) return [];
+    return dados.oferta.map((o) => ({ chave: o.data, rotulo: dataCurta(o.data), valor: o.total / 100 }));
+  }, [dados]);
 
   const ofertaPorMes = useMemo(() => {
     if (!dados) return [];
@@ -117,14 +129,28 @@ export default function Numeros({ ativo, definirCabecalho }) {
   /** Em que momento é que o culto se atrasa, em média — a pergunta que
    *  transforma "o culto acaba tarde" em algo acionável. Só entram os
    *  momentos que apareceram em pelo menos dois cultos: um atraso
-   *  medido uma vez é uma anedota, não um padrão. */
+   *  medido uma vez é uma anedota, não um padrão.
+   *
+   *  Ordenado pela ordem em que os momentos acontecem no culto (pela
+   *  hora prevista média), não pelo atraso — é assim que se lê "onde
+   *  começa a acumular", momento a seguir a momento, e não uma lista
+   *  saltada que obriga a procurar cada nome na ordem a sério.
+   *
+   *  "Contagem" fica de fora: não é um momento do culto em si, é a
+   *  hora das portas — já aparece à parte, no resumo "Portas …" da
+   *  aba Ordem, e listá-la aqui ao lado de Louvor/Mensagem confundia
+   *  as duas coisas. */
   const atrasoPorMomento = useMemo(() => {
     const mapa = new Map();
     for (const c of cultosComRegisto) {
       for (const a of c.culto.atrasos) {
         const chave = a.momento.trim().toLowerCase();
-        if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [] });
-        mapa.get(chave).valores.push(a.atraso);
+        if (chave === "contagem") continue;
+        if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [], previstos: [] });
+        const registo = mapa.get(chave);
+        registo.valores.push(a.atraso);
+        const [h, m] = String(a.previsto || "").split(":").map(Number);
+        if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
       }
     }
     return [...mapa.entries()]
@@ -132,43 +158,29 @@ export default function Numeros({ ativo, definirCabecalho }) {
       .map(([chave, v]) => ({
         chave, rotulo: v.rotulo, vezes: v.valores.length,
         media: Math.round(v.valores.reduce((t, n) => t + n, 0) / v.valores.length),
+        ordem: v.previstos.length ? v.previstos.reduce((t, n) => t + n, 0) / v.previstos.length : Infinity,
       }))
-      .sort((a, b) => b.media - a.media);
+      .sort((a, b) => a.ordem - b.ordem);
   }, [cultosComRegisto]);
 
-  const semOrdem = (dados?.cultos ?? []).filter((c) => !c.ordemPublicada).length;
+  /* ── crianças ─────────────────────────────────────────────── */
 
-  /* ── crianças: dois números da mesma coisa ───────────────── */
-
-  /** A Base Pessoal preenche as salas à mão na contagem do culto; a
-   *  Kinder tem o check-in a sério, criança a criança. São duas
-   *  medidas do mesmo, e até agora ninguém as via lado a lado — cada
-   *  base só via a sua.
-   *
-   *  As salas da Pessoal são quatro (new, shift, juniorFun, baby) e as
-   *  da Kinder três (baby, fun, junior): a New e a SHIFT são bases
-   *  próprias, com sala própria, e não passam pelo check-in da Kinder.
-   *  Por isso compara-se só o que é comparável — baby + junior/fun do
-   *  lado da Kinder contra baby + juniorFun do lado da Pessoal —, e
-   *  não os totais, que nunca bateriam certo por construção. */
-  const criancas = useMemo(() => {
+  /** Quantas crianças por sala, em média por domingo — o check-in a
+   *  sério da Kinder, cruzado por categoria. Média, não o total do
+   *  período: "480 crianças em quatro meses" não diz nada sobre um
+   *  domingo normal, e é essa a pergunta ("quantas crianças temos?"). */
+  const criancasPorSala = useMemo(() => {
     if (!dados) return [];
-    return dados.cultos
-      .filter((c) => c.kinder && c.contagem?.finalizada)
-      .map((c) => {
-        const pessoal = [c.contagem.baby, c.contagem.juniorFun]
-          .map((v) => (typeof v === "number" ? v : null));
-        if (pessoal.some((v) => v === null)) return null;
-        const manual = pessoal.reduce((t, v) => t + v, 0);
-        const checkin = c.kinder.baby + c.kinder.fun + c.kinder.junior;
-        return { eventoId: c.eventoId, data: c.data, manual, checkin, diff: checkin - manual };
-      })
-      .filter(Boolean);
+    const cultosComKinder = dados.cultos.filter((c) => c.kinder);
+    if (!cultosComKinder.length) return [];
+    const media = (chave) =>
+      Math.round(cultosComKinder.reduce((t, c) => t + (c.kinder[chave] ?? 0), 0) / cultosComKinder.length);
+    return [
+      { chave: "baby", rotulo: "Baby", valor: media("baby") },
+      { chave: "fun", rotulo: "Fun", valor: media("fun") },
+      { chave: "junior", rotulo: "Junior", valor: media("junior") },
+    ];
   }, [dados]);
-
-  const divergencia = criancas.length
-    ? Math.round(criancas.reduce((t, c) => t + Math.abs(c.diff), 0) / criancas.length)
-    : null;
 
   useEffect(() => {
     if (!ativo) return;
@@ -240,61 +252,15 @@ export default function Numeros({ ativo, definirCabecalho }) {
           </div>
 
           <div className="sect">
-            <div className="cabecalho">
-              <h3>Crianças: dois números da mesma coisa</h3>
-              {divergencia !== null && <span className="cap">{divergencia} de diferença média</span>}
-            </div>
-            {criancas.length === 0 ? (
-              <div className="vaz">
-                Faltam cultos com as duas contagens fechadas — a da Base Pessoal (salas preenchidas à mão) e o
-                check-in da Kinder.
-              </div>
-            ) : (
-              <>
-                <p className="ds" style={{ marginTop: 0 }}>
-                  A Base Pessoal conta as salas à mão na contagem do culto; a Kinder faz check-in criança a
-                  criança. Compara-se só Baby e Junior/Fun — a New e a SHIFT têm sala própria e não passam
-                  pelo check-in da Kinder.
-                </p>
-                <div className="tabwrap" style={{ marginTop: 12 }}>
-                  <table className="tab">
-                    <thead>
-                      <tr>
-                        <th>Culto</th>
-                        <th style={{ textAlign: "right" }}>Pessoal</th>
-                        <th style={{ textAlign: "right" }}>Kinder</th>
-                        <th style={{ textAlign: "right" }}>Dif.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {criancas.slice(-12).reverse().map((c) => (
-                        <tr key={c.eventoId}>
-                          <td>{dataCurta(c.data)}</td>
-                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.manual}</td>
-                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.checkin}</td>
-                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                            {/* a cor marca só o que é grande; o sinal
-                                e o número dizem-no sem depender dela */}
-                            <span className={Math.abs(c.diff) >= 5 ? "oc-atraso-laranja" : undefined}>
-                              {c.diff > 0 ? "+" : ""}{c.diff}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="cap" style={{ marginTop: 10 }}>
-                  Uma diferença pequena é normal (uma criança que chega tarde entra no check-in e já não entra
-                  na contagem). Uma diferença grande e sempre no mesmo sentido quer dizer que uma das duas
-                  contagens tem um problema de método — e é isso que este quadro serve para apanhar.
-                </p>
-              </>
-            )}
+            <div className="cabecalho"><h3>Crianças</h3><span className="cap">média por domingo</span></div>
+            <Barras linhas={criancasPorSala} vazio="Ainda não há check-in da Kinder neste período." />
           </div>
 
           <div className="sect">
-            <div className="cabecalho"><h3>Oferta por mês</h3><span className="cap">{eur(totalOferta)} no período</span></div>
+            <div className="cabecalho"><h3>Ofertas</h3><span className="cap">{eur(totalOferta)} no período</span></div>
+            <p className="ds" style={{ marginTop: 0 }}>Evolução por domingo</p>
+            <LinhaTempo pontos={ofertaPorDomingo} formatar={eur} vazio="Ainda não há contagens de oferta." />
+            <p className="ds" style={{ marginTop: 18 }}>Acumulado por mês</p>
             <Barras linhas={ofertaPorMes} formatar={eur} vazio="Ainda não há contagens de oferta." />
           </div>
 
@@ -322,9 +288,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
                 {atrasoPorMomento.length > 0 && (
                   <>
                     <p className="ds" style={{ marginTop: 14 }}>
-                      Onde o atraso aparece — média por momento, só os que aconteceram em dois ou mais cultos.
+                      Onde o atraso aparece — na ordem do culto, média por momento, só os que aconteceram em
+                      dois ou mais cultos.
                     </p>
-                    {atrasoPorMomento.slice(0, 10).map((m) => (
+                    {atrasoPorMomento.map((m) => (
                       <div className="linha" key={m.chave}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p className="nmt" style={{ fontSize: 14 }}>{m.rotulo}</p>
@@ -363,16 +330,6 @@ export default function Numeros({ ativo, definirCabecalho }) {
               </>
             )}
           </div>
-
-          {semOrdem > 0 && (
-            <div className="sect">
-              <div className="cabecalho"><h3>Cultos sem ordem publicada</h3><span className="cap">{semOrdem}</span></div>
-              <p className="ds" style={{ marginTop: 0 }}>
-                {semOrdem} de {dados.cultos.length} cultos deste período não têm ordem publicada. Sem ela não há
-                previsto para comparar com o real — é por isso que alguns domingos ficam de fora do quadro acima.
-              </p>
-            </div>
-          )}
         </>
       )}
     </>

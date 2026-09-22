@@ -40,12 +40,20 @@ export default function LinhaTempo({
   const linha = validos.map((p, i) => `${x(i)},${y(p.valor)}`).join(" ");
   const area = `${L},100 ${linha} ${100 - L},100`;
 
+  const iPrimeiro = 0;
   const iMax = valores.indexOf(max);
   const iUltimo = validos.length - 1;
-  // nunca os dois no mesmo sítio: se o último ponto é o recorde, um
-  // rótulo só, senão ficariam sobrepostos e ilegíveis
-  const rotulados = new Set(iMax === iUltimo ? [iUltimo] : [iMax, iUltimo]);
+  // primeiro, recorde e último ficam sempre com o valor à vista, sem
+  // precisar de tocar — o primeiro tinha ficado de fora (bug real,
+  // reportado 2026-09: "não aparece o número certo do primeiro
+  // valor" era isto, o ponto nunca tinha rótulo nenhum ao lado)
+  const rotulados = new Set([iPrimeiro, iMax, iUltimo]);
   const mostrado = foco ?? { i: iUltimo, ponto: validos[iUltimo] };
+
+  // grelha com o valor que cada fio representa — sem isto ("falta
+  // legenda", mesmo relato) os três fios não diziam nada, só cortavam
+  // o gráfico ao meio
+  const grelha = [0.25, 0.5, 0.75].map((f) => ({ chave: f, y: 100 - f * 100, valor: Math.round(topo * f) }));
 
   return (
     <div className="pa-graf" style={{ height: altura }}>
@@ -55,8 +63,8 @@ export default function LinhaTempo({
       >
         {/* grelha: fios sólidos, um tom acima do fundo — tracejado
             leria como "previsão" ou "limite", e isto é só uma grelha */}
-        {[25, 50, 75].map((g) => (
-          <line key={g} x1="0" y1={g} x2="100" y2={g} stroke="var(--fio)" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
+        {grelha.map((g) => (
+          <line key={g.chave} x1="0" y1={g.y} x2="100" y2={g.y} stroke="var(--fio)" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
         ))}
         <polygon points={area} fill="var(--azul)" opacity="0.08" />
         <polyline
@@ -64,6 +72,12 @@ export default function LinhaTempo({
           strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
         />
       </svg>
+
+      {/* o valor de cada fio da grelha, fora do SVG esticado pela
+          mesma razão dos pontos/rótulos abaixo */}
+      {grelha.map((g) => (
+        <span key={`g${g.chave}`} className="pa-graf-grelha" style={{ top: `${g.y}%` }}>{formatar(g.valor)}</span>
+      ))}
 
       {/* os pontos e os rótulos vivem fora do SVG esticado, senão
           esticavam com ele (um círculo viraria uma elipse) */}
@@ -88,8 +102,12 @@ export default function LinhaTempo({
       </span>
 
       <div className="pa-graf-eixo">
-        <span>{validos[0].rotulo}</span>
-        <b>{mostrado.ponto.rotulo}</b>
+        <span>{validos[iPrimeiro].rotulo}</span>
+        {/* só entra um terceiro rótulo no meio quando o tocado não é
+            já o primeiro nem o último — sem esta condição, o estado
+            por omissão (mostrado = último) repetia a MESMA data duas
+            vezes seguidas (bug real, mesmo relato) */}
+        {mostrado.i !== iPrimeiro && mostrado.i !== iUltimo && <b>{mostrado.ponto.rotulo}</b>}
         <span>{validos[iUltimo].rotulo}</span>
       </div>
     </div>
