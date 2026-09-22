@@ -12,6 +12,21 @@
  * `packages/shared`, o nome não colide com nada.
  */
 
+/* ── o topo de cada aba, em verde-água ────────────────────────
+ * `.crista` é o cabeçalho partilhado (título + subtítulo + chips) que
+ * TODAS as bases usam, sempre em `var(--grad)` (o azul de sempre). O
+ * pastor pediu uma cor diferente para se distinguir das outras bases
+ * à vista — o mesmo `--verde` já usado no `.pa-aviso` abaixo, em vez
+ * de inventar um tom novo. Só aqui, como qualquer ajuste visual desta
+ * app: o `global.css` fica intacto, as outras nove bases nem sabem
+ * que isto existe. */
+.crista {
+  background: linear-gradient(118deg, #00c2a3 0%, #00a88f 55%, #007d68 100%);
+}
+.crista::before {
+  background: radial-gradient(circle, rgba(120, 255, 220, 0.3), transparent 68%);
+}
+
 /* ── o número grande de um cartão de resumo ──────────────────
  * Existe porque o mesmo bloco aparece em quatro telas (a servir, no
  * auditório, voluntários ativos, presença média) e estava a ser

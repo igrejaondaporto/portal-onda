@@ -4,6 +4,7 @@ import { ouvirRecadosEnviados } from "../lib/culto";
 import { eur, haAtras } from "@portal/shared/lib/data.js";
 import Barras from "../components/Barras";
 import SheetRecado from "../components/SheetRecado";
+import SheetTrocarLider from "../components/SheetTrocarLider";
 
 /**
  * Cada base, e o que nela está por resolver.
@@ -81,7 +82,12 @@ export default function Bases({ ativo, definirCabecalho }) {
   const [recados, setRecados] = useState([]);
   const [aberto, setAberto] = useState(null);
   const [recadoPara, setRecadoPara] = useState(null);
+  const [liderPara, setLiderPara] = useState(null);
   const [erro, setErro] = useState(null);
+  // sobe quando um líder é trocado, para o panorama vir buscar o nome
+  // novo — sem isto, "Trocar líder" trocava a sério mas continuava a
+  // mostrar o nome antigo até sair e voltar à aba
+  const [recarregar, setRecarregar] = useState(0);
 
   // uma vez por montagem: são retratos, não estado ao vivo. A aba fica
   // montada em `display:none` ao trocar de separador, por isso isto
@@ -92,7 +98,7 @@ export default function Bases({ ativo, definirCabecalho }) {
       .then(([p, pat]) => { if (vivo) { setPanorama(p.bases); setPatrimonio(pat.bases); } })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar as bases."); });
     return () => { vivo = false; };
-  }, []);
+  }, [recarregar]);
 
   useEffect(() => ouvirRecadosEnviados(setRecados), []);
 
@@ -266,7 +272,17 @@ export default function Bases({ ativo, definirCabecalho }) {
                   </ul>
                 )}
 
-                <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setRecadoPara(b)}>
+                <div className="caixa" style={{ marginTop: 12, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="ds" style={{ marginTop: 0 }}>Líder da base</p>
+                    <p className="nmt" style={{ marginTop: 3 }}>{b.liderBase?.nome ?? "Sem líder definido"}</p>
+                  </div>
+                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, flex: "none" }} onClick={() => setLiderPara(b)}>
+                    Trocar
+                  </button>
+                </div>
+
+                <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setRecadoPara(b)}>
                   Mandar recado à {b.nome}
                 </button>
               </div>
@@ -323,6 +339,13 @@ export default function Bases({ ativo, definirCabecalho }) {
       )}
 
       {recadoPara && <SheetRecado base={recadoPara} onFechar={() => setRecadoPara(null)} />}
+      {liderPara && (
+        <SheetTrocarLider
+          base={liderPara}
+          onFechar={() => setLiderPara(null)}
+          onTrocado={() => setRecarregar((n) => n + 1)}
+        />
+      )}
     </>
   );
 }

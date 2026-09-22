@@ -317,8 +317,8 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             </div>
 
             {gastos.length > 0 && (
-              <div className="caixa destaque" style={{ marginTop: 12 }}>
-                <p className="ds" style={{ marginTop: 0 }}>
+              <div className="caixa pa-aviso" style={{ marginTop: 12 }}>
+                <p style={{ marginTop: 0 }}>
                   <b>{gastos.length} pessoa{gastos.length === 1 ? "" : "s"}</b> serviu em metade ou mais dos{" "}
                   {desgaste.totalCultos} domingos deste período.
                 </p>
