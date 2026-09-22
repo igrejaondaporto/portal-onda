@@ -74,6 +74,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const [avisos, setAvisos] = useState([]);
   const [tipoCulto, setTipoCulto] = useState("");
   const [modelos, setModelos] = useState([]);
+  const [modelosProntos, setModelosProntos] = useState(false);
   const [aPublicar, setAPublicar] = useState(false);
   const [nomeModelo, setNomeModelo] = useState("");
   const [aGuardarModelo, setAGuardarModelo] = useState(false);
@@ -83,7 +84,11 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const hoje = useMemo(hojeISO, []);
 
   useEffect(() => ouvirEventos(de, ate, setEventos), [de, ate]);
-  useEffect(() => ouvirModelos(setModelos), []);
+  // `modelosProntos` marca a primeira emissão — sem isto não dá para
+  // distinguir "ainda a carregar" de "carregou e está mesmo vazio", e
+  // o culto sem ordem arriscava carregar com uma linha em branco antes
+  // do "Domingo típico" chegar a tempo.
+  useEffect(() => ouvirModelos((m) => { setModelos(m); setModelosProntos(true); }), []);
 
   useEffect(() => {
     if (!eventos.length) return;
@@ -92,18 +97,32 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
 
-  // ao trocar de culto, carrega o que já lá está (ou uma linha vazia).
-  // `carregadoDe` evita reescrever o formulário a cada emissão do
-  // listener de eventos: sem isto, escrever num campo e o snapshot
-  // chegar a seguir apagava o que se tinha acabado de escrever.
+  // ao trocar de culto, carrega o que já lá está. Sem ordem nenhuma,
+  // começa já da espinha do "Domingo típico" em vez de uma folha em
+  // branco (pedido explícito do dono do produto — "já monte baseado
+  // na ordem que sempre usamos") — só espera os modelos carregarem
+  // uma vez, para não mostrar vazio e trocar logo a seguir debaixo do
+  // dedo de quem já estivesse a escrever. `carregadoDe` evita
+  // reescrever o formulário a cada emissão do listener de eventos:
+  // sem isto, escrever num campo e o snapshot chegar a seguir apagava
+  // o que se tinha acabado de escrever.
   useEffect(() => {
     if (!evento || carregadoDe === evento.id) return;
-    const form = ordemParaFormulario(evento.ordem);
-    setMomentos(form.momentos);
-    setAvisos(form.avisos);
-    setTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data));
+    if (evento.ordem) {
+      const form = ordemParaFormulario(evento.ordem);
+      setMomentos(form.momentos);
+      setAvisos(form.avisos);
+      setTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data));
+      setCarregadoDe(evento.id);
+      return;
+    }
+    if (!modelosProntos) return;
+    const padrao = modelos.find((m) => m.padrao);
+    setMomentos(padrao ? modeloParaFormulario(padrao).momentos : [momentoVazio()]);
+    setAvisos([]);
+    setTipoCulto(tipoCultoDefault(evento.data));
     setCarregadoDe(evento.id);
-  }, [evento, carregadoDe]);
+  }, [evento, carregadoDe, modelos, modelosProntos]);
 
   const horas = useMemo(() => horasDaOrdem(momentos), [momentos]);
   const total = duracaoTotal(momentos);
