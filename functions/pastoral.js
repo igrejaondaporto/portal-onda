@@ -124,14 +124,13 @@ async function resumoDaBase(b, eventoId) {
   const p = `bases/${b.id}`;
   const [
     pessoas, funcoes, inventario, melhorias,
-    reembolsos, listas, escala, wikiIndice,
+    reembolsos, escala, wikiIndice,
   ] = await Promise.allSettled([
     db().collection(`${p}/pessoas`).where("ativo", "==", true).get(),
     db().collection(`${p}/funcoes`).where("ativa", "==", true).get(),
     db().collection(`${p}/inventario`).get(),
     db().collection(`${p}/melhorias`).get(),
     db().collection(`${p}/reembolsos`).get(),
-    db().collection(`${p}/listasCompras`).where("estado", "==", "aberta").get(),
     eventoId ? db().doc(`eventos/${eventoId}/escalas/${b.id}`).get() : Promise.resolve(null),
     db().doc(`wikiIndice/${b.id}`).get(),
   ]);
@@ -205,7 +204,6 @@ async function resumoDaBase(b, eventoId) {
     melhoriasGraves: melhoriasAtivas.filter((m) => m.gravidade === "impede_culto").length,
     melhoriasGravesNomes: melhoriasAtivas.filter((m) => m.gravidade === "impede_culto").map((m) => m.titulo ?? m.id),
     duvidasSemResposta,
-    listasComprasAbertas: ok(listas) ? contar(ok(listas)) : 0,
 
     reembolsosPorAprovar: pedidos.filter((r) => r.estado === "submetido").length,
     reembolsosPorPagar: pedidos.filter((r) => r.estado === "aprovado").length,
@@ -493,13 +491,24 @@ function resumirKinder(snap) {
  *  registou ao vivo) — a conta que `arquivarCultoTerminado` deixou por
  *  fazer de propósito ("ficam para quando esse painel existir").
  *
- *  Compara HORAS DE ENTRADA, não durações. Cada secção real tem
- *  `horaReal` ("10:34") e nenhuma tem hora de fim: só se sabe quando
- *  cada coisa COMEÇOU. Inventar uma duração a partir da secção
- *  seguinte daria ao último momento do culto uma duração de zero, e
- *  "o culto durou 4 minutos a menos" seria mentira todas as semanas.
- *  O atraso na entrada de cada momento é exato e é a pergunta que o
- *  pastor faz de verdade: "a mensagem começou a horas?".
+ *  Cada secção real só tem `horaReal` ("10:34"), a hora a que
+ *  COMEÇOU — nenhuma tem hora de fim gravada. Por isso duas perguntas
+ *  diferentes precisam de duas contas diferentes:
+ *
+ *  - "Quando isto acabou, já íamos com quanto atraso?" (`atrasoFinal`,
+ *    "No fim" no ecrã) é sobre a hora de relógio: a entrada do último
+ *    momento que foi ao ar, comparada com a hora a que devia ter
+ *    começado.
+ *  - "Que bloco é que comeu o tempo todo?" (`atrasos[].atraso`, o
+ *    "gargalo") NÃO pode ser a mesma conta — um momento que começa
+ *    tarde porque o anterior se alongou não é ele que está atrasado, é
+ *    o anterior. Por isso é a diferença entre quanto o bloco DUROU a
+ *    sério (a entrada do próximo menos a entrada deste) e quanto devia
+ *    durar (`minutos`, escrito na ordem). O último bloco nunca tem
+ *    "próximo" a seguir, por isso nunca tem duração real conhecida, e
+ *    fica de fora do "onde aparece o atraso" — reportado 2026-09
+ *    ("Atraso é a diferença de tempo que durou o bloco real, do tempo
+ *    previsto, não a hora que terminou").
  *
  *  Casa por nome normalizado, o mesmo critério de `cruzarComReal`
  *  (@portal/shared/lib/ordemAoVivo.js) e de `normalizarNome` em
@@ -525,24 +534,48 @@ function resumirCulto(s) {
     if (k && !porNome.has(k)) porNome.set(k, sec);
   }
 
-  const atrasos = [];
-  for (const m of previstos) {
-    const real = porNome.get(chaveNome(m.momento));
-    const previsto = emMinutos(m.hora);
-    const aconteceu = real ? emMinutos(real.horaReal) : null;
-    if (previsto === null || aconteceu === null) continue;
-    atrasos.push({ momento: m.momento, previsto: m.hora, real: real.horaReal, atraso: aconteceu - previsto });
-  }
+  // casados, na ordem prevista — é a partir desta lista que se conta
+  // tanto o desvio de relógio ("No fim") como a duração de cada bloco
+  const casados = previstos
+    .map((m) => {
+      const real = porNome.get(chaveNome(m.momento));
+      if (!real) return null;
+      const previstoMin = emMinutos(m.hora);
+      const realMin = emMinutos(real.horaReal);
+      if (previstoMin === null || realMin === null) return null;
+      return {
+        momento: m.momento, previstoHora: m.hora, realHora: real.horaReal,
+        previstoMin, realMin, duracaoPrevista: Number(m.minutos) || null,
+      };
+    })
+    .filter(Boolean);
+
+  const atrasos = casados.map((m, i) => {
+    const proximo = casados[i + 1];
+    const duracaoReal = proximo ? proximo.realMin - m.realMin : null;
+    const atraso = (duracaoReal !== null && m.duracaoPrevista !== null) ? duracaoReal - m.duracaoPrevista : null;
+    return {
+      momento: m.momento, previsto: m.previstoHora, real: m.realHora,
+      duracaoPrevista: m.duracaoPrevista, duracaoReal, atraso,
+    };
+  });
+
+  const comAtraso = atrasos.filter((a) => a.atraso !== null);
+  const gargalo = comAtraso.length
+    ? comAtraso.reduce((pior, a) => (a.atraso > pior.atraso ? a : pior))
+    : null;
 
   const correspondidos = new Set(previstos.map((m) => chaveNome(m.momento)));
 
   return {
     // a duração prevista é bem definida (está escrita na ordem); a
-    // real não existe, e é por isso que não vem aqui um par
+    // real não existe para todos, e é por isso que não vem aqui um par
     minutosPrevistos: previstos.reduce((t, m) => t + (Number(m.minutos) || 0), 0),
     atrasos,
-    atrasoFinal: atrasos.length ? atrasos.at(-1).atraso : null,
-    atrasoMaximo: atrasos.length ? Math.max(...atrasos.map((a) => a.atraso)) : null,
+    atrasoFinal: casados.length ? casados.at(-1).realMin - casados.at(-1).previstoMin : null,
+    // o momento que mais comeu o tempo do culto, e quanto — a última
+    // linha do "O culto começa a horas?" (ver Numeros.jsx)
+    gargalo: gargalo ? { momento: gargalo.momento, atraso: gargalo.atraso } : null,
     momentosPrevistos: previstos.length,
     // momentos que o culto nunca chegou a pôr no ar, e secções que
     // foram ao ar sem estarem na ordem — as duas coisas dizem algo

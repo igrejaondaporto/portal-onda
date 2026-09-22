@@ -45,6 +45,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
   const [periodo, setPeriodo] = useState("12m");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual momento (categoria) do "O culto começa a horas?" está
+  // expandido a mostrar o horário de cada culto — mesmo padrão de
+  // uma chave só, nunca mais que uma aberta ao mesmo tempo
+  const [momentoAberto, setMomentoAberto] = useState(null);
 
   useEffect(() => {
     let vivo = true;
@@ -81,6 +85,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
     : null;
 
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
+
+  /** Se não há um mapa fechado sequer, a grelha do calor não desenha
+   *  nenhum quadrado — e a legenda "toca num domingo" por cima de uma
+   *  grelha vazia é o que parecia bugado (mesmo relato: "não tem onde
+   *  clicar"). Sem isto, o pedido de toque ficava visível mesmo quando
+   *  não havia nada para tocar. */
+  const temMapaFechado = useMemo(() => (dados?.cultos ?? []).some((c) => c.acomodacao), [dados]);
 
   /* ── ofertas ──────────────────────────────────────────────── */
 
@@ -139,16 +150,24 @@ export default function Numeros({ ativo, definirCabecalho }) {
    *  "Contagem" fica de fora: não é um momento do culto em si, é a
    *  hora das portas — já aparece à parte, no resumo "Portas …" da
    *  aba Ordem, e listá-la aqui ao lado de Louvor/Mensagem confundia
-   *  as duas coisas. */
+   *  as duas coisas.
+   *
+   *  `atraso` já vem do servidor como a diferença entre quanto o
+   *  bloco DUROU a sério e quanto devia durar — não a hora a que
+   *  começou (ver o comentário de `resumirCulto`, functions/pastoral.js).
+   *  O último bloco de cada culto nunca tem duração real (não há hora
+   *  de fim gravada), por isso vem com `atraso: null` e fica de fora
+   *  daqui — não é que não atrasou, é que não se sabe. */
   const atrasoPorMomento = useMemo(() => {
     const mapa = new Map();
     for (const c of cultosComRegisto) {
       for (const a of c.culto.atrasos) {
         const chave = a.momento.trim().toLowerCase();
-        if (chave === "contagem") continue;
-        if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [], previstos: [] });
+        if (chave === "contagem" || a.atraso === null) continue;
+        if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [], previstos: [], ocorrencias: [] });
         const registo = mapa.get(chave);
         registo.valores.push(a.atraso);
+        registo.ocorrencias.push({ eventoId: c.eventoId, data: c.data, previsto: a.previsto, real: a.real, atraso: a.atraso });
         const [h, m] = String(a.previsto || "").split(":").map(Number);
         if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
       }
@@ -159,6 +178,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
         chave, rotulo: v.rotulo, vezes: v.valores.length,
         media: Math.round(v.valores.reduce((t, n) => t + n, 0) / v.valores.length),
         ordem: v.previstos.length ? v.previstos.reduce((t, n) => t + n, 0) / v.previstos.length : Infinity,
+        ocorrencias: v.ocorrencias.sort((a, b) => a.data.localeCompare(b.data)),
       }))
       .sort((a, b) => a.ordem - b.ordem);
   }, [cultosComRegisto]);
@@ -239,7 +259,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho">
               <h3>Quão cheio esteve o auditório</h3>
-              <span className="cap">toca num domingo</span>
+              {temMapaFechado && <span className="cap">toca num domingo</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
               Sobre a capacidade útil — lugares totais menos os reservados e os bloqueados. A escala é fixa
@@ -288,18 +308,41 @@ export default function Numeros({ ativo, definirCabecalho }) {
                 {atrasoPorMomento.length > 0 && (
                   <>
                     <p className="ds" style={{ marginTop: 14 }}>
-                      Onde o atraso aparece — na ordem do culto, média por momento, só os que aconteceram em
-                      dois ou mais cultos.
+                      Onde o atraso aparece — na ordem do culto, quanto cada bloco durou a mais (ou a menos) do
+                      previsto, só os que aconteceram em dois ou mais cultos. Toca num para ver os horários.
                     </p>
-                    {atrasoPorMomento.map((m) => (
-                      <div className="linha" key={m.chave}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p className="nmt" style={{ fontSize: 14 }}>{m.rotulo}</p>
-                          <p className="ds">{m.vezes} cultos</p>
+                    {atrasoPorMomento.map((m) => {
+                      const aberto = momentoAberto === m.chave;
+                      return (
+                        <div key={m.chave}>
+                          <div
+                            className="linha cabtoque"
+                            onClick={() => setMomentoAberto(aberto ? null : m.chave)}
+                            role="button" tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setMomentoAberto(aberto ? null : m.chave); }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p className="nmt" style={{ fontSize: 14 }}>{m.rotulo}</p>
+                              <p className="ds">{m.vezes} cultos</p>
+                            </div>
+                            <Atraso minutos={m.media} />
+                          </div>
+                          {aberto && (
+                            <div className="aberto" style={{ paddingBottom: 10 }}>
+                              {m.ocorrencias.map((o) => (
+                                <div className="linha" key={o.eventoId} style={{ padding: "8px 0" }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <p className="ds" style={{ margin: 0 }}>{dataCurta(o.data)}</p>
+                                    <p className="cap" style={{ marginTop: 2 }}>previsto {o.previsto} · entrou {o.real}</p>
+                                  </div>
+                                  <Atraso minutos={o.atraso} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <Atraso minutos={m.media} />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
 
@@ -309,7 +352,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
                       <tr>
                         <th>Culto</th>
                         <th style={{ textAlign: "right" }}>No fim</th>
-                        <th style={{ textAlign: "right" }}>Pior</th>
+                        <th style={{ textAlign: "right" }}>Gargalo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -320,7 +363,12 @@ export default function Numeros({ ativo, definirCabecalho }) {
                             <span className={corAtraso(c.culto.atrasoFinal)}>{textoAtraso(c.culto.atrasoFinal)}</span>
                           </td>
                           <td style={{ textAlign: "right" }}>
-                            <span className={corAtraso(c.culto.atrasoMaximo)}>{textoAtraso(c.culto.atrasoMaximo)}</span>
+                            {c.culto.gargalo ? (
+                              <>
+                                <span style={{ display: "block", fontSize: 11.5, color: "var(--cinza)" }}>{c.culto.gargalo.momento}</span>
+                                <span className={corAtraso(c.culto.gargalo.atraso)}>{textoAtraso(c.culto.gargalo.atraso)}</span>
+                              </>
+                            ) : "—"}
                           </td>
                         </tr>
                       ))}

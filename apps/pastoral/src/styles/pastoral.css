@@ -35,7 +35,9 @@
 .pa-graf {
   position: relative;
   margin-top: 14px;
-  padding-bottom: 26px;
+  /* espaço para a data por baixo de um ponto no fundo do gráfico
+     (valor 0 → y:100%) não ficar cortada */
+  padding-bottom: 30px;
 }
 .pa-graf-svg {
   width: 100%;
@@ -98,20 +100,16 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-.pa-graf-eixo {
+/* a data de cada ponto rotulado, sempre por baixo da própria bolinha
+   — em px fixos a partir do centro, não em %, para não depender da
+   altura do gráfico */
+.pa-graf-data {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
+  transform: translate(-50%, 11px);
+  font-size: 10.5px;
   color: var(--cinza);
-}
-.pa-graf-eixo b {
-  color: var(--tinta);
-  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* ── funil de visitantes ─────────────────────────────────────

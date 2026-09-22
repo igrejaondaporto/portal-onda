@@ -20,6 +20,18 @@ import { useState } from "react";
  */
 const L = 8;    // margem interna, em % — dá espaço aos rótulos das pontas
 
+/** O passo da grelha em número fechado (50, 100, 150…), nunca uma
+ *  fração do topo do gráfico — um fio a dizer "37" não ajuda ninguém a
+ *  fazer contas de cabeça. Escolhe 1, 2 ou 5 vezes uma potência de
+ *  dez, o mesmo truque de qualquer eixo de gráfico. */
+function passoAgradavel(bruto) {
+  if (!(bruto > 0)) return 1;
+  const base = 10 ** Math.floor(Math.log10(bruto));
+  const frac = bruto / base;
+  const nice = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10;
+  return nice * base;
+}
+
 export default function LinhaTempo({
   pontos, formatar = String, vazio = "Ainda não há números para mostrar.", altura = 132,
 }) {
@@ -50,10 +62,12 @@ export default function LinhaTempo({
   const rotulados = new Set([iPrimeiro, iMax, iUltimo]);
   const mostrado = foco ?? { i: iUltimo, ponto: validos[iUltimo] };
 
-  // grelha com o valor que cada fio representa — sem isto ("falta
-  // legenda", mesmo relato) os três fios não diziam nada, só cortavam
-  // o gráfico ao meio
-  const grelha = [0.25, 0.5, 0.75].map((f) => ({ chave: f, y: 100 - f * 100, valor: Math.round(topo * f) }));
+  // grelha com o valor que cada fio representa, em números fechados —
+  // sem isto ("falta legenda", mesmo relato) os fios não diziam nada,
+  // só cortavam o gráfico ao meio
+  const passo = passoAgradavel(topo / 3.5);
+  const grelha = [];
+  for (let v = passo; v < topo; v += passo) grelha.push({ chave: v, y: 100 - (v / topo) * 100, valor: v });
 
   return (
     <div className="pa-graf" style={{ height: altura }}>
@@ -101,15 +115,16 @@ export default function LinhaTempo({
         {formatar(mostrado.ponto.valor)}
       </span>
 
-      <div className="pa-graf-eixo">
-        <span>{validos[iPrimeiro].rotulo}</span>
-        {/* só entra um terceiro rótulo no meio quando o tocado não é
-            já o primeiro nem o último — sem esta condição, o estado
-            por omissão (mostrado = último) repetia a MESMA data duas
-            vezes seguidas (bug real, mesmo relato) */}
-        {mostrado.i !== iPrimeiro && mostrado.i !== iUltimo && <b>{mostrado.ponto.rotulo}</b>}
-        <span>{validos[iUltimo].rotulo}</span>
-      </div>
+      {/* a data de cada domingo com informação à vista, sempre por
+          baixo da própria bolinha — não numa faixa fixa lá em baixo,
+          que só dava para mostrar três datas de cada vez e confundia
+          qual pertencia a qual (mesmo relato: "a data devia estar
+          abaixo da bolinha com a informação") */}
+      {validos.map((p, i) => (rotulados.has(i) || i === mostrado.i ? (
+        <span key={`d${p.chave ?? i}`} className="pa-graf-data" style={{ left: `${x(i)}%`, top: `${y(p.valor)}%` }}>
+          {p.rotulo}
+        </span>
+      ) : null))}
     </div>
   );
 }
