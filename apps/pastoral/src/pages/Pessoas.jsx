@@ -1,9 +1,62 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
 import { contarPorEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
+import { linkWhatsApp } from "@portal/shared/lib/data.js";
+import Avatar from "@portal/shared/components/Avatar.jsx";
+import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Funil from "../components/Funil";
 import Barras from "../components/Barras";
 import SheetContacto from "../components/SheetContacto";
+
+/** As etiquetas de base de uma pessoa, como `tagExtra` de
+ *  `LinhaPessoaContacto` — pode ser mais do que uma (quem serve em
+ *  duas ou mais bases), por isso nunca o slot de badge único. */
+function TagsBase({ bases }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {bases.map((b) => (
+        <span className="tag" key={b.baseId} style={{ background: b.cor ?? "var(--cinza)" }}>{b.nome}</span>
+      ))}
+    </div>
+  );
+}
+
+/** A linha do desgaste: tem barra de progresso e contagem de cultos,
+ *  que não cabem nos slots do LinhaPessoaContacto partilhado — por
+ *  isso é local, mas usa os mesmos dois primitivos (Avatar,
+ *  linkWhatsApp) para o mesmo gesto de "toca no nome, aparece o
+ *  WhatsApp". */
+function LinhaDesgaste({ pessoa, cultos, pct, bases, aberta, onToggle }) {
+  const link = linkWhatsApp(pessoa.telefone);
+  return (
+    <div className="linha" style={{ alignItems: "flex-start", cursor: "pointer", flexWrap: "wrap" }} onClick={onToggle}>
+      <Avatar pessoa={pessoa} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p className="nmt">{pessoa.nome}</p>
+        <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+          {bases.map((b) => (
+            <span className="tag" key={b.baseId} style={{ background: b.cor }}>{b.nome}</span>
+          ))}
+        </p>
+        <div className="barra" style={{ marginTop: 7 }}>
+          <i style={{ width: `${pct}%`, background: pct >= 50 ? "var(--laranja)" : "var(--azul)" }} />
+        </div>
+      </div>
+      <span style={{ flex: "none", fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>
+        {cultos}
+      </span>
+      {aberta && (
+        <div className="aberto" onClick={(e) => e.stopPropagation()} style={{ paddingTop: 4, flexBasis: "100%" }}>
+          {link ? (
+            <a className="btn sec full" href={link} target="_blank" rel="noopener">Chamar no WhatsApp</a>
+          ) : (
+            <p className="ds">Sem contacto no perfil.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ABAS = [
   ["voluntarios", "Quem serve"],
@@ -41,6 +94,11 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   const [contactoAberto, setContactoAberto] = useState(null);
   const [desgaste, setDesgaste] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual linha (voluntário multi-base, líder ou desgaste) está
+  // expandida a mostrar o WhatsApp — uma chave só, nunca mais do que
+  // uma aberta ao mesmo tempo, mesmo padrão do contactoAberto acima
+  const [linhaAberta, setLinhaAberta] = useState(null);
+  const alternarLinha = (chave) => setLinhaAberta((a) => (a === chave ? null : chave));
 
   useEffect(() => {
     let vivo = true;
@@ -179,6 +237,19 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             </div>
 
             <div className="sect">
+              <div className="cabecalho"><h3>Líderes e auxiliares</h3><span className="cap">{lideres.length}</span></div>
+              {lideres.map((p) => (
+                <LinhaPessoaContacto
+                  key={p.id} pessoa={p}
+                  resumo={p.bases.filter((b) => b.ativo && (b.papel === "lider_base" || b.papel === "auxiliar"))
+                    .map((b) => `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}`).join(" · ")}
+                  aberta={linhaAberta === `lider:${p.id}`}
+                  onToggle={() => alternarLinha(`lider:${p.id}`)}
+                />
+              ))}
+            </div>
+
+            <div className="sect">
               <div className="cabecalho">
                 <h3>Servem em mais de uma base</h3>
                 <span className="cap">{multiBase.length}</span>
@@ -188,32 +259,14 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 ninguém é quem está a carregar dois compromissos ao mesmo tempo.
               </p>
               {multiBase.length ? multiBase.map((p) => (
-                <div className="linha" key={p.id}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                      {p.bases.filter((b) => b.ativo).map((b) => (
-                        <span className="tag" key={b.baseId} style={{ background: b.cor ?? "var(--cinza)" }}>{b.nome}</span>
-                      ))}
-                    </p>
-                  </div>
-                </div>
+                <LinhaPessoaContacto
+                  key={p.id} pessoa={p}
+                  resumo="Toca para chamar no WhatsApp"
+                  tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
+                  aberta={linhaAberta === `multi:${p.id}`}
+                  onToggle={() => alternarLinha(`multi:${p.id}`)}
+                />
               )) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
-            </div>
-
-            <div className="sect">
-              <div className="cabecalho"><h3>Líderes e auxiliares</h3><span className="cap">{lideres.length}</span></div>
-              {lideres.map((p) => (
-                <div className="linha" key={p.id}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds">
-                      {p.bases.filter((b) => b.ativo && (b.papel === "lider_base" || b.papel === "auxiliar"))
-                        .map((b) => `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}`).join(" · ")}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </div>
           </>
         )
@@ -247,27 +300,15 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 <h3>Mais domingos servidos</h3>
                 <span className="cap">de {desgaste.totalCultos}</span>
               </div>
-              {desgaste.pessoas.length ? desgaste.pessoas.slice(0, 40).map((p) => {
-                const pct = Math.round((p.cultos / desgaste.totalCultos) * 100);
-                return (
-                  <div className="linha" key={p.uid}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p className="nmt">{p.nome}</p>
-                      <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                        {p.bases.map((b) => (
-                          <span className="tag" key={b.baseId} style={{ background: corBase(b.baseId) }}>{b.nome}</span>
-                        ))}
-                      </p>
-                      <div className="barra" style={{ marginTop: 7 }}>
-                        <i style={{ width: `${pct}%`, background: pct >= 50 ? "var(--laranja)" : "var(--azul)" }} />
-                      </div>
-                    </div>
-                    <span style={{ flex: "none", fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>
-                      {p.cultos}
-                    </span>
-                  </div>
-                );
-              }) : <div className="vaz">Nenhuma escala publicada neste período.</div>}
+              {desgaste.pessoas.length ? desgaste.pessoas.slice(0, 40).map((p) => (
+                <LinhaDesgaste
+                  key={p.uid} pessoa={p} cultos={p.cultos}
+                  pct={Math.round((p.cultos / desgaste.totalCultos) * 100)}
+                  bases={p.bases.map((b) => ({ ...b, cor: corBase(b.baseId) }))}
+                  aberta={linhaAberta === `desgaste:${p.uid}`}
+                  onToggle={() => alternarLinha(`desgaste:${p.uid}`)}
+                />
+              )) : <div className="vaz">Nenhuma escala publicada neste período.</div>}
             </div>
           </>
         )

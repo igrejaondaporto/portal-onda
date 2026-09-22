@@ -82,9 +82,6 @@ export default function SheetContacto({ contacto, onFechar }) {
         )}
 
         <label className="rot" style={{ marginTop: 18 }}>Mover para</label>
-        <p className="cap" style={{ marginTop: 2 }}>
-          Dá para voltar atrás — corrigir um engano nunca apaga o que já aconteceu.
-        </p>
         <div className="pa-etapas">
           {ETAPAS.map((e) => {
             const i = indiceEtapa(e.id);

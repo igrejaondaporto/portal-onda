@@ -77,6 +77,29 @@ async function basesDaIgreja() {
 
 const contar = (snap) => snap.size;
 
+/** "Hoje" em Lisboa — mesmo cálculo de `hojeISOLisboa` em index.js,
+ *  duplicado aqui em vez de importado (mesma convenção de mural.js:
+ *  este ficheiro fica lido de ponta a ponta sem saltar para outro). */
+const hojeISOLisboa = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon" }).format(new Date());
+
+/** O próximo culto a partir de hoje (ou hoje, se for domingo) — o
+ *  mesmo "próximo culto" que qualquer ecrã do painel abre por
+ *  omissão. `panoramaPastoral` chama isto quando ninguém pede um
+ *  `eventoId` específico: sem isto, `escalaFeita` comparava sempre
+ *  contra um evento nenhum (`eventoId: null`) e ficava `false` para
+ *  as dez bases, sempre — bug real, nunca reparado por ninguém ter
+ *  chamado esta função com um `eventoId` a sério. */
+async function proximoEventoId() {
+  const hoje = hojeISOLisboa();
+  const snap = await db().collection("eventos")
+    .where(admin.firestore.FieldPath.documentId(), ">=", hoje)
+    .orderBy(admin.firestore.FieldPath.documentId())
+    .limit(5)
+    .get();
+  const evento = snap.docs.find((d) => d.data().ativo !== false);
+  return evento?.id ?? null;
+}
+
 /* ══════════════════════════════════════════════════════════════
  *  PANORAMA — uma chamada, o estado das 10 bases
  * ══════════════════════════════════════════════════════════════
@@ -86,6 +109,11 @@ const contar = (snap) => snap.size;
  * quem quer saber quais toca e vai ao detalhe. Devolver as listas
  * inteiras de 10 bases seria um payload de megabytes para desenhar
  * dez números.
+ *
+ * Exceção deliberada: avarias e itens em falta são só um punhado por
+ * base (nunca o inventário inteiro), e "2 avariados" sem dizer QUAIS
+ * obriga a abrir a app da base só para saber o quê — por isso essas
+ * duas trazem também os nomes, não só a contagem.
  *
  * Cada bloco falha sozinho (`Promise.allSettled`): uma base sem a
  * coleção `melhorias` não pode tirar do ar o painel inteiro. Uma base
@@ -163,14 +191,19 @@ async function resumoDaBase(b, eventoId) {
 
     inventarioTotal: consumiveis.length,
     inventarioEmFalta: emFalta.length,
+    inventarioEmFaltaNomes: emFalta.map((i) => i.nome ?? i.id),
     equipamentosTotal: patrimonio.length,
     equipamentosAvariados: avariados.length,
+    equipamentosAvariadosNomes: avariados.map((i) => i.nome ?? i.id),
 
     melhoriasAbertas: melhoriasAtivas.length,
     // "impede_culto" é a gravidade que para um domingo (ver GRAVIDADES
     // em index.js: impede_culto | atrapalha | melhoria) — é a única
-    // que merece contagem própria no painel
+    // que merece contagem própria no painel, e a única grave o
+    // suficiente para valer a pena nomear (as "atrapalha"/"melhoria"
+    // continuam só contagem — não param nenhum domingo)
     melhoriasGraves: melhoriasAtivas.filter((m) => m.gravidade === "impede_culto").length,
+    melhoriasGravesNomes: melhoriasAtivas.filter((m) => m.gravidade === "impede_culto").map((m) => m.titulo ?? m.id),
     duvidasSemResposta,
     listasComprasAbertas: ok(listas) ? contar(ok(listas)) : 0,
 
@@ -182,9 +215,9 @@ async function resumoDaBase(b, eventoId) {
 export const panoramaPastoral = onCall(async (req) => {
   exigeVisaoPastoral(req);
   const { eventoId } = req.data || {};
-  const bases = await basesDaIgreja();
-  const resumos = await Promise.all(bases.map((b) => resumoDaBase(b, eventoId || null)));
-  return { bases: resumos, geradoEm: Date.now() };
+  const [bases, alvo] = await Promise.all([basesDaIgreja(), eventoId ? eventoId : proximoEventoId()]);
+  const resumos = await Promise.all(bases.map((b) => resumoDaBase(b, alvo)));
+  return { bases: resumos, eventoId: alvo, geradoEm: Date.now() };
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -592,13 +625,23 @@ export const desgastePastoral = onCall(async (req) => {
     });
   }));
 
-  // o nome vem de pessoas/{uid} (global) — nunca de bases/{b}/pessoas
-  // de uma base específica, que daria nomes diferentes conforme a
-  // base por onde se entrasse primeiro
+  // o nome e a foto vêm de pessoas/{uid} (global) — nunca de
+  // bases/{b}/pessoas de uma base específica, que daria nomes
+  // diferentes conforme a base por onde se entrasse primeiro. O
+  // telefone é só por base (mesmo motivo de pessoasPastoral acima);
+  // como já sabemos em que bases cada pessoa serviu (`p.bases`), basta
+  // ler UMA delas — a primeira em que apareceu — para conseguir
+  // "Falar por WhatsApp" sem multiplicar leituras por base servida.
   const uids = [...porPessoa.keys()];
   const globais = await Promise.all(uids.map((u) => db().doc(`pessoas/${u}`).get().catch(() => null)));
-  const nomeDe = Object.fromEntries(
-    globais.filter((s) => s?.exists).map((s) => [s.id, s.data().nome ?? null]));
+  const infoDe = Object.fromEntries(
+    globais.filter((s) => s?.exists).map((s) => [s.id, { nome: s.data().nome ?? null, foto: s.data().foto ?? null }]));
+  const telefones = await Promise.all(uids.map((uid) => {
+    const primeiraBase = [...porPessoa.get(uid).bases][0];
+    return db().doc(`bases/${primeiraBase}/pessoas/${uid}`).get().catch(() => null);
+  }));
+  const telefoneDe = Object.fromEntries(
+    uids.map((uid, i) => [uid, telefones[i]?.exists ? (telefones[i].data().telefone ?? "") : ""]));
 
   const nomeBase = Object.fromEntries(bases.map((b) => [b.id, b.nome ?? b.id]));
 
@@ -606,7 +649,9 @@ export const desgastePastoral = onCall(async (req) => {
     const p = porPessoa.get(uid);
     return {
       uid,
-      nome: nomeDe[uid] ?? null,
+      nome: infoDe[uid]?.nome ?? null,
+      foto: infoDe[uid]?.foto ?? null,
+      telefone: telefoneDe[uid] ?? "",
       cultos: p.cultos.size,
       bases: [...p.bases].map((b) => ({ baseId: b, nome: nomeBase[b] ?? b })),
     };
