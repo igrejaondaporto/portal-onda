@@ -2036,8 +2036,14 @@ export const publicarOrdemCulto = onCall(async (req) => {
   if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
-  if (!TIPOS_CULTO.has(tipoCulto)) {
-    throw new HttpsError("invalid-argument", "Falta escolher o tipo de culto (Ceia, Contribua ou Culto da Família).");
+  // além dos três fixos, aceita um tipo escrito à mão (botão "+ Outro"
+  // no Painel Pastoral) — só validado por forma (não vazio, não
+  // gigante), nunca contra a lista fechada: um tipo novo (ex. "Culto
+  // de Natal") não devia pedir deploy nenhum para poder ser publicado.
+  const tipoValido = TIPOS_CULTO.has(tipoCulto)
+    || (typeof tipoCulto === "string" && tipoCulto.trim().length > 0 && tipoCulto.trim().length <= 40);
+  if (!tipoValido) {
+    throw new HttpsError("invalid-argument", "Falta escolher (ou escrever) o tipo de culto.");
   }
   const evento = await db.doc(`eventos/${eventoId}`).get();
   if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
@@ -2060,7 +2066,7 @@ export const publicarOrdemCulto = onCall(async (req) => {
 
   const avisosLimpos = avisos.map(({ nome, data, info }) => ({ nome, data, info }));
   await db.doc(`eventos/${eventoId}`).set({
-    tipoCulto,
+    tipoCulto: tipoCulto.trim(),
     ordem: {
       momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
       portasAbertas: portasAbertas ?? inicio ?? null,

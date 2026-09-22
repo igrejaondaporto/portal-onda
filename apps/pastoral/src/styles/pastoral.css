@@ -85,6 +85,19 @@
   color: var(--tinta);
   font-size: 13px;
 }
+/* o valor de cada fio da grelha, à direita — "falta legenda" era isto:
+   três fios sem número nenhum ao lado não dizem a que altura ficam */
+.pa-graf-grelha {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--cinza);
+  background: #fff;
+  padding-left: 4px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 .pa-graf-eixo {
   position: absolute;
   left: 0;
@@ -289,19 +302,6 @@
    ocupada a dizer quanta gente esteve */
 .pa-calor-q.on {
   box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--tinta);
-}
-.pa-calor-legenda {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 12px;
-  font-size: 11px;
-  color: var(--cinza);
-}
-.pa-calor-legenda i {
-  width: 18px;
-  height: 10px;
-  border-radius: 3px;
 }
 
 /* ── a ordem do culto em papel ───────────────────────────────

@@ -79,6 +79,8 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const [nomeModelo, setNomeModelo] = useState("");
   const [aGuardarModelo, setAGuardarModelo] = useState(false);
   const [carregadoDe, setCarregadoDe] = useState(null);
+  const [aAdicionarTipo, setAAdicionarTipo] = useState(false);
+  const [outroTipo, setOutroTipo] = useState("");
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
@@ -162,7 +164,9 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   async function publicar() {
     const ms = limparMomentos(momentos);
     if (!ms.length) return torrada("Põe pelo menos um momento com hora e nome.");
-    if (!TIPOS_CULTO.some((t) => t.id === tipoCulto)) return torrada("Escolhe o tipo de culto.");
+    // além dos fixos, aceita um tipo escrito à mão (ver "+ Outro" mais
+    // abaixo) — a validação a sério é a mesma da Cloud Function
+    if (!tipoCulto?.trim()) return torrada("Escolhe (ou escreve) o tipo de culto.");
 
     setAPublicar(true);
     try {
@@ -221,6 +225,13 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
     torrada(`"${modelo.nome}" carregado — as horas e os nomes ficaram, os responsáveis não.`);
   }
 
+  function usarOutroTipo() {
+    if (!outroTipo.trim()) return;
+    setTipoCulto(outroTipo.trim());
+    setOutroTipo("");
+    setAAdicionarTipo(false);
+  }
+
   return (
     <>
       <NavCulto
@@ -247,30 +258,36 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
       )}
 
       {/* ── modelos ─────────────────────────────────────────── */}
-      {modelos.length > 0 && (
-        <div className="sect">
-          <div className="cabecalho"><h3>Começar de um modelo</h3><span className="cap">{modelos.length}</span></div>
-          <p className="ds" style={{ marginTop: 0 }}>
-            Carrega a espinha do domingo típico. As horas e os nomes vêm; os responsáveis não — quem prega muda
-            todas as semanas, e um modelo que trouxesse o nome da semana passada publicava o pregador errado.
-          </p>
-          {modelos.map((m) => (
-            <div className="linha" key={m.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="nmt">{m.nome}</p>
-                <p className="ds">{m.momentos?.length ?? 0} momentos</p>
-              </div>
-              <button className="btn sec" style={{ flex: "none" }} onClick={() => carregar(m)}>Usar</button>
-              <button
-                className="btn sec" style={{ flex: "none", color: "var(--magenta)" }}
-                onClick={() => apagarModelo(m.id).then(() => torrada("Modelo apagado."))}
-              >
-                Apagar
-              </button>
-            </div>
-          ))}
+      <div className="sect">
+        <div className="cabecalho"><h3>Modelos</h3><span className="cap">{modelos.length}</span></div>
+        <p className="ds" style={{ marginTop: 0 }}>
+          Carrega a espinha de um domingo típico, ou guarda a de agora como modelo novo. As horas e os nomes
+          ficam; os responsáveis não — quem prega muda todas as semanas, e um modelo que trouxesse o nome da
+          semana passada publicava o pregador errado.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input
+            className="campo" style={{ marginTop: 0, flex: 1 }} value={nomeModelo}
+            placeholder="Guardar isto como modelo" onChange={(e) => setNomeModelo(e.target.value)}
+          />
+          <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarModelo} onClick={guardar}>Guardar</button>
         </div>
-      )}
+        {modelos.length > 0 && modelos.map((m) => (
+          <div className="linha" key={m.id} style={{ marginTop: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="nmt">{m.nome}</p>
+              <p className="ds">{m.momentos?.length ?? 0} momentos</p>
+            </div>
+            <button className="btn sec" style={{ flex: "none" }} onClick={() => carregar(m)}>Usar</button>
+            <button
+              className="btn sec" style={{ flex: "none", color: "var(--magenta)" }}
+              onClick={() => apagarModelo(m.id).then(() => torrada("Modelo apagado."))}
+            >
+              Apagar
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* ── os momentos ─────────────────────────────────────── */}
       <div className="sect">
@@ -281,34 +298,56 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
         {momentos.map((m, i) => (
           <div className="caixa" key={m._k} style={{ marginTop: i === 0 ? 8 : 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 9 }}>
-              <input
-                className="campo" style={{ marginTop: 0 }} type="time" value={m.hora}
-                onChange={(e) => atualizar(i, "hora", e.target.value)} aria-label="Hora"
-              />
-              <input
-                className="campo" style={{ marginTop: 0 }} value={m.momento} placeholder="O que é (ex.: Louvor)"
-                onChange={(e) => atualizar(i, "momento", e.target.value)} aria-label="Momento"
-              />
+            {/* 118px, não 84px: um <input type="time"> pede espaço para
+                as duas dezenas E os dois pontos — a 84px o browser
+                cortava e só dava para ver a hora, nunca os minutos
+                (bug real, reportado 2026-09) */}
+            <div style={{ display: "grid", gridTemplateColumns: "118px 1fr", gap: 9 }}>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} type="time" value={m.hora}
+                  onChange={(e) => atualizar(i, "hora", e.target.value)} aria-label="Hora"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Hora</p>
+              </div>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} value={m.momento} placeholder="O que é (ex.: Louvor)"
+                  onChange={(e) => atualizar(i, "momento", e.target.value)} aria-label="Momento"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>O nome que aparece na ordem</p>
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 9, marginTop: 9 }}>
-              <input
-                className="campo" style={{ marginTop: 0 }} type="number" min="0" inputMode="numeric"
-                value={m.minutos} onChange={(e) => atualizar(i, "minutos", e.target.value)} aria-label="Minutos"
-              />
-              <input
-                className="campo" style={{ marginTop: 0 }} value={m.responsavel ?? ""} placeholder="Quem (opcional)"
-                onChange={(e) => atualizar(i, "responsavel", e.target.value)} aria-label="Responsável"
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "118px 1fr", gap: 9, marginTop: 9 }}>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} type="number" min="0" inputMode="numeric"
+                  value={m.minutos} onChange={(e) => atualizar(i, "minutos", e.target.value)} aria-label="Minutos"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Minutos</p>
+              </div>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} value={m.responsavel ?? ""} placeholder="Quem (opcional)"
+                  onChange={(e) => atualizar(i, "responsavel", e.target.value)} aria-label="Responsável"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Quem executa (opcional)</p>
+              </div>
             </div>
-            <input
-              className="campo" value={m.projecao ?? ""} placeholder="Projeção (opcional)"
-              onChange={(e) => atualizar(i, "projecao", e.target.value)} aria-label="Projeção"
-            />
-            <input
-              className="campo" value={m.detalhe ?? ""} placeholder="Detalhe (opcional)"
-              onChange={(e) => atualizar(i, "detalhe", e.target.value)} aria-label="Detalhe"
-            />
+            <div>
+              <input
+                className="campo" value={m.projecao ?? ""} placeholder="Projeção (opcional)"
+                onChange={(e) => atualizar(i, "projecao", e.target.value)} aria-label="Projeção"
+              />
+              <p className="cap" style={{ marginTop: 4 }}>O que entra no telão (opcional)</p>
+            </div>
+            <div>
+              <input
+                className="campo" value={m.detalhe ?? ""} placeholder="Detalhe (opcional)"
+                onChange={(e) => atualizar(i, "detalhe", e.target.value)} aria-label="Detalhe"
+              />
+              <p className="cap" style={{ marginTop: 4 }}>Nota extra para quem monta (opcional)</p>
+            </div>
             {/* setas em vez de arrasto: uma dependência a menos e
                 funciona melhor a um polegar só — mesma decisão do
                 Repertório da Louvor e da checklist da Técnica */}
@@ -387,9 +426,28 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         </p>
         <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
           {TIPOS_CULTO.map((t) => (
-            <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => setTipoCulto(t.id)}>{t.nome}</button>
+            <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => { setTipoCulto(t.id); setAAdicionarTipo(false); }}>{t.nome}</button>
           ))}
+          {/* um tipo escrito à mão (ex.: "Culto de Natal") também
+              aparece aqui como botão, escolhido, até se trocar de
+              culto — não é gravado numa lista partilhada nenhuma, só
+              vale para esta ordem (publicarOrdemCulto já aceita
+              qualquer texto não vazio, ver functions/index.js) */}
+          {tipoCulto && !TIPOS_CULTO.some((t) => t.id === tipoCulto) && (
+            <button data-on="1">{tipoCulto}</button>
+          )}
+          <button data-on={aAdicionarTipo ? "1" : "0"} onClick={() => setAAdicionarTipo((v) => !v)}>+ Outro</button>
         </div>
+        {aAdicionarTipo && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input
+              className="campo" style={{ marginTop: 0, flex: 1 }} value={outroTipo}
+              placeholder="Nome do tipo de culto" onChange={(e) => setOutroTipo(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && usarOutroTipo()}
+            />
+            <button className="btn sec" style={{ flex: "none" }} onClick={usarOutroTipo}>Usar</button>
+          </div>
+        )}
       </div>
 
       {/* ── resumo e publicar ───────────────────────────────── */}
@@ -423,14 +481,6 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
       >
         Imprimir / guardar em PDF
       </button>
-
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input
-          className="campo" style={{ marginTop: 0, flex: 1 }} value={nomeModelo}
-          placeholder="Guardar isto como modelo" onChange={(e) => setNomeModelo(e.target.value)}
-        />
-        <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarModelo} onClick={guardar}>Guardar</button>
-      </div>
 
       {evento?.ordem && podePublicarCulto && (
         <button className="btn sec full" style={{ marginTop: 8, marginBottom: 20, color: "var(--magenta)" }} disabled={aPublicar} onClick={limpar}>
