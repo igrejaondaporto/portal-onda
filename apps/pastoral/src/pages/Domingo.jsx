@@ -8,6 +8,8 @@ import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
 import { cruzarComReal } from "@portal/shared/lib/ordemAoVivo.js";
 import Atraso from "../components/Atraso";
 import SheetRecado from "../components/SheetRecado";
+import NavCulto from "../components/NavCulto";
+import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
 /** Janela de cultos que a tela carrega: o mês passado e os dois
  *  seguintes. Chega para "o próximo domingo" e para rever o anterior,
@@ -45,6 +47,11 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
   const [registoAoVivo, setRegistoAoVivo] = useState(null);
   const [recadoPara, setRecadoPara] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual base está aberta a mostrar a escala exata, e dentro dela qual
+  // pessoa está aberta a mostrar o WhatsApp — duas chaves, nunca mais
+  // de uma aberta em cada nível ao mesmo tempo
+  const [baseAberta, setBaseAberta] = useState(null);
+  const [contactoAberto, setContactoAberto] = useState(null);
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
@@ -74,7 +81,7 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
   useEffect(() => {
     if (!eventoId) return;
     let vivo = true;
-    setEscalas(null); setCatalogo(null); setErro(null);
+    setEscalas(null); setCatalogo(null); setErro(null); setBaseAberta(null); setContactoAberto(null);
     Promise.all([obterEscalasDeTodasAsBases(eventoId), obterCatalogoChecklist(eventoId)])
       .then(([e, c]) => { if (vivo) { setEscalas(e); setCatalogo(c); } })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar as bases."); });
@@ -156,22 +163,15 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
   return (
     <>
-      {/* seletor de culto: só aparece havendo mais do que um, e nunca
-          se sobrepõe ao culto ao vivo — se há culto a acontecer, é
-          esse que interessa */}
-      {eventos.length > 1 && (
-        <select
-          className="campo ordselect" value={eventoId ?? ""}
-          onChange={(e) => setEventoId(e.target.value)}
-          style={{ marginTop: 14 }}
-        >
-          {eventos.map((e) => (
-            <option key={e.id} value={e.id}>
-              {nomeEvento(e)}{e.id === hoje ? " · hoje" : ""}{e.id === aoVivoId ? " · ao vivo" : ""}
-            </option>
-          ))}
-        </select>
-      )}
+      {/* o culto por omissão já vem certo (ao vivo, ou hoje, ou o
+          próximo) — a seta só é para andar para os lados a partir
+          dele, nunca se sobrepõe ao culto ao vivo */}
+      <NavCulto
+        eventos={eventos} eventoId={eventoId} evento={evento} onEscolher={setEventoId}
+        extra={eventoId === aoVivoId && aoVivoId
+          ? <span className="tag lim">ao vivo</span>
+          : eventoId === hoje ? <span className="tag">hoje</span> : null}
+      />
 
       {erro && <div className="caixa destaque" style={{ marginTop: 12 }}><p className="ds" style={{ marginTop: 0 }}>{erro}</p></div>}
 
@@ -231,34 +231,89 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
         </div>
       )}
 
-      {/* ── uma linha por base ──────────────────────────────── */}
+      {/* ── uma linha por base, com a escala exata por dentro ─── */}
       <div className="sect">
-        <div className="cabecalho"><h3>As bases neste culto</h3><span className="cap">escala e checklist</span></div>
+        <div className="cabecalho"><h3>As bases neste culto</h3><span className="cap">toca para ver quem serve</span></div>
         {escalas === null ? (
           <div className="vaz">A carregar as bases…</div>
-        ) : porBase.map((b) => (
-          <div className="linha" key={b.baseId}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p className="nmt" style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                {b.cor && <span className="quadmin" style={{ background: b.cor }} />}
-                {b.nome}
-              </p>
-              <p className="ds">
-                {b.tipo === "vazio"
-                  ? "Sem escala"
-                  : `${b.escalados} a servir${b.tarefas ? ` · ${b.feitas}/${b.tarefas} feitas` : ""}`}
-              </p>
-              {b.pct !== null && (
-                <div className="barra" style={{ marginTop: 7 }}>
-                  <i style={{ width: `${b.pct}%`, background: b.cor ?? "var(--azul)" }} />
+        ) : porBase.map((b) => {
+          const abertaBase = baseAberta === b.baseId;
+          return (
+            <div key={b.baseId}>
+              <div
+                className="linha cabtoque"
+                onClick={() => setBaseAberta(abertaBase ? null : b.baseId)}
+                role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setBaseAberta(abertaBase ? null : b.baseId); }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="nmt" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    {b.cor && <span className="quadmin" style={{ background: b.cor }} />}
+                    {b.nome}
+                  </p>
+                  <p className="ds">
+                    {b.tipo === "vazio"
+                      ? "Sem escala"
+                      : `${b.escalados} a servir${b.tarefas ? ` · ${b.feitas}/${b.tarefas} feitas` : ""}`}
+                  </p>
+                  {b.pct !== null && (
+                    <div className="barra" style={{ marginTop: 7 }}>
+                      <i style={{ width: `${b.pct}%`, background: b.cor ?? "var(--azul)" }} />
+                    </div>
+                  )}
+                </div>
+                <span className="cabtoque-seta" aria-hidden="true">{abertaBase ? "⌃" : "›"}</span>
+              </div>
+
+              {abertaBase && (
+                <div className="aberto" style={{ padding: "0 0 14px" }}>
+                  {b.tipo === "vazio" && <p className="ds" style={{ marginTop: 6 }}>Escala ainda não publicada.</p>}
+
+                  {b.tipo === "pessoas" && b.pessoas.map((p) => {
+                    const chave = `${b.baseId}:${p.id}`;
+                    return (
+                      <LinhaPessoaContacto
+                        key={p.id} pessoa={p}
+                        resumo={p.id === b.liderEscalaId ? "Líder de escala · toca para chamar no WhatsApp" : "Toca para chamar no WhatsApp"}
+                        tagExtra={p.id === b.liderEscalaId ? <span className="tag lim">Líder de escala</span> : null}
+                        aberta={contactoAberto === chave}
+                        onToggle={() => setContactoAberto((c) => (c === chave ? null : chave))}
+                      />
+                    );
+                  })}
+
+                  {b.tipo === "lugares" && b.itens.map((it, i) => (
+                    <div key={i}>
+                      <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cinza)", textTransform: "uppercase", letterSpacing: 0.4, margin: "10px 0 2px" }}>
+                        {it.ministerio}
+                      </p>
+                      {it.titular ? (
+                        <LinhaPessoaContacto
+                          pessoa={it.titular} resumo="Titular · toca para chamar no WhatsApp"
+                          aberta={contactoAberto === `${b.baseId}:${i}:titular`}
+                          onToggle={() => setContactoAberto((c) => (c === `${b.baseId}:${i}:titular` ? null : `${b.baseId}:${i}:titular`))}
+                        />
+                      ) : (
+                        <p className="ds">Por definir</p>
+                      )}
+                      {it.aprendiz && (
+                        <LinhaPessoaContacto
+                          pessoa={it.aprendiz} resumo="Aprendiz · toca para chamar no WhatsApp"
+                          aberta={contactoAberto === `${b.baseId}:${i}:aprendiz`}
+                          onToggle={() => setContactoAberto((c) => (c === `${b.baseId}:${i}:aprendiz` ? null : `${b.baseId}:${i}:aprendiz`))}
+                        />
+                      )}
+                    </div>
+                  ))}
+
+                  <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setRecadoPara(b)}>
+                    Mandar recado à {b.nome}
+                  </button>
                 </div>
               )}
             </div>
-            <button className="btn sec" style={{ flex: "none" }} onClick={() => setRecadoPara(b)}>
-              Recado
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── a ordem do culto ────────────────────────────────── */}
@@ -279,18 +334,20 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
               </p>
             )}
           </>
-        ) : podePublicarCulto ? (
+        ) : (
           <>
-            <div className="vaz">Este culto ainda não tem ordem publicada.</div>
+            <div className="vaz">
+              {podePublicarCulto
+                ? "Este culto ainda não tem ordem publicada."
+                : "Este culto ainda não tem ordem publicada — a Backstage sobe o PDF, como sempre."}
+            </div>
+            {/* a aba Ordem monta um rascunho mesmo sem a claim de
+                publicar (ver Ordem.jsx) — por isso o botão leva lá nos
+                dois casos, só o texto muda */}
             <button className="btn full" style={{ marginTop: 10 }} onClick={() => irPara("ordem")}>
-              Montar a ordem deste culto
+              {podePublicarCulto ? "Montar a ordem deste culto" : "Montar um rascunho"}
             </button>
           </>
-        ) : (
-          // sem a claim, a aba Ordem não compõe nada — um botão que
-          // levasse lá só para ler "ainda não está ativo" seria pior
-          // do que dizer isso já aqui
-          <div className="vaz">Este culto ainda não tem ordem publicada — a Backstage sobe o PDF, como sempre.</div>
         )}
       </div>
 

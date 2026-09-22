@@ -36,8 +36,20 @@ const PESOS = {
   duvidaSemResposta: 2,
 };
 
+/** Dias até ao fim do mês corrente (hoje = dia 0). As escalas nascem
+ *  uma vez por mês, perto do fim do mês anterior — por isso "ainda não
+ *  tem escala" é o normal a meio do mês e só vira problema a sério na
+ *  última semana. Sinalizar isto desde o dia 1 seria alarme falso
+ *  todos os dias, e ensinaria a ignorar o cartão. */
+function diasAteFimDoMes() {
+  const h = new Date();
+  const fim = new Date(h.getFullYear(), h.getMonth() + 1, 0);
+  const hoje = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  return Math.round((fim - hoje) / 86400000);
+}
+
 function urgencia(b) {
-  return (b.escalaFeita ? 0 : PESOS.semEscala)
+  return (b.semEscalaConta ? PESOS.semEscala : 0)
     + b.melhoriasGraves * PESOS.melhoriaGrave
     + b.equipamentosAvariados * PESOS.equipamentoAvariado
     + b.reembolsosPorAprovar * PESOS.reembolsoPorAprovar
@@ -48,14 +60,17 @@ function urgencia(b) {
 
 /** As pendências de uma base, em texto, já ordenadas pela mesma régua.
  *  Só as que existem — uma lista com "0 avarias" a toda a largura
- *  ensina a saltar o cartão. */
+ *  ensina a saltar o cartão. Avarias, itens em falta e melhorias
+ *  graves levam os NOMES, não só a contagem — "2 avariados" obriga a
+ *  abrir a app da base só para saber o quê; são sempre um punhado, não
+ *  o inventário inteiro, por isso cabem na linha. */
 function pendencias(b) {
   const p = [];
-  if (!b.escalaFeita) p.push({ chave: "escala", texto: "Escala por montar", grave: true });
-  if (b.melhoriasGraves) p.push({ chave: "graves", texto: `${b.melhoriasGraves} melhoria${b.melhoriasGraves === 1 ? "" : "s"} que impede${b.melhoriasGraves === 1 ? "" : "m"} o culto`, grave: true });
-  if (b.equipamentosAvariados) p.push({ chave: "avarias", texto: `${b.equipamentosAvariados} equipamento${b.equipamentosAvariados === 1 ? "" : "s"} avariado${b.equipamentosAvariados === 1 ? "" : "s"}` });
+  if (b.semEscalaConta) p.push({ chave: "escala", texto: "Escala por montar", grave: true });
+  if (b.melhoriasGraves) p.push({ chave: "graves", texto: `Impede o culto: ${b.melhoriasGravesNomes.join(", ")}`, grave: true });
+  if (b.equipamentosAvariados) p.push({ chave: "avarias", texto: `Avariado${b.equipamentosAvariados === 1 ? "" : "s"}: ${b.equipamentosAvariadosNomes.join(", ")}` });
   if (b.reembolsosPorAprovar) p.push({ chave: "reemb", texto: `${b.reembolsosPorAprovar} reembolso${b.reembolsosPorAprovar === 1 ? "" : "s"} à espera do líder` });
-  if (b.inventarioEmFalta) p.push({ chave: "stock", texto: `${b.inventarioEmFalta} item${b.inventarioEmFalta === 1 ? "" : "ns"} no mínimo ou esgotado${b.inventarioEmFalta === 1 ? "" : "s"}` });
+  if (b.inventarioEmFalta) p.push({ chave: "stock", texto: `Em falta: ${b.inventarioEmFaltaNomes.join(", ")}` });
   if (b.listasComprasAbertas) p.push({ chave: "compras", texto: "Lista de compras aberta" });
   if (b.duvidasSemResposta) p.push({ chave: "duvidas", texto: `${b.duvidasSemResposta} dúvida${b.duvidasSemResposta === 1 ? "" : "s"} sem resposta na Wiki` });
   return p;
@@ -82,21 +97,27 @@ export default function Bases({ ativo, definirCabecalho }) {
 
   useEffect(() => ouvirRecadosEnviados(setRecados), []);
 
+  // calculado uma vez (não muda durante a sessão) — não precisa de
+  // entrar nas deps do useMemo abaixo
+  const diasParaFimDoMes = useMemo(diasAteFimDoMes, []);
+
   const ordenadas = useMemo(
-    () => (panorama ?? []).map((b) => ({ ...b, urgencia: urgencia(b), pendencias: pendencias(b) }))
+    () => (panorama ?? [])
+      .map((b) => ({ ...b, semEscalaConta: !b.escalaFeita && diasParaFimDoMes < 7 }))
+      .map((b) => ({ ...b, urgencia: urgencia(b), pendencias: pendencias(b) }))
       .sort((a, b) => b.urgencia - a.urgencia || a.nome.localeCompare(b.nome, "pt")),
-    [panorama],
+    [panorama, diasParaFimDoMes],
   );
 
   const totais = useMemo(() => {
     if (!panorama) return null;
     return {
       pessoas: panorama.reduce((t, b) => t + b.pessoasAtivas, 0),
-      semEscala: panorama.filter((b) => !b.escalaFeita).length,
+      semEscala: diasParaFimDoMes < 7 ? panorama.filter((b) => !b.escalaFeita).length : 0,
       avarias: panorama.reduce((t, b) => t + b.equipamentosAvariados, 0),
       porAprovar: panorama.reduce((t, b) => t + b.reembolsosPorAprovar, 0),
     };
-  }, [panorama]);
+  }, [panorama, diasParaFimDoMes]);
 
   /** Valor do património, por base — só entra quem tem valor de compra
    *  gravado. É opcional em todo o repo, por isso o total é sempre um

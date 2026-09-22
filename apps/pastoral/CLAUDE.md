@@ -82,7 +82,7 @@ acontecia com a Backstage e o Financeiro:
 bases/pastoral {
   veEscalas: "todas",              // → ve_todas_escalas      (já existia, Backstage)
   veReembolsos: "todas",           // → ve_todos_reembolsos   (já existia, Financeiro)
-  culto: { podePublicar: true },   // → pode_publicar_culto   (já existia, Backstage)
+  culto: { podePublicar: false },  // → pode_publicar_culto   nasce desligada — ver "A ordem do culto" abaixo
   eventos: { podeCriarGlobal: true }, // → pode_criar_evento_global
   visaoPastoral: true,             // → ve_tudo_pastoral      ← a única nova
 }
@@ -179,13 +179,7 @@ esquecimento.
 
 ## A ordem do culto
 
-### Desligada por omissão (2026-09)
-
-**A aba existe, mas não compõe nem publica enquanto `bases/pastoral.
-culto.podePublicar` não for `true`** (`scripts/seedPastoral.mjs` grava
-`false` de propósito). Sem essa claim, `Ordem.jsx` mostra uma
-explicação em vez do formulário, e `Domingo.jsx` não oferece o botão
-"Montar a ordem deste culto".
+### Publicar continua desligado por omissão (2026-09, ajustado depois)
 
 Motivo: `publicarOrdemCulto` **substitui** o campo `ordem` inteiro, sem
 merge por secção. Isso é seguro enquanto só a Backstage publica — é o
@@ -196,20 +190,33 @@ que lá estava, sem aviso nenhum. Foi assim que a equipa encontrou isto
 a testar (2026-09-20) — o "corpo" que a Backstage tinha subido por PDF
 desapareceu depois de mexer na aba Ordem do painel.
 
-O gatilho é a claim que já existe, não uma flag nova: `podePublicarCulto`
-(o mesmo booleano que protege a Cloud Function do lado do servidor)
-decide, do lado do cliente, se esta tela mostra o formulário. Sem essa
-claim, deixar o formulário visível levaria a publicar e a apanhar
-`permission-denied` só depois de já ter composto tudo — pior do que
-não mostrar a tela.
+**Na primeira versão isto escondia a aba inteira** atrás de
+`bases/pastoral.culto.podePublicar`; pedido explícito do dono do
+produto logo a seguir: montar o rascunho, ver a folha, ajustar — sem
+depender de ninguém decidir "ativar a sério" primeiro. Compor,
+imprimir e guardar modelos nunca tocam em `eventos/{e}.ordem` (só
+`publicarOrdemCulto`/`limparOrdemCulto` tocam), por isso só os botões
+**"Publicar às dez bases"** e **"Retirar a ordem deste culto"** ficam
+desativados sem a claim — o resto da tela (`Ordem.jsx`) fica sempre
+visível e funcional, com uma legenda a explicar porquê os dois botões
+estão cinzentos. `Domingo.jsx` também deixou de esconder o caminho:
+"Montar um rascunho" leva à aba Ordem nos dois casos, só o texto do
+botão muda.
 
-**Para ativar:** troca `culto: { podePublicar: false }` para `true`
-em `scripts/seedPastoral.mjs`, corre o script outra vez, e combina com
-quem cuida da Backstage qual dos dois caminhos fica ativo — os dois ao
-mesmo tempo continuam a ter o mesmo risco de sobrescrita, só que
-deliberado em vez de acidental. Quem já tinha sessão aberta só vê a
-aba desbloquear depois de sair e voltar a entrar (os claims recalculam
-só em `entrar`/`trocarBase`).
+O gatilho continua a ser a claim que já existe, não uma flag nova:
+`podePublicarCulto` (o mesmo booleano que protege a Cloud Function do
+lado do servidor) decide os dois botões do lado do cliente. Sem essa
+claim, deixá-los clicáveis levaria a publicar e a apanhar
+`permission-denied` só depois de já ter composto tudo — pior do que
+mostrá-los desativados com a legenda.
+
+**Para ativar de vez:** troca `culto: { podePublicar: false }` para
+`true` em `scripts/seedPastoral.mjs`, corre o script outra vez, e
+combina com quem cuida da Backstage qual dos dois caminhos fica ativo
+— os dois ao mesmo tempo continuam a ter o mesmo risco de
+sobrescrita, só que deliberado em vez de acidental. Quem já tinha
+sessão aberta só vê os botões desbloquear depois de sair e voltar a
+entrar (os claims recalculam só em `entrar`/`trocarBase`).
 
 ### O que mudou, e o que não
 

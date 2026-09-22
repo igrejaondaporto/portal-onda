@@ -9,6 +9,7 @@ import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
 import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import OrdemImprimivel from "../components/OrdemImprimivel";
+import NavCulto from "../components/NavCulto";
 
 function janela() {
   const h = new Date();
@@ -42,7 +43,7 @@ function janela() {
  * claim) e continua a ser dona das notas dela, que aparecem por cima
  * da ordem e nunca se confundem com o que o pastor escreveu.
  *
- * ── Desligada por omissão (2026-09) ──────────────────────────────
+ * ── Publicar continua desligado por omissão (2026-09) ────────────
  *
  * `publicarOrdemCulto` SUBSTITUI o campo `ordem` inteiro — não há
  * merge por secção. Isso é ótimo enquanto só a Backstage publica (é o
@@ -53,11 +54,17 @@ function janela() {
  *
  * Por isso `culto.podePublicar` fica `false` em `bases/pastoral`
  * (`scripts/seedPastoral.mjs`) até a equipa decidir mudar para este
- * caminho a sério — e o gatilho é literalmente essa claim: em vez de
- * uma flag nova, `podePublicarCulto` (o mesmo booleano que já protege
- * a Cloud Function) decide se esta tela mostra o formulário ou uma
- * explicação. Sem ele, publicar falharia com permission-denied depois
- * de a pessoa já ter composto tudo — pior do que não mostrar a tela.
+ * caminho a sério. **Mas isso já não esconde a tela inteira** (mudou
+ * 2026-09): compor, imprimir e guardar modelos nunca tocam no
+ * documento partilhado — só `publicarOrdemCulto`/`limparOrdemCulto`
+ * tocam, por isso só os botões "Publicar"/"Retirar" ficam desativados
+ * sem a claim, com uma legenda a dizer porquê. Pedido explícito do
+ * dono do produto: montar a ordem já com a equipa a ver a folha antes
+ * de decidir publicar de vez, em vez de uma tela vazia até essa
+ * decisão. `podePublicarCulto` (o mesmo booleano que já protege a
+ * Cloud Function do lado do servidor) é quem decide os dois botões —
+ * sem ele, publicar falharia com permission-denied mesmo carregando
+ * no botão, por isso ele nunca aparece clicável sem a claim.
  */
 export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const torrada = useTorrada();
@@ -103,43 +110,15 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
   useEffect(() => {
     if (!ativo) return;
-    if (!podePublicarCulto) {
-      definirCabecalho({
-        titulo: "Ordem do culto",
-        subtitulo: "Ainda pela Backstage, como sempre",
-        chips: [],
-      });
-      return;
-    }
     definirCabecalho({
       titulo: "Ordem do culto",
       subtitulo: evento ? nomeEvento(evento) : "Escolhe o culto",
       chips: [
         `${Math.floor(total / 60)}h${String(total % 60).padStart(2, "0")}`,
-        evento?.ordem ? "Já publicada" : "Por publicar",
+        !podePublicarCulto ? "Rascunho — ainda não publica" : evento?.ordem ? "Já publicada" : "Por publicar",
       ],
     });
   }, [ativo, definirCabecalho, podePublicarCulto, evento, total]);
-
-  // Sem a claim, esta tela não compõe nem publica — ver o porquê no
-  // cabeçalho do ficheiro. Depois de TODOS os hooks (nunca antes: um
-  // return condicional acima deles quebraria a ordem dos hooks entre
-  // renderizações, o mesmo bug de regra que já derrubou a Técnica uma
-  // vez — ver eslint.config.js raiz).
-  if (!podePublicarCulto) {
-    return (
-      <div className="caixa" style={{ marginTop: 14 }}>
-        <p className="ds" style={{ marginTop: 0 }}>
-          A ordem do culto continua a subir pela Backstage, em PDF — como sempre.
-        </p>
-        <p className="ds" style={{ marginTop: 10 }}>
-          Esta tela já monta e publica a ordem diretamente, mas fica desligada até a equipa decidir usar este
-          caminho a sério: publicar por aqui e pela Backstage é o mesmo documento, e o segundo a publicar
-          apaga o que o primeiro tinha posto.
-        </p>
-      </div>
-    );
-  }
 
   /* ── momentos ────────────────────────────────────────────── */
   const atualizar = (i, campo, valor) =>
@@ -225,17 +204,21 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
   return (
     <>
-      <select
-        className="campo ordselect" value={eventoId ?? ""}
-        onChange={(e) => { setEventoId(e.target.value); setCarregadoDe(null); }}
-        style={{ marginTop: 14 }}
-      >
-        {eventos.map((e) => (
-          <option key={e.id} value={e.id}>
-            {nomeEvento(e)}{e.ordem ? " · com ordem" : ""}
-          </option>
-        ))}
-      </select>
+      <NavCulto
+        eventos={eventos} eventoId={eventoId} evento={evento}
+        onEscolher={(id) => { setEventoId(id); setCarregadoDe(null); }}
+        extra={evento?.ordem ? <span className="tag lim">com ordem</span> : null}
+      />
+
+      {!podePublicarCulto && (
+        <div className="caixa" style={{ marginTop: 14 }}>
+          <p className="ds" style={{ marginTop: 0 }}>
+            A ordem oficial continua a subir pela Backstage, em PDF — como sempre. Aqui dá para montar e imprimir
+            um rascunho já, mas <b>publicar às dez bases ainda está desligado</b>: publicar por aqui e pela
+            Backstage é o mesmo documento, e o segundo a publicar apaga o que o primeiro tinha posto.
+          </p>
+        </div>
+      )}
 
       {!eventos.length && (
         <div className="vaz" style={{ marginTop: 12 }}>
@@ -400,9 +383,16 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         </p>
       </div>
 
-      <button className="btn full" style={{ marginTop: 14 }} disabled={aPublicar || !eventoId} onClick={publicar}>
+      <button
+        className="btn full" style={{ marginTop: 14 }}
+        disabled={aPublicar || !eventoId || !podePublicarCulto}
+        onClick={publicar}
+      >
         {aPublicar ? "A publicar…" : evento?.ordem ? "Republicar às dez bases" : "Publicar às dez bases"}
       </button>
+      {!podePublicarCulto && (
+        <p className="cap" style={{ marginTop: 6, textAlign: "center" }}>Desligado até a equipa decidir ativar.</p>
+      )}
 
       {/* imprime o que está no formulário, publicado ou não — quem
           monta quer ver a folha antes de publicar, e não depois. O
@@ -423,7 +413,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarModelo} onClick={guardar}>Guardar</button>
       </div>
 
-      {evento?.ordem && (
+      {evento?.ordem && podePublicarCulto && (
         <button className="btn sec full" style={{ marginTop: 8, marginBottom: 20, color: "var(--magenta)" }} disabled={aPublicar} onClick={limpar}>
           Retirar a ordem deste culto
         </button>
