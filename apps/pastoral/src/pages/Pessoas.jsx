@@ -126,6 +126,11 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   // uma aberta ao mesmo tempo, mesmo padrão do contactoAberto acima
   const [linhaAberta, setLinhaAberta] = useState(null);
   const alternarLinha = (chave) => setLinhaAberta((a) => (a === chave ? null : chave));
+  // as duas listas de Desgaste começam cortadas nas 3 primeiras — dez
+  // pessoas de bulto era mais scroll do que a pergunta ("quem está a
+  // servir demais?") precisa à primeira vista (pedido 2026-09)
+  const [verTodosDesgaste, setVerTodosDesgaste] = useState(false);
+  const [verTodosMultiBase, setVerTodosMultiBase] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -327,15 +332,24 @@ export default function Pessoas({ ativo, definirCabecalho }) {
               {/* servir 1 ou 2 domingos em dois meses é o normal de
                   qualquer voluntário — só a partir de 3 é que vale a
                   pena olhar para o equilíbrio */}
-              {desgastePorEquilibrar.length ? desgastePorEquilibrar.slice(0, 40).map((p) => (
-                <LinhaDesgaste
-                  key={p.uid} pessoa={p} cultos={p.cultos}
-                  pct={Math.round((p.cultos / desgaste.totalCultos) * 100)}
-                  bases={p.bases.map((b) => ({ ...b, cor: corBase(b.baseId) }))}
-                  aberta={linhaAberta === `desgaste:${p.uid}`}
-                  onToggle={() => alternarLinha(`desgaste:${p.uid}`)}
-                />
-              )) : (
+              {desgastePorEquilibrar.length ? (
+                <>
+                  {(verTodosDesgaste ? desgastePorEquilibrar : desgastePorEquilibrar.slice(0, 3)).map((p) => (
+                    <LinhaDesgaste
+                      key={p.uid} pessoa={p} cultos={p.cultos}
+                      pct={Math.round((p.cultos / desgaste.totalCultos) * 100)}
+                      bases={p.bases.map((b) => ({ ...b, cor: corBase(b.baseId) }))}
+                      aberta={linhaAberta === `desgaste:${p.uid}`}
+                      onToggle={() => alternarLinha(`desgaste:${p.uid}`)}
+                    />
+                  ))}
+                  {desgastePorEquilibrar.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodosDesgaste((v) => !v)}>
+                      {verTodosDesgaste ? "Ver menos" : `Ver mais (${desgastePorEquilibrar.length - 3})`}
+                    </button>
+                  )}
+                </>
+              ) : (
                 <div className="vaz">
                   {desgaste.pessoas.length
                     ? "Ninguém serviu mais de 2 domingos neste período."
@@ -358,15 +372,24 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto — o que não mostra a
                 ninguém é quem está a carregar dois compromissos ao mesmo tempo.
               </p>
-              {multiBase.length ? multiBase.map((p) => (
-                <LinhaPessoaContacto
-                  key={p.id} pessoa={p}
-                  resumo="Toca para chamar no WhatsApp"
-                  tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
-                  aberta={linhaAberta === `multi:${p.id}`}
-                  onToggle={() => alternarLinha(`multi:${p.id}`)}
-                />
-              )) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
+              {multiBase.length ? (
+                <>
+                  {(verTodosMultiBase ? multiBase : multiBase.slice(0, 3)).map((p) => (
+                    <LinhaPessoaContacto
+                      key={p.id} pessoa={p}
+                      resumo="Toca para chamar no WhatsApp"
+                      tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
+                      aberta={linhaAberta === `multi:${p.id}`}
+                      onToggle={() => alternarLinha(`multi:${p.id}`)}
+                    />
+                  ))}
+                  {multiBase.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodosMultiBase((v) => !v)}>
+                      {verTodosMultiBase ? "Ver menos" : `Ver mais (${multiBase.length - 3})`}
+                    </button>
+                  )}
+                </>
+              ) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
             </div>
           </>
         )

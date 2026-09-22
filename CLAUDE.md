@@ -148,6 +148,27 @@ Functions de 2ª geração correm sobre Cloud Run, que por omissão exige
 mas se uma função existente (já exportada em `index.js`) começar a dar
 este erro exato, é a segunda coisa a verificar.
 
+**`FieldValue.serverTimestamp()` nunca dentro de um array — lança na
+escrita, não no `node --check`.** Terceira coisa a verificar, se uma
+função já exportada e já invocável (sem o erro de CORS/404 acima) der
+"internal"/500 mesmo assim: `corrigirDuracaoSecaoCulto`
+(`functions/pastoral.js`) escrevia `corrigidoEm:
+admin.firestore.FieldValue.serverTimestamp()` dentro de um objeto que
+é um ELEMENTO do array `secoesReais`, gravado por inteiro
+(`ref.set({ secoesReais: [...] })`). O Firestore recusa um sentinel
+`serverTimestamp()`/`increment()`/`arrayUnion()`/`arrayRemove()`
+aninhado dentro de um array — lança logo ao gravar ("cannot be used
+inside an array"), e como a exceção não é um `HttpsError`, o `onCall`
+embrulha-a num "internal" genérico para o cliente. `node --check`
+compila na boa (é JavaScript válido), e não há emulador de Functions
+neste repo para apanhar isto antes do deploy — só aparece a chamar a
+função a sério, com dados que cheguem a essa escrita. Corrigido com
+`admin.firestore.Timestamp.now()` (um valor a sério, não um sentinel
+que precisa do servidor para resolver) — serve para qualquer campo
+"quando" dentro de um array em qualquer base; só os campos de
+NÍVEL DE DOCUMENTO (fora de arrays) podem continuar a usar
+`serverTimestamp()`.
+
 ## Regras que não se negoceiam (valem em qualquer base)
 
 1. **O PIN nunca é verificado no cliente.** Só a Cloud Function `entrar`.

@@ -796,7 +796,16 @@ export const corrigirDuracaoSecaoCulto = onCall(async (req) => {
     duracaoCorrigidaMin: duracao,
     corrigidoManualmente: true,
     corrigidoPor: uid,
-    corrigidoEm: admin.firestore.FieldValue.serverTimestamp(),
+    // Timestamp.now(), nunca FieldValue.serverTimestamp() aqui: esta
+    // secção é um ELEMENTO de um array (`secoesReais`) gravado por
+    // inteiro, e o Firestore recusa um sentinel `serverTimestamp()`
+    // dentro de um array — lança já na escrita ("cannot be used inside
+    // an array"), sem entrar em nenhum try/catch daqui (era a causa
+    // real do 500 "internal" reportado 2026-09 ao corrigir a duração —
+    // nada a ver com o bug dos exports em falta, esse já corrigido).
+    // `Timestamp.now()` é um valor a sério, não um sentinel: escreve
+    // dentro de um array sem problema nenhum.
+    corrigidoEm: admin.firestore.Timestamp.now(),
   };
   await ref.set({ secoesReais: secoes.with(i, corrigida) }, { merge: true });
   return { ok: true };
