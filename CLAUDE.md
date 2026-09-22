@@ -123,6 +123,21 @@ partiu o ecrã de entrada em produção uma vez) só aparece a chamar a
 função a sério. Não dês um deploy de Functions por terminado sem isto
 passar.
 
+**`npm run smoke` só cobre `dadosEntrada` — uma Cloud Function `onCall`
+NOVA precisa de ser testada à parte.** Reportado 2026-09: uma função
+recém-criada (`arquivarContactoPastoral`) dava "internal" no cliente,
+e a consola do browser mostrava CORS a bloquear o preflight. A causa
+não era CORS nem código da função — `setGlobalOptions({ cors })`
+(`functions/opcoes.js`) só cobre as origens aceites, não o IAM.
+Functions de 2ª geração correm sobre Cloud Run, que por omissão exige
+`roles/run.invoker` antes de aceitar QUALQUER pedido — incluindo o
+OPTIONS do preflight, que nunca chega ao corpo da função nem ao `cors`
+configurado. `functions/opcoes.js` já tem `invoker: "public"` em
+`setGlobalOptions` por causa disto (a segurança a sério já está
+dentro de cada função, por claim do token — nunca dependeu do IAM do
+Cloud Run), mas se uma função nova voltar a dar este erro exato,
+é esta a primeira coisa a verificar.
+
 ## Regras que não se negoceiam (valem em qualquer base)
 
 1. **O PIN nunca é verificado no cliente.** Só a Cloud Function `entrar`.

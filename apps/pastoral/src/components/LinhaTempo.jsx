@@ -34,6 +34,12 @@ function passoAgradavel(bruto) {
 
 export default function LinhaTempo({
   pontos, formatar = String, vazio = "Ainda não há números para mostrar.", altura = 132,
+  // para séries curtas (~10 pontos ou menos, ex.: "Voluntários por
+  // culto") onde faz sentido ver tudo sem tocar — pedido 2026-09
+  // ("a quantidade de voluntários em alguns cultos só mostra quando
+  // clica na bolinha, tem que ser fixo"). Nas séries longas (~30-50
+  // pontos) continua seletivo: rotular tudo aí seria só ruído.
+  todosRotulados = false,
 }) {
   const [foco, setFoco] = useState(null);
   const validos = pontos.filter((p) => typeof p.valor === "number");
@@ -70,7 +76,9 @@ export default function LinhaTempo({
   // precisar de tocar — o primeiro tinha ficado de fora (bug real,
   // reportado 2026-09: "não aparece o número certo do primeiro
   // valor" era isto, o ponto nunca tinha rótulo nenhum ao lado)
-  const rotulados = new Set([iPrimeiro, iMax, iUltimo]);
+  const rotulados = todosRotulados
+    ? new Set(validos.map((_, i) => i))
+    : new Set([iPrimeiro, iMax, iUltimo]);
   const mostrado = foco ?? { i: iUltimo, ponto: validos[iUltimo] };
 
   // grelha com o valor que cada fio representa, em números fechados —
