@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ETAPAS, CORES_ETAPA, diasParado, indiceEtapa, nomeEtapa } from "../lib/contactos";
+import { ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, indiceEtapa, nomeEtapa } from "../lib/contactos";
 import { arquivarContactoPastoral, moverEtapaContacto } from "../lib/pastoral";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
@@ -115,7 +115,7 @@ export default function SheetContacto({ contacto, onFechar }) {
               <button
                 key={e.id}
                 className={`pa-etapa${e.id === atual ? " on" : ""}${i < iAtual ? " feita" : ""}`}
-                style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id] } : undefined}
+                style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id], color: corTextoEtapa(e.id) } : undefined}
                 disabled={aGuardar || e.id === atual}
                 onClick={() => mover(e.id)}
               >

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { corrigirHoraSecaoCulto, historicoPastoral } from "../lib/pastoral";
+import { corrigirDuracaoSecaoCulto, historicoPastoral } from "../lib/pastoral";
 import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
@@ -54,11 +54,11 @@ export default function Numeros({ ativo, definirCabecalho }) {
   // qual ocorrência está a ser corrigida (eventoId+momento) — nunca
   // mais que uma de cada vez, mesmo padrão de tudo o resto nesta app
   const [aCorrigir, setACorrigir] = useState(null);
-  const [novaHora, setNovaHora] = useState("");
-  const [aGuardarHora, setAGuardarHora] = useState(false);
+  const [novaDuracao, setNovaDuracao] = useState("");
+  const [aGuardarDuracao, setAGuardarDuracao] = useState(false);
   // sobe a cada correção guardada, para o efeito abaixo recarregar o
-  // histórico — sem isto, corrigir uma hora não se via em lado nenhum
-  // até trocar de período e voltar
+  // histórico — sem isto, corrigir uma duração não se via em lado
+  // nenhum até trocar de período e voltar
   const [recarregar, setRecarregar] = useState(0);
 
   useEffect(() => {
@@ -71,18 +71,18 @@ export default function Numeros({ ativo, definirCabecalho }) {
     return () => { vivo = false; };
   }, [periodo, recarregar]);
 
-  async function guardarHora() {
-    if (!aCorrigir || !novaHora) return;
-    setAGuardarHora(true);
+  async function guardarDuracao() {
+    if (!aCorrigir || !novaDuracao) return;
+    setAGuardarDuracao(true);
     try {
-      await corrigirHoraSecaoCulto(aCorrigir.eventoId, aCorrigir.nome, novaHora);
-      torrada("Hora corrigida");
+      await corrigirDuracaoSecaoCulto(aCorrigir.eventoId, aCorrigir.nome, Number(novaDuracao));
+      torrada("Duração corrigida");
       setACorrigir(null);
       setRecarregar((n) => n + 1);
     } catch (e) {
       torrada(e.message || "Não foi possível corrigir.");
     } finally {
-      setAGuardarHora(false);
+      setAGuardarDuracao(false);
     }
   }
 
@@ -116,12 +116,16 @@ export default function Numeros({ ativo, definirCabecalho }) {
    *  pedido 2026-09. Só entram os cultos com pelo menos um escalado:
    *  zero aqui quase sempre quer dizer "ninguém publicou escala ainda
    *  para este domingo", não "zero voluntários a sério" — mesmo
-   *  raciocínio de "zero significa zero, não se aplica não é zero". */
+   *  raciocínio de "zero significa zero, não se aplica não é zero".
+   *  Só os últimos 10, sempre — mesmo com "Este ano"/"12 meses"
+   *  selecionado, este gráfico não segue o período: é sobre "como
+   *  anda a equipa agora", não uma tendência longa. */
   const voluntariosPorCulto = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
       .filter((c) => c.voluntarios > 0)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.voluntarios }));
+      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.voluntarios }))
+      .slice(-10);
   }, [dados]);
 
   /** Se não há dado nenhum de acomodação (fechado ou ao vivo), a
@@ -206,7 +210,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
         registo.valores.push(a.atraso);
         registo.ocorrencias.push({
           eventoId: c.eventoId, data: c.data, atraso: a.atraso, nome: a.momento,
-          duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal, real: a.real,
+          duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal,
         });
         const [h, m] = String(a.previsto || "").split(":").map(Number);
         if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
@@ -394,7 +398,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
                                         onClick={() => {
                                           if (aEditarEsta) { setACorrigir(null); return; }
                                           setACorrigir({ eventoId: o.eventoId, nome: o.nome });
-                                          setNovaHora(o.real ?? "");
+                                          setNovaDuracao(String(o.duracaoReal ?? ""));
                                         }}
                                       >
                                         Corrigir
@@ -402,13 +406,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
                                     </div>
                                     {aEditarEsta && (
                                       <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
-                                        <p className="cap" style={{ margin: 0 }}>entrou às</p>
+                                        <p className="cap" style={{ margin: 0 }}>durou (min)</p>
                                         <input
-                                          className="campo" type="time" value={novaHora}
-                                          onChange={(e) => setNovaHora(e.target.value)}
-                                          style={{ width: 118 }}
+                                          className="campo" type="number" min="0" max="600" value={novaDuracao}
+                                          onChange={(e) => setNovaDuracao(e.target.value)}
+                                          style={{ width: 76 }}
                                         />
-                                        <button className="btn" style={{ padding: "8px 16px", fontSize: 13 }} disabled={aGuardarHora} onClick={guardarHora}>
+                                        <button className="btn" style={{ padding: "8px 16px", fontSize: 13 }} disabled={aGuardarDuracao} onClick={guardarDuracao}>
                                           Guardar
                                         </button>
                                       </div>

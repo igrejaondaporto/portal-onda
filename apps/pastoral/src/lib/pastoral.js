@@ -42,10 +42,12 @@ export const moverEtapaContacto = (contactoId, etapa, nota) =>
 export const arquivarContactoPastoral = (contactoId) =>
   chamar("arquivarContactoPastoral")({ contactoId }).then((r) => r.data);
 
-/** Corrige a hora de um momento de um culto já fechado — o registo
- *  ao vivo, uma vez finalizado, fica congelado sem isto. */
-export const corrigirHoraSecaoCulto = (eventoId, nome, horaReal) =>
-  chamar("corrigirHoraSecaoCulto")({ eventoId, nome, horaReal }).then((r) => r.data);
+/** Corrige a DURAÇÃO de um momento de um culto já fechado (não a hora
+ *  de relógio — ninguém sabe de cor a que horas algo entrou, sabe
+ *  quanto tempo durou). O registo ao vivo, uma vez finalizado, fica
+ *  congelado sem isto. */
+export const corrigirDuracaoSecaoCulto = (eventoId, nome, duracaoMin) =>
+  chamar("corrigirDuracaoSecaoCulto")({ eventoId, nome, duracaoMin }).then((r) => r.data);
 
 /** Troca o líder de uma base. Um líder de cada vez — promover alguém
  *  demove quem lá estava para "voluntario". */

@@ -74,6 +74,26 @@ export const CORES_ETAPA = {
   servindo: "#0019be",
 };
 
+/** A rampa foi validada contra FUNDO branco (ver o comentário acima),
+ *  não contra texto branco POR CIMA dela — são coisas diferentes, e é
+ *  por isso que a etiqueta "Visita" (o passo mais claro) com texto
+ *  branco ficava "meio clara" (relato 2026-09): não é a rampa que
+ *  está errada, é usá-la como fundo sólido de um selo com texto
+ *  branco sem verificar o contraste. Luminância relativa simples
+ *  (0–255): abaixo do limiar, o passo é claro demais para texto
+ *  branco em cima — tinta escura em vez disso. Não mexe em
+ *  `CORES_ETAPA` (o resto do produto continua a usá-la como sempre,
+ *  sobre fundo branco, onde já estava certa). */
+export function corTextoEtapa(id) {
+  const hex = CORES_ETAPA[id];
+  if (!hex) return "#fff";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminancia = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminancia > 150 ? "var(--tinta)" : "#fff";
+}
+
 /** Todos os contactos não arquivados, ao vivo. O volume é de dezenas
  *  por ano, não de milhares — não vale paginar, e ter tudo em memória
  *  é o que deixa o filtro e a busca serem instantâneos. */
