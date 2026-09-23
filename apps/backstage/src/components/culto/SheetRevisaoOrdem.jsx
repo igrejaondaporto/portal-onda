@@ -19,7 +19,13 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
       .map((m) => ({ _k: chave(), projecao: "", detalhe: "", responsavel: "", ...m, minutos: m.minutos ?? 5 }))
   );
   const [avisos, setAvisos] = useState(
-    () => inicial.avisos.map((a) => ({ _k: chave(), criarCulto: false, ...a }))
+    // `data` vem do analisador (functions/ordemCultoPdf.js) como null
+    // sempre que a data do aviso não é um DD/MM inequívoco ("09/out",
+    // "26/set" — comum) — nunca "" garantido. Sem o `?? ""` aqui, o
+    // campo <input value={a.data}> deste aviso ficava com `null` como
+    // valor controlado (React trata como não controlado — o campo
+    // parece normal, mas o estado por trás continua `null`).
+    () => inicial.avisos.map((a) => ({ _k: chave(), criarCulto: false, ...a, data: a.data ?? "" }))
   );
   // Tipo de culto (Ceia/Contribua/Culto da Família) — obrigatório,
   // pedido do líder da Louvor: é a Backstage que decide, ao publicar,
@@ -29,6 +35,7 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
   // republicação.
   const [tipoCulto, setTipoCulto] = useState(evento.tipoCulto || tipoCultoDefault(evento.data));
   const [aEnviar, setAEnviar] = useState(false);
+  const [aConfirmarCancelar, setAConfirmarCancelar] = useState(false);
 
   const { inicio, fim, portasAbertas } = useMemo(() => {
     const validos = momentos.filter((m) => /^\d{1,2}:\d{2}$/.test(m.hora) && Number(m.minutos) > 0);
@@ -66,6 +73,18 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
   const apagarAviso = (i) => setAvisos((as) => as.filter((_, j) => j !== i));
   const novoAviso = () => setAvisos((as) => [...as, avisoVazio()]);
 
+  // "Cancelar" fica logo abaixo de "Publicar para a base" — um toque
+  // um pouco mais baixo do que o pretendido acertava aqui e fechava a
+  // folha na hora, sem aviso nenhum e sem gravar nada (reportado
+  // 2026-09: parecia "o botão de publicar não faz nada"). Só pede
+  // confirmação quando já há algo para perder — a folha em branco,
+  // antes de qualquer preenchimento, continua a fechar direto.
+  function pedirCancelar() {
+    const temConteudo = momentos.some((m) => m.hora.trim() || m.momento.trim());
+    if (temConteudo) setAConfirmarCancelar(true);
+    else onFechar();
+  }
+
   async function publicar() {
     const momentosLimpos = momentos
       .filter((m) => m.hora.trim() && m.momento.trim())
@@ -76,9 +95,16 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
       }));
     if (!momentosLimpos.length) return torrada("Adiciona pelo menos um momento com hora e nome.");
 
+    // `a.data` pode ser null (aviso sem data inequívoca, vindo direto
+    // do analisador sem passar por atualizarAviso) — a causa real do
+    // bug "toco em Publicar e não acontece nada": `a.data.trim()` sem
+    // guarda lançava aqui, ANTES do try/catch de baixo, e o toque
+    // nunca chegava a pedir nada ao servidor (reportado 2026-09,
+    // reproduzido com o PDF real de 27/09: "CULTO DE MULHERES" tinha
+    // data:null por vir escrita "09/out", não DD/MM).
     const avisosLimpos = avisos
       .filter((a) => a.nome.trim())
-      .map(({ _k, ...a }) => ({ ...a, nome: a.nome.trim(), data: a.data.trim(), info: a.info?.trim() || "" }));
+      .map(({ _k, ...a }) => ({ ...a, nome: a.nome.trim(), data: (a.data ?? "").trim(), info: a.info?.trim() || "" }));
 
     setAEnviar(true);
     try {
@@ -191,10 +217,29 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
           </>
         ) : null}
 
-        <button className="btn full" style={{ marginTop: 20 }} disabled={aEnviar} onClick={publicar}>
-          {aEnviar ? "A publicar…" : "Publicar para a base"}
-        </button>
-        <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={onFechar}>Cancelar</button>
+        {!aConfirmarCancelar && (
+          <button className="btn full" style={{ marginTop: 20 }} disabled={aEnviar} onClick={publicar}>
+            {aEnviar ? "A publicar…" : "Publicar para a base"}
+          </button>
+        )}
+        {!aConfirmarCancelar ? (
+          <button className="btn sec full" style={{ marginTop: 9 }} disabled={aEnviar} onClick={pedirCancelar}>Cancelar</button>
+        ) : (
+          <div className="caixa" style={{ background: "#FFF0F4", border: 0, marginTop: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600 }}>Sair sem publicar?</p>
+            <p className="ds" style={{ marginTop: 4 }}>
+              Os momentos revistos aqui perdem-se — o PDF continua guardado, mas ninguém vê esta ordem até voltares a rever e publicar.
+            </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn" style={{ flex: 1, background: "var(--magenta)", fontSize: 12.5 }} onClick={onFechar}>
+                Sair sem publicar
+              </button>
+              <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setAConfirmarCancelar(false)}>
+                Voltar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
