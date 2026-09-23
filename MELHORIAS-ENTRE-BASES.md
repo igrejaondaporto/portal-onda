@@ -178,6 +178,29 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **A roda do rato muda números em silêncio** (`apps/tecnica/src/lib/campos.js`,
+  `largarAoRodar`). Num computador, rodar por cima de um
+  `<input type="number">` com foco muda o valor em vez de rolar — o
+  Júlio escreveu 17 no dia de um culto especial, rodou para chegar ao
+  botão, e o culto foi criado a 16. Reproduzido com roda real pelo
+  DevTools Protocol. Nos reembolsos é pior: "25,00" vira "24,99". A
+  correção é uma linha por campo, `onWheel={largarAoRodar}` (tira o
+  foco, a roda volta a rolar, o valor fica). Na Técnica estão os 5
+  campos corrigidos. **Falta nas outras**: Apoio 7, Pessoal 8,
+  Backstage 5, New 5, SHIFT 5, Comunicação 3, Louvor 3 (contagem de
+  `type="number"` a 2026-09-21). Candidato a ir para `packages/shared`
+  se aparecer numa quarta base.
+- **Computador: menu lateral + coluna central** (`apps/tecnica/src/styles/tecnica.css`,
+  secção 4). Num ecrã largo, cada base é hoje o telemóvel esticado:
+  botões e campos com 900px e a barra do polegar a boiar no fundo. Na
+  Técnica, a partir de 900px, o `.navb` do NavBar partilhado é
+  redesenhado como menu à esquerda (é o mesmo elemento — nada
+  duplicado, o tour continua a achar os `data-tour`), o logo sobe para
+  o topo do menu, e o conteúdo fica numa coluna de 760px com o título
+  alinhado por ela. O `.duas` volta a uma coluna. É só CSS mais um
+  `<button className="logo tec-lateral-logo">` no `Sessao.jsx` — porta
+  para qualquer base copiando a secção e trocando o prefixo. Se chegar
+  a três bases, é caso para ir para o global.css.
 - **Editar a escala onde ela se vê, e limpar o mês inteiro**
   (`apps/tecnica/src/pages/Escala.jsx`). O líder via a tabela do mês na
   aba Escala mas só a podia corrigir pelo Painel do líder, três toques

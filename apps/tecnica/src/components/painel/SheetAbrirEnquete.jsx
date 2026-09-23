@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { abrirEnquete } from "../../lib/enquetes";
 import { obterEventosDoMes, criarCultoEspecial } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import { largarAoRodar } from "../../lib/campos";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -87,6 +88,21 @@ function useCultosDoMes(mes) {
 }
 
 function BlocoCultos({ titulo, c }) {
+  const caixaRef = useRef(null);
+  const nomeRef = useRef(null);
+
+  // O formulário nasce no fundo da folha, a seguir aos cultos do mês —
+  // num computador de janela baixa, abaixo da parte visível. Tocar em
+  // "+ Adicionar culto especial" parecia não fazer nada, e o botão
+  // "Criar e adicionar" ficava encostado à tira de fundo escuro que
+  // fecha a folha inteira ao ser tocada (e deita fora a enquete a meio).
+  // Traz a caixa toda para a vista e põe o cursor no nome.
+  useEffect(() => {
+    if (!c.aAdicionarEspecial) return;
+    nomeRef.current?.focus({ preventScroll: true });
+    caixaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [c.aAdicionarEspecial]);
+
   return (
     <>
       <label className="rot" style={{ marginTop: 14 }}>{titulo}</label>
@@ -107,11 +123,11 @@ function BlocoCultos({ titulo, c }) {
           + Adicionar culto especial
         </button>
       ) : (
-        <div className="caixa" style={{ marginTop: 8 }}>
+        <div className="caixa" style={{ marginTop: 8 }} ref={caixaRef}>
           <label className="rot">Nome do culto</label>
-          <input className="campo" value={c.nomeEspecial} onChange={(e) => c.setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
+          <input className="campo" ref={nomeRef} value={c.nomeEspecial} onChange={(e) => c.setNomeEspecial(e.target.value)} placeholder="Ex.: Culto de Jovens" />
           <label className="rot" style={{ marginTop: 8 }}>Dia do mês</label>
-          <input className="campo" type="number" min="1" max="31" value={c.diaEspecial} onChange={(e) => c.setDiaEspecial(e.target.value)} placeholder="14" />
+          <input className="campo" type="number" onWheel={largarAoRodar} min="1" max="31" value={c.diaEspecial} onChange={(e) => c.setDiaEspecial(e.target.value)} placeholder="14" />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={() => c.setAAdicionarEspecial(false)}>Cancelar</button>
             <button className="btn" style={{ flex: 1, fontSize: 12.5 }} disabled={c.aCriarEspecial} onClick={c.adicionarEspecial}>

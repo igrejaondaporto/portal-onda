@@ -2,6 +2,7 @@ import { useState } from "react";
 import { criarCultoEspecial } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { MESES } from "@portal/shared/lib/data.js";
+import { largarAoRodar } from "../../lib/campos";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -46,7 +47,7 @@ export default function SheetNovoCulto({ ano, mes, onFechar, onGuardado }) {
         <label className="rot">Nome do culto</label>
         <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Culto de Mulheres" />
         <label className="rot">Dia do mês</label>
-        <input className="campo" type="number" min="1" max={maxDia} value={dia} onChange={(e) => setDia(e.target.value)} placeholder="14" />
+        <input className="campo" type="number" onWheel={largarAoRodar} min="1" max={maxDia} value={dia} onChange={(e) => setDia(e.target.value)} placeholder="14" />
         <label className="rot">Hora do culto</label>
         <input className="campo" value={horaCulto} onChange={(e) => setHoraCulto(e.target.value)} placeholder="20:00" />
         <label className="rot">Hora de chegada da base</label>
