@@ -190,17 +190,6 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   Backstage 5, New 5, SHIFT 5, Comunicação 3, Louvor 3 (contagem de
   `type="number"` a 2026-09-21). Candidato a ir para `packages/shared`
   se aparecer numa quarta base.
-- **Computador: menu lateral + coluna central** (`apps/tecnica/src/styles/tecnica.css`,
-  secção 4). Num ecrã largo, cada base é hoje o telemóvel esticado:
-  botões e campos com 900px e a barra do polegar a boiar no fundo. Na
-  Técnica, a partir de 900px, o `.navb` do NavBar partilhado é
-  redesenhado como menu à esquerda (é o mesmo elemento — nada
-  duplicado, o tour continua a achar os `data-tour`), o logo sobe para
-  o topo do menu, e o conteúdo fica numa coluna de 760px com o título
-  alinhado por ela. O `.duas` volta a uma coluna. É só CSS mais um
-  `<button className="logo tec-lateral-logo">` no `Sessao.jsx` — porta
-  para qualquer base copiando a secção e trocando o prefixo. Se chegar
-  a três bases, é caso para ir para o global.css.
 - **Editar a escala onde ela se vê, e limpar o mês inteiro**
   (`apps/tecnica/src/pages/Escala.jsx`). O líder via a tabela do mês na
   aba Escala mas só a podia corrigir pelo Painel do líder, três toques
@@ -339,6 +328,22 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 | 2026-09 | Apoio | Campo de pagamento (MB Way/IBAN) obrigatório no pedido de reembolso, guardado uma vez em `pessoas/{uid}/privado/pagamento` e copiado para o pedido no envio (`normalizarDestino`/`mostrarDestino`, `lib/reembolsos.js`) + cartão `.destaque` no Início para "pago"/"devolvido" (antes só "indeferido") | Técnica, Backstage, Comunicação, New, Pessoal, Shift, Kinder, Louvor | `lib/reembolsos.js` e `pages/Reembolsos.jsx` eram byte-idênticos nas 9 bases (só Kinder/Louvor divergiam no `souLiderBase`, preservado) — cópia direta às 8. O cartão do Início divergia mais entre bases (variáveis intercaladas), portado sítio a sítio; Kinder nunca teve este cartão para o voluntário (só o de pendentes da líder) e ficou de fora, de propósito — não é omissão. Nasceu para o Painel Financeiro (`apps/financeiro`, ver linha abaixo). |
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
+
+- **Computador: menu lateral + coluna central** (`global.css`, bloco
+  `@media (min-width: 900px)`, mais o logo dentro do `NavBar.jsx`).
+  Nasceu na Técnica a 2026-09-21 e passou ao partilhado dois dias
+  depois, quando o líder pediu o mesmo em todas as bases. A barra de
+  baixo e o menu lateral são o MESMO elemento, só redesenhado: nenhuma
+  app escreve uma linha para o ter, e o tour continua a apontar aos
+  mesmos `data-tour`. O `.duas` deixou de ser duas colunas no
+  computador — o pedido foi manter o que o telemóvel mostra. Se um
+  painel precisar de mais espaço, o número a mexer é `--coluna`.
+  **Duas armadilhas de especificidade**, ambas apanhadas a medir e não
+  a olhar: `.navb button` (0,1,1) ganha a `.logo` e a `.navb-logo`
+  (0,1,0), por isso o logo do menu saía com 14px e meio apagado, e no
+  telemóvel aparecia como mais um botão a partir a grelha em duas
+  linhas. Qualquer regra nova para o logo do menu precisa de
+  `.navb .navb-logo`.
 
 - **Cartão de culto na Escala** (`packages/shared/src/components/CartaoCulto.jsx` + `.cartaoculto`/`.cabtoque` em `global.css`) — nasceu na Técnica e foi partilhado logo a seguir, porque o problema era igual nas duas bases: a Escala mostrava todos os cultos do mês abertos, com toda a gente de cada um, e chegar ao último era rolar a página inteira. Agora é um cartão fechado por culto, e o mês cabe num ecrã. **Só a casca é partilhada** — cabeçalho, destaque, seta, corpo que abre. Quem serve, e como se descreve, entra por `children`: a Apoio tem `pessoas[]` com funções, a Técnica `lugares[]` com titular/aprendiz, e forçar as duas a caber numa só era espremer coisas genuinamente diferentes. Cada app passa o `resumo` que quiser ("Serves · Áudio" na Técnica, "Serves" na Apoio). Três decisões que uma base nova herda de graça: **a cor não é decoração** — quem serve fica a `--azul`, a mesma que `.tab td.mim` já usa para dizer "tu" na tabela da mesma tela (começou verde e estava errado: duas cores para a mesma ideia no mesmo ecrã); **os cultos passados apagam-se, barra incluída**, senão um domingo que já aconteceu rouba o olhar ao próximo; e **título e resumo empilhados**, porque o nome de um culto especial é texto livre do líder e lado a lado partia as duas colunas. Cuidado ao usar: se a base tiver navegação de fora para dentro (o calendário do Início), o foco tem de **abrir** o cartão além de fazer scroll — senão toca-se num dia e aterra-se num cartão fechado. E com o cartão fechado a data de um culto especial deixa de aparecer noutro sítio, por isso o componente põe-na no resumo — é a mesma armadilha registada na linha do `nomeEvento`, acima.
 - **Compressão de fotos no upload** (`comprimirImagem`) — `packages/shared/src/lib/imagem.js`, todas as bases já usam.
