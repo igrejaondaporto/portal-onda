@@ -41,6 +41,12 @@ export const cChecklist  = (ev) => collection(db, `eventos/${ev}/checklist`);
 export const cContagem   = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 export const cCultoAoVivo = (ev) => doc(db, `eventos/${ev}/cultoAoVivo/registo`);
 export const cPonteiroAoVivo = () => doc(db, "config/cultoAoVivo");
+/** O mapa do auditório AO VIVO (Base Pessoal) — `allow read: if
+ *  autenticado()`, sempre foi legível por qualquer base. Usado no
+ *  Início para "pessoas no auditório": toda marcação feita no mapa,
+ *  incluindo reservados/bloqueados — não é a Contagem manual, que é
+ *  outro sistema (ver MapaCalor.jsx, mesma distinção). */
+export const cMapaAcomodacao = (ev) => doc(db, `eventos/${ev}/acomodacao/mapa`);
 
 /* ── aberto à claim ve_tudo_pastoral ────────────────────────── */
 export const cContactos  = () => collection(db, "contactos");

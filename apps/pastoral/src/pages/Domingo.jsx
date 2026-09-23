@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   obterCatalogoChecklist, obterEscalasDeTodasAsBases, ouvirChecklist, ouvirContagem,
-  ouvirCultoAoVivo, ouvirEventos, ouvirPonteiroAoVivo, proximoCulto,
+  ouvirCultoAoVivo, ouvirEventos, ouvirMapaAcomodacao, ouvirPonteiroAoVivo, proximoCulto,
 } from "../lib/culto";
 import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
@@ -55,6 +55,7 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
   const [catalogo, setCatalogo] = useState(null);
   const [checklist, setChecklist] = useState({});
   const [contagem, setContagem] = useState(null);
+  const [mapa, setMapa] = useState(null);
   const [aoVivoId, setAoVivoId] = useState(null);
   const [registoAoVivo, setRegistoAoVivo] = useState(null);
   const [recadoPara, setRecadoPara] = useState(null);
@@ -111,6 +112,7 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
   useEffect(() => ouvirChecklist(eventoId, setChecklist), [eventoId]);
   useEffect(() => ouvirContagem(eventoId, setContagem), [eventoId]);
+  useEffect(() => ouvirMapaAcomodacao(eventoId, setMapa), [eventoId]);
   useEffect(() => ouvirCultoAoVivo(aoVivoId, setRegistoAoVivo), [aoVivoId]);
 
   useEffect(() => {
@@ -190,15 +192,21 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
   const presentes = useMemo(() => {
     const cats = contagem?.categorias ?? {};
     const v = (id) => (typeof cats[id]?.valor === "number" ? cats[id].valor : null);
-    const auditorio = ["membros", "visitantes", "voluntarios"].map(v).filter((n) => n !== null);
-    const salas = ["new", "shift", "juniorFun", "baby"].map(v).filter((n) => n !== null);
     return {
-      auditorio: auditorio.length ? auditorio.reduce((t, n) => t + n, 0) : null,
-      salas: salas.length ? salas.reduce((t, n) => t + n, 0) : null,
       visitantes: v("visitantes"),
       finalizada: !!contagem?.finalizadoEm,
     };
   }, [contagem]);
+
+  // pessoas no auditório: toda marcação feita no mapa, reservados e
+  // bloqueados incluídos — só "livre" fica de fora. Sistema diferente
+  // da Contagem manual acima (mapa é lugar a lugar, marcado por quem
+  // tem a função Mapa na Base Pessoal; ver o mesmo raciocínio em
+  // MapaCalor.jsx, Números).
+  const noAuditorio = useMemo(() => {
+    if (!mapa?.lugares) return null;
+    return Object.values(mapa.lugares).filter((estado) => estado !== "livre").length;
+  }, [mapa]);
 
   return (
     <>
@@ -244,10 +252,8 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
         </div>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
           <p className="ds" style={{ marginTop: 0 }}>No auditório</p>
-          <p className="pa-num">{presentes.auditorio ?? "—"}</p>
-          <p className="ds" style={{ marginTop: 2 }}>
-            {presentes.salas !== null ? `+${presentes.salas} nas salas` : "salas por contar"}
-          </p>
+          <p className="pa-num">{noAuditorio ?? "—"}</p>
+          <p className="ds" style={{ marginTop: 2 }}>pessoas no auditório</p>
         </div>
       </div>
 

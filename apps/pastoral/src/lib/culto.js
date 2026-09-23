@@ -20,7 +20,7 @@
 import { collection, doc, documentId, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db, chamar } from "@portal/shared/lib/firebase.js";
 import {
-  cChecklist, cContagem, cCultoAoVivo, cEvento, cEventos, cPonteiroAoVivo,
+  cChecklist, cContagem, cCultoAoVivo, cEvento, cEventos, cMapaAcomodacao, cPonteiroAoVivo,
 } from "./modelo";
 
 /** A Kinder não escreve em `eventos/{e}/checklist` como as outras
@@ -100,6 +100,15 @@ export function ouvirChecklist(eventoId, cb) {
 export function ouvirContagem(eventoId, cb) {
   if (!eventoId) return () => {};
   return onSnapshot(cContagem(eventoId), (s) => cb(s.exists() ? s.data() : null));
+}
+
+/** O mapa do auditório AO VIVO — para "pessoas no auditório" no
+ *  Início. Sistema diferente da Contagem manual acima (ver o
+ *  comentário grande em `MapaCalor.jsx`): o mapa é lugar a lugar,
+ *  marcado por quem tem a função Mapa na Base Pessoal. */
+export function ouvirMapaAcomodacao(eventoId, cb) {
+  if (!eventoId) return () => {};
+  return onSnapshot(cMapaAcomodacao(eventoId), (s) => cb(s.exists() ? s.data() : null));
 }
 
 /** A checklist de um culto para VÁRIOS cultos de uma vez — para a
