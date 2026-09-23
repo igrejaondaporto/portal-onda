@@ -467,9 +467,14 @@ service cloud.firestore {
       // ── repertório do domingo (Base Louvor) — um por culto, sem
       // rascunho: fica visível para a projeção assim que existe (a
       // Técnica lê para a tela, ver CLAUDE.md da Louvor). Escrita só
-      // da própria base — a Técnica só lê. ──
+      // da própria base — a Técnica só lê. A Kinder lê só o do Louvor
+      // Kinder (2026-09): o repertório do louvor das crianças aparece no
+      // bloco da lição, o mesmo para as três salas. Só o repertório — a
+      // biblioteca (`musicas`) continua fechada à Kinder; o título, o
+      // artista e os links já vêm copiados em cada item. ──
       match /repertorios/{repertorio} {
-        allow read:            if minhaBase(base) || minhaBase('tecnica');
+        allow read:            if minhaBase(base) || minhaBase('tecnica')
+                              || (base == 'louvorkinder' && minhaBase('kinder'));
         allow create, update: if minhaBase(base);
         allow delete:          if false;
       }
