@@ -511,22 +511,24 @@ export const historicoPastoral = onCall(async (req) => {
 });
 
 /** A contagem da Pessoal guarda `categorias.{id} = {valor, origem,
- *  preenchidoPor, preenchidoEm}` — nove categorias que, de propósito,
- *  NÃO formam um total (ver o comentário no topo de
+ *  preenchidoPor, preenchidoEm}` — categorias que, de propósito, NÃO
+ *  formam um total (ver o comentário no topo de
  *  apps/pessoal/src/lib/contagem.js: cada uma tem o significado que já
  *  tinha no relatório do culto em papel).
  *
- *  Por isso não se soma tudo. O que sai daqui é o auditório
- *  (membros + visitantes + voluntários — as três que contam pessoas
- *  na sala ao mesmo tempo) e as salas separadas; somar "apelo" a
- *  "membros" contaria a mesma pessoa duas vezes.
+ *  "Membros" saiu do catálogo (pedido 2026-09: sem padrão de
+ *  preenchimento a sério, ninguém contava) — `auditorio` (o que
+ *  alimenta "Presença na igreja" em Números) passa a somar só
+ *  visitantes+voluntários. `juniorFun` virou `junior`/`fun`
+ *  separados, no mesmo lote em que passam a `origem: "automatica"`
+ *  (painéis das salas — Kinder/SHIFT/New).
  *
  *  `valor: null` é "por contar", diferente de zero — e um culto com
  *  metade das categorias por contar não pode aparecer no gráfico como
  *  um domingo fraco. Daí `finalizada`: só a contagem que a Pessoal
  *  marcou como terminada entra nas tendências. */
-const AUDITORIO = ["membros", "visitantes", "voluntarios"];
-const SALAS = ["new", "shift", "juniorFun", "baby"];
+const AUDITORIO = ["visitantes", "voluntarios"];
+const SALAS = ["new", "shift", "junior", "fun", "baby"];
 
 function resumirContagem(c) {
   const cats = c.categorias || {};
@@ -543,17 +545,17 @@ function resumirContagem(c) {
     finalizada: !!c.finalizadoEm,
     auditorio: somar(AUDITORIO),
     salas: somar(SALAS),
-    membros: valor("membros"),
     visitantes: valor("visitantes"),
     voluntarios: valor("voluntarios"),
     apelo: valor("apelo"),
-    // as salas uma a uma, para o painel poder cruzar as duas que a
-    // Kinder também conta (baby e juniorFun) com o check-in dela, sem
-    // somar a New e a SHIFT — que têm sala própria e nunca passam pelo
+    // as salas uma a uma, para o painel poder cruzar as três que a
+    // Kinder conta (baby/fun/junior) com o check-in dela, sem somar a
+    // New e a SHIFT — que têm sala própria e nunca passam pelo
     // check-in da Kinder, e fariam a comparação nunca bater certo
     new: valor("new"),
     shift: valor("shift"),
-    juniorFun: valor("juniorFun"),
+    junior: valor("junior"),
+    fun: valor("fun"),
     baby: valor("baby"),
   };
 }

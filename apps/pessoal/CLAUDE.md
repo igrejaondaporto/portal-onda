@@ -188,21 +188,32 @@ já existente em `lib/culto.js`) — quem escreve é o líder de escala
 DESSE culto (ou a líder da base), a mesma regra de `podeDistribuir`.
 Nada de específico da Pessoal aqui.
 
-### Contagem — subaba de Culto — nove categorias que não somam entre si
+### Contagem — subaba de Culto — categorias que não somam entre si
 
-`membros`, `visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais);
-`new`, `shift`, `juniorFun`, `baby` (viram automáticas quando os
-painéis das salas existirem — por agora manuais, com `origem` gravada
-por categoria desde já, para a transição não pedir migração). Campo
-aceita ficar vazio, guarda quem preencheu cada categoria. Vive no documento
-único `eventos/{AAAA-MM-DD}/contagem/geral`, em `categorias.{id}`, com
-`valor`, `origem`, `preenchidoPor` e `preenchidoEm`. Por agora todas as
-categorias têm origem `manual`; quando existirem painéis das salas, só
-`new`, `shift`, `juniorFun` e `baby` passam a `automatica`. Botão
-"Limpar contagem" (com confirmação) volta as nove a `valor: null` —
-as regras não deixam apagar o documento (histórico do culto), por
-isso é sempre um `update`, nunca um `delete`. Cada categoria mostra
-também a que horas foi preenchida, ao lado de quem preencheu.
+`visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais); `new`,
+`shift`, `junior`, `fun`, `baby` (`origem: "automatica"`, escritas
+pelos painéis das salas — SHIFT, New e Kinder — nunca à mão aqui; ver
+o CLAUDE.md de cada uma). **"Membros" saiu do catálogo** (pedido
+2026-09: sem padrão de preenchimento a sério, ninguém contava).
+**"Junior Fun" separou-se em `junior`/`fun`** (mesmo pedido, para bater
+com as três salas reais da Kinder, cada uma com o seu popup de
+contagem). Campo aceita ficar vazio, guarda quem preencheu cada
+categoria. Vive no documento único `eventos/{AAAA-MM-DD}/contagem/geral`,
+em `categorias.{id}`, com `valor`, `origem`, `preenchidoPor` e
+`preenchidoEm`. Botão "Limpar contagem" (com confirmação) volta todas
+a `valor: null` — as regras não deixam apagar o documento (histórico
+do culto), por isso é sempre um `update`, nunca um `delete`. Cada
+categoria mostra também a que horas foi preenchida, ao lado de quem
+preencheu.
+
+**A Contagem não fica presa a "quando sirvo a seguir".** Pedido
+2026-09 ("hoje é dia 23/09 e o culto de 20/09 não foi marcado, eu
+quero marcar essa data"): a subaba mostra a data do culto que está a
+marcar, com setas ‹ › para andar entre os cultos do mês carregado
+(`eventosMes`, o mesmo que "Ordem do culto"/"Feedbacks" já usam) —
+troca de mês continua pela seta lá em cima, no cabeçalho de Culto.
+Por omissão abre no próximo culto por vir (ou no último, se o mês já
+acabou), mas qualquer domingo do mês fica a um toque, marcado ou não.
 
 Botão **"Salvar contagem"** no fim grava `finalizadoEm`/`finalizadoPor`
 (`finalizarContagem` em `lib/contagem.js`) — cada categoria já grava

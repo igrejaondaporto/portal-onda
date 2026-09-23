@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { podeDistribuir } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
-import { obterOrdemCulto, obterMeuEvento } from "../lib/culto";
+import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
@@ -43,13 +43,19 @@ export default function Culto({
   const [ordens, setOrdens] = useState({});
   const [cardAberto, setCardAberto] = useState(null);
   const [filtroCulto, setFiltroCulto] = useState(null);
-  const [meuEvento, setMeuEvento] = useState(null);
   const [sheetFeedback, setSheetFeedback] = useState(null);
+  // qual culto a Contagem está a mostrar — a Contagem precisa de
+  // poder voltar a um domingo já passado que ainda não foi marcado
+  // (pedido 2026-09: "hoje é dia 23/09 e o culto de 20/09 não foi
+  // marcado, eu quero marcar essa data"), por isso não usa "quando
+  // sirvo a seguir" como as outras subabas — escolhe dentro do
+  // próprio mês carregado (eventosMes), com setas para andar entre
+  // cultos.
+  const [contagemEventoId, setContagemEventoId] = useState(null);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
-  useEffect(() => { obterMeuEvento(uid).then(setMeuEvento); }, [uid]);
   useEffect(() => { setAba(abaInicial ?? "ordem"); }, [abaInicial]);
 
   useEffect(() => {
@@ -71,6 +77,27 @@ export default function Culto({
     const hoje = hojeISO();
     setCardAberto((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
   }, [eventosMes]);
+
+  // mesmo padrão de omissão do cardAberto acima (próximo culto do
+  // mês, ou o último se já não houver nenhum por vir), só na primeira
+  // vez que o mês carrega — depois disso é a seta ‹ › que manda.
+  const contagemEscolheuPadrao = useRef(false);
+  useEffect(() => { contagemEscolheuPadrao.current = false; }, [mes, ano]);
+  useEffect(() => {
+    if (contagemEscolheuPadrao.current || !eventosMes.length) return;
+    contagemEscolheuPadrao.current = true;
+    const hoje = hojeISO();
+    setContagemEventoId((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
+  }, [eventosMes]);
+
+  // anda para trás/frente dentro dos cultos do mês carregado — troca
+  // de mês continua a ser a seta lá em cima (MESES[mes] ‹ ›), esta é
+  // só dentro do que já está na lista.
+  function moverContagem(delta) {
+    const i = eventosMes.findIndex((e) => e.id === contagemEventoId);
+    const proximo = eventosMes[i + delta];
+    if (proximo) setContagemEventoId(proximo.id);
+  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -197,11 +224,27 @@ export default function Culto({
 
       {aba === "contagem" && (
         <div style={{ marginTop: 16 }}>
-          {meuEvento ? (
-            <ContagemCulto eventoId={meuEvento.id} uid={uid} voluntarios={voluntarios} />
-          ) : (
-            <div className="vaz">Sem culto para contar ainda.</div>
-          )}
+          {(() => {
+            const i = eventosMes.findIndex((e) => e.id === contagemEventoId);
+            const eventoContagem = i >= 0 ? eventosMes[i] : null;
+            if (!eventoContagem) return <div className="vaz">Sem culto para contar ainda.</div>;
+            return (
+              <>
+                <div className="cabecalho" style={{ marginTop: 0 }}>
+                  <button className="calbt" disabled={i <= 0} onClick={() => moverContagem(-1)}>‹</button>
+                  <h3 style={{ textAlign: "center", flex: 1 }}>
+                    {dataPorExtenso(eventoContagem.data)}
+                    {eventoContagem.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
+                  </h3>
+                  <button className="calbt" disabled={i >= eventosMes.length - 1} onClick={() => moverContagem(1)}>›</button>
+                </div>
+                <p className="ds" style={{ textAlign: "center", marginTop: -6, marginBottom: 14 }}>
+                  A marcar a contagem deste domingo — usa as setas para voltar a um culto ainda por contar.
+                </p>
+                <ContagemCulto eventoId={eventoContagem.id} uid={uid} voluntarios={voluntarios} />
+              </>
+            );
+          })()}
           <HistoricoContagem uid={uid} voluntarios={voluntarios} />
         </div>
       )}

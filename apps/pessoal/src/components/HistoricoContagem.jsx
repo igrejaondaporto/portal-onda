@@ -110,7 +110,7 @@ export default function HistoricoContagem({ uid, voluntarios }) {
               <div style={{ flex: 1 }}>
                 <p className="nmt">{dataPorExtenso(ev.id)}</p>
                 <p className="ds">
-                  {preenchidas}/9 preenchidas · guardada
+                  {preenchidas}/{CATEGORIAS_CONTAGEM.length} preenchidas · guardada
                   {horaDe(c.finalizadoEm) ? ` às ${horaDe(c.finalizadoEm)}` : ""} por {nomeDe(c.finalizadoPor, voluntarios) ?? "alguém da equipa"}
                 </p>
               </div>

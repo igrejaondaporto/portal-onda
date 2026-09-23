@@ -319,7 +319,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho">
               <h3>Presença na igreja</h3>
-              <span className="cap">membros + visitantes + equipa</span>
+              <span className="cap">visitantes + equipa</span>
             </div>
             <LinhaTempo
               pontos={presencas}
