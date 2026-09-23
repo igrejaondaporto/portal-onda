@@ -60,6 +60,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
   // histórico — sem isto, corrigir uma duração não se via em lado
   // nenhum até trocar de período e voltar
   const [recarregar, setRecarregar] = useState(0);
+  // a tabela "No fim"/"Gargalo" começa cortada nos 5 cultos mais
+  // recentes — pedido 2026-09, mesmo critério de Desgaste (ver
+  // Pessoas.jsx)
+  const [verTodaTabela, setVerTodaTabela] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -461,34 +465,48 @@ export default function Numeros({ ativo, definirCabecalho }) {
                   </>
                 )}
 
-                <div className="tabwrap" style={{ marginTop: 14 }}>
-                  <table className="tab">
-                    <thead>
-                      <tr>
-                        <th>Culto</th>
-                        <th style={{ textAlign: "right" }}>No fim</th>
-                        <th style={{ textAlign: "right" }}>Gargalo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cultosComRegisto.slice(-12).reverse().map((c) => (
-                        <tr key={c.eventoId}>
-                          <td>{dataCurta(c.data)}</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={corAtraso(c.culto.atrasoFinal)}>{textoAtraso(c.culto.atrasoFinal)}</span>
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            {c.culto.gargalo ? (
-                              <>
-                                <span style={{ display: "block", fontSize: 11.5, color: "var(--cinza)" }}>{c.culto.gargalo.momento}</span>
-                                <span className={corAtraso(c.culto.gargalo.atraso)}>{textoAtraso(c.culto.gargalo.atraso)}</span>
-                              </>
-                            ) : "—"}
-                          </td>
+                {/* separador visual — "No fim"/"Gargalo" é outra
+                    pergunta ("quando é que este domingo acabou, e qual
+                    bloco comeu o tempo?"), não uma continuação de
+                    "Onde o atraso aparece" logo acima (pedido 2026-09:
+                    "coloca algum divisor para mostrar que isso é outra
+                    seção") */}
+                <div style={{ borderTop: "1px solid var(--fio)", marginTop: 18, paddingTop: 14 }}>
+                  <p className="cap" style={{ marginTop: 0 }}>Culto a culto</p>
+                  <div className="tabwrap" style={{ marginTop: 8 }}>
+                    <table className="tab">
+                      <thead>
+                        <tr>
+                          <th>Culto</th>
+                          <th style={{ textAlign: "right" }}>No fim</th>
+                          <th style={{ textAlign: "right" }}>Gargalo</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {(verTodaTabela ? cultosComRegisto : cultosComRegisto.slice(-5)).slice().reverse().map((c) => (
+                          <tr key={c.eventoId}>
+                            <td>{dataCurta(c.data)}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <span className={corAtraso(c.culto.atrasoFinal)}>{textoAtraso(c.culto.atrasoFinal)}</span>
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                              {c.culto.gargalo ? (
+                                <>
+                                  <span style={{ display: "block", fontSize: 11.5, color: "var(--cinza)" }}>{c.culto.gargalo.momento}</span>
+                                  <span className={corAtraso(c.culto.gargalo.atraso)}>{textoAtraso(c.culto.gargalo.atraso)}</span>
+                                </>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {cultosComRegisto.length > 5 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodaTabela((v) => !v)}>
+                      {verTodaTabela ? "Ver menos" : `Ver mais (${cultosComRegisto.length - 5})`}
+                    </button>
+                  )}
                 </div>
               </>
             )}
