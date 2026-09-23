@@ -190,6 +190,17 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   Backstage 5, New 5, SHIFT 5, Comunicação 3, Louvor 3 (contagem de
   `type="number"` a 2026-09-21). Candidato a ir para `packages/shared`
   se aparecer numa quarta base.
+- **Computador: menu lateral + coluna central** (`apps/tecnica/src/styles/tecnica.css`,
+  secção 4). Num ecrã largo, cada base é hoje o telemóvel esticado:
+  botões e campos com 900px e a barra do polegar a boiar no fundo. Na
+  Técnica, a partir de 900px, o `.navb` do NavBar partilhado é
+  redesenhado como menu à esquerda (é o mesmo elemento — nada
+  duplicado, o tour continua a achar os `data-tour`), o logo sobe para
+  o topo do menu, e o conteúdo fica numa coluna de 760px com o título
+  alinhado por ela. O `.duas` volta a uma coluna. É só CSS mais um
+  `<button className="logo tec-lateral-logo">` no `Sessao.jsx` — porta
+  para qualquer base copiando a secção e trocando o prefixo. Se chegar
+  a três bases, é caso para ir para o global.css.
 
 - **Gráficos como componentes partilhados**
   (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
