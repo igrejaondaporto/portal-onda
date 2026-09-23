@@ -19,7 +19,13 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
       .map((m) => ({ _k: chave(), projecao: "", detalhe: "", responsavel: "", ...m, minutos: m.minutos ?? 5 }))
   );
   const [avisos, setAvisos] = useState(
-    () => inicial.avisos.map((a) => ({ _k: chave(), criarCulto: false, ...a }))
+    // `data` vem do analisador (functions/ordemCultoPdf.js) como null
+    // sempre que a data do aviso não é um DD/MM inequívoco ("09/out",
+    // "26/set" — comum) — nunca "" garantido. Sem o `?? ""` aqui, o
+    // campo <input value={a.data}> deste aviso ficava com `null` como
+    // valor controlado (React trata como não controlado — o campo
+    // parece normal, mas o estado por trás continua `null`).
+    () => inicial.avisos.map((a) => ({ _k: chave(), criarCulto: false, ...a, data: a.data ?? "" }))
   );
   // Tipo de culto (Ceia/Contribua/Culto da Família) — obrigatório,
   // pedido do líder da Louvor: é a Backstage que decide, ao publicar,
@@ -89,9 +95,16 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
       }));
     if (!momentosLimpos.length) return torrada("Adiciona pelo menos um momento com hora e nome.");
 
+    // `a.data` pode ser null (aviso sem data inequívoca, vindo direto
+    // do analisador sem passar por atualizarAviso) — a causa real do
+    // bug "toco em Publicar e não acontece nada": `a.data.trim()` sem
+    // guarda lançava aqui, ANTES do try/catch de baixo, e o toque
+    // nunca chegava a pedir nada ao servidor (reportado 2026-09,
+    // reproduzido com o PDF real de 27/09: "CULTO DE MULHERES" tinha
+    // data:null por vir escrita "09/out", não DD/MM).
     const avisosLimpos = avisos
       .filter((a) => a.nome.trim())
-      .map(({ _k, ...a }) => ({ ...a, nome: a.nome.trim(), data: a.data.trim(), info: a.info?.trim() || "" }));
+      .map(({ _k, ...a }) => ({ ...a, nome: a.nome.trim(), data: (a.data ?? "").trim(), info: a.info?.trim() || "" }));
 
     setAEnviar(true);
     try {
