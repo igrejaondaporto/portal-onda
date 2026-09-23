@@ -431,10 +431,11 @@ function exigeLider(req) {
   return baseId;
 }
 
-/** Bases onde "auxiliar" é um papel válido. Louvor (2026-09) e Kinder
- *  (2026-09: a líder geral é lider_base, as três líderes de categoria
- *  — Baby, Fun, Júnior — são auxiliares, com as mesmas funções). */
-const BASES_COM_AUXILIAR = new Set(["louvor", "kinder"]);
+/** Bases onde "auxiliar" é um papel válido. Louvor (2026-09), o Louvor
+ *  Kinder (cópia da Louvor, mesmo ecrã de papéis) e Kinder (2026-09: a
+ *  líder geral é lider_base, as três líderes de categoria — Baby, Fun,
+ *  Júnior — são auxiliares, com as mesmas funções). */
+const BASES_COM_AUXILIAR = new Set(["louvor", "louvorkinder", "kinder"]);
 
 /** Mesma regra usada para montar o custom token em `entrar` e
  *  `trocarBase` — só as BASES_COM_AUXILIAR podem ter "auxiliar"; noutra
@@ -503,7 +504,7 @@ export const criarVoluntario = onCall(async (req) => {
   // Técnica). Nas outras bases o campo nunca aparece.
   const comNivel = nivel ? { nivel } : {};
   // instrumentos: só a Louvor envia isto — que papéis (vocal/teclado/
-  // guitarra/baixo/bateria, ver PAPEIS_LOUVOR mais abaixo) a pessoa
+  // guitarra/baixo/bateria, ver ESCALA_LOUVOR_POR_BASE mais abaixo) a pessoa
   // toca, para agrupar por "instrumento" ao montar a escala (ver
   // guardarEscalaLouvor). Uma pessoa pode tocar mais do que um; sem
   // validação de valores aqui — a mesma confiança no cliente que
@@ -1073,8 +1074,24 @@ async function atribuirTodasFuncoesAoTitular(eventoId, baseId, titularId, atuali
  * validação). Uma pessoa não pode ocupar dois papéis no mesmo culto.
  * "vocal" saiu do Set (2026-09, virou lead/colead/back) — só afeta
  * escritas novas; escalados antigos com esse papel, já gravados,
- * continuam no Firestore sem revalidação (nada se apaga). */
-const PAPEIS_LOUVOR = new Set(["lead", "colead", "back", "teclado", "guitarra", "baixo", "bateria"]);
+ * continuam no Firestore sem revalidação (nada se apaga).
+ *
+ * Por base (2026-09): o Louvor Kinder (apps/louvorkinder) usa as
+ * mesmas funções com outros papéis. `papelLead` é quem canta — o
+ * cantor que pessoasParaAtribuir junta ao histórico de tons. Uma base
+ * fora deste mapa não tem papel nenhum válido: a escala recusa tudo,
+ * em vez de aceitar os papéis de outra base. */
+const ESCALA_LOUVOR_POR_BASE = {
+  louvor: {
+    papeis: new Set(["lead", "colead", "back", "teclado", "guitarra", "baixo", "bateria"]),
+    papelLead: "lead",
+  },
+  louvorkinder: {
+    papeis: new Set(["voz", "violao", "cajon"]),
+    papelLead: "voz",
+  },
+};
+const papelEscalaValido = (baseId, papel) => !!ESCALA_LOUVOR_POR_BASE[baseId]?.papeis.has(papel);
 
 export const guardarEscalaLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
@@ -1108,7 +1125,7 @@ async function escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala) {
 
   const usados = new Set();
   const escaladosLimpos = escalados.map((e) => {
-    if (!e?.pessoaId || !PAPEIS_LOUVOR.has(e.papel)) {
+    if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
       throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
     }
     if (usados.has(e.pessoaId)) {
@@ -1192,7 +1209,7 @@ export const guardarRascunhoEscala = onCall(async (req) => {
     if (!it?.eventoId) throw new HttpsError("invalid-argument", "Item do rascunho sem culto.");
     const usados = new Set();
     const escalados = (it.escalados || []).map((e) => {
-      if (!e?.pessoaId || !PAPEIS_LOUVOR.has(e.papel)) {
+      if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
         throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
       }
       if (usados.has(e.pessoaId)) {
@@ -1306,7 +1323,9 @@ async function pessoasParaAtribuir(baseId, nomeVersao, eventoId) {
 
   if (eventoId) {
     const escalaSnap = await db.doc(`eventos/${eventoId}/escalas/${baseId}`).get();
-    const lead = escalaSnap.exists ? (escalaSnap.data().escalados || []).find((e) => e.papel === "lead") : null;
+    const papelLead = ESCALA_LOUVOR_POR_BASE[baseId]?.papelLead;
+    const lead = escalaSnap.exists && papelLead
+      ? (escalaSnap.data().escalados || []).find((e) => e.papel === papelLead) : null;
     if (lead && !encontrados.has(lead.pessoaId)) {
       const pessoaLead = pessoasSnap.docs.find((d) => d.id === lead.pessoaId);
       if (pessoaLead) encontrados.set(pessoaLead.id, pessoaLead.data().nome);

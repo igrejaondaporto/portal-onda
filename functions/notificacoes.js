@@ -264,12 +264,13 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
  * para um culto — nunca "nos próximos dois dias", que mandaria a
  * mesma coisa dois dias seguidos.
  *
- * Só a Louvor por agora, porque só a Louvor tem confirmação de
- * presença (a Apoio decidiu explicitamente não a ter). Quando outra
+ * Só a Louvor e o Louvor Kinder (cópia da app da Louvor, mesmo fluxo),
+ * porque só elas têm confirmação de presença (a Apoio decidiu
+ * explicitamente não a ter). Quando outra
  * base ganhar o mesmo fluxo, acrescenta-se o slug à constante — o
  * resto da função já é genérico.
  */
-const BASES_COM_CONFIRMACAO = ["louvor"];
+const BASES_COM_CONFIRMACAO = ["louvor", "louvorkinder"];
 const DIAS_ANTES = 2;
 
 export const lembrarConfirmacaoPresenca = onSchedule(
