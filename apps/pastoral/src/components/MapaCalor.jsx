@@ -98,10 +98,16 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // só a partir do mapa + voluntários + Kinder, nunca da
         // contagem manual, que saiu deste cartão de propósito.
         const marcados = a.ocupados + a.visitantes; // lugares úteis ocupados, visitante incluído
-        const foraDeContagem = a.reservados + a.bloqueados;
-        const totalLugares = a.capacidadeUtil + foraDeContagem;
-        const kinderTotal = mostrado.kinder?.total ?? null;
-        const presenca = marcados + mostrado.voluntarios + (kinderTotal ?? 0);
+        // "bloqueados" aqui é a soma de reservados (A1-A4, fixos) e
+        // bloqueados a sério (cadeira partida) — o que sai da conta ao
+        // ir de "lugares no auditório" para "lugares úteis". Rótulo
+        // simplificado de propósito (pedido 2026-09): a líder da
+        // Pessoal já vê os dois separados no Mapa; aqui só interessa
+        // "quantos não contam".
+        const bloqueados = a.reservados + a.bloqueados;
+        const totalLugares = a.capacidadeUtil + bloqueados;
+        const kinderTotal = mostrado.kinder?.total ?? 0;
+        const presenca = marcados + mostrado.voluntarios + kinderTotal;
         return (
           <div className="caixa" style={{ marginTop: 14 }}>
             <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
@@ -110,16 +116,13 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
 
             <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
             <p className="pa-num">{presenca}</p>
-            <p className="ds" style={{ marginTop: 2 }}>
-              {marcados} no auditório + {mostrado.voluntarios} voluntários
-              {kinderTotal !== null ? ` + ${kinderTotal} na Kinder` : ""}
-            </p>
 
             <ul className="pa-lista" style={{ marginTop: 10 }}>
-              <li>Lugares no auditório: {totalLugares}</li>
+              <li>Lugares no auditório: {totalLugares} ({bloqueados} bloqueados)</li>
               <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
               <li>Visitantes: {a.visitantes}</li>
-              {kinderTotal !== null && <li>Crianças no Kinder: {kinderTotal}</li>}
+              <li>Voluntários: {mostrado.voluntarios}</li>
+              <li>Crianças no Kinder: {kinderTotal}</li>
             </ul>
 
             {mostrado.culto?.atrasoFinal != null && (
