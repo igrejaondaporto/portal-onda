@@ -67,7 +67,16 @@ export const MINISTERIO_LIDER_BASE = "lider_base";
  *  O líder da base recebe ainda a checklist do papel dele, sirva ou
  *  não nesse domingo: as tarefas dele são de preparar a semana, não
  *  de estar na cabine. */
-export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid, souLiderBase = false) =>
-  funcoesDoCulto(funcoes, eventoId).filter((f) =>
+export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid, souLiderBase = false, ministerioFingido = undefined) => {
+  const doCulto = funcoesDoCulto(funcoes, eventoId);
+  // "ver como voluntário da Projeção": o ministério passa a vir da
+  // escolha do líder, não da escala. `null` é uma escolha válida —
+  // "sem ministério", o painel de quem não serve nesse domingo — e por
+  // isso o desligado é `undefined`, nunca um valor falsy qualquer.
+  if (ministerioFingido !== undefined) {
+    return ministerioFingido ? doCulto.filter((f) => f.ministerioId === ministerioFingido) : [];
+  }
+  return doCulto.filter((f) =>
     (souLiderBase && f.ministerioId === MINISTERIO_LIDER_BASE)
     || meusLugares(escala, uid).some((l) => l.ministerioId === f.ministerioId));
+};

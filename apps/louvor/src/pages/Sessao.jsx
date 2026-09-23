@@ -7,6 +7,7 @@ import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
+import BarraVistaVoluntario from "@portal/shared/components/BarraVistaVoluntario.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
@@ -81,6 +82,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
       setBasesDisponiveis(comNome);
     });
   }, [uid]);
+
+  /* ── Ver o painel como voluntário ──
+   * Pedido do líder da Técnica, para todas as bases. O token continua
+   * a ser o do líder (e o servidor também o trata assim) — muda o
+   * papel que desce para as telas, e com ele os botões que só ele tem.
+   * A saída fica na faixa: aqui dentro o menu do perfil é o de um
+   * voluntário, que é o objetivo. Na Louvor o "auxiliar" também é
+   * líder (ver modelo.js), e por isso também entra na vista. */
+  const [vista, setVista] = useState(null);           // null = desligada
+  const papelEfetivo = vista ? "voluntario" : papel;
 
   function irPara(p) {
     setPagina(p);
@@ -160,7 +171,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <div className="corpo">
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
-              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala} onIrCulto={irParaCulto}
               onIrBiblioteca={() => irPara("biblioteca")}
@@ -169,37 +180,37 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
-              podePublicarCulto={podePublicarCulto}
+              podePublicarCulto={vista ? false : podePublicarCulto}
               aoVivoGravando={aoVivoGravando}
             />
           </div>
           <div style={{ display: pagina === "biblioteca" ? "" : "none" }}>
             <Biblioteca
-              uid={uid} papel={papel} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} ativo={pagina === "biblioteca"} definirCabecalho={setCab}
               onIrRepertorio={() => irPara("repertorio")}
             />
           </div>
           <div style={{ display: pagina === "repertorio" ? "" : "none" }}>
             <Repertorio
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "repertorio"} definirCabecalho={setCab}
             />
           </div>
           {pagina === "reembolsos" && (
-            <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
+            <Reembolsos uid={uid} papel={papelEfetivo} definirCabecalho={setCab} />
           )}
           {pagina === "perfil" && (
             <Perfil
-              uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} definirCabecalho={setCab}
               onAtualizarPessoa={setPessoa} onIrReembolsos={() => irPara("reembolsos")}
               onIrPainel={() => irPara("painel")}
             />
@@ -213,14 +224,18 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         </div>
       </div>
       <NavBar pagina={pagina} onIr={irPara} itens={ABAS_BASE} alertas={aoVivoGravando ? ["culto"] : []} />
+      {vista && (
+        <BarraVistaVoluntario onSair={() => setVista(null)} />
+      )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papel} irPara={irPara}
+          baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
+          onVerComoVoluntario={() => { setVista({}); irPara("inicio"); }}
           onAbrirPerfil={() => irPara("perfil")}
         />
       )}

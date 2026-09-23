@@ -38,7 +38,7 @@ function ordenarChecklist(lista, checklist) {
 // vazio, é "mudou" por identidade pra um useEffect — loop infinito).
 const ITENS_VAZIOS_REP = [];
 
-export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrReembolsos, onIrWiki }) {
+export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrInventario, onIrReembolsos, onIrWiki, ministerioVisto, vendoComoVoluntario = false }) {
   const torrada = useTorrada();
   const souLiderBase = papel === "lider_base";
   const [base, setBase] = useState(null);
@@ -148,7 +148,12 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       blocosRepertorio.push({ numero: blocosRepertorio.length + 1, itens: [entrada] });
     }
   });
-  const minhas = meuEvento ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid, souLiderBase) : [];
+  // na vista de voluntário o ministério vem da escolha do líder; fora
+  // dela, `undefined` deixa a regra de sempre (quem serve no quê).
+  const minhas = meuEvento
+    ? funcoesDosMeusMinisterios(funcoes, meuEvento.id, meuEvento.escala, uid, souLiderBase,
+        vendoComoVoluntario ? ministerioVisto ?? null : undefined)
+    : [];
   const funcoesCulto = meuEvento ? funcoes.filter((f) => !f.eventoId || f.eventoId === meuEvento.id) : [];
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome

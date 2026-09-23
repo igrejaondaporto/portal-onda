@@ -6,6 +6,7 @@ import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
+import BarraVistaVoluntario from "@portal/shared/components/BarraVistaVoluntario.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
@@ -94,7 +95,17 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     });
   }, [uid]);
 
-  const lider = papel === "lider_base";
+  /* ── Ver o painel como voluntário ──
+   * Pedido do líder da Técnica, para todas as bases: poder confirmar
+   * o que a equipa vê. Não é papel novo nem login falso — o token
+   * continua a ser o dele, e o servidor também o trata como líder. O
+   * que muda é o papel que desce para as telas, e com ele todos os
+   * botões que só o líder tem. A saída fica na faixa, sempre à vista,
+   * porque aqui dentro o menu do perfil passa a ser o de um
+   * voluntário (é esse o objetivo). */
+  const [vista, setVista] = useState(null);           // null = desligada
+  const papelEfetivo = vista ? "voluntario" : papel;
+  const lider = papelEfetivo === "lider_base";
 
   function irPara(p) {
     setPagina(p);
@@ -185,7 +196,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <div className="corpo">
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
-              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={(eventoId) => irParaCulto("escala", eventoId)}
               onIrCulto={irParaCulto}
@@ -195,7 +206,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "funcoes" ? "" : "none" }}>
             <Funcoes
-              uid={uid} papel={papel} eventoIdFoco={focoEvento} focoSeq={focoSeq}
+              uid={uid} papel={papelEfetivo} eventoIdFoco={focoEvento} focoSeq={focoSeq}
               ativo={pagina === "funcoes"} definirCabecalho={setCab}
             />
           </div>
@@ -203,27 +214,27 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             <Wiki ativo={pagina === "wiki"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "solicitacoes" ? "" : "none" }}>
-            <Solicitacoes uid={uid} papel={papel} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
+            <Solicitacoes uid={uid} papel={papelEfetivo} ativo={pagina === "solicitacoes"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "brand" ? "" : "none" }}>
-            <Brand papel={papel} ativo={pagina === "brand"} definirCabecalho={setCab} />
+            <Brand papel={papelEfetivo} ativo={pagina === "brand"} definirCabecalho={setCab} />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaAlvo={abaCulto}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes} abaAlvo={abaCulto}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaFuncoes}
-              podePublicarCulto={podePublicarCulto}
+              podePublicarCulto={vista ? false : podePublicarCulto}
               aoVivoGravando={aoVivoGravando}
             />
           </div>
           {pagina === "reembolsos" && (
-            <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
+            <Reembolsos uid={uid} papel={papelEfetivo} definirCabecalho={setCab} />
           )}
           {pagina === "perfil" && (
             <Perfil
-              uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} definirCabecalho={setCab}
               onAtualizarPessoa={setPessoa} onIrReembolsos={() => irPara("reembolsos")}
               onIrPainel={() => irPara("painel")} onVerFuncoes={irParaFuncoes}
             />
@@ -237,14 +248,18 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         </div>
       </div>
       <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivoGravando ? ["culto"] : []} />
+      {vista && (
+        <BarraVistaVoluntario onSair={() => setVista(null)} />
+      )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papel} irPara={irPara}
+          baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
+          onVerComoVoluntario={() => { setVista({}); irPara("inicio"); }}
           onAbrirPerfil={() => irPara("perfil")}
         />
       )}

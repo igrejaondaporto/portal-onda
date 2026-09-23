@@ -329,6 +329,22 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
 
+- **"Painel do voluntário": o líder vê o que a equipa vê**
+  (`MenuEu.jsx`, `BarraVistaVoluntario.jsx`, `SheetEscolherVista.jsx`).
+  Não é papel novo nem login falso: o token continua a ser o do líder
+  e o servidor também o trata como líder — o que muda é o `papel` que
+  desce para as telas (`papelEfetivo`), e com ele todos os botões que
+  só o líder tem, mais os separadores dele. A saída vive numa faixa
+  fixa, porque dentro da vista o menu do perfil passa a ser o de um
+  voluntário e deixaria o líder sem caminho de volta.
+  **Nas bases com ministérios** (hoje a Técnica) escolhe-se qual antes
+  de entrar, e o Início passa a montar a checklist desse ministério em
+  vez da que vem da escala — ver o parâmetro `ministerioFingido` em
+  `funcoesDosMeusMinisterios`; `null` é uma escolha válida ("sem
+  ministério", o painel de quem não serve), por isso o desligado é
+  `undefined`. **Fica de fora** o Financeiro, a Pastoral e o Mural:
+  não têm `MenuEu` nem voluntários — toda a gente lá é líder.
+
 - **Computador: menu lateral + coluna central** (`global.css`, bloco
   `@media (min-width: 900px)`, mais o logo dentro do `NavBar.jsx`).
   Nasceu na Técnica a 2026-09-21 e passou ao partilhado dois dias
