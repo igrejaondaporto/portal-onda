@@ -86,39 +86,50 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         })}
       </div>
 
-      {mostrado ? (
-        <div className="caixa" style={{ marginTop: 14 }}>
-          <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
-          <p className="pa-num">{pct}%</p>
-          <p className="ds" style={{ marginTop: 2 }}>
-            {a.ocupados + a.visitantes} de {a.capacidadeUtil} lugares úteis
-            {a.visitantes > 0 ? ` · ${a.visitantes} de visitante` : ""}
-            {a.reservados > 0 || a.bloqueados > 0
-              ? ` · ${a.reservados + a.bloqueados} fora de contagem`
-              : ""}
-          </p>
+      {mostrado ? (() => {
+        // tudo isto já vinha com o culto — mapa, voluntários, Kinder e
+        // atraso vêm juntos de `historicoPastoral`, sem chamada nova
+        // nenhuma. Pedido 2026-09: ordem e conteúdo do cartão trocados
+        // — "de onde vêm os dados?" era a pergunta, porque a contagem
+        // manual da Contagem (categorias, tela própria da Pessoal) e o
+        // mapa lugar a lugar são DOIS sistemas diferentes que podem
+        // discordar (a manual conta por categoria digitada; o mapa é
+        // lugar a lugar) — por isso "Presença na igreja" passa a somar
+        // só a partir do mapa + voluntários + Kinder, nunca da
+        // contagem manual, que saiu deste cartão de propósito.
+        const marcados = a.ocupados + a.visitantes; // lugares úteis ocupados, visitante incluído
+        const foraDeContagem = a.reservados + a.bloqueados;
+        const totalLugares = a.capacidadeUtil + foraDeContagem;
+        const kinderTotal = mostrado.kinder?.total ?? null;
+        const presenca = marcados + mostrado.voluntarios + (kinderTotal ?? 0);
+        return (
+          <div className="caixa" style={{ marginTop: 14 }}>
+            <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
+            <p className="pa-num">{pct}%</p>
+            <p className="ds" style={{ marginTop: 2 }}>de ocupação do auditório</p>
 
-          {/* "ver todas as estatísticas" (2026-09) — tudo o que este
-              domingo já trazia no `cultos` prop, sem chamada nova
-              nenhuma: a contagem, os voluntários e o atraso já vêm de
-              `historicoPastoral` junto com a acomodação. */}
-          {mostrado.contagem && (
-            <p className="ds" style={{ marginTop: 8 }}>
-              {mostrado.contagem.auditorio ?? "—"} no auditório
-              {mostrado.contagem.visitantes ? ` · ${mostrado.contagem.visitantes} visitantes` : ""}
-              {!mostrado.contagem.finalizada ? " (contagem ainda a decorrer)" : ""}
+            <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
+            <p className="pa-num">{presenca}</p>
+            <p className="ds" style={{ marginTop: 2 }}>
+              {marcados} no auditório + {mostrado.voluntarios} voluntários
+              {kinderTotal !== null ? ` + ${kinderTotal} na Kinder` : ""}
             </p>
-          )}
-          {mostrado.voluntarios > 0 && (
-            <p className="ds" style={{ marginTop: 4 }}>{mostrado.voluntarios} voluntários escalados</p>
-          )}
-          {mostrado.culto?.atrasoFinal != null && (
-            <p className="ds" style={{ marginTop: 4 }}>
-              No fim, o culto estava <b className={corAtraso(mostrado.culto.atrasoFinal)}>{textoAtraso(mostrado.culto.atrasoFinal)}</b>
-            </p>
-          )}
-        </div>
-      ) : (
+
+            <ul className="pa-lista" style={{ marginTop: 10 }}>
+              <li>Lugares no auditório: {totalLugares}</li>
+              <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
+              <li>Visitantes: {a.visitantes}</li>
+              {kinderTotal !== null && <li>Crianças no Kinder: {kinderTotal}</li>}
+            </ul>
+
+            {mostrado.culto?.atrasoFinal != null && (
+              <p className="ds" style={{ marginTop: 10 }}>
+                No fim, o culto estava <b className={corAtraso(mostrado.culto.atrasoFinal)}>{textoAtraso(mostrado.culto.atrasoFinal)}</b>
+              </p>
+            )}
+          </div>
+        );
+      })() : (
         <p className="ds" style={{ marginTop: 10 }}>
           Os quadrados cinzentos são domingos sem nenhum mapa começado.
         </p>
