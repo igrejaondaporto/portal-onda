@@ -106,7 +106,14 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // "quantos não contam".
         const bloqueados = a.reservados + a.bloqueados;
         const totalLugares = a.capacidadeUtil + bloqueados;
-        const kinderTotal = mostrado.kinder?.total ?? 0;
+        // "Crianças no Kinder" vinha do check-in a sério da Kinder
+        // (mostrado.kinder), desligado por pedido da líder desde que
+        // essa base nasceu (CHECKIN_ATIVO=false) — ficava sempre 0,
+        // zerando este pedaço de "Presença na igreja" sem ninguém
+        // reparar. Passa a somar a Contagem da Base Pessoal
+        // (baby+fun+junior), a mesma que o popup "Quantas crianças
+        // estão presentes?" de cada sala já preenche (pedido 2026-09).
+        const kinderTotal = (mostrado.contagem?.baby ?? 0) + (mostrado.contagem?.fun ?? 0) + (mostrado.contagem?.junior ?? 0);
         // pedido 2026-09: a Presença na igreja soma TAMBÉM os lugares
         // bloqueados/reservados — quem está sentado num lugar
         // reservado ou numa cadeira que não conta para a lotação
