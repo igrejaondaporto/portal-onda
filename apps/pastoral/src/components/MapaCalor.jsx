@@ -107,7 +107,11 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         const bloqueados = a.reservados + a.bloqueados;
         const totalLugares = a.capacidadeUtil + bloqueados;
         const kinderTotal = mostrado.kinder?.total ?? 0;
-        const presenca = marcados + mostrado.voluntarios + kinderTotal;
+        // pedido 2026-09: a Presença na igreja soma TAMBÉM os lugares
+        // bloqueados/reservados — quem está sentado num lugar
+        // reservado ou numa cadeira que não conta para a lotação
+        // continua lá, é gente na igreja na mesma.
+        const presenca = marcados + bloqueados + mostrado.voluntarios + kinderTotal;
         return (
           <div className="caixa" style={{ marginTop: 14 }}>
             <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
@@ -116,6 +120,9 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
 
             <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
             <p className="pa-num">{presenca}</p>
+            <p className="ds" style={{ marginTop: 2 }}>
+              {marcados} lugares úteis + {bloqueados} bloqueios + {mostrado.voluntarios} voluntários + {kinderTotal} na Kinder
+            </p>
 
             <ul className="pa-lista" style={{ marginTop: 10 }}>
               <li>Lugares no auditório: {totalLugares} ({bloqueados} bloqueados)</li>
