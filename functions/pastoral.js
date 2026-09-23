@@ -39,6 +39,7 @@
 import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import admin from "firebase-admin";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const db = () => admin.firestore();
 
@@ -1068,4 +1069,114 @@ export const recadosPastoral = onCall(async (req) => {
       };
     }),
   };
+});
+
+/* ══════════════════════════════════════════════════════════════
+ *  EQUIPA PASTORAL — a única base onde "todos são admin"
+ * ══════════════════════════════════════════════════════════════
+ *
+ * Pedido 2026-09: "alterar o código de outro, e poder criar novos
+ * utilizadores — todos com permissão de admin". Esclarecido com o
+ * dono do produto: SÓ dentro da própria equipa pastoral, não nas
+ * outras dez bases — não é o nascimento de um papel "admin_igreja"
+ * (ver o cabeçalho deste ficheiro e o CLAUDE.md desta app).
+ *
+ * `exigeVisaoPastoral` é o gate certo, não `exigeLider` (que só
+ * aceita lider_base/auxiliar — em `bases/pastoral` isso deixaria a
+ * maioria da equipa de fora, e "auxiliar" nem é um papel válido
+ * aqui, `bases/pastoral` não está em BASES_COM_AUXILIAR de
+ * index.js). `ve_tudo_pastoral` é a capacidade de quem SERVE na
+ * base pastoral, qualquer papel — exatamente "todos" do pedido.
+ *
+ * hash()/PIN_PADRAO duplicados de index.js (mesma convenção deste
+ * ficheiro: pastoral.js não importa de index.js, para não abrir uma
+ * exportação só para isto — ver resumoAcomodacaoAoVivo acima). O
+ * formato do hash tem de ficar byte a byte igual (scrypt, salt de 16
+ * bytes em hex + hash de 64 bytes em hex, unidos por ":"), porque é
+ * o `confere()` de index.js que autentica no login — não há um
+ * "confere" próprio aqui.
+ */
+const PIN_PADRAO_PASTORAL = { lider_base: "123456", voluntario: "1234" };
+function hashPin(pin) {
+  const sal = randomBytes(16).toString("hex");
+  return `${sal}:${scryptSync(pin, sal, 64).toString("hex")}`;
+}
+
+/** Cria uma pessoa na equipa pastoral, ou liga uma que já existe
+ *  noutra base — nunca duplica identidade (regra 9 do CLAUDE.md
+ *  raiz). Ao contrário de `criarVoluntario` (index.js), que exige o
+ *  líder escolher explicitamente "já é voluntário noutra base?" via
+ *  `procurarPessoaGlobal`, aqui a equipa é pequena e a UI não tem
+ *  esse ecrã de busca — por isso o telefone já faz a ligação
+ *  sozinho quando bate com alguém que já existe. */
+export const criarPessoaPastoral = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { nome, telefone = "", papel = "voluntario" } = req.data || {};
+  if (!["voluntario", "lider_base"].includes(papel)) {
+    throw new HttpsError("invalid-argument", "Papel inválido.");
+  }
+  if (!String(nome || "").trim()) throw new HttpsError("invalid-argument", "Falta o nome.");
+  const nomeLimpo = nome.trim();
+  const telefoneLimpo = String(telefone || "").trim();
+
+  // só um líder de cada vez — mesmo invariante de sempre (ver
+  // definirLiderBase acima e editarVoluntario em index.js)
+  if (papel === "lider_base") {
+    const outros = await db().collection("bases/pastoral/pessoas").where("papel", "==", "lider_base").get();
+    const lote = db().batch();
+    outros.forEach((d) => lote.update(d.ref, { papel: "voluntario" }));
+    await lote.commit();
+  }
+
+  if (telefoneLimpo) {
+    const existente = await db().collectionGroup("pessoas").where("telefone", "==", telefoneLimpo).limit(1).get();
+    if (!existente.empty) {
+      const pessoaId = existente.docs[0].id;
+      const jaAqui = await db().doc(`bases/pastoral/pessoas/${pessoaId}`).get();
+      if (jaAqui.exists && jaAqui.data().ativo !== false) {
+        throw new HttpsError("already-exists", "Já há alguém na equipa pastoral com este telefone.");
+      }
+      const globalSnap = await db().doc(`pessoas/${pessoaId}`).get();
+      await db().doc(`bases/pastoral/pessoas/${pessoaId}`).set({
+        nome: nomeLimpo, telefone: telefoneLimpo, papel, ativo: true,
+        foto: globalSnap.exists ? (globalSnap.data().foto ?? null) : null,
+        criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      await db().doc(`pessoas/${pessoaId}`).set({ bases: { pastoral: true } }, { merge: true });
+      return { pessoaId, pinProvisorio: null };
+    }
+  }
+
+  const provisorio = PIN_PADRAO_PASTORAL[papel] ?? PIN_PADRAO_PASTORAL.voluntario;
+  const ref = db().collection("bases/pastoral/pessoas").doc();
+  await ref.set({
+    nome: nomeLimpo, telefone: telefoneLimpo, papel, ativo: true, foto: null,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await db().doc(`pessoas/${ref.id}`).set({
+    nome: nomeLimpo, foto: null, bases: { pastoral: true },
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await db().doc(`pessoas/${ref.id}/privado/auth`).set({
+    pinHash: hashPin(provisorio), pinDigitos: provisorio.length,
+    provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+  });
+  return { pessoaId: ref.id, pinProvisorio: provisorio };
+});
+
+/** Repõe o código de outro membro da equipa pastoral para o valor
+ *  fixo de sempre (mesmo `PIN_PADRAO`/comportamento de `reporPin`,
+ *  index.js) — `provisorio:true` obriga a trocar no próximo acesso. */
+export const reporPinPastoral = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { pessoaId } = req.data || {};
+  if (!pessoaId) throw new HttpsError("invalid-argument", "Falta a pessoa.");
+  const snap = await db().doc(`bases/pastoral/pessoas/${pessoaId}`).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Pessoa não encontrada.");
+  const provisorio = PIN_PADRAO_PASTORAL[snap.data().papel] ?? PIN_PADRAO_PASTORAL.voluntario;
+  await db().doc(`pessoas/${pessoaId}/privado/auth`).set({
+    pinHash: hashPin(provisorio), pinDigitos: provisorio.length,
+    provisorio: true, falhas: 0, jaBloqueou: false, bloqueadoAte: null,
+  }, { merge: true });
+  return { pinProvisorio: provisorio };
 });

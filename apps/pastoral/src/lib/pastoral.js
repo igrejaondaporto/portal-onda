@@ -62,6 +62,19 @@ export const enviarRecadoPastoral = (baseId, texto, urgente) =>
 /** Os recados já enviados, para o pastor ver o que ainda não foi lido. */
 export const recadosPastoral = () => chamar("recadosPastoral")({}).then((r) => r.data);
 
+/** Cria alguém na equipa pastoral (ou liga, sozinho, a uma pessoa que
+ *  já existe noutra base — pelo telefone). Todo membro da equipa pode
+ *  chamar isto, não só quem tem "lider_base": aqui não existe outro
+ *  papel com poder a mais, é uma equipa pequena (pedido 2026-09,
+ *  esclarecido: "só dentro da equipa Pastoral"). */
+export const criarPessoaPastoral = (nome, telefone, papel) =>
+  chamar("criarPessoaPastoral")({ nome, telefone, papel }).then((r) => r.data);
+
+/** Repõe o código de outro membro da equipa para o valor fixo de
+ *  sempre — a pessoa troca no próximo acesso. */
+export const reporPinPastoral = (pessoaId) =>
+  chamar("reporPinPastoral")({ pessoaId }).then((r) => r.data);
+
 /* ── a ordem do culto: funções que já existiam ────────────────
  * O painel publica com a MESMA `publicarOrdemCulto` que a Backstage
  * usa desde que a ordem do culto existe — a claim `pode_publicar_culto`

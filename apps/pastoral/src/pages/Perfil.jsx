@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { db } from "@portal/shared/lib/firebase.js";
 import { guardarPerfil, enviarFotoPerfil, removerFotoPerfil } from "@portal/shared/lib/perfil.js";
 import { trocarPin } from "@portal/shared/lib/auth.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import Avatar from "@portal/shared/components/Avatar.jsx";
+import SheetMembroPastoral from "../components/SheetMembroPastoral.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -19,8 +23,19 @@ export default function Perfil({ uid, pessoa, definirCabecalho, onAtualizarPesso
   const [c3, setC3] = useState("");
   const [aTrocarPin, setATrocarPin] = useState(false);
   const [expandida, setExpandida] = useState(false);
+  const [equipa, setEquipa] = useState(null);
+  const [sheetMembro, setSheetMembro] = useState(null); // pessoa (repor código) | "novo" | null
 
   useEffect(() => { setNome(pessoa?.nome ?? ""); setTelefone(pessoa?.telefone ?? ""); }, [pessoa]);
+
+  // A equipa pastoral, ao vivo — já era legível por qualquer pessoa
+  // autenticada (firestore.rules: `minhaBase(base)`), por isso não
+  // precisa de Cloud Function nenhuma só para listar (a mesma regra
+  // de ouro desta app: onSnapshot para o que já é legível).
+  useEffect(() => {
+    const q = query(collection(db, "bases/pastoral/pessoas"), where("ativo", "==", true), orderBy("nome"));
+    return onSnapshot(q, (snap) => setEquipa(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  }, []);
 
   useEffect(() => {
     definirCabecalho({ titulo: <em>Perfil</em>, subtitulo: "As tuas informações", chips: ["Pastoral"] });
@@ -127,10 +142,51 @@ export default function Perfil({ uid, pessoa, definirCabecalho, onAtualizarPesso
             <p className="ds" style={{ marginTop: 10 }}>Ninguém consegue ver o teu código.</p>
           </div>
         </div>
+        <div className="sect">
+          <div className="cabecalho">
+            <h3>Equipa pastoral</h3>
+            <button className="btn sec" style={{ padding: "6px 14px", fontSize: 12.5 }} onClick={() => setSheetMembro("novo")}>
+              Adicionar
+            </button>
+          </div>
+          <p className="ds">
+            Toda a gente aqui pode repor o código de outro e adicionar gente nova — é uma equipa pequena, sem outro
+            papel com mais poder.
+          </p>
+          <div className="caixa" style={{ marginTop: 10 }}>
+            {!equipa && <div className="vaz">A carregar…</div>}
+            {equipa && !equipa.length && <div className="vaz">Ninguém ativo.</div>}
+            {equipa && equipa.map((p) => {
+              const souEu = p.id === uid;
+              return (
+                <button
+                  key={p.id}
+                  className="linha"
+                  style={{ width: "100%", textAlign: "left", background: "none", border: 0, padding: "10px 0", cursor: souEu ? "default" : "pointer" }}
+                  disabled={souEu}
+                  onClick={() => setSheetMembro(p)}
+                >
+                  <Avatar pessoa={p} tamanho={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt" style={{ fontSize: 14 }}>{p.nome}</p>
+                    <p className="ds">{souEu ? "Tu" : p.papel === "lider_base" ? "Líder" : "Equipa"}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
       <div>
         <button className="sair" onClick={sair}>Terminar sessão</button>
       </div>
+      {sheetMembro && (
+        <SheetMembroPastoral
+          pessoa={sheetMembro === "novo" ? null : sheetMembro}
+          onFechar={() => setSheetMembro(null)}
+          onGuardado={(msg) => { torrada(msg); setSheetMembro(null); }}
+        />
+      )}
     </div>
   );
 }
