@@ -86,6 +86,7 @@ bases, nunca no mesmo commit que uma correção local.
 | Comunicação | `apps/comunicacao` | `comunicacao.igrejaonda.pt` | `apps/comunicacao/CLAUDE.md` |
 | Pessoal | `apps/pessoal` | `pessoal.igrejaonda.pt` | `apps/pessoal/CLAUDE.md` |
 | Louvor | `apps/louvor` | `louvor.igrejaonda.pt` | `apps/louvor/CLAUDE.md` |
+| Louvor Kinder | `apps/louvorkinder` | `louvorkinder.igrejaonda.pt` | `apps/louvorkinder/CLAUDE.md` |
 | New | `apps/new` | `new.igrejaonda.pt` | `apps/new/CLAUDE.md` |
 | SHIFT | `apps/shift` | `shift.igrejaonda.pt` | `apps/shift/CLAUDE.md` |
 | Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |

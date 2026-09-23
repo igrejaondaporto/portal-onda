@@ -1,0 +1,708 @@
+/* Ajustes locais da base Louvor por cima do global.css partilhado —
+ * nunca editar o partilhado a pensar só nesta base (ver CLAUDE.md da
+ * raiz). O --lima daqui é o C8F02E do CLAUDE-louvor.md (o global é
+ * D8F24B, mais claro) — só se aplica dentro do bundle desta app. */
+:root {
+  --lima: #c8f02e;
+}
+
+/* As folhas (.pin) do partilhado vão até 88vh — quase o ecrã todo
+ * num telemóvel, sobrava pouco fundo visível pra tocar fora e fechar
+ * (pedido do líder, calibrado por ele num iPhone Pro Max). 70vh deixa
+ * uma faixa de fundo bem maior à mostra. */
+.pin {
+  max-height: 70vh;
+}
+
+/* ── Painel do líder — Voluntários em cartão expansível (portado de
+ * apps/tecnica/src/styles/tecnica.css, .tec-cartao/-corpo renomeadas
+ * lv-cartao/-corpo; pedido do líder, 2026-09 — a lista já não abre
+ * sempre, o painel é para administrar de vez em quando). ── */
+.lv-cartao {
+  margin-top: 18px;
+}
+.lv-cartao-corpo {
+  padding: 0 12px 10px;
+}
+
+/* ── Equipamentos (portado de apps/tecnica/src/styles/tecnica.css,
+ * classes tec-* renomeadas lv-*; .mincartao/.cabtoque/.cartaomelh/
+ * .quadmin/etc. já vêm do global.css partilhado) ── */
+.cabtoque.lv-min .nome {
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+}
+.lv-equip {
+  margin-bottom: 10px;
+}
+.lv-equip-avarias .mincartao-barra,
+.lv-equip-avarias .ponto {
+  background: var(--magenta);
+}
+.lv-equip-avarias .conta {
+  color: var(--magenta);
+  font-weight: 800;
+}
+.lv-equip-avaria {
+  color: var(--magenta);
+  font-weight: 800;
+}
+.lv-equip-reparacao {
+  color: var(--laranja);
+  font-weight: 800;
+}
+.lv-equip-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+.lv-equip-corpo {
+  padding: 4px 12px 8px;
+}
+.lv-equip-lista {
+  margin-top: 18px;
+}
+
+/* ── Biblioteca ─────────────────────────────────────────────── */
+.bib-busca {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--agua);
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin-top: 14px;
+}
+.bib-busca input {
+  flex: 1;
+  border: 0;
+  background: none;
+  font-size: 14.5px;
+  font-family: inherit;
+  outline: none;
+}
+.bib-chips {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 12px 0 4px;
+  margin: 0 -22px;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+.bib-chips::-webkit-scrollbar { display: none; }
+.bib-chip {
+  flex: none;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cinza);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bib-chip[data-on="1"] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+.bib-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--fio);
+  cursor: pointer;
+}
+.bib-capa {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  flex: none;
+  background: var(--grad);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+.bib-preview-play {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: rgba(10, 15, 46, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.bib-frescor {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bib-frescor.recente { color: var(--magenta); }
+.bib-frescor.descansada { color: var(--verde); }
+/* Coluna à direita de cada item — o frescor (ou o ranking, em "Mais
+ * tocadas") em cima, o atalho de repertório embaixo. Mesma altura de
+ * sempre no .bib-item (align-items:center do pai já cuida disso);
+ * só ocupa o espaço que o frescor sozinho deixava por preencher. */
+.bib-lado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+.bib-add-rep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--lima);
+  color: var(--tinta);
+  border-radius: 100px;
+  padding: 6px;
+  cursor: pointer;
+}
+.bib-paginas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 4px;
+}
+.bib-paginas-nums {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+.bib-paginas-nums::-webkit-scrollbar { display: none; }
+.bib-pagina-num {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cinza);
+  cursor: pointer;
+}
+.bib-pagina-num[data-on="1"] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+.bib-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: 11;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--lima);
+  color: var(--tinta);
+  font-size: 26px;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(200, 240, 46, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.link-favicon,
+.link-favicon-vazio {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex: none;
+}
+.link-favicon-vazio {
+  background: var(--agua);
+}
+
+/* ── Conferir/editar música ─────────────────────────────────── */
+.bib-capa-grande {
+  width: 96px;
+  height: 96px;
+  border-radius: 16px;
+  margin: 0 auto;
+  background: var(--grad);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 28px;
+}
+.bib-capas-opcoes {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 0 2px;
+}
+.bib-capa-opcao {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+.bib-capa-opcao[data-on="1"] { border-color: var(--lima); }
+
+/* ── Caixinhas dentro do cartão de culto (Escala.jsx) — cada
+ * assunto (escala, repertório, roupa, ensaio, observação) em cima de
+ * uma cor leve própria, todas dentro do mesmo cartão grande do
+ * culto. Pedido do líder, 2026-09. ── */
+.caixinha {
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.caixinha-titulo {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cinza);
+  margin: 0 0 6px;
+}
+.caixinha.escala    { background: #EFF3FF; }
+.caixinha.repertorio { background: #F2F9DC; }
+.caixinha.roupa      { background: #FBEFF7; }
+.caixinha.ensaio     { background: #FFF1E0; }
+.caixinha.obs         { background: #F3F1FA; }
+
+/* ── Tom (grade de 12 notas) ────────────────────────────────── */
+.grade-tom-wrap {
+  margin-top: 4px;
+}
+.grade-tom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.grade-tom button {
+  padding: 16px 4px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--agua);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta);
+  cursor: pointer;
+}
+.grade-tom button[data-on="1"] {
+  background: var(--tinta);
+  font-weight: 800;
+  color: #fff;
+}
+.grade-tom-menor {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--fio);
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cinza);
+  cursor: pointer;
+}
+.grade-tom-menor[data-on="1"] {
+  background: var(--lima);
+  border-color: var(--lima);
+  color: var(--tinta);
+}
+.grade-tom-menor:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Repertório ─────────────────────────────────────────────── */
+.rep-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--agua);
+  margin-bottom: 8px;
+  /* Sem isto, premir-e-segurar no ⠿ (pra arrastar) seleciona o texto
+   * do título por baixo em vez de iniciar o arrasto — comportamento
+   * padrão do browser em cima de texto, nada a ver com o handler de
+   * pointer events em si. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.rep-item.momento {
+  background: #fff;
+  border: 1.5px dashed var(--fio);
+}
+/* Medley: as duas músicas ficam coladas (sem o espaço normal entre
+ * itens), com uma faixa lima do lado de quem entra em seguida — dá
+ * pra ver de relance que é um bloco só, sem precisar abrir nada. */
+.rep-item.medley-topo {
+  margin-bottom: 2px;
+  border-radius: 14px 14px 4px 4px;
+}
+.rep-item.medley-cauda {
+  border-radius: 4px 4px 14px 14px;
+  border-left: 3px solid var(--lima);
+  cursor: pointer;
+}
+.rep-medley-obs {
+  background: #fff;
+  border: 1.5px dashed var(--fio);
+  border-radius: 10px;
+  padding: 8px 34px 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--cinza);
+  position: relative;
+}
+.rep-medley-editar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: 0;
+  background: none;
+  color: var(--azul);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px;
+}
+/* Convite a adicionar observação numa música de medley que ainda não
+ * tem nenhuma — sem isto só dava pra dizer "qual parte entra" na hora
+ * de adicionar, nunca depois. */
+.rep-medley-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1.5px dashed var(--fio);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--cinza);
+  background: #fff;
+  cursor: pointer;
+}
+/* Comentário livre por música (2026-09, pedido do líder) — mesmo
+ * padrão visual de .rep-medley-obs/.rep-medley-add, mas em amarelo
+ * fraquinho para se distinguir à vista da observação do medley (essa
+ * é sempre "qual parte entra"; isto é qualquer recado). Vale para
+ * qualquer música, não só medley. */
+.rep-comentario {
+  background: #FFFBEB;
+  border: 1.5px dashed #F0DFA0;
+  border-radius: 10px;
+  padding: 8px 34px 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--tinta);
+  position: relative;
+}
+.rep-comentario-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1.5px dashed #F0DFA0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--cinza);
+  background: #FFFBEB;
+  cursor: pointer;
+}
+.rep-alca {
+  color: var(--cinza);
+  cursor: grab;
+  font-size: 18px;
+  line-height: 1;
+  touch-action: none;
+  /* alvo de toque bem maior que o desenho — um dedo real erra por
+   * pouco com muita facilidade num alvo tão fino quanto os pontinhos. */
+  padding: 10px 8px;
+  margin: -10px -8px;
+}
+.rep-item .bib-capa { width: 38px; height: 38px; font-size: 13px; border-radius: 8px; }
+.rep-tom {
+  flex: none;
+  border: 0;
+  background: #fff;
+  color: var(--tinta);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Música ainda sem tom escolhido (pedido do líder, 2026-09) — vermelho
+ * para saltar aos olhos no repertório, não só "Tom" em cinza neutro. */
+.rep-tom.sem-tom {
+  background: var(--magenta);
+  color: #fff;
+}
+/* Botão de link da versão, ao lado do selo de tom — sempre visível
+ * (2026-09, pedido do líder): ícone de link externo quando vazio,
+ * YouTube quando já tem `linkReferencia` (ver SheetEditarLink,
+ * Repertorio.jsx). Mesmo tamanho de toque do resto da barra de ações. */
+.rep-link-youtube {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 100px;
+  background: #fff;
+  color: var(--tinta);
+  cursor: pointer;
+}
+.rep-remover {
+  border: 0;
+  background: none;
+  color: var(--magenta);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.rep-selo {
+  font-size: 11.5px;
+  color: var(--cinza);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Fechar explícito no sheet de adicionar música — os três passos
+ * (procurar → escolher → conferir) deixavam só o tap fora como
+ * saída, confundia. Só aqui por agora: os outros sheets da app
+ * seguem só com tap-fora, como sempre. */
+.pin-fechar {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--agua);
+  color: var(--cinza);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 4º estado do Calendário (Fase D, 2026-09) — escalado + escala
+ * publicada + ainda por confirmar presença. Só a Louvor tem
+ * confirmação de presença, por isso vive aqui e não no .cald
+ * partilhado (global.css) — sirvo/culto/hoje continuam lá. */
+.cald.naoconfirmado {
+  background: var(--magenta);
+  color: #fff;
+  font-weight: 800;
+}
+/* Dia de ensaio no calendário do Início — cor própria (violeta),
+ * separada de culto/sirvo/por confirmar (pedido do líder: mesma
+ * lógica de cor que o culto já tem, mas outra cor). */
+.cald.ensaio {
+  background: var(--violeta);
+  color: #fff;
+  font-weight: 700;
+}
+/* "O teu nome" na tabela de Escala geral — de texto azul (herdado do
+ * .tab td.mim partilhado, global.css) para um box a sério: fundo
+ * azul, nome branco (pedido do líder). Sobrepõe aqui, nunca no
+ * partilhado (CLAUDE.md raiz) — as outras bases continuam só com o
+ * texto a cor. Aplica-se também à linha do líder de escala, para o
+ * mesmo "isto és tu" ficar consistente em toda a tabela. */
+.tab td.mim,
+.tab tr.lid td.mim {
+  background: var(--azul);
+  color: #fff;
+  border-radius: 8px;
+}
+
+/* linha de estado dentro de "O teu papel", depois de confirmar —
+ * discreta de propósito, o pedido de confirmação em si é o .destaque
+ * grande logo acima; isto é só o "desfazer" para quem confirmou sem
+ * querer ou mudou de ideias. */
+.confirmado-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fio);
+}
+
+/* Mini calendário semanal (Segunda-Domingo) — reaproveitado em três
+ * sítios: a caixinha de Ensaio em Escala.jsx (só leitura), o seletor
+ * de data do ensaio em "Editar informações" (clicável) e "Adicionar
+ * ensaio" dentro do rascunho (ver CalendarioSemanal.jsx). */
+.cal-semanal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.cal-sem-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 2px;
+  border-radius: 10px;
+  background: var(--agua);
+}
+.cal-sem-dow {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cinza);
+}
+.cal-sem-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tinta);
+}
+.cal-sem-dia.culto {
+  background: var(--magenta);
+}
+.cal-sem-dia.ensaio {
+  background: var(--azul);
+}
+.cal-sem-dia.culto .cal-sem-dow, .cal-sem-dia.culto .cal-sem-num,
+.cal-sem-dia.ensaio .cal-sem-dow, .cal-sem-dia.ensaio .cal-sem-num {
+  color: #fff;
+}
+
+/* ── barra de progresso dentro de um .destaque (Início) — tempo até
+ * expirar um aviso ou fechar uma enquete. .barra do global.css é
+ * clara (pensada para fundo branco); aqui o fundo é sempre uma cor
+ * cheia (violeta/verde/magenta/azul), por isso é sempre translúcida
+ * sobre branco em vez de var(--agua)/var(--verde). O preenchimento
+ * tem listras a andar (pedido do líder, em vez do emoji a acompanhar
+ * a ponta que estava antes) — mesma linguagem de "coisa em curso" de
+ * barras de loading/upload, sem precisar de nenhum elemento extra. */
+.destaque-progresso {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.28);
+  margin-top: 9px;
+  overflow: hidden;
+}
+.destaque-progresso i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(10, 15, 46, 0.16) 0, rgba(10, 15, 46, 0.16) 7px,
+    transparent 7px, transparent 14px
+  );
+  background-size: 20px 20px;
+  animation: destaque-progresso-andar 0.9s linear infinite;
+  transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes destaque-progresso-andar {
+  from { background-position: 0 0; }
+  to { background-position: 20px 0; }
+}
+/* Data final, pequena, encostada à direita — logo abaixo da barra. */
+.destaque-progresso-data {
+  width: 100%;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+/* ── Repertório: item de música em duas linhas — título com espaço
+ * de sobra na primeira, tom+setas+remover na segunda. Antes era tudo
+ * numa linha só (⠿+nº+capa+título+tom+↑+↓+✕, sete elementos de
+ * largura fixa a competir com o título) — títulos grandes ficavam
+ * espremidos a poucos caracteres, e um tom com mais letras (ex.
+ * "C#m/Dbm") cortava contra a borda do ecrã. ── */
+.rep-item-corpo {
+  flex: 1;
+  min-width: 0;
+}
+.rep-item-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* mais perto do título/artista de cima do que antes, sem chegar a
+   * encostar (pedido do líder) */
+  margin-top: 4px;
+}
+/* Setas + excluir sempre encostados ao canto direito, separados do
+ * tom (pedido do líder) — o gap entre os dois grupos vem do
+ * space-between do pai, não de margin fixa. */
+.rep-acoes-direita {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Lado a lado (▲▼), não empilhadas — pedido do líder. */
+.rep-steppers {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+.rep-steppers button {
+  display: block;
+  width: 24px;
+  height: 22px;
+  line-height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--tinta);
+  font-size: 10.5px;
+  text-align: center;
+  cursor: pointer;
+}
+.rep-steppers button:disabled {
+  opacity: 0.35;
+}
+/* Botão de referência (link) de cada versão, dentro de
+ * SheetMusicaDetalhe — símbolo do Youtube com fundo vermelho claro
+ * (pedido do líder, era um 🔗 genérico). */
+.link-youtube {
+  background: #fde3e2;
+  color: #e0201b;
+}
