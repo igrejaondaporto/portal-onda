@@ -1853,6 +1853,14 @@ export const checklistCrossBase = onCall(async (req) => {
       const checklistSalaSnap = await db.collection("bases/kinder/checklistSala").where("ativo", "==", true).get();
       const itensSala = checklistSalaSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
+        // só os CRIADOS a sério (título preenchido) — `criarItemChecklist`
+        // (apps/kinder/src/lib/kinder.js) não valida um `titulo` vazio no
+        // cliente antes de gravar, e o formulário de "+ item" fica sempre
+        // visível por baixo da lista (campo "Título do item" em branco);
+        // sem este filtro, uma linha em branco tocada por engano entrava
+        // na conta como se fosse uma tarefa a sério (reportado 2026-09:
+        // "só tem 8, favor contar apenas os criados" — o painel mostrava 13).
+        .filter((it) => String(it.titulo ?? "").trim())
         .map((it) => ({
           id: it.id, nome: it.titulo, fase: it.fase || "pre",
           ministerioId: it.categoria ?? null,
