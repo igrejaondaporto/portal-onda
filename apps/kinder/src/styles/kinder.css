@@ -345,3 +345,29 @@
   .kin-cartaz-folha { max-width: 100%; box-shadow: none; border-radius: 0; page-break-after: avoid; }
   .kin-cartaz-qr { box-shadow: none; }
 }
+
+/* Repertório do Louvor Kinder no bloco da Lição do Início — o mesmo
+ * para as três salas, só leitura (components/licao/RepertorioLouvorKinder.jsx).
+ * Mesmo desenho do cartão de repertório da Técnica, mais compacto. */
+.kin-rep { margin-top: 14px; }
+.kin-rep-tit { font-size: 13px; font-weight: 800; margin: 0 0 8px; }
+.kin-rep-item {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: 14px;
+  background: var(--agua); margin-bottom: 8px;
+}
+.kin-rep-item.momento { background: #fff; border: 1.5px dashed var(--fio); }
+.kin-rep-linha { display: flex; align-items: center; gap: 10px; }
+.kin-rep-num { flex: none; width: 16px; text-align: center; font-size: 11px; font-weight: 800; color: var(--cinza); }
+.kin-rep-capa {
+  width: 36px; height: 36px; border-radius: 8px; flex: none;
+  background: var(--grad); background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 13px;
+}
+.kin-rep-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.kin-rep-link {
+  padding: 6px 12px; border-radius: 10px; background: #fff;
+  border: 1px solid var(--fio); text-decoration: none;
+  color: var(--tinta); font-size: 12px; font-weight: 700;
+}

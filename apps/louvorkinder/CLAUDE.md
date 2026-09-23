@@ -82,13 +82,17 @@ Listas fixas no servidor que incluem esta base: `BASES_COM_AUXILIAR`
 - **Popular a biblioteca infantil** (as músicas vêm do líder). Mesmo
   esquema da Louvor: busca por nome (`pesquisarMusicaLouvor`), tom,
   letra, cifra.
-- **Ligação ao Kinder**: mostrar o repertório escolhido pelo líder
-  dentro do bloco da lição no painel da Kinder. Precisa que a Kinder
-  leia `bases/louvorkinder/repertorios` (regra nova, PR à parte).
-- **Escala no Painel Pastoral e na Backstage**: as vistas cruzadas
-  (`basesDaIgreja`, `escalasCrossBase`) listam qualquer
-  `bases/{id}` ativa, e a escala grava `pessoas[]` como as outras,
-  por isso a base já deve aparecer lá. Confirmar o nome dos papéis
-  nessas vistas.
+- ~~Ligação ao Kinder~~ — feito (2026-09): o repertório deste painel
+  aparece no bloco da Lição do Início da Kinder, o mesmo para as três
+  salas (`apps/kinder/src/components/licao/RepertorioLouvorKinder.jsx`).
+  A Kinder só lê `bases/louvorkinder/repertorios` (regra em
+  `firestore.rules`) — **o que se grava em cada item do repertório
+  (título, artista, capa, links) é o que a Kinder vê**, porque a
+  biblioteca continua fechada a ela.
+- ~~Escala no Painel Pastoral e na Backstage~~ — já aparece sem código
+  novo: `basesDaIgreja`/`escalasCrossBase` listam qualquer `bases/{id}`
+  ativa, e a escala grava `pessoas[]` como as outras (confirmado em
+  produção, 2026-09). Mostram os nomes de quem serve, não o papel —
+  igual à Louvor.
 - Confirmar com o líder: hora de chegada (`08:30` é placeholder,
   igual à Kinder) e a cor (`#FF7A59`, só usada nas vistas cruzadas).

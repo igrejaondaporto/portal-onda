@@ -17,6 +17,7 @@
  *   eventos/{e}/checklistKinder/{sala}             ← itens marcados
  *   eventos/{e}/contagemKinder/geral               ← correção manual da contagem AO VIVO (check-in), hoje sem uso — CHECKIN_ATIVO=false
  *   eventos/{e}/contagem/geral                     ← Contagem da Base Pessoal — categorias.{baby,fun,junior} só por Cloud Function (registarContagemSala)
+ *   bases/louvorkinder/repertorios/{e}             ← repertório do Louvor Kinder (só leitura) — o mesmo para as três salas
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -58,6 +59,13 @@ export const cContagemKinder  = (ev) => doc(db, `eventos/${ev}/contagemKinder/ge
  *  (ver `lib/contagemCriancas.js`) — nunca direta, cada base só pode
  *  tocar na sua própria categoria dentro do mapa. */
 export const cContagemPessoal = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
+
+/** O repertório do Louvor Kinder (outra base, `apps/louvorkinder`) para
+ *  um culto — só leitura, aberta à Kinder em `firestore.rules`. Um só
+ *  para as três salas (pedido 2026-09: "é o mesmo repertório"). Cada
+ *  item já traz título/artista/capa/links copiados; a biblioteca
+ *  (`musicas`) do Louvor Kinder continua fechada à Kinder. */
+export const cRepertorioLouvorKinder = (ev) => doc(db, `bases/louvorkinder/repertorios/${ev}`);
 
 /**
  * As três salas. As cores são as mesmas do telão de chamadas
