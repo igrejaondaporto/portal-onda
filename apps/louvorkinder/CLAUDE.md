@@ -1,0 +1,94 @@
+# Louvor Kinder — igrejaonda
+
+Contexto específico desta base. Lê primeiro o `CLAUDE.md` da raiz do
+repositório (regras que valem para todas as bases, RGPD, stack).
+
+## O que é
+
+O louvor do culto das crianças (Kinder). Base própria desde 2026-09,
+**cópia da app da Louvor** (`apps/louvor`): mesmas abas (Início,
+Escala, Culto, Biblioteca, Repertório), mesmo Painel do líder, mesmas
+Cloud Functions. Tudo o que está em `apps/louvor/CLAUDE.md` sobre
+biblioteca, versões, histórico de tons, repertório, rascunho de
+escala, enquete e confirmação de presença vale aqui também, com as
+diferenças abaixo. Lê esse ficheiro antes de mexer em qualquer uma
+destas partes.
+
+Uso real: telemóvel pessoal, em pé, com pressa, antes de abrir as
+portas. Se uma tarefa exige mais de três toques, está mal desenhada.
+
+## Porquê uma base e não uma secção dentro da Louvor
+
+Pedido 2026-09: quem é do Louvor Kinder só vê a sua própria escala,
+biblioteca (infantil) e repertório; as bibliotecas **nunca se
+misturam**; só o líder da Louvor vê as duas. Uma base nova dá isto de
+graça pelas regras do Firestore: tudo o que a Louvor grava vive em
+`bases/{baseId}/...` (músicas, versões, repertórios, índice de
+cantores, rascunhos) e `eventos/{e}/escalas/{baseId}`, e as regras
+isolam por `minhaBase(base)`. Um voluntário do Louvor Kinder não
+consegue ler `bases/louvor/musicas` nem que tente. Fazer isto dentro
+da Louvor pedia um segundo nível de isolamento na mesma base — uma
+claim nova e reescrever meia dúzia de blocos de regras.
+
+O líder da Louvor é líder nas duas bases: a mesma pessoa (um PIN só,
+global), ligada às duas, que troca pelo menu (`trocarBase`). O
+primeiro vínculo foi feito por `scripts/seedLouvorKinder.mjs` (o
+arranque — não havia ninguém nesta base para usar o Painel); os
+restantes voluntários entram pelo Painel do líder → Adicionar.
+
+## Diferenças para a Louvor
+
+| O quê | Louvor | Louvor Kinder |
+|---|---|---|
+| `baseId` / domínio | `louvor` / `louvor.igrejaonda.pt` | `louvorkinder` / `louvorkinder.igrejaonda.pt` |
+| Papéis da escala | Lead, Co-lead, Back, Teclado, Guitarra, Baixo, Bateria | **Voz, Violão, Cajón** |
+| Quem canta (`PAPEL_LEAD`) | `lead` | `voz` |
+| Biblioteca | a da Onda | **infantil**, própria (`bases/louvorkinder/musicas`) |
+| Técnica lê o repertório? | sim, para a projeção | **não** (pedido do líder) — a regra genérica ainda o permite, mas a Técnica só consulta `bases/louvor/repertorios` |
+
+O subdomínio **tem de ser igual ao `baseId`**: `trocarBase`
+(`packages/shared/src/lib/auth.js`) e os links das notificações
+(`functions/notificacoes.js`) constroem `https://{baseId}.igrejaonda.pt`.
+Mudar o domínio é mudar o `baseId`, e isso é migrar dados.
+
+### Papéis da escala
+
+`PAPEIS` em `src/lib/modelo.js` (`voz`, `violao`, `cajon`) e a cópia
+server-side em `functions/index.js`, `ESCALA_LOUVOR_POR_BASE.louvorkinder`,
+que valida `guardarEscalaLouvor`/rascunhos. **Mudar um obriga a mudar o
+outro** — o servidor recusa qualquer papel que não conheça para esta
+base. `PAPEL_LEAD`/`PAPEIS_VOCAL` (também em `modelo.js`) substituem
+os `"lead"`/`["lead","colead","back"]` que a app da Louvor tinha
+escritos à mão em `Repertorio.jsx`, `Biblioteca.jsx` e `SheetVersao.jsx`.
+
+## O que é partilhado com a Louvor (e não se copia)
+
+As Cloud Functions com "Louvor" no nome (`guardarEscalaLouvor`,
+`publicarEscalaLouvor`, `registarUsoVersaoLouvor`,
+`pesquisarMusicaLouvor`, `confirmarPresencaLouvor`,
+`definirDetalhesCultoLouvor`…) são as mesmas: leem o `baseId` do
+token, não há `if (baseId === "louvor")`. Uma correção lá chega às
+duas. O que é da app (telas, textos) está duplicado de propósito
+(regra do monorepo) — **uma correção na app da Louvor tem de ser
+avaliada para esta também**, e vice-versa (ver
+`MELHORIAS-ENTRE-BASES.md`).
+
+Listas fixas no servidor que incluem esta base: `BASES_COM_AUXILIAR`
+(`functions/index.js`) e `BASES_COM_CONFIRMACAO`
+(`functions/notificacoes.js`, lembrete de confirmação de presença).
+
+## Por fazer
+
+- **Popular a biblioteca infantil** (as músicas vêm do líder). Mesmo
+  esquema da Louvor: busca por nome (`pesquisarMusicaLouvor`), tom,
+  letra, cifra.
+- **Ligação ao Kinder**: mostrar o repertório escolhido pelo líder
+  dentro do bloco da lição no painel da Kinder. Precisa que a Kinder
+  leia `bases/louvorkinder/repertorios` (regra nova, PR à parte).
+- **Escala no Painel Pastoral e na Backstage**: as vistas cruzadas
+  (`basesDaIgreja`, `escalasCrossBase`) listam qualquer
+  `bases/{id}` ativa, e a escala grava `pessoas[]` como as outras,
+  por isso a base já deve aparecer lá. Confirmar o nome dos papéis
+  nessas vistas.
+- Confirmar com o líder: hora de chegada (`08:30` é placeholder,
+  igual à Kinder) e a cor (`#FF7A59`, só usada nas vistas cruzadas).

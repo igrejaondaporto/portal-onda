@@ -563,6 +563,62 @@ const TOURS = {
       },
     ],
   },
+  // Cópia da app da Louvor (mesmas abas, mesmos data-tour) — só muda
+  // o texto: biblioteca infantil, papéis Voz/Violão/Cajón.
+  louvorkinder: {
+    passos: [
+      {
+        chave: "boasvindas",
+        titulo: "Bem-vindo ao Louvor Kinder",
+        texto: "Aqui vês quando serves no louvor das crianças, o repertório do domingo e a biblioteca de músicas infantis.",
+        alvo: null, pagina: null,
+      },
+      {
+        chave: "nav-escala",
+        titulo: "Escala",
+        texto: "Toca em Escala para veres o mês todo — quem canta, toca violão ou cajón em cada culto.",
+        alvo: "nav-escala", pagina: "inicio",
+      },
+      {
+        chave: "nav-culto",
+        titulo: "Culto",
+        texto: "Em Culto encontras a ordem do culto, o equipamento e os feedbacks de cada domingo.",
+        alvo: "nav-culto", pagina: "inicio",
+      },
+      {
+        chave: "nav-biblioteca",
+        titulo: "Biblioteca",
+        texto: "As músicas infantis ficam aqui — tom, letra e cifra de cada uma.",
+        alvo: "nav-biblioteca", pagina: "inicio",
+      },
+      {
+        chave: "nav-repertorio",
+        titulo: "Repertório",
+        texto: "Em Repertório montas a lista de músicas do domingo das crianças.",
+        alvo: "nav-repertorio", pagina: "inicio",
+      },
+      {
+        chave: "repertorio",
+        titulo: "O repertório de domingo",
+        texto: "Aqui em cima vês sempre o repertório do teu próximo culto — toca para abrir.",
+        alvo: "repertorio-bloco", pagina: "inicio",
+      },
+      {
+        chave: "fechamento",
+        titulo: "Pronto a servir",
+        texto: "Pronto. Qualquer dúvida, fala com o teu líder.",
+        alvo: null, pagina: null,
+      },
+    ],
+    passosLider: [
+      {
+        chave: "painel-escala",
+        titulo: "Montar a escala",
+        texto: "Aqui montas a escala do mês — toca num culto para escolher quem canta ou toca, e em que papel.",
+        alvo: "painel-escala-bloco", pagina: "painel",
+      },
+    ],
+  },
   kinder: {
     // Base própria, sem enquete/sugestor. NavBar primeiro (5 abas —
     // Início, Escala, Check-in, Lição, Culto), depois os blocos do
@@ -744,8 +800,13 @@ const TOURS = {
 };
 
 async function main() {
+  // `node scripts/seedTour.mjs louvorkinder` semeia só essa base — para
+  // pôr uma base nova no ar sem regravar o tour das outras.
+  const soBase = process.argv[2];
+  if (soBase && !TOURS[soBase]) throw new Error(`Base sem tour definido: ${soBase}`);
   console.log("A semear o conteúdo do tour…\n");
   for (const [baseId, conteudo] of Object.entries(TOURS)) {
+    if (soBase && baseId !== soBase) continue;
     await db.doc(`bases/${baseId}/tour/config`).set(conteudo, { merge: true });
     console.log(`${baseId}: ${conteudo.passos.length} passos + ${conteudo.passosLider.length} extra do líder`);
   }

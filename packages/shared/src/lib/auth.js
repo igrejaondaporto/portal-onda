@@ -49,6 +49,7 @@ export const PORTAS_DEV = {
   pessoal: 5177,
   kinder: 5178,
   louvor: 5179,
+  louvorkinder: 5184,
   new: 5180,
   shift: 5181,
   financeiro: 5182,
