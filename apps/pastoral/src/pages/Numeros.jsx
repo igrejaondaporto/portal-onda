@@ -187,9 +187,24 @@ export default function Numeros({ ativo, definirCabecalho }) {
     [dados],
   );
 
-  const atrasoMedio = cultosComRegisto.length
-    ? Math.round(cultosComRegisto.reduce((t, c) => t + c.culto.atrasoFinal, 0) / cultosComRegisto.length)
-    : null;
+  /** A média do atraso de TODOS os blocos, de todos os cultos do
+   *  período — não a média do `atrasoFinal` (a hora de relógio a que
+   *  o culto acabou, um número por domingo). Pedido 2026-09: "a média
+   *  devia ser a média de atrasos que teve dos blocos todos". Mesmo
+   *  critério de `atrasoPorMomento` logo abaixo ("Contagem" fica de
+   *  fora — não é um momento do culto, é a hora das portas), só que
+   *  achatado: aqui entra cada ocorrência de cada momento, em vez de
+   *  agrupar por nome. */
+  const atrasoMedioBlocos = useMemo(() => {
+    const valores = [];
+    for (const c of cultosComRegisto) {
+      for (const a of c.culto.atrasos) {
+        if (a.momento.trim().toLowerCase() === "contagem" || a.atraso === null) continue;
+        valores.push(a.atraso);
+      }
+    }
+    return valores.length ? Math.round(valores.reduce((t, n) => t + n, 0) / valores.length) : null;
+  }, [cultosComRegisto]);
 
   /** Em que momento é que o culto se atrasa, em média — a pergunta que
    *  transforma "o culto acaba tarde" em algo acionável. Só entram os
@@ -364,10 +379,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
             ) : (
               <>
                 <div className="caixa" style={{ marginTop: 4 }}>
-                  <p className="ds" style={{ marginTop: 0 }}>Em média, no fim do culto:</p>
+                  <p className="ds" style={{ marginTop: 0 }}>Em média, cada bloco atrasa:</p>
                   <p style={{ marginTop: 6 }}>
-                    <b className={corAtraso(atrasoMedio)} style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.035em" }}>
-                      {textoAtraso(atrasoMedio)}
+                    <b className={corAtraso(atrasoMedioBlocos)} style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.035em" }}>
+                      {textoAtraso(atrasoMedioBlocos)}
                     </b>
                   </p>
                 </div>
