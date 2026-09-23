@@ -44,6 +44,18 @@ function Icone({ chave, svg }) {
 export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO, alertas = [] }) {
   return (
     <nav className="navb on" style={{ gridTemplateColumns: `repeat(${itens.length}, 1fr)` }}>
+      {/* No computador o menu é lateral e leva o logo no topo (ver
+        * global.css, "Computador: menu lateral"). No telemóvel a regra
+        * esconde-o — lá o logo vive no cabeçalho, e um filho escondido
+        * não ocupa coluna nenhuma da grelha.
+        *
+        * Vai ao PRIMEIRO separador, não a uma chave fixa: quase todas
+        * as bases começam em "inicio", mas a Pastoral começa em
+        * "domingo" e ia parar a uma página que não existe. */}
+      <button className="logo navb-logo" onClick={() => onIr(itens[0]?.[0])} aria-label="Ir para o início">
+        <i>igreja</i>
+        <b>onda</b>
+      </button>
       {itens.map(([k, t, svg]) => (
         <button key={k} data-on={pagina === k ? 1 : 0} data-tour={`nav-${k}`} onClick={() => onIr(k)}>
           <Icone chave={k} svg={svg} />
