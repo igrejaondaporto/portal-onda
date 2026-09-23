@@ -15,7 +15,8 @@
  *   eventos/{e}/checkinKinder/{crianca}            ← só por Cloud Function
  *   eventos/{e}/codigosKinder/{familia}            ← idem
  *   eventos/{e}/checklistKinder/{sala}             ← itens marcados
- *   eventos/{e}/contagemKinder/geral               ← correção manual da contagem
+ *   eventos/{e}/contagemKinder/geral               ← correção manual da contagem AO VIVO (check-in), hoje sem uso — CHECKIN_ATIVO=false
+ *   eventos/{e}/contagem/geral                     ← Contagem da Base Pessoal — categorias.{baby,fun,junior} só por Cloud Function (registarContagemSala)
  */
 import { collection, doc } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
@@ -50,6 +51,13 @@ export const cCheckins    = (ev) => collection(db, `eventos/${ev}/checkinKinder`
 export const cCodigos     = (ev) => collection(db, `eventos/${ev}/codigosKinder`);
 export const cChecklistKinder = (ev, sala) => doc(db, `eventos/${ev}/checklistKinder/${sala}`);
 export const cContagemKinder  = (ev) => doc(db, `eventos/${ev}/contagemKinder/geral`);
+/** A Contagem da Base Pessoal — `eventos/{e}/contagem/geral`, mesmo
+ *  documento de `apps/pessoal/src/lib/contagem.js`. Leitura já era
+ *  aberta (`allow read: if autenticado()`); a escrita das categorias
+ *  baby/fun/junior passa pela Cloud Function `registarContagemSala`
+ *  (ver `lib/contagemCriancas.js`) — nunca direta, cada base só pode
+ *  tocar na sua própria categoria dentro do mapa. */
+export const cContagemPessoal = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 
 /**
  * As três salas. As cores são as mesmas do telão de chamadas

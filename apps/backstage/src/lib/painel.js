@@ -242,10 +242,33 @@ export const obterEscalasDeTodasAsBases = (eventoId) =>
 export const obterCatalogoChecklistDeTodasAsBases = (eventoId) =>
   chamar("checklistCrossBase")({ eventoId }).then((r) => r.data.bases);
 
+/** A Kinder não escreve em `eventos/{e}/checklist` como as outras
+ *  nove bases — o estado dela vive em `eventos/{e}/checklistKinder/
+ *  {sala}.itens`, um documento por sala (ver CLAUDE.md da Kinder).
+ *  `checklistCrossBase` já devolve os itens dela no catálogo
+ *  (`ministerioId` = a sala); sem juntar aqui o estado ao vivo, os
+ *  itens da Kinder apareciam na checklist cruzada mas nunca ficavam
+ *  "feitos", por mais que a sala marcasse tudo (reportado 2026-09 no
+ *  Painel Pastoral, mesma causa aqui). */
+const SALAS_KINDER_CHECKLIST = ["baby", "fun", "junior"];
+
 export function ouvirChecklistDoEvento(eventoId, cb) {
-  return onSnapshot(collection(db, `eventos/${eventoId}/checklist`), (snap) => {
-    const mapa = {};
-    snap.forEach((d) => { mapa[d.id] = d.data(); });
-    cb(mapa);
-  });
+  const partes = { geral: {}, baby: {}, fun: {}, junior: {} };
+  const emitir = () => cb({ ...partes.geral, ...partes.baby, ...partes.fun, ...partes.junior });
+
+  const paragens = [
+    onSnapshot(collection(db, `eventos/${eventoId}/checklist`), (snap) => {
+      const mapa = {};
+      snap.forEach((d) => { mapa[d.id] = d.data(); });
+      partes.geral = mapa;
+      emitir();
+    }),
+    ...SALAS_KINDER_CHECKLIST.map((sala) =>
+      onSnapshot(doc(db, `eventos/${eventoId}/checklistKinder/${sala}`), (s) => {
+        partes[sala] = s.exists() ? (s.data().itens || {}) : {};
+        emitir();
+      })
+    ),
+  ];
+  return () => paragens.forEach((parar) => parar());
 }

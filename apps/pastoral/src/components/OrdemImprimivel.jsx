@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
 
@@ -31,11 +32,23 @@ import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
  * Fica sempre montado e escondido (`display: none` fora da impressão).
  * Montar só ao carregar em Imprimir corria o risco de o `window.print`
  * disparar antes de o React ter pintado — e a folha saía em branco.
+ *
+ * ── Porta para `document.body`, não filho de `.app` ─────────────
+ *
+ * `display: none !important` num antepassado não se desfaz com
+ * `display: block` num descendente — é assim que o CSS sempre
+ * funcionou, a regra do pai vence sempre. `.pa-print` nascia dentro de
+ * `.app` (via `Ordem.jsx` → `Sessao.jsx`), e a regra de impressão
+ * esconde `.app` inteira; o resultado era a folha em branco relatada
+ * (bug real, apanhado 2026-09). `createPortal` tira este bloco da
+ * árvore do `.app` sem tirar `Ordem.jsx` de onde o chama — continua a
+ * receber os mesmos props, só o DOM final é que passa a ser irmão do
+ * `.app`, nunca filho.
  */
 export default function OrdemImprimivel({ evento, momentos, avisos, horas }) {
   if (!evento) return null;
 
-  return (
+  return createPortal(
     <div className="pa-print" aria-hidden="true">
       <h1>{nomeEvento(evento)}</h1>
       <p className="pa-print-sub">
@@ -85,6 +98,7 @@ export default function OrdemImprimivel({ evento, momentos, avisos, horas }) {
       )}
 
       <p className="pa-print-rodape">igrejaonda · Portal do Voluntário</p>
-    </div>
+    </div>,
+    document.body,
   );
 }

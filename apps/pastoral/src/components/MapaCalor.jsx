@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { corAtraso, textoAtraso } from "./Atraso";
 
 /**
  * Ocupação do auditório, domingo a domingo.
@@ -31,19 +32,48 @@ function passo(pct) {
 
 export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de auditório fechados." }) {
   const [foco, setFoco] = useState(null);
-  const comMapa = cultos.filter((c) => c.acomodacao);
-  if (!comMapa.length) return <div className="vaz">{vazio}</div>;
+  // sem isto, trocar de período (3 meses/12 meses/Este ano) deixava o
+  // quadrado tocado de um período anterior "preso" — a folha de baixo
+  // continuava a mostrar o domingo antigo, e tocar num quadrado do
+  // período novo parecia não fazer nada porque a informação já
+  // esperada (o último domingo) só reaparecia ao tocar duas vezes
+  useEffect(() => setFoco(null), [cultos]);
 
-  const mostrado = foco ?? comMapa.at(-1);
-  const a = mostrado.acomodacao;
-  const pct = Math.round(a.percentagem * 100);
+  // só do primeiro domingo com dados para a frente — antes disso são
+  // domingos que existem no calendário mas nunca passaram por este
+  // sistema, e mostrá-los como "por fechar" era ruído, não informação
+  // (reportado 2026-09: "não quero que mostre cultos que não houveram
+  // anteriormente")
+  const primeiroComDados = cultos.findIndex((c) => c.acomodacao);
+  const visiveis = primeiroComDados < 0 ? [] : cultos.slice(primeiroComDados);
+  if (!visiveis.length) return <div className="vaz">{vazio}</div>;
+
+  const comMapa = visiveis.filter((c) => c.acomodacao);
+  const mostrado = foco ?? comMapa.at(-1) ?? null;
+  const a = mostrado?.acomodacao ?? null;
+  const pct = a ? Math.round(a.percentagem * 100) : null;
 
   return (
     <>
       <div className="pa-calor">
-        {comMapa.map((c) => {
+        {/* todos os domingos desde o primeiro com dados entram, não só
+            os fechados — um domingo com o mapa começado mas nunca
+            fechado tem os números na mesma (pedido 2026-09: "azar
+            dela, os números vão pros painéis da mesma forma"); só
+            fica cinzento quem não tem NENHUM dado */}
+        {visiveis.map((c) => {
+          if (!c.acomodacao) {
+            return (
+              <span
+                key={c.eventoId}
+                className="pa-calor-q porfechar"
+                aria-label={`${c.data}: sem mapa nenhum`}
+                title="Nenhum mapa foi começado para este domingo"
+              />
+            );
+          }
           const cor = passo(c.acomodacao.percentagem);
-          const ativo = c.eventoId === mostrado.eventoId;
+          const ativo = mostrado && c.eventoId === mostrado.eventoId;
           return (
             <button
               key={c.eventoId}
@@ -56,26 +86,71 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         })}
       </div>
 
-      {/* legenda: a escala é fixa, por isso pode ser desenhada uma vez
-          e não muda com o período — é o que a torna comparável entre
-          janelas de datas */}
-      <div className="pa-calor-legenda">
-        <span>0%</span>
-        {RAMPA.map((c) => <i key={c} style={{ background: c }} />)}
-        <span>100%</span>
-      </div>
+      {mostrado ? (() => {
+        // tudo isto já vinha com o culto — mapa, voluntários, Kinder e
+        // atraso vêm juntos de `historicoPastoral`, sem chamada nova
+        // nenhuma. Pedido 2026-09: ordem e conteúdo do cartão trocados
+        // — "de onde vêm os dados?" era a pergunta, porque a contagem
+        // manual da Contagem (categorias, tela própria da Pessoal) e o
+        // mapa lugar a lugar são DOIS sistemas diferentes que podem
+        // discordar (a manual conta por categoria digitada; o mapa é
+        // lugar a lugar) — por isso "Presença na igreja" passa a somar
+        // só a partir do mapa + voluntários + Kinder, nunca da
+        // contagem manual, que saiu deste cartão de propósito.
+        const marcados = a.ocupados + a.visitantes; // lugares úteis ocupados, visitante incluído
+        // "bloqueados" aqui é a soma de reservados (A1-A4, fixos) e
+        // bloqueados a sério (cadeira partida) — o que sai da conta ao
+        // ir de "lugares no auditório" para "lugares úteis". Rótulo
+        // simplificado de propósito (pedido 2026-09): a líder da
+        // Pessoal já vê os dois separados no Mapa; aqui só interessa
+        // "quantos não contam".
+        const bloqueados = a.reservados + a.bloqueados;
+        const totalLugares = a.capacidadeUtil + bloqueados;
+        // "Crianças no Kinder" vinha do check-in a sério da Kinder
+        // (mostrado.kinder), desligado por pedido da líder desde que
+        // essa base nasceu (CHECKIN_ATIVO=false) — ficava sempre 0,
+        // zerando este pedaço de "Presença na igreja" sem ninguém
+        // reparar. Passa a somar a Contagem da Base Pessoal
+        // (baby+fun+junior), a mesma que o popup "Quantas crianças
+        // estão presentes?" de cada sala já preenche (pedido 2026-09).
+        const kinderTotal = (mostrado.contagem?.baby ?? 0) + (mostrado.contagem?.fun ?? 0) + (mostrado.contagem?.junior ?? 0);
+        // pedido 2026-09: a Presença na igreja soma TAMBÉM os lugares
+        // bloqueados/reservados — quem está sentado num lugar
+        // reservado ou numa cadeira que não conta para a lotação
+        // continua lá, é gente na igreja na mesma.
+        const presenca = marcados + bloqueados + mostrado.voluntarios + kinderTotal;
+        return (
+          <div className="caixa" style={{ marginTop: 14 }}>
+            <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
+            <p className="pa-num">{pct}%</p>
+            <p className="ds" style={{ marginTop: 2 }}>de ocupação do auditório</p>
 
-      <div className="caixa" style={{ marginTop: 12 }}>
-        <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
-        <p className="pa-num">{pct}%</p>
-        <p className="ds" style={{ marginTop: 2 }}>
-          {a.ocupados + a.visitantes} de {a.capacidadeUtil} lugares úteis
-          {a.visitantes > 0 ? ` · ${a.visitantes} de visitante` : ""}
-          {a.reservados > 0 || a.bloqueados > 0
-            ? ` · ${a.reservados + a.bloqueados} fora de contagem`
-            : ""}
+            <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
+            <p className="pa-num">{presenca}</p>
+            <p className="ds" style={{ marginTop: 2 }}>
+              {marcados} lugares úteis + {bloqueados} bloqueios + {mostrado.voluntarios} voluntários + {kinderTotal} na Kinder
+            </p>
+
+            <ul className="pa-lista" style={{ marginTop: 10 }}>
+              <li>Lugares no auditório: {totalLugares} ({bloqueados} bloqueados)</li>
+              <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
+              <li>Visitantes: {a.visitantes}</li>
+              <li>Voluntários: {mostrado.voluntarios}</li>
+              <li>Crianças no Kinder: {kinderTotal}</li>
+            </ul>
+
+            {mostrado.culto?.atrasoFinal != null && (
+              <p className="ds" style={{ marginTop: 10 }}>
+                No fim, o culto estava <b className={corAtraso(mostrado.culto.atrasoFinal)}>{textoAtraso(mostrado.culto.atrasoFinal)}</b>
+              </p>
+            )}
+          </div>
+        );
+      })() : (
+        <p className="ds" style={{ marginTop: 10 }}>
+          Os quadrados cinzentos são domingos sem nenhum mapa começado.
         </p>
-      </div>
+      )}
     </>
   );
 }

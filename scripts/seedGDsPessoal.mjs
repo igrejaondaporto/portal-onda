@@ -1,8 +1,13 @@
 /**
- * Semeia o catálogo de GDs da Base Pessoal (bases/pessoal/gds/{id})
- * com a lista real passada pelo dono do produto. Região é só uma de
- * três macro-zonas (Norte, Lisboa, Sines) — pedido explícito, para
- * não fragmentar o select em muitos grupos pequenos.
+ * Semeia o catálogo global de GDs (gds/{id}) com a lista real passada
+ * pelo dono do produto. Região é só uma de três macro-zonas (Norte,
+ * Lisboa, Sines) — pedido explícito, para não fragmentar o select em
+ * muitos grupos pequenos.
+ *
+ * Global desde 2026-09 (era bases/pessoal/gds) — o Mural Onda
+ * (apps/mural) passa a ler daqui também; ver a nota "GLOBAL" em
+ * apps/pessoal/src/lib/modelo.js e scripts/migrarGDsParaGlobal.mjs
+ * (a migração de uma base já semeada pelo caminho antigo).
  *
  * `lat`/`lng` (aproximados, centro da localidade) alimentam o
  * sugestor automático — o Formulário sugere o GD mais perto do
@@ -43,7 +48,7 @@ const GDS = [
 async function main() {
   console.log("A semear os GDs da Base Pessoal…\n");
   for (const [id, nome, regiao, lat, lng] of GDS) {
-    await db.doc(`bases/pessoal/gds/${id}`).set({ nome, regiao, lat, lng }, { merge: true });
+    await db.doc(`gds/${id}`).set({ nome, regiao, lat, lng }, { merge: true });
   }
   console.log(`${GDS.length} GDs`);
 }

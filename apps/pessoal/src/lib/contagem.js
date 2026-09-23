@@ -4,19 +4,25 @@ import { cContagem } from "./modelo";
 /**
  * As categorias não formam um total. Cada uma é guardada separadamente
  * para preservar o significado que já tem no relatório do culto.
- * As quatro últimas terão origem "automatica" quando os painéis das
- * salas existirem; até lá são preenchidas manualmente.
+ *
+ * "Membros" saiu (pedido 2026-09) — sem padrão de preenchimento a
+ * sério, ninguém contava.
+ *
+ * "Junior Fun" era uma categoria só porque os painéis das salas ainda
+ * não existiam; separada em "junior"/"fun" (pedido 2026-09, no mesmo
+ * lote em que as quatro últimas passam a `origem: "automatica"`, ver
+ * `CATEGORIA_SALA` em cada painel de sala — Kinder, SHIFT, New).
  */
 export const CATEGORIAS_CONTAGEM = [
-  { id: "membros", nome: "Membros", grupo: "Auditório", descricao: "Pessoas da igreja presentes" },
   { id: "visitantes", nome: "Visitantes", grupo: "Auditório", descricao: "Quem visita pela primeira vez" },
   { id: "voluntarios", nome: "Voluntários", grupo: "Auditório", descricao: "Equipa a servir neste culto" },
   { id: "mensagem", nome: "Mensagem", grupo: "Resposta", descricao: "Pessoas que estavam presentes durante a mensagem" },
   { id: "apelo", nome: "Apelo", grupo: "Resposta", descricao: "Pessoas que responderam ao apelo" },
-  { id: "new", nome: "New", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
-  { id: "shift", nome: "Shift", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
-  { id: "juniorFun", nome: "Junior Fun", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
-  { id: "baby", nome: "Baby", grupo: "Salas", descricao: "Registo manual até existir painel próprio" },
+  { id: "new", nome: "New", grupo: "Salas", descricao: "Preenchido pelo painel da New" },
+  { id: "shift", nome: "Shift", grupo: "Salas", descricao: "Preenchido pelo painel do SHIFT" },
+  { id: "junior", nome: "Júnior", grupo: "Salas", descricao: "Preenchido pelo painel da Kinder" },
+  { id: "fun", nome: "Fun", grupo: "Salas", descricao: "Preenchido pelo painel da Kinder" },
+  { id: "baby", nome: "Baby", grupo: "Salas", descricao: "Preenchido pelo painel da Kinder" },
 ];
 
 /** Documento único por culto, ouvido ao vivo como o mapa de Acomodação. */

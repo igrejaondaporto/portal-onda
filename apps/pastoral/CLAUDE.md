@@ -20,17 +20,24 @@ Faz **quatro coisas**:
 4. **Monta e publica a ordem do culto** — o que até 2026-09 era um PDF
    que o pastor mandava e a Backstage subia.
 
-**O painel observa; não decide.** Decisão explícita do dono do
-produto, e é o que impede esta app de virar um super-utilizador com
-acesso de escrita a dez bases. Não aprova reembolsos, não mexe em
-escalas, não marca checklists, não edita inventário. Só escreve em
-três sítios, e cada um tem uma razão:
+**O painel observa; não decide — mas já escreve mais do que só ordem/
+etapa/recado.** Decisão explícita do dono do produto, e é o que
+impede esta app de virar um super-utilizador com acesso de escrita a
+dez bases. Não aprova reembolsos, não marca checklists, não edita
+inventário. O que escreve, e porquê:
 
 | O quê | Onde | Porquê é escrita e não leitura |
 |---|---|---|
 | A ordem do culto | `eventos/{e}.ordem` | É produzida aqui, não noutro lado — é o que substitui o PDF |
 | A etapa de um visitante | `contactos/{id}.etapa` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
+| Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
+| Corrigir a DURAÇÃO de um momento | `eventos/{e}/estatisticasCulto/registo.secoesReais[].duracaoCorrigidaMin` | Depois de "Finalizar culto" copiar tudo para o arquivo, nada mais o edita — um erro ficava congelado para sempre (pedido 2026-09). Corrige a duração, não a hora de relógio — ninguém sabe de cor a que horas algo entrou |
+| Trocar o líder de uma base | `bases/{b}/pessoas/{id}.papel` | A ÚNICA escrita numa base que não é a própria — decisão nova do dono do produto (2026-09), ver "Trocar líder" abaixo |
+
+Escalas continuam do líder de cada base — o painel não monta nem
+publica nenhuma. Trocar QUEM é o líder é outra coisa (ver abaixo), e
+foi um pedido explícito, não uma reinterpretação desta regra.
 
 Se alguém pedir "e já agora aprovar os reembolsos por aqui", a
 resposta é não sem uma decisão nova do dono do produto: a regra 3 do
@@ -82,7 +89,7 @@ acontecia com a Backstage e o Financeiro:
 bases/pastoral {
   veEscalas: "todas",              // → ve_todas_escalas      (já existia, Backstage)
   veReembolsos: "todas",           // → ve_todos_reembolsos   (já existia, Financeiro)
-  culto: { podePublicar: true },   // → pode_publicar_culto   (já existia, Backstage)
+  culto: { podePublicar: false },  // → pode_publicar_culto   nasce desligada — ver "A ordem do culto" abaixo
   eventos: { podeCriarGlobal: true }, // → pode_criar_evento_global
   visaoPastoral: true,             // → ve_tudo_pastoral      ← a única nova
 }
@@ -179,13 +186,7 @@ esquecimento.
 
 ## A ordem do culto
 
-### Desligada por omissão (2026-09)
-
-**A aba existe, mas não compõe nem publica enquanto `bases/pastoral.
-culto.podePublicar` não for `true`** (`scripts/seedPastoral.mjs` grava
-`false` de propósito). Sem essa claim, `Ordem.jsx` mostra uma
-explicação em vez do formulário, e `Domingo.jsx` não oferece o botão
-"Montar a ordem deste culto".
+### Publicar continua desligado por omissão (2026-09, ajustado depois)
 
 Motivo: `publicarOrdemCulto` **substitui** o campo `ordem` inteiro, sem
 merge por secção. Isso é seguro enquanto só a Backstage publica — é o
@@ -196,20 +197,33 @@ que lá estava, sem aviso nenhum. Foi assim que a equipa encontrou isto
 a testar (2026-09-20) — o "corpo" que a Backstage tinha subido por PDF
 desapareceu depois de mexer na aba Ordem do painel.
 
-O gatilho é a claim que já existe, não uma flag nova: `podePublicarCulto`
-(o mesmo booleano que protege a Cloud Function do lado do servidor)
-decide, do lado do cliente, se esta tela mostra o formulário. Sem essa
-claim, deixar o formulário visível levaria a publicar e a apanhar
-`permission-denied` só depois de já ter composto tudo — pior do que
-não mostrar a tela.
+**Na primeira versão isto escondia a aba inteira** atrás de
+`bases/pastoral.culto.podePublicar`; pedido explícito do dono do
+produto logo a seguir: montar o rascunho, ver a folha, ajustar — sem
+depender de ninguém decidir "ativar a sério" primeiro. Compor,
+imprimir e guardar modelos nunca tocam em `eventos/{e}.ordem` (só
+`publicarOrdemCulto`/`limparOrdemCulto` tocam), por isso só os botões
+**"Publicar às dez bases"** e **"Retirar a ordem deste culto"** ficam
+desativados sem a claim — o resto da tela (`Ordem.jsx`) fica sempre
+visível e funcional, com uma legenda a explicar porquê os dois botões
+estão cinzentos. `Domingo.jsx` também deixou de esconder o caminho:
+"Montar um rascunho" leva à aba Ordem nos dois casos, só o texto do
+botão muda.
 
-**Para ativar:** troca `culto: { podePublicar: false }` para `true`
-em `scripts/seedPastoral.mjs`, corre o script outra vez, e combina com
-quem cuida da Backstage qual dos dois caminhos fica ativo — os dois ao
-mesmo tempo continuam a ter o mesmo risco de sobrescrita, só que
-deliberado em vez de acidental. Quem já tinha sessão aberta só vê a
-aba desbloquear depois de sair e voltar a entrar (os claims recalculam
-só em `entrar`/`trocarBase`).
+O gatilho continua a ser a claim que já existe, não uma flag nova:
+`podePublicarCulto` (o mesmo booleano que protege a Cloud Function do
+lado do servidor) decide os dois botões do lado do cliente. Sem essa
+claim, deixá-los clicáveis levaria a publicar e a apanhar
+`permission-denied` só depois de já ter composto tudo — pior do que
+mostrá-los desativados com a legenda.
+
+**Para ativar de vez:** troca `culto: { podePublicar: false }` para
+`true` em `scripts/seedPastoral.mjs`, corre o script outra vez, e
+combina com quem cuida da Backstage qual dos dois caminhos fica ativo
+— os dois ao mesmo tempo continuam a ter o mesmo risco de
+sobrescrita, só que deliberado em vez de acidental. Quem já tinha
+sessão aberta só vê os botões desbloquear depois de sair e voltar a
+entrar (os claims recalculam só em `entrar`/`trocarBase`).
 
 ### O que mudou, e o que não
 
@@ -312,6 +326,44 @@ não se perde nada ao corrigir. Mover é Cloud Function
 (`moverEtapaContacto`), não escrita direta — o histórico tem de ficar
 gravado na mesma escrita.
 
+**"Excluir" um contacto** (pedido 2026-09) nunca apaga o documento —
+`arquivarContactoPastoral` grava `arquivado:true`, o MESMO campo que a
+Base Pessoal já usa no Formulário dela (`arquivarContacto`,
+`apps/pessoal/src/lib/contactos.js`). `ouvirContactos` já filtra por
+ele dos dois lados, por isso a lista perde o contacto sozinha assim
+que a escrita chega — nenhum estado extra a sincronizar. As
+`firestore.rules` só deixam `minhaBase('pessoal')` escrever em
+`contactos/{id}` (mesmo comentário de sempre: "o painel NÃO escreve
+por esta via"), por isso é Cloud Function, como mover de etapa —
+nunca escrita direta do painel.
+
+## Trocar o líder de uma base
+
+Pedido 2026-09: "um menu onde o pastor possa alterar os líderes de
+cada base". É a exceção mais séria à regra "o painel observa" — a
+única escrita deste painel numa base que não é a própria, fora da
+ordem/etapa/recado/arquivar acima.
+
+Vive dentro da aba **Bases**, no cartão de cada base já expandido (não
+um menu à parte): "Líder da base" mostra o nome, "Trocar" abre
+`SheetTrocarLider.jsx`, que lista a equipa ativa dessa base
+(`pessoasPastoral()`, a mesma chamada da aba Pessoas — pedida só
+quando o sheet abre, não sempre) e grava com `definirLiderBase`.
+
+`definirLiderBase` (functions/pastoral.js) é deliberadamente diferente
+de `editarVoluntario` (functions/index.js, o que cada líder já usa
+para editar a própria base): essa lê `baseId` do TOKEN de quem chama
+(regra 4 do CLAUDE.md raiz) e por isso só mexe na base de quem está
+autenticado — não serve para o pastor, cujo `baseId` é sempre
+"pastoral". `definirLiderBase` recebe `baseId` como argumento,
+protegida por `ve_tudo_pastoral` em vez de "sou desta base", e seguindo
+o MESMO invariante de sempre: só um líder de cada vez — promover
+alguém demove automaticamente quem lá estava para "voluntario".
+
+Quem for demovido ou promovido só vê os claims mudarem depois de sair
+e voltar a entrar (recalculam só em `entrar`/`trocarBase`, mesma
+ressalva de sempre neste repo).
+
 ## Gráficos
 
 Três regras, e nenhuma é de gosto:
@@ -342,9 +394,26 @@ Três regras, e nenhuma é de gosto:
   checklist mostra `null`, não 0% — aparecer a vermelho todas as
   semanas ensina a ignorar a cor, e aí a cor deixa de servir para o
   resto.
-- **Só contagens fechadas entram nas tendências.** Uma contagem a meio
-  apareceria no gráfico como um domingo fraco, e não é isso que
-  aconteceu — é só que ninguém acabou de contar ainda.
+- **Só contagens fechadas entram nas tendências — EXCETO a acomodação.**
+  Uma contagem a meio apareceria no gráfico como um domingo fraco, e
+  não é isso que aconteceu — é só que ninguém acabou de contar ainda.
+  O mapa do auditório é a exceção deliberada (pedido 2026-09): entra
+  ao vivo, fechado ou não — `historicoPastoral` lê
+  `eventos/{e}/acomodacao/mapa` (`resumoAcomodacaoAoVivo`) sempre que
+  não há resumo fechado (`bases/pessoal/acomodacaoResumos/{e}`). A
+  diferença é que uma contagem a meio MENTE (parece fraca por estar
+  incompleta), mas um mapa a meio já diz a verdade sobre os lugares
+  marcados até agora — não há "incompleto" possível na mesma forma.
+- **Financeiro e Pastoral nunca "sem escala".**
+  `bases/{b}.semEscalaDeCulto = true` marca as duas — nenhuma escala
+  ninguém para o culto de domingo, e sem isto apareciam vermelhas
+  todas as semanas para sempre (script
+  `scripts/marcarBasesSemEscalaDeCulto.mjs`). `resumoDaBase` devolve
+  `escalaAplicavel: b.semEscalaDeCulto !== true`; `Bases.jsx` e
+  `Domingo.jsx` filtram por ele. `escalasCrossBase`
+  (functions/index.js, partilhada com a Backstage) devolve o campo de
+  forma aditiva — não muda o que já existia para quem não olha para
+  ele.
 - **O valor do património é sempre um mínimo conhecido.**
   `valorCompra` é opcional em todo o repo; o ecrã diz quantos itens
   não o têm, em vez de apresentar um número que parece completo.
@@ -373,10 +442,12 @@ Três regras, e nenhuma é de gosto:
   código. Se vier, o sítio é o `notificar()`, que já é o único ponto
   por onde tudo passa.
 - **Os agregadores não têm cache.** `panoramaPastoral` são ~9 leituras
-  × 10 bases a cada montagem da aba. Com o uso real (uma pessoa, umas
-  vezes por semana) não é problema; se um dia a equipa pastoral
-  crescer, o sítio para pôr uma cache de minutos é o próprio
-  `panoramaPastoral`, não o cliente.
+  × 10 bases a cada montagem da aba; `historicoPastoral` ganhou mais
+  10 leituras por culto em 2026-09 (as escalas, para "Voluntários por
+  culto") — num ano isso é ~500 leituras extra numa chamada já cara.
+  Com o uso real (uma pessoa, umas vezes por semana) não é problema;
+  se um dia a equipa pastoral crescer, o sítio para pôr uma cache de
+  minutos é o próprio agregador, não o cliente.
 - ~~A contagem da Kinder não entra no "nas salas"~~ — cruzada em
   Números ("Crianças: dois números da mesma coisa"). Compara só Baby e
   Junior/Fun: a New e a SHIFT têm sala própria e não passam pelo

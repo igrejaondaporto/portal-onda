@@ -31,7 +31,7 @@ const ICONE_ORDEM = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M
  * o Financeiro usa ("Início responde 'tenho algo para tratar?',
  * Relatórios responde 'quanto foi para quê'").
  *
- *   Domingo  — o que está a acontecer (ou vai acontecer) neste culto?
+ *   Início   — o que está a acontecer (ou vai acontecer) neste culto?
  *   Bases    — alguma base precisa de mim?
  *   Pessoas  — quem é a igreja, e quem está a ficar pelo caminho?
  *   Números  — está a melhorar ou a piorar?
@@ -39,9 +39,15 @@ const ICONE_ORDEM = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M
  *
  * Perfil não é aba — entra-se tocando na foto, mesmo padrão do "Ver
  * perfil" do MenuEu das outras bases.
+ *
+ * A chave interna continua "domingo" (Domingo.jsx, data-tour=
+ * "nav-domingo", o tour já semeado) — só o rótulo mudou para "Início"
+ * (pedido 2026-09, para bater com o nome que as outras nove bases já
+ * usam no separador de abertura). Trocar a chave obrigaria a
+ * ressemear o tour de todas as igrejas só por causa do texto.
  */
 const ABAS = [
-  ["domingo", "Domingo", ICONE_DOMINGO],
+  ["domingo", "Início", ICONE_DOMINGO],
   ["bases", "Bases", ICONE_BASES],
   ["pessoas", "Pessoas", ICONE_PESSOAS],
   ["numeros", "Números", ICONE_NUMEROS],
@@ -104,7 +110,8 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
               </span>
             </div>
           </div>
-          <h1 style={{ marginTop: 22 }}>{cab.titulo}</h1>
+          {cab.rotulo && <p className="pa-rotulo-topo">{cab.rotulo}</p>}
+          <h1 style={{ marginTop: cab.rotulo ? 4 : 22 }}>{cab.titulo}</h1>
           {cab.subtitulo && <p className="sob">{cab.subtitulo}</p>}
           {cab.chips?.length > 0 && (
             <div className="chips">

@@ -88,6 +88,46 @@ service cloud.firestore {
       }
     }
 
+    // ── catálogo de GDs — GLOBAL desde 2026-09 (era bases/pessoal/gds;
+    // ver nota em apps/pessoal/src/lib/modelo.js). Um GD não é "da
+    // Pessoal", é da igreja — mesmo raciocínio de eventos/ (CLAUDE.md
+    // raiz, regra 7): a Pessoal continua dona do catálogo (só a líder
+    // dela escreve), mas agora qualquer base — e o Mural Onda — lê.
+    match /gds/{gd} {
+      allow read:  if autenticado();
+      allow write: if souLiderBase('pessoal');
+    }
+
+    // ── Mural Onda (apps/mural) — anúncios de dou/vendo/arrendo e de
+    // procuro, da igreja toda (Portugal, não só o Porto — ver
+    // apps/mural/CLAUDE.md). Igual ao resto do repo onde a
+    // atribuição/gestão é decidida no servidor (regra 3 do CLAUDE.md
+    // raiz): limite de 5 anúncios ativos por pessoa, autoria e
+    // capturada no token, expiração de 30 dias — nada disto dá para
+    // garantir só com regras, por isso toda a escrita passa por
+    // Cloud Function. `ativo:false` é como um anúncio "sai" do mural
+    // (regra 5 — nada se apaga a sério). Quem modera é decidido por
+    // um documento em config/muralAdmins/porPessoa/{pessoa} — fechado
+    // pelo catch-all no fim deste ficheiro (só o Admin SDK, via
+    // scripts/definirAdminMural.mjs, lê/escreve lá); cada Cloud
+    // Function do painel lê-o na hora (souAdminMural em
+    // functions/mural.js), nunca uma claim do token.
+    // (não precisa de função própria aqui: os reports
+    // ficam desnormalizados no próprio anúncio — ver reportarAnuncio
+    // em functions/mural.js.)
+    //
+    // Leitura pública de propósito (2026-09, pedido explícito): o
+    // mural mostra-se a QUALQUER PESSOA, sem conta nem sessão — só
+    // publicar exige entrar. Nada aqui é sensível: nome/foto/"onde
+    // serves" são os mesmos que já aparecem num anúncio partilhado no
+    // WhatsApp, e o telefone NUNCA está neste documento (fica só em
+    // pessoas/{uid} ou bases/{b}/pessoas/{uid}, que continuam
+    // fechados — ver pedirContactoAnuncio em functions/mural.js).
+    match /anuncios/{anuncio} {
+      allow read:  if true;
+      allow write: if false;                        // só por função
+    }
+
     // ── ponteiro do culto ao vivo — qual eventoId está a gravar agora,
     // seja qual for a data. Todas as bases leem, para saber onde ligar
     // o ponto rosa; só a Cloud Function escreve (ver
@@ -139,14 +179,6 @@ service cloud.firestore {
 
       // ── catálogo de funções ──────────────────────────────
       match /funcoes/{funcao} {
-        allow read:  if minhaBase(base);
-        allow write: if souLiderBase(base);
-      }
-
-      // ── catálogo de GDs (Base Pessoal) — lista fixa que a líder
-      // mantém, sugerida no Formulário de contacto. Mesmo padrão do
-      // catálogo de funções: só a líder escreve, a base toda lê. ──
-      match /gds/{gd} {
         allow read:  if minhaBase(base);
         allow write: if souLiderBase(base);
       }
@@ -633,8 +665,15 @@ service cloud.firestore {
       // checklist de sala marcada (um doc por sala) e contagem corrigida
       // à mão — escrita direta, para funcionar sem rede ao domingo, como
       // a contagem da Pessoal. Sem delete: fazem parte do histórico.
+      // Leitura aberta a qualquer autenticado, mesmo padrão de
+      // `checklist/{c}` acima (não `minhaBase('kinder')`) — o Painel
+      // Pastoral lê isto ao vivo, como já lê a checklist de qualquer
+      // outra base (ver `checklistCrossBase`/CLAUDE.md do painel:
+      // "função para o catálogo, onSnapshot para o estado"). Sem
+      // dados sensíveis aqui — só "quem marcou, a que horas"; saúde de
+      // criança fica em `ocorrencias`, que o painel nunca vê.
       match /checklistKinder/{sala} {
-        allow read:           if minhaBase('kinder');
+        allow read:           if autenticado();
         allow create, update: if minhaBase('kinder');
         allow delete:         if false;
       }

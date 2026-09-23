@@ -1,9 +1,79 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
-import { contarPorEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
+import { contarPorEtapa, corTextoEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
+import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
+import Avatar from "@portal/shared/components/Avatar.jsx";
+import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Funil from "../components/Funil";
 import Barras from "../components/Barras";
 import SheetContacto from "../components/SheetContacto";
+
+/** As três salas fixas da Kinder — mesma cópia pequena de Domingo.jsx
+ *  (ver o comentário lá: cada app carrega só o seu bundle, três linhas
+ *  não valem a pena partilhar). Só para "Líderes e auxiliares" dizer
+ *  em qual sala cada um da Kinder serve (pedido 2026-09). */
+const SALAS_KINDER = {
+  baby: "Baby",
+  fun: "Fun",
+  junior: "Júnior",
+};
+
+/** As etiquetas de base de uma pessoa, como `tagExtra` de
+ *  `LinhaPessoaContacto` — pode ser mais do que uma (quem serve em
+ *  duas ou mais bases), por isso nunca o slot de badge único. */
+function TagsBase({ bases }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {bases.map((b) => (
+        <span className="tag" key={b.baseId} style={{ background: b.cor ?? "var(--cinza)" }}>{b.nome}</span>
+      ))}
+    </div>
+  );
+}
+
+/** A linha do desgaste: tem barra de progresso e contagem de cultos,
+ *  que não cabem nos slots do LinhaPessoaContacto partilhado — por
+ *  isso é local, mas usa os mesmos dois primitivos (Avatar,
+ *  linkWhatsApp) para o mesmo gesto de "toca no nome, aparece o
+ *  WhatsApp". */
+function LinhaDesgaste({ pessoa, cultos, pct, bases, aberta, onToggle }) {
+  const link = linkWhatsApp(pessoa.telefone);
+  return (
+    <div className="linha" style={{ alignItems: "flex-start", cursor: "pointer", flexWrap: "wrap" }} onClick={onToggle}>
+      <Avatar pessoa={pessoa} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p className="nmt">{pessoa.nome}</p>
+        <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+          {bases.map((b) => (
+            <span className="tag" key={b.baseId} style={{ background: b.cor }}>{b.nome}</span>
+          ))}
+        </p>
+        <div className="barra" style={{ marginTop: 7 }}>
+          <i style={{ width: `${pct}%`, background: pct >= 50 ? "var(--laranja)" : "var(--azul)" }} />
+        </div>
+      </div>
+      <span style={{ flex: "none", fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>
+        {cultos}
+      </span>
+      {aberta && (
+        <div className="aberto" onClick={(e) => e.stopPropagation()} style={{ paddingTop: 4, flexBasis: "100%" }}>
+          {link ? (
+            <a className="btn sec full" href={link} target="_blank" rel="noopener">Chamar no WhatsApp</a>
+          ) : (
+            <p className="ds">Sem contacto no perfil.</p>
+          )}
+          {/* os domingos a sério, não só o número — é o que comprova
+              o "serviu X vezes" sem ter de confiar de olhos fechados */}
+          {pessoa.datas?.length > 0 && (
+            <p className="ds" style={{ marginTop: 10 }}>
+              Serviu em: {pessoa.datas.map((d) => dataCurta(d)).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ABAS = [
   ["voluntarios", "Quem serve"],
@@ -11,11 +81,20 @@ const ABAS = [
   ["funil", "Visitantes"],
 ];
 
-/** A janela do desgaste: os últimos seis meses. Mais curto que isso e
- *  umas férias distorcem tudo; mais longo e alguém que serviu muito na
- *  primavera e parou continua no topo, que é o contrário do que se
- *  quer ver. */
-const MESES_DESGASTE = 6;
+/** Filtro por quando a visita chegou — não por etapa (essa já é o
+ *  Funil) nem por nome (esse já é a busca). "Todos" fica primeiro e é
+ *  o omisso: a maior parte das vezes quer-se ver toda a gente. */
+const PERIODOS_CHEGADA = [
+  ["todos", "Todos"],
+  ["30d", "Últimos 30 dias"],
+  ["90d", "Últimos 90 dias"],
+];
+
+/** A janela do desgaste: os últimos dois meses. É o período que
+ *  interessa para equilibrar quem serve agora — quem esteve sobrecarregado
+ *  na primavera e já parou não é hoje um caso a corrigir, e ficar no
+ *  topo da lista escondia quem está a servir demais ESTA fase. */
+const MESES_DESGASTE = 2;
 
 function janelaDesgaste() {
   const h = new Date();
@@ -38,9 +117,20 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   const [contactos, setContactos] = useState([]);
   const [etapaFiltro, setEtapaFiltro] = useState(null);
   const [busca, setBusca] = useState("");
+  const [periodoChegada, setPeriodoChegada] = useState("todos");
   const [contactoAberto, setContactoAberto] = useState(null);
   const [desgaste, setDesgaste] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual linha (voluntário multi-base, líder ou desgaste) está
+  // expandida a mostrar o WhatsApp — uma chave só, nunca mais do que
+  // uma aberta ao mesmo tempo, mesmo padrão do contactoAberto acima
+  const [linhaAberta, setLinhaAberta] = useState(null);
+  const alternarLinha = (chave) => setLinhaAberta((a) => (a === chave ? null : chave));
+  // as duas listas de Desgaste começam cortadas nas 3 primeiras — dez
+  // pessoas de bulto era mais scroll do que a pergunta ("quem está a
+  // servir demais?") precisa à primeira vista (pedido 2026-09)
+  const [verTodosDesgaste, setVerTodosDesgaste] = useState(false);
+  const [verTodosMultiBase, setVerTodosMultiBase] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -114,10 +204,13 @@ export default function Pessoas({ ativo, definirCabecalho }) {
 
   const listaFunil = useMemo(() => {
     const termo = busca.trim().toLowerCase();
+    const dias = periodoChegada === "30d" ? 30 : periodoChegada === "90d" ? 90 : null;
+    const limite = dias ? Date.now() - dias * 86400000 : null;
     return contactos
       .filter((c) => (etapaFiltro ? c.etapa === etapaFiltro : true))
-      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true));
-  }, [contactos, etapaFiltro, busca]);
+      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true))
+      .filter((c) => (limite ? (c.criadoEm?.toDate?.().getTime() ?? 0) >= limite : true));
+  }, [contactos, etapaFiltro, busca, periodoChegada]);
 
   /** Quem serviu em metade ou mais dos domingos do período. Metade não
    *  é um número mágico nem um limite de alarme — é onde "serve às
@@ -127,6 +220,14 @@ export default function Pessoas({ ativo, definirCabecalho }) {
     if (!desgaste?.totalCultos) return [];
     return desgaste.pessoas.filter((p) => p.cultos / desgaste.totalCultos >= 0.5);
   }, [desgaste]);
+
+  /** Quem serve 1 ou 2 domingos em dois meses é o normal de qualquer
+   *  voluntário — listar toda a gente ensinaria a ignorar a lista. Só
+   *  a partir de 3 é que há algo a olhar. */
+  const desgastePorEquilibrar = useMemo(
+    () => (desgaste?.pessoas ?? []).filter((p) => p.cultos > 2),
+    [desgaste],
+  );
 
   useEffect(() => {
     if (!ativo) return;
@@ -179,42 +280,21 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             </div>
 
             <div className="sect">
-              <div className="cabecalho">
-                <h3>Servem em mais de uma base</h3>
-                <span className="cap">{multiBase.length}</span>
-              </div>
-              <p className="ds" style={{ marginTop: 0 }}>
-                O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto — o que não mostra a
-                ninguém é quem está a carregar dois compromissos ao mesmo tempo.
-              </p>
-              {multiBase.length ? multiBase.map((p) => (
-                <div className="linha" key={p.id}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                      {p.bases.filter((b) => b.ativo).map((b) => (
-                        <span className="tag" key={b.baseId} style={{ background: b.cor ?? "var(--cinza)" }}>{b.nome}</span>
-                      ))}
-                    </p>
-                  </div>
-                </div>
-              )) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
-            </div>
-
-            <div className="sect">
               <div className="cabecalho"><h3>Líderes e auxiliares</h3><span className="cap">{lideres.length}</span></div>
               {lideres.map((p) => (
-                <div className="linha" key={p.id}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="nmt">{p.nome}</p>
-                    <p className="ds">
-                      {p.bases.filter((b) => b.ativo && (b.papel === "lider_base" || b.papel === "auxiliar"))
-                        .map((b) => `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}`).join(" · ")}
-                    </p>
-                  </div>
-                </div>
+                <LinhaPessoaContacto
+                  key={p.id} pessoa={p}
+                  resumo={p.bases.filter((b) => b.ativo && (b.papel === "lider_base" || b.papel === "auxiliar"))
+                    .map((b) => {
+                      const sala = b.baseId === "kinder" ? SALAS_KINDER[b.categoria] : null;
+                      return `${b.nome}${b.papel === "auxiliar" ? " (auxiliar)" : ""}${sala ? ` · Sala ${sala}` : ""}`;
+                    }).join(" · ")}
+                  aberta={linhaAberta === `lider:${p.id}`}
+                  onToggle={() => alternarLinha(`lider:${p.id}`)}
+                />
               ))}
             </div>
+
           </>
         )
       ) : aba === "desgaste" ? (
@@ -230,12 +310,14 @@ export default function Pessoas({ ativo, definirCabecalho }) {
               </p>
               <p className="cap" style={{ marginTop: 8 }}>
                 Conta <b>cultos</b>, não escalas — servir em duas bases no mesmo domingo é um domingo, não dois.
+                Sempre dos últimos {MESES_DESGASTE} meses: é quem está sobrecarregado agora que interessa, não
+                quem esteve há seis meses.
               </p>
             </div>
 
             {gastos.length > 0 && (
-              <div className="caixa destaque" style={{ marginTop: 12 }}>
-                <p className="ds" style={{ marginTop: 0 }}>
+              <div className="caixa pa-aviso" style={{ marginTop: 12 }}>
+                <p style={{ marginTop: 0 }}>
                   <b>{gastos.length} pessoa{gastos.length === 1 ? "" : "s"}</b> serviu em metade ou mais dos{" "}
                   {desgaste.totalCultos} domingos deste período.
                 </p>
@@ -245,29 +327,69 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             <div className="sect">
               <div className="cabecalho">
                 <h3>Mais domingos servidos</h3>
-                <span className="cap">de {desgaste.totalCultos}</span>
+                <span className="cap">últimos {MESES_DESGASTE} meses · {desgaste.totalCultos} cultos</span>
               </div>
-              {desgaste.pessoas.length ? desgaste.pessoas.slice(0, 40).map((p) => {
-                const pct = Math.round((p.cultos / desgaste.totalCultos) * 100);
-                return (
-                  <div className="linha" key={p.uid}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p className="nmt">{p.nome}</p>
-                      <p className="ds" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                        {p.bases.map((b) => (
-                          <span className="tag" key={b.baseId} style={{ background: corBase(b.baseId) }}>{b.nome}</span>
-                        ))}
-                      </p>
-                      <div className="barra" style={{ marginTop: 7 }}>
-                        <i style={{ width: `${pct}%`, background: pct >= 50 ? "var(--laranja)" : "var(--azul)" }} />
-                      </div>
-                    </div>
-                    <span style={{ flex: "none", fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>
-                      {p.cultos}
-                    </span>
-                  </div>
-                );
-              }) : <div className="vaz">Nenhuma escala publicada neste período.</div>}
+              {/* servir 1 ou 2 domingos em dois meses é o normal de
+                  qualquer voluntário — só a partir de 3 é que vale a
+                  pena olhar para o equilíbrio */}
+              {desgastePorEquilibrar.length ? (
+                <>
+                  {(verTodosDesgaste ? desgastePorEquilibrar : desgastePorEquilibrar.slice(0, 3)).map((p) => (
+                    <LinhaDesgaste
+                      key={p.uid} pessoa={p} cultos={p.cultos}
+                      pct={Math.round((p.cultos / desgaste.totalCultos) * 100)}
+                      bases={p.bases.map((b) => ({ ...b, cor: corBase(b.baseId) }))}
+                      aberta={linhaAberta === `desgaste:${p.uid}`}
+                      onToggle={() => alternarLinha(`desgaste:${p.uid}`)}
+                    />
+                  ))}
+                  {desgastePorEquilibrar.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodosDesgaste((v) => !v)}>
+                      {verTodosDesgaste ? "Ver menos" : `Ver mais (${desgastePorEquilibrar.length - 3})`}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="vaz">
+                  {desgaste.pessoas.length
+                    ? "Ninguém serviu mais de 2 domingos neste período."
+                    : "Nenhuma escala publicada neste período."}
+                </div>
+              )}
+            </div>
+
+            {/* pedido 2026-09: "quem serve em mais de uma base"
+                mudou-se para dentro de Desgaste — é aqui que a
+                pergunta pertence a sério (é onde o desgaste começa,
+                ver o comentário de `multiBase` acima), não em "Quem
+                serve", que é só a lista de quem está ativo. */}
+            <div className="sect">
+              <div className="cabecalho">
+                <h3>Servem em mais de uma base</h3>
+                <span className="cap">{multiBase.length}</span>
+              </div>
+              <p className="ds" style={{ marginTop: 0 }}>
+                O sistema já impede escalar a mesma pessoa em duas bases no mesmo culto — o que não mostra a
+                ninguém é quem está a carregar dois compromissos ao mesmo tempo.
+              </p>
+              {multiBase.length ? (
+                <>
+                  {(verTodosMultiBase ? multiBase : multiBase.slice(0, 3)).map((p) => (
+                    <LinhaPessoaContacto
+                      key={p.id} pessoa={p}
+                      resumo="Toca para chamar no WhatsApp"
+                      tagExtra={<TagsBase bases={p.bases.filter((b) => b.ativo)} />}
+                      aberta={linhaAberta === `multi:${p.id}`}
+                      onToggle={() => alternarLinha(`multi:${p.id}`)}
+                    />
+                  ))}
+                  {multiBase.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodosMultiBase((v) => !v)}>
+                      {verTodosMultiBase ? "Ver menos" : `Ver mais (${multiBase.length - 3})`}
+                    </button>
+                  )}
+                </>
+              ) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
             </div>
           </>
         )
@@ -295,6 +417,12 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             onChange={(e) => setBusca(e.target.value)} style={{ marginTop: 12 }}
           />
 
+          <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
+            {PERIODOS_CHEGADA.map(([id, rotulo]) => (
+              <button key={id} data-on={periodoChegada === id ? "1" : "0"} onClick={() => setPeriodoChegada(id)}>{rotulo}</button>
+            ))}
+          </div>
+
           <div className="sect">
             <div className="cabecalho">
               <h3>{etapaFiltro ? etapas.find((e) => e.id === etapaFiltro)?.nome : "Todos"}</h3>
@@ -314,8 +442,13 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                     <p className="ds">
                       {[c.freguesia, c.concelho].filter(Boolean).join(", ") || "sem localidade"}
                     </p>
+                    {/* a data de chegada, pedida a olho — "há X dias"
+                        enquanto é recente, a data a sério depois de
+                        uma semana (mesma lógica de `haAtras` em toda
+                        a app) */}
+                    {c.criadoEm && <p className="cap" style={{ marginTop: 3 }}>chegou {haAtras(c.criadoEm)}</p>}
                   </div>
-                  <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)" }}>
+                  <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)", color: corTextoEtapa(c.etapa) }}>
                     {etapa?.nome ?? c.etapa}
                   </span>
                 </div>

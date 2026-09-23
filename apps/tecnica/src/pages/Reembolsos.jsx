@@ -8,6 +8,7 @@ import { CATEGORIAS_DESPESA, ROTULO_CATEGORIA_DESPESA } from "@portal/shared/lib
 import { eur, dataTimestamp } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
+import { largarAoRodar } from "../lib/campos";
 
 // submetido → aprovado|indeferido (líder) → pago|devolvido (Financeiro,
 // na app dele). "Devolvido" volta à mesa do líder: o Financeiro viu que
@@ -203,7 +204,7 @@ export default function Reembolsos({ uid, papel, definirCabecalho }) {
               ))}
             </select>
             <label className="rot">Valor</label>
-            <input className="campo" type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
+            <input className="campo" type="number" onWheel={largarAoRodar} step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
             <label className="rot">Nota ou fatura</label>
             <p className="ds" style={{ marginTop: -4, marginBottom: 8 }}>
               Se pedires fatura, pede com o NIF da igreja: 517643340 (Igreja Onda).

@@ -178,6 +178,18 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **A roda do rato muda números em silêncio** (`apps/tecnica/src/lib/campos.js`,
+  `largarAoRodar`). Num computador, rodar por cima de um
+  `<input type="number">` com foco muda o valor em vez de rolar — o
+  Júlio escreveu 17 no dia de um culto especial, rodou para chegar ao
+  botão, e o culto foi criado a 16. Reproduzido com roda real pelo
+  DevTools Protocol. Nos reembolsos é pior: "25,00" vira "24,99". A
+  correção é uma linha por campo, `onWheel={largarAoRodar}` (tira o
+  foco, a roda volta a rolar, o valor fica). Na Técnica estão os 5
+  campos corrigidos. **Falta nas outras**: Apoio 7, Pessoal 8,
+  Backstage 5, New 5, SHIFT 5, Comunicação 3, Louvor 3 (contagem de
+  `type="number"` a 2026-09-21). Candidato a ir para `packages/shared`
+  se aparecer numa quarta base.
 - **Computador: menu lateral + coluna central** (`apps/tecnica/src/styles/tecnica.css`,
   secção 4). Num ecrã largo, cada base é hoje o telemóvel esticado:
   botões e campos com 900px e a barra do polegar a boiar no fundo. Na
@@ -256,6 +268,47 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   largo começa à esquerda de um rótulo curto. Qualquer base que leia
   grelhas de PDF deve copiar esta ideia, não a versão da data.
 
+- **Contacto (telefone) nunca dentro do documento partilhável — só
+  buscado na hora, por quem pede** (Mural Onda, 2026-09,
+  `pedirContactoAnuncio`/`telefoneDoAutor` em `functions/mural.js`).
+  O anúncio é lido por qualquer pessoa autenticada; gravar o telefone
+  lá dentro abria o número a toda a gente, mesmo sem clicar em nada.
+  Em vez disso, o botão "Falar no WhatsApp" chama uma Cloud Function
+  que só devolve o número na hora, para quem já entrou. Serve
+  qualquer base que precise de "ligar a alguém" sem expor o contacto
+  em bruto num documento de leitura larga — hoje `nomesDePessoas`
+  (index.js) já não devolve o telefone a quem não tem
+  `ve_todas_escalas`, o mesmo raciocínio, este é o caso de "qualquer
+  pessoa, não só quem tem uma claim elevada".
+- **Entrada por telemóvel + PIN, sem base nenhuma** (Mural Onda,
+  2026-09, `pedirEntradaMural`/`entrarMural`/`registarMural`,
+  `functions/mural.js`). Identidade global (`pessoas/tel_<telefone>`)
+  para quem nunca foi voluntário — sem passar por `criarVoluntario`
+  nem por nenhuma base. Serve qualquer produto futuro que precise de
+  login da igreja toda (não de uma equipa), como o Formulário de
+  contacto da Pessoal citava como exemplo já antes disto existir. Não
+  portado ainda porque a Pessoal continua a pedir sessão de voluntário
+  antes do visitante preencher (ver `apps/pessoal/CLAUDE.md`,
+  "Fronteiras") — portar é trocar essa exigência por este caminho.
+
+- **Armadilha para o próximo app sem `VITE_BASE_ID` fixo**: vários
+  componentes de `packages/shared` (`SheetPin.jsx`, `MenuEu.jsx`,
+  `SheetAcessoDev.jsx`) importam de `"../lib/auth"` — um caminho
+  RELATIVO AO PRÓPRIO FICHEIRO, que por isso resolve sempre para
+  `packages/shared/src/lib/auth.js`, nunca para o `lib/auth.js` de
+  quem os usa. Nas apps de base isso não se nota, porque cada uma só
+  entra na sua própria base (`VITE_BASE_ID` fixo) e o `entrarComPin`
+  partilhado já faz a coisa certa sozinho. O Mural (2026-09) apanhou
+  o oposto: PIN certo a parecer errado, porque a chamada ia sempre
+  com `baseId: "mural"` (que não existe) em vez da base escolhida no
+  ecrã — ver `apps/mural/src/components/adaptados/LEIA-ME.md`. Regra
+  para o próximo app que precise de decidir a base em tempo de
+  execução (não fixa por `.env`): nunca reaproveitar `SheetPin`/
+  `MenuEu`/`SheetAcessoDev` diretamente — copiar para
+  `adaptados/` como o Mural fez, ou (melhor, se compensar mexer no
+  partilhado) mudar esses três componentes para receberem
+  `entrarComPin` por prop em vez de o importarem.
+
 ## Já portado
 
 | Data | Nasceu em | O quê | Portado para | Nota |
@@ -317,6 +370,13 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 | 2026-09 | Todas (9) + Financeiro | Funil da fatura EM PAPEL, à parte da foto: o voluntário declara no formulário se já a entregou em mãos ao líder (`fatura.comLider`, obrigatório), o líder declara ao aprovar se já a passou ao Financeiro ou se a leva no próximo culto (`fatura.paraFinanceiro`), e o Financeiro confere pedido a pedido (`fatura.recebida`, via `marcarFaturaFisica`). Enquanto o líder não a tiver, o voluntário vê o estado "Ag. fatura física" em vez de "À espera do líder" | Já partilhado — entrou nas 9 bases de uma vez | Nasceu partilhado porque `lib/reembolsos.js` e `pages/Reembolsos.jsx` são (quase) idênticos nas 9 bases: a mesma correção teve de ser aplicada 9 vezes à mão, e é o melhor argumento que existe para um dia isto subir a `packages/shared` — o que só não se fez agora porque mexer no partilhado é PR à parte (ver `verificar:isolamento`). O mapa `fatura` é criado por notação de ponto (`"fatura.comLider": true`) nas aprovações, por isso os pedidos antigos, sem o mapa, continuam a funcionar: `fatura` a faltar lê-se como "sem informação", nunca como "por entregar". A base nova que copiar o módulo de reembolsos leva o funil junto, sem trabalho extra. |
 
 | 2026-09 | Pessoal | O mapa do auditório deixou de ser guardado sob o culto em que a pessoa está escalada (`obterMeuEvento`) e passou a ser guardado sob a data real de hoje (`hojeLocal()`, `pages/Acomodacao.jsx`), sempre — sem "corrigir data" nenhuma (a Cloud Function `corrigirDataMapaAcomodacao` foi removida) | — | Bug de fundo, não feature: um documento "ao vivo, um por dia" nunca deve nascer de "a que culto esta pessoa pertence" — isso responde a uma pergunta diferente (quando sirvo a seguir) e pode saltar para a frente no calendário assim que a escala futura ainda não saiu, deixando quem abre a app a olhar para o dia errado sem erro nenhum à vista. Qualquer coisa futura no formato "um registo por dia real" (não por pessoa nem por escala) deve nascer já amarrada à data do relógio, nunca a uma leitura que tenta adivinhar "o culto certo". |
+
+| 2026-09 | Pastoral | Corrigir um dado do passado por CORREÇÃO DIRETA, não por reconstruir uma hora de relógio: `corrigirDuracaoSecaoCulto` (`functions/pastoral.js`) guarda `duracaoCorrigidaMin` na secção, e `resumirCulto` prefere esse valor ao cálculo automático sempre que existe — nunca mexe em `horaReal`/`timestampReal`. A primeira versão tentava reconstruir um `Timestamp` a partir da data do culto + uma hora nova (via `Intl.DateTimeFormat`, para o offset de Lisboa mudar com o horário de verão); pedido novo do dono do produto a mandou trocar: "a correção está para a hora do relógio, mas precisa ser para a duração do bloco" — ninguém sabe de cor a que horas algo entrou, sabe quanto tempo durou. Duas ideias menores do mesmo lote, ainda válidas: (1) num gráfico de linha com grelha em números fechados, a grelha deve DEFINIR o topo do gráfico (calcular as linhas primeiro, topo = uma acima do máximo), nunca o contrário — calcular o topo primeiro (`max * 1.15`) e a grelha depois pode deixar a última linha abaixo do valor máximo de verdade, bug real já visto aqui (`LinhaTempo.jsx`); (2) uma Cloud Function que precisa de escrever numa base que não é a de quem chama (`baseId` como argumento, não do token) é sempre a exceção, nunca o padrão — proteger pela capacidade elevada (`ve_tudo_pastoral`, aqui) e nunca copiar o molde de `editarVoluntario` (que lê `baseId` do token de propósito) para esse caso. |
+| 2026-09 | Pastoral → Pessoal | Um agregador que lê um dado AO VIVO (não fechado) como recurso — `historicoPastoral` lia `eventos/{e}/acomodacao/mapa` sempre que não havia resumo fechado — sem que o módulo dono desse dado (`Acomodacao.jsx`, sempre preso ao dia de hoje, de propósito) tivesse caminho nenhum para ver ou corrigir um domingo passado assim. Reportado como "de onde vêm estes números, se aqui diz que não há culto fechado nenhum?". Corrigido com uma lista nova, "Mapas por fechar" (`MapasPorFechar.jsx`, logo abaixo de "Cultos fechados"), que lê os últimos meses e mostra só os cultos com gente marcada (`ocupados+visitantes > 0` — reservados/bloqueados da planta não contam, já vêm por omissão em todo mapa) e nunca fechados, com **Fechar agora** (`fecharAcomodacao`, que já aceitava qualquer `eventoId`, não só o de hoje) e **Excluir** (`limparMapaAcomodacaoAoVivo`, novo — volta os lugares a "livre" sem fechar, nunca apaga o documento) | — | A lição generaliza: sempre que um agregador cross-base decide ler um dado NÃO FECHADO como fallback (em vez de esperar o fecho formal), o módulo dono desse dado fica com uma obrigação nova — dar para ver e corrigir esse registo específico, mesmo que a tela normal dele só mostre "o de hoje". Sem isso, o dado fica orfão: existe, pesa nalgum painel, e ninguém tem porta de entrada para ele. Qualquer base com o mesmo formato ("um documento ao vivo por dia", como o mapa daqui) que ganhe um consumidor cross-base deve nascer já com esta lista, não como correção depois do relato. |
+
+| 2026-09 | Pastoral | Duas funções cruzadas (`escalasCrossBase`, `checklistCrossBase`, `functions/index.js`) assumiam formatos que nem toda base usa, e falhavam em silêncio — nunca um erro, só a base a aparecer "vazia" ou "sem checklist". (1) `escalasCrossBase` só reconhecia `lugares:[{titularId,aprendizId}]` (Técnica) e `pessoas:[id,...]` (Apoio/Backstage) — a "lista aberta" da Comunicação (`lugares:[{ministerioId, pessoas:[id,...]}]`, sem titular/aprendiz fixos, ver `CLAUDE.md` dela) não batia com nenhum dos dois: todo `l.titularId` vinha `undefined`, a lista de itens ficava vazia, e a função devolvia `tipo:"vazio"` para uma escala cheia. (2) `checklistCrossBase` só lia `bases/{b}/funcoes` — a Kinder não usa essa coleção para a checklist dela, usa `bases/kinder/checklistSala` (catálogo por SALA, não por função/ministério, ver `CLAUDE.md` da Kinder); `funcoes` para a Kinder vinha sempre vazio, e "sem checklist criada" aparecia mesmo com itens de sobra. Corrigido nos dois pontos: `escalasCrossBase` detecta o formato pelo campo `pessoas` (array) dentro do próprio lugar; `checklistCrossBase` acrescenta os itens de `checklistSala` ao `funcoes` devolvido quando a base é `"kinder"`, com a sala a fazer de "ministério" (mesmas cores de `apps/kinder/src/lib/modelo.js`). O ESTADO ao vivo da Kinder (`eventos/{e}/checklistKinder/{sala}.itens`, regra afrouxada de `minhaBase('kinder')` para `autenticado()`, mesmo padrão de `eventos/{e}/checklist`) teve de ser juntado nos dois lugares que já liam a checklist cruzada, senão os itens da Kinder apareciam no catálogo mas nunca ficavam "feitos" | Backstage | Reportado como "não está aparecendo a escala... da Comunicação" e "diz que não tem Checklist" (Kinder), no Painel Pastoral (`Domingo.jsx`) — mas as duas funções são as MESMAS que a "Todas as bases"/Checklists da própria Backstage já usava (`Escala.jsx`, `Checklists.jsx`), com o mesmo bug lá, silencioso até agora. Por isso o porte foi automático (a correção é no ponto único, `functions/index.js`) e só o merge do estado ao vivo teve de ser copiado a mão para `ouvirChecklistDoEvento` (`apps/backstage/src/lib/painel.js`), espelhando `ouvirChecklist` (`apps/pastoral/src/lib/culto.js`). A lição generaliza: uma função cross-base que lê o formato de dados de uma base específica (não o schema genérico documentado) fica cega, sem erro nenhum, à primeira base que usar uma variação legítima — vale a pena testar cross-base com pelo menos duas bases de formato diferente, não só a que motivou a função. |
+
+| 2026-09 | Kinder | "Quantas crianças estão presentes?" — popup grande no Início, uma vez por domingo enquanto faltar preencher, que escreve direto na Contagem da Base Pessoal (`eventos/{e}/contagem/geral`) pela Cloud Function nova `registarContagemSala` (`functions/contagemSalas.js`), sem escrita direta — cada base só pode tocar na SUA categoria dentro do mapa `categorias`, e uma regra do Firestore não distingue campos dentro do mesmo documento, só documentos inteiros. Portado logo no mesmo lote para SHIFT e New (pedido explícito: "quero o mesmo no painel do SHIFT e do New") — mesmo componente, sem a divisão por sala (um número só, sempre a líder da base, nunca uma líder de subgrupo). | SHIFT, New | O padrão generaliza a qualquer base que precise de alimentar um número na Contagem da Base Pessoal sem lhe dar escrita direta ao documento inteiro: a função central sabe, por `baseId` do token, que categoria(s) essa base pode tocar (`CATEGORIAS_POR_BASE`), nunca confia num campo `categoria` vindo do cliente sozinho. Uma base com subdivisões internas (como a Kinder, três salas) acrescenta uma verificação extra de "és a líder desta subdivisão", que uma base de equipa única não precisa. |
 
 ## Buracos fechados ao construir a Backstage
 

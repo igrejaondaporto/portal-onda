@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { panoramaPastoral, patrimonioPastoral } from "../lib/pastoral";
 import { ouvirRecadosEnviados } from "../lib/culto";
-import { eur, haAtras } from "@portal/shared/lib/data.js";
+import { eur, haAtras, singularizar } from "@portal/shared/lib/data.js";
 import Barras from "../components/Barras";
 import SheetRecado from "../components/SheetRecado";
+import SheetTrocarLider from "../components/SheetTrocarLider";
 
 /**
  * Cada base, e o que nela está por resolver.
@@ -36,8 +37,20 @@ const PESOS = {
   duvidaSemResposta: 2,
 };
 
+/** Dias até ao fim do mês corrente (hoje = dia 0). As escalas nascem
+ *  uma vez por mês, perto do fim do mês anterior — por isso "ainda não
+ *  tem escala" é o normal a meio do mês e só vira problema a sério na
+ *  última semana. Sinalizar isto desde o dia 1 seria alarme falso
+ *  todos os dias, e ensinaria a ignorar o cartão. */
+function diasAteFimDoMes() {
+  const h = new Date();
+  const fim = new Date(h.getFullYear(), h.getMonth() + 1, 0);
+  const hoje = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  return Math.round((fim - hoje) / 86400000);
+}
+
 function urgencia(b) {
-  return (b.escalaFeita ? 0 : PESOS.semEscala)
+  return (b.semEscalaConta ? PESOS.semEscala : 0)
     + b.melhoriasGraves * PESOS.melhoriaGrave
     + b.equipamentosAvariados * PESOS.equipamentoAvariado
     + b.reembolsosPorAprovar * PESOS.reembolsoPorAprovar
@@ -48,15 +61,17 @@ function urgencia(b) {
 
 /** As pendências de uma base, em texto, já ordenadas pela mesma régua.
  *  Só as que existem — uma lista com "0 avarias" a toda a largura
- *  ensina a saltar o cartão. */
+ *  ensina a saltar o cartão. Avarias, itens em falta e melhorias
+ *  graves levam os NOMES, não só a contagem — "2 avariados" obriga a
+ *  abrir a app da base só para saber o quê; são sempre um punhado, não
+ *  o inventário inteiro, por isso cabem na linha. */
 function pendencias(b) {
   const p = [];
-  if (!b.escalaFeita) p.push({ chave: "escala", texto: "Escala por montar", grave: true });
-  if (b.melhoriasGraves) p.push({ chave: "graves", texto: `${b.melhoriasGraves} melhoria${b.melhoriasGraves === 1 ? "" : "s"} que impede${b.melhoriasGraves === 1 ? "" : "m"} o culto`, grave: true });
-  if (b.equipamentosAvariados) p.push({ chave: "avarias", texto: `${b.equipamentosAvariados} equipamento${b.equipamentosAvariados === 1 ? "" : "s"} avariado${b.equipamentosAvariados === 1 ? "" : "s"}` });
+  if (b.semEscalaConta) p.push({ chave: "escala", texto: "Escala por montar", grave: true });
+  if (b.melhoriasGraves) p.push({ chave: "graves", texto: `Impede o culto: ${b.melhoriasGravesNomes.join(", ")}`, grave: true });
+  if (b.equipamentosAvariados) p.push({ chave: "avarias", texto: `Avariado${b.equipamentosAvariados === 1 ? "" : "s"}: ${b.equipamentosAvariadosNomes.join(", ")}` });
   if (b.reembolsosPorAprovar) p.push({ chave: "reemb", texto: `${b.reembolsosPorAprovar} reembolso${b.reembolsosPorAprovar === 1 ? "" : "s"} à espera do líder` });
-  if (b.inventarioEmFalta) p.push({ chave: "stock", texto: `${b.inventarioEmFalta} item${b.inventarioEmFalta === 1 ? "" : "ns"} no mínimo ou esgotado${b.inventarioEmFalta === 1 ? "" : "s"}` });
-  if (b.listasComprasAbertas) p.push({ chave: "compras", texto: "Lista de compras aberta" });
+  if (b.inventarioEmFalta) p.push({ chave: "stock", texto: `Em falta: ${b.inventarioEmFaltaNomes.join(", ")}` });
   if (b.duvidasSemResposta) p.push({ chave: "duvidas", texto: `${b.duvidasSemResposta} dúvida${b.duvidasSemResposta === 1 ? "" : "s"} sem resposta na Wiki` });
   return p;
 }
@@ -67,7 +82,18 @@ export default function Bases({ ativo, definirCabecalho }) {
   const [recados, setRecados] = useState([]);
   const [aberto, setAberto] = useState(null);
   const [recadoPara, setRecadoPara] = useState(null);
+  const [liderPara, setLiderPara] = useState(null);
   const [erro, setErro] = useState(null);
+  // qual base está aberta em "Património por base" (as duas barras —
+  // contagem e valor — abrem a mesma), e dentro dela qual item
+  // mostra os detalhes (pedido 2026-09: "poder clicar em cada base e
+  // ver os equipamentos, e clicar nos equipamentos e ver os detalhes")
+  const [baseAbertaPatrimonio, setBaseAbertaPatrimonio] = useState(null);
+  const [itemAberto, setItemAberto] = useState(null);
+  // sobe quando um líder é trocado, para o panorama vir buscar o nome
+  // novo — sem isto, "Trocar líder" trocava a sério mas continuava a
+  // mostrar o nome antigo até sair e voltar à aba
+  const [recarregar, setRecarregar] = useState(0);
 
   // uma vez por montagem: são retratos, não estado ao vivo. A aba fica
   // montada em `display:none` ao trocar de separador, por isso isto
@@ -78,25 +104,37 @@ export default function Bases({ ativo, definirCabecalho }) {
       .then(([p, pat]) => { if (vivo) { setPanorama(p.bases); setPatrimonio(pat.bases); } })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar as bases."); });
     return () => { vivo = false; };
-  }, []);
+  }, [recarregar]);
 
   useEffect(() => ouvirRecadosEnviados(setRecados), []);
 
+  // calculado uma vez (não muda durante a sessão) — não precisa de
+  // entrar nas deps do useMemo abaixo
+  const diasParaFimDoMes = useMemo(diasAteFimDoMes, []);
+
   const ordenadas = useMemo(
-    () => (panorama ?? []).map((b) => ({ ...b, urgencia: urgencia(b), pendencias: pendencias(b) }))
+    () => (panorama ?? [])
+      // `escalaAplicavel` é false para o Financeiro (e a Pastoral, já de
+      // fora de `panorama`): nunca escalam ninguém para o culto, e sem
+      // isto "sem escala" ficava vermelho todas as semanas para sempre
+      // — reportado 2026-09 ("nunca vai ter escala mesmo").
+      .map((b) => ({ ...b, semEscalaConta: b.escalaAplicavel !== false && !b.escalaFeita && diasParaFimDoMes < 7 }))
+      .map((b) => ({ ...b, urgencia: urgencia(b), pendencias: pendencias(b) }))
       .sort((a, b) => b.urgencia - a.urgencia || a.nome.localeCompare(b.nome, "pt")),
-    [panorama],
+    [panorama, diasParaFimDoMes],
   );
 
   const totais = useMemo(() => {
     if (!panorama) return null;
     return {
       pessoas: panorama.reduce((t, b) => t + b.pessoasAtivas, 0),
-      semEscala: panorama.filter((b) => !b.escalaFeita).length,
+      semEscala: diasParaFimDoMes < 7
+        ? panorama.filter((b) => b.escalaAplicavel !== false && !b.escalaFeita).length
+        : 0,
       avarias: panorama.reduce((t, b) => t + b.equipamentosAvariados, 0),
       porAprovar: panorama.reduce((t, b) => t + b.reembolsosPorAprovar, 0),
     };
-  }, [panorama]);
+  }, [panorama, diasParaFimDoMes]);
 
   /** Valor do património, por base — só entra quem tem valor de compra
    *  gravado. É opcional em todo o repo, por isso o total é sempre um
@@ -113,12 +151,42 @@ export default function Bases({ ativo, definirCabecalho }) {
       .sort((a, b) => b.valor - a.valor);
   }, [patrimonio]);
 
+  /** Quantos itens de património (equipamento, não consumível) cada
+   *  base tem — todos, tenham ou não valor de compra gravado. O
+   *  gráfico de valor sozinho escondia uma base inteira de
+   *  equipamento por não ter o euro escrito (reportado 2026-09:
+   *  "mostra os items, mesmo sem ter o valor"). */
+  const equipamentosPorBase = useMemo(() => {
+    if (!patrimonio) return [];
+    return patrimonio
+      .map((b) => ({
+        chave: b.baseId, rotulo: b.nome, cor: b.cor,
+        valor: b.itens.filter((i) => i.modo === "patrimonio").length,
+      }))
+      .filter((l) => l.valor > 0)
+      .sort((a, b) => b.valor - a.valor);
+  }, [patrimonio]);
+
   const itensSemValor = useMemo(() => {
     if (!patrimonio) return 0;
     return patrimonio.reduce(
       (t, b) => t + b.itens.filter((i) => i.modo === "patrimonio" && i.valorCompra === null).length, 0,
     );
   }, [patrimonio]);
+
+  /** Os equipamentos (não consumíveis) da base aberta em "Património
+   *  por base" — os dados já vieram todos com `patrimonioPastoral()`,
+   *  não precisa de nova chamada nenhuma para abrir o detalhe. */
+  const itensDaBaseAberta = useMemo(() => {
+    if (!baseAbertaPatrimonio || !patrimonio) return [];
+    const b = patrimonio.find((x) => x.baseId === baseAbertaPatrimonio);
+    return (b?.itens ?? []).filter((i) => i.modo === "patrimonio");
+  }, [baseAbertaPatrimonio, patrimonio]);
+
+  function alternarBasePatrimonio(baseId) {
+    setBaseAbertaPatrimonio((atual) => (atual === baseId ? null : baseId));
+    setItemAberto(null);
+  }
 
   const porLer = recados.filter((r) => !r.dispensado);
 
@@ -224,7 +292,17 @@ export default function Bases({ ativo, definirCabecalho }) {
                   </ul>
                 )}
 
-                <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setRecadoPara(b)}>
+                <div className="caixa" style={{ marginTop: 12, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="ds" style={{ marginTop: 0 }}>Líder da base</p>
+                    <p className="nmt" style={{ marginTop: 3 }}>{b.liderBase?.nome ?? "Sem líder definido"}</p>
+                  </div>
+                  <button className="btn sec" style={{ padding: "8px 14px", fontSize: 12.5, flex: "none" }} onClick={() => setLiderPara(b)}>
+                    Trocar
+                  </button>
+                </div>
+
+                <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setRecadoPara(b)}>
                   Mandar recado à {b.nome}
                 </button>
               </div>
@@ -234,11 +312,68 @@ export default function Bases({ ativo, definirCabecalho }) {
       </div>
 
       <div className="sect">
-        <div className="cabecalho"><h3>Património por base</h3><span className="cap">valor de compra</span></div>
+        <div className="cabecalho"><h3>Património por base</h3><span className="cap">toca numa base</span></div>
+        <p className="ds" style={{ marginTop: 0 }}>
+          O líder de cada base acrescenta os equipamentos no Painel dele, em Inventário — é de lá que estes
+          números saem.
+        </p>
+        <Barras
+          linhas={equipamentosPorBase}
+          vazio="Nenhuma base tem equipamentos registados."
+          aoClicar={alternarBasePatrimonio}
+          selecionada={baseAbertaPatrimonio}
+        />
+
+        {baseAbertaPatrimonio && (
+          <div className="aberto">
+            {itensDaBaseAberta.length === 0 ? (
+              <div className="vaz">Sem equipamentos registados nesta base.</div>
+            ) : itensDaBaseAberta.map((item) => {
+              const abertoItem = itemAberto === item.id;
+              return (
+                <div key={item.id}>
+                  <div
+                    className="linha cabtoque"
+                    onClick={() => setItemAberto(abertoItem ? null : item.id)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setItemAberto(abertoItem ? null : item.id); }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="nmt">{item.nome}</p>
+                      <p className="ds">
+                        {[item.categoria, item.local].filter(Boolean).join(" · ") || "Sem categoria nem local definidos"}
+                      </p>
+                    </div>
+                    {item.estado === "avariado" && <span className="tag" style={{ flex: "none", background: "var(--magenta)" }}>Avariado</span>}
+                    <span className="cabtoque-seta" aria-hidden="true">{abertoItem ? "⌃" : "›"}</span>
+                  </div>
+
+                  {abertoItem && (
+                    <ul className="pa-lista" style={{ padding: "0 0 14px" }}>
+                      <li className={item.estado === "avariado" ? "grave" : undefined}>
+                        Estado: {item.estado === "avariado" ? "Avariado" : item.estado === "ok" ? "Em bom estado" : "Não registado"}
+                      </li>
+                      {item.quantidade !== null && (
+                        <li>Quantidade: {item.quantidade} {item.unidade ? singularizar(item.quantidade, item.unidade) : ""}</li>
+                      )}
+                      {item.local && <li>Local: {item.local}</li>}
+                      {item.tipo && <li>Tipo: {item.tipo}</li>}
+                      <li>{item.valorCompra !== null ? `Valor de compra: ${eur(item.valorCompra / 100)}` : "Sem valor de compra gravado"}</li>
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="ds" style={{ marginTop: 18 }}>Valor de compra conhecido</p>
         <Barras
           linhas={valorPorBase}
           formatar={eur}
           vazio="Nenhum item tem valor de compra gravado."
+          aoClicar={alternarBasePatrimonio}
+          selecionada={baseAbertaPatrimonio}
         />
         {itensSemValor > 0 && (
           <p className="cap" style={{ marginTop: 10 }}>
@@ -271,6 +406,13 @@ export default function Bases({ ativo, definirCabecalho }) {
       )}
 
       {recadoPara && <SheetRecado base={recadoPara} onFechar={() => setRecadoPara(null)} />}
+      {liderPara && (
+        <SheetTrocarLider
+          base={liderPara}
+          onFechar={() => setLiderPara(null)}
+          onTrocado={() => setRecarregar((n) => n + 1)}
+        />
+      )}
     </>
   );
 }

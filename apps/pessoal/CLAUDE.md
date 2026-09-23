@@ -188,21 +188,32 @@ já existente em `lib/culto.js`) — quem escreve é o líder de escala
 DESSE culto (ou a líder da base), a mesma regra de `podeDistribuir`.
 Nada de específico da Pessoal aqui.
 
-### Contagem — subaba de Culto — nove categorias que não somam entre si
+### Contagem — subaba de Culto — categorias que não somam entre si
 
-`membros`, `visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais);
-`new`, `shift`, `juniorFun`, `baby` (viram automáticas quando os
-painéis das salas existirem — por agora manuais, com `origem` gravada
-por categoria desde já, para a transição não pedir migração). Campo
-aceita ficar vazio, guarda quem preencheu cada categoria. Vive no documento
-único `eventos/{AAAA-MM-DD}/contagem/geral`, em `categorias.{id}`, com
-`valor`, `origem`, `preenchidoPor` e `preenchidoEm`. Por agora todas as
-categorias têm origem `manual`; quando existirem painéis das salas, só
-`new`, `shift`, `juniorFun` e `baby` passam a `automatica`. Botão
-"Limpar contagem" (com confirmação) volta as nove a `valor: null` —
-as regras não deixam apagar o documento (histórico do culto), por
-isso é sempre um `update`, nunca um `delete`. Cada categoria mostra
-também a que horas foi preenchida, ao lado de quem preencheu.
+`visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais); `new`,
+`shift`, `junior`, `fun`, `baby` (`origem: "automatica"`, escritas
+pelos painéis das salas — SHIFT, New e Kinder — nunca à mão aqui; ver
+o CLAUDE.md de cada uma). **"Membros" saiu do catálogo** (pedido
+2026-09: sem padrão de preenchimento a sério, ninguém contava).
+**"Junior Fun" separou-se em `junior`/`fun`** (mesmo pedido, para bater
+com as três salas reais da Kinder, cada uma com o seu popup de
+contagem). Campo aceita ficar vazio, guarda quem preencheu cada
+categoria. Vive no documento único `eventos/{AAAA-MM-DD}/contagem/geral`,
+em `categorias.{id}`, com `valor`, `origem`, `preenchidoPor` e
+`preenchidoEm`. Botão "Limpar contagem" (com confirmação) volta todas
+a `valor: null` — as regras não deixam apagar o documento (histórico
+do culto), por isso é sempre um `update`, nunca um `delete`. Cada
+categoria mostra também a que horas foi preenchida, ao lado de quem
+preencheu.
+
+**A Contagem não fica presa a "quando sirvo a seguir".** Pedido
+2026-09 ("hoje é dia 23/09 e o culto de 20/09 não foi marcado, eu
+quero marcar essa data"): a subaba mostra a data do culto que está a
+marcar, com setas ‹ › para andar entre os cultos do mês carregado
+(`eventosMes`, o mesmo que "Ordem do culto"/"Feedbacks" já usam) —
+troca de mês continua pela seta lá em cima, no cabeçalho de Culto.
+Por omissão abre no próximo culto por vir (ou no último, se o mês já
+acabou), mas qualquer domingo do mês fica a um toque, marcado ou não.
 
 Botão **"Salvar contagem"** no fim grava `finalizadoEm`/`finalizadoPor`
 (`finalizarContagem` em `lib/contagem.js`) — cada categoria já grava
@@ -260,11 +271,17 @@ de sempre, que qualquer pessoa autenticada de QUALQUER base lê; ver
 
 ### Catálogo de GDs
 
-`bases/pessoal/gds/{id}` (`nome`, `regiao`) — mesmo padrão do
-catálogo de funções: só a líder escreve (secção "Gerir" dentro do
-Formulário), toda a base lê. Sem cadastro real ainda (nomes/regiões
-verdadeiros entram à mão pela líder) — ver "Não há cadastro de GDs"
-em "Fronteiras" no topo deste ficheiro.
+`gds/{id}` (`nome`, `regiao`) — **global desde 2026-09** (era
+`bases/pessoal/gds`; migrado por `scripts/migrarGDsParaGlobal.mjs`).
+Um GD não é "da Pessoal", é da igreja — o Mural Onda (`apps/mural`)
+passou a precisar do mesmo catálogo para o ecrã de entrada de quem
+não é voluntário, mesma lógica de `eventos/` (CLAUDE.md raiz, regra
+7). Continua o mesmo padrão do catálogo de funções: só a líder da
+Pessoal escreve (secção "Gerir" dentro do Formulário — ver
+`souLiderBase('pessoal')` no `firestore.rules`), agora qualquer base
+autenticada lê. Sem cadastro real ainda (nomes/regiões verdadeiros
+entram à mão pela líder) — ver "Não há cadastro de GDs" em
+"Fronteiras" no topo deste ficheiro.
 
 ### Inventário do café — subaba de Culto
 
@@ -304,7 +321,8 @@ Só a líder da base cria no catálogo.
 - **Sem UI para gerir GDs** — a lista e o formulário de "Gerir" que
   existiam por baixo do Formulário foram tirados (pedido explícito,
   ficava a repetir informação e ninguém geria dali). O catálogo
-  (`bases/pessoal/gds`) só se mexe por `scripts/seedGDsPessoal.mjs` +
+  (`gds/{id}`, global — ver secção acima) só se mexe por
+  `scripts/seedGDsPessoal.mjs` +
   `.github/workflows/rodar-script-admin.yml` — adicionar/editar um GD
   é correr esse script (ou um novo, no mesmo padrão) contra a
   produção. `criarGD` continua em `lib/contactos.js`, sem uso na UI

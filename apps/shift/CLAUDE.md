@@ -109,6 +109,19 @@ fica sem uso nesta base — nada escreve lá a partir da SHIFT.
   pedido nem removido explicitamente. Confirmar com a Melissa se deve
   continuar visível.
 
+## Quantos adolescentes estão presentes — popup no Início
+
+Pedido 2026-09: "QUERO O MESMO NO PAINEL DO SHIFT E DO NEW" — mesmo
+mecanismo da Kinder (ver `apps/kinder/CLAUDE.md`, "Quantas crianças
+estão presentes"), sem divisão por sala: `ContagemCriancas.jsx`
+(`components/`), só para a líder da base (`souLiderBase`), um número
+só. Popup grande no Início, sozinho, uma vez por domingo, enquanto
+não estiver preenchido; depois fica um cartão simples, tocar reabre
+para corrigir. Escreve direto em `eventos/{e}/contagem/geral`
+(categoria `"shift"`) pela Cloud Function `registarContagemSala`
+(`functions/contagemSalas.js`, partilhada com Kinder e New) — a
+Contagem da Base Pessoal, que o Painel Pastoral também lê.
+
 ## Detalhes ainda por fechar com a líder
 
 - Chegada, cor, nome bonito das funções, se há ministérios (hoje

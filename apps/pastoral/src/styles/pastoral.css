@@ -12,6 +12,40 @@
  * `packages/shared`, o nome não colide com nada.
  */
 
+/* ── o título de cada aba, em verde-água ──────────────────────
+ * `.crista` (o cabeçalho partilhado — título + subtítulo + chips)
+ * continua em `var(--grad)`, o azul de sempre: é a cor principal do
+ * painel, não muda. O que muda é só a FONTE do título — `h1`. Um tom
+ * mais claro e saturado do que o `--verde` do resto da app
+ * (`--pa-verde-titulo`): contra o azul do cabeçalho, o `--verde` de
+ * base ficava "apagado" (relato 2026-09) — este é o mesmo tom mais
+ * vivo, escolhido para se destacar a sério a este tamanho de letra.
+ * `font-weight: 900` (o máximo do Outfit) por cima do 800 que o
+ * `global.css` já dava ao h1 — pedido explícito de "em negrito". Só
+ * aqui: o `global.css` fica intacto, as outras nove bases nem sabem
+ * que isto existe. */
+.crista h1 {
+  color: #00e6a0;
+  font-weight: 900;
+}
+
+/* ── etiqueta em cima da data, no início ──────────────────────
+ * "Próximo culto:" (ou "A acontecer agora:" com o culto ao vivo) por
+ * cima do h1 — pedido 2026-09, para não deixar a data grande sozinha
+ * sem dizer que data é essa. `.sob` (o subtítulo, por baixo do h1) já
+ * usa branco a 88% de opacidade sobre o azul do cabeçalho; isto é o
+ * mesmo tom, só que em maiúsculas pequenas, para ler como rótulo e
+ * não como frase. */
+.pa-rotulo-topo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 0.72;
+  margin-top: 22px;
+}
+
 /* ── o número grande de um cartão de resumo ──────────────────
  * Existe porque o mesmo bloco aparece em quatro telas (a servir, no
  * auditório, voluntários ativos, presença média) e estava a ser
@@ -35,7 +69,9 @@
 .pa-graf {
   position: relative;
   margin-top: 14px;
-  padding-bottom: 26px;
+  /* espaço para a data por baixo de um ponto no fundo do gráfico
+     (valor 0 → y:100%) não ficar cortada */
+  padding-bottom: 30px;
 }
 .pa-graf-svg {
   width: 100%;
@@ -85,20 +121,36 @@
   color: var(--tinta);
   font-size: 13px;
 }
-.pa-graf-eixo {
+/* o valor de cada fio da grelha, à direita — "falta legenda" era isto:
+   três fios sem número nenhum ao lado não dizem a que altura ficam */
+.pa-graf-grelha {
   position: absolute;
-  left: 0;
   right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
+  transform: translateY(-50%);
+  font-size: 10px;
   color: var(--cinza);
+  background: #fff;
+  padding-left: 4px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
-.pa-graf-eixo b {
-  color: var(--tinta);
-  font-weight: 700;
+/* a data de cada ponto rotulado, sempre por baixo da própria bolinha
+   — em px fixos a partir do centro, não em %, para não depender da
+   altura do gráfico */
+.pa-graf-data {
+  position: absolute;
+  transform: translate(-50%, 11px);
+  font-size: 10.5px;
+  color: var(--cinza);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* série curta com TODOS os pontos rotulados (`todosRotulados` em
+   LinhaTempo.jsx, ex.: "Voluntários por culto") — dez datas lado a
+   lado têm menos espaço cada uma do que as 3-4 de uma série longa;
+   uma fonte um pouco menor reduz o risco de colidir com a vizinha. */
+.pa-graf-data-denso {
+  font-size: 9.5px;
 }
 
 /* ── funil de visitantes ─────────────────────────────────────
@@ -182,6 +234,23 @@
   font-size: 11px;
   color: var(--cinza);
   margin-top: 2px;
+}
+
+/* ── aviso forte (verde-água) ─────────────────────────────────
+ * Para o que precisa de se notar mas não é uma emergência (a `caixa
+ * destaque` do global.css, em gradiente azul, fica para isso) — o
+ * banner de "bases sem escala" em Domingo.jsx nasceu no fundo suave
+ * `--agua` e ficava "ruim de ver" (relato 2026-09); isto é o meio
+ * termo pedido a seguir: uma cor forte, mas não a mesma dos avisos
+ * mais graves. */
+.pa-aviso {
+  background: var(--verde);
+  color: #fff;
+  border-color: transparent;
+}
+.pa-aviso p,
+.pa-aviso b {
+  color: #fff;
 }
 
 /* ── lista de pendências de uma base ─────────────────────────
@@ -285,23 +354,18 @@
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--fio);
 }
+/* um domingo sem mapa fechado — cinzento sólido, sem cursor de toque,
+   de propósito diferente do "vazio" (0% de ocupação, branco com
+   contorno): uma coisa é "esteve vazio", outra é "ninguém fechou o
+   mapa ainda", e são perguntas diferentes */
+.pa-calor-q.porfechar {
+  background: rgba(10, 15, 46, 0.09);
+  cursor: default;
+}
 /* o selecionado ganha um anel escuro, não outra cor: a cor aqui está
    ocupada a dizer quanta gente esteve */
 .pa-calor-q.on {
   box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--tinta);
-}
-.pa-calor-legenda {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 12px;
-  font-size: 11px;
-  color: var(--cinza);
-}
-.pa-calor-legenda i {
-  width: 18px;
-  height: 10px;
-  border-radius: 3px;
 }
 
 /* ── a ordem do culto em papel ───────────────────────────────

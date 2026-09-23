@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ETAPAS, CORES_ETAPA, diasParado, indiceEtapa, nomeEtapa } from "../lib/contactos";
-import { moverEtapaContacto } from "../lib/pastoral";
+import { ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, indiceEtapa, nomeEtapa } from "../lib/contactos";
+import { arquivarContactoPastoral, moverEtapaContacto } from "../lib/pastoral";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
 
@@ -24,6 +24,7 @@ import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
 export default function SheetContacto({ contacto, onFechar }) {
   const torrada = useTorrada();
   const [aGuardar, setAGuardar] = useState(false);
+  const [aArquivar, setAArquivar] = useState(false);
   const atual = contacto.etapa ?? "visita";
   const dias = diasParado(contacto);
   const wa = linkWhatsApp(contacto.telemovel);
@@ -38,6 +39,23 @@ export default function SheetContacto({ contacto, onFechar }) {
       torrada(e.message || "Não foi possível mover.");
     } finally {
       setAGuardar(false);
+    }
+  }
+
+  /** "Excluir" nunca é um delete a sério (regra 5 do CLAUDE.md raiz) —
+   *  arquiva, o mesmo campo que a Base Pessoal já usa no Formulário
+   *  dela. `ouvirContactos` já filtra `arquivado`, por isso a lista
+   *  perde este contacto sozinha assim que a escrita chegar. */
+  async function arquivar() {
+    if (!window.confirm(`Excluir ${contacto.nome} do funil? Não aparece mais em lado nenhum, mas o registo fica guardado.`)) return;
+    setAArquivar(true);
+    try {
+      await arquivarContactoPastoral(contacto.id);
+      torrada(`${contacto.nome} excluído do funil`);
+      onFechar();
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir.");
+      setAArquivar(false);
     }
   }
 
@@ -75,6 +93,13 @@ export default function SheetContacto({ contacto, onFechar }) {
           {contacto.eventoId ? ` · no culto de ${contacto.eventoId}` : ""}
         </p>
 
+        {contacto.telemovel && (
+          <>
+            <label className="rot" style={{ marginTop: 12 }}>Contacto</label>
+            <p className="ds">{contacto.telemovel}</p>
+          </>
+        )}
+
         {wa && (
           <a className="btn sec full" href={wa} target="_blank" rel="noreferrer" style={{ marginTop: 14, display: "block", textAlign: "center" }}>
             Falar por WhatsApp
@@ -82,9 +107,6 @@ export default function SheetContacto({ contacto, onFechar }) {
         )}
 
         <label className="rot" style={{ marginTop: 18 }}>Mover para</label>
-        <p className="cap" style={{ marginTop: 2 }}>
-          Dá para voltar atrás — corrigir um engano nunca apaga o que já aconteceu.
-        </p>
         <div className="pa-etapas">
           {ETAPAS.map((e) => {
             const i = indiceEtapa(e.id);
@@ -93,7 +115,7 @@ export default function SheetContacto({ contacto, onFechar }) {
               <button
                 key={e.id}
                 className={`pa-etapa${e.id === atual ? " on" : ""}${i < iAtual ? " feita" : ""}`}
-                style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id] } : undefined}
+                style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id], color: corTextoEtapa(e.id) } : undefined}
                 disabled={aGuardar || e.id === atual}
                 onClick={() => mover(e.id)}
               >
@@ -114,7 +136,10 @@ export default function SheetContacto({ contacto, onFechar }) {
           </>
         )}
 
-        <button className="btn sec full" style={{ marginTop: 18 }} onClick={onFechar}>Fechar</button>
+        <button className="btn sec full" style={{ marginTop: 18, color: "var(--magenta)" }} disabled={aArquivar} onClick={arquivar}>
+          {aArquivar ? "A excluir…" : "Excluir do funil"}
+        </button>
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
     </>
   );

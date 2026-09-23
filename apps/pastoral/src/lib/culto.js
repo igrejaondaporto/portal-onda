@@ -17,11 +17,19 @@
  * das dez bases seria caro e lento — o raciocínio já estava escrito em
  * `checklistCrossBase` e vale igual aqui.
  */
-import { collection, documentId, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, doc, documentId, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db, chamar } from "@portal/shared/lib/firebase.js";
 import {
-  cChecklist, cContagem, cCultoAoVivo, cEvento, cEventos, cPonteiroAoVivo,
+  cChecklist, cContagem, cCultoAoVivo, cEvento, cEventos, cMapaAcomodacao, cPonteiroAoVivo,
 } from "./modelo";
+
+/** A Kinder não escreve em `eventos/{e}/checklist` como as outras
+ *  nove bases — o estado dela vive em `eventos/{e}/checklistKinder/
+ *  {sala}.itens`, um documento por sala (ver CLAUDE.md da Kinder).
+ *  `checklistCrossBase` já devolve os itens dela no catálogo
+ *  (`ministerioId` = a sala); falta juntar aqui o ESTADO ao vivo, ou
+ *  a percentagem da Kinder nunca sairia de 0% no painel. */
+const SALAS_KINDER_CHECKLIST = ["baby", "fun", "junior"];
 
 /* ── cultos ────────────────────────────────────────────────── */
 
@@ -66,16 +74,41 @@ export function ouvirCultoAoVivo(eventoId, cb) {
 
 export function ouvirChecklist(eventoId, cb) {
   if (!eventoId) return () => {};
-  return onSnapshot(cChecklist(eventoId), (snap) => {
-    const mapa = {};
-    snap.forEach((d) => { mapa[d.id] = d.data(); });
-    cb(mapa);
-  });
+  // achatado num mapa só (id do item → {por, hora}) — quem lê
+  // (`Domingo.jsx`) só faz `checklist[f.id]` e não precisa de saber
+  // de onde veio cada marca, geral ou de uma sala da Kinder.
+  const partes = { geral: {}, baby: {}, fun: {}, junior: {} };
+  const emitir = () => cb({ ...partes.geral, ...partes.baby, ...partes.fun, ...partes.junior });
+
+  const paragens = [
+    onSnapshot(cChecklist(eventoId), (snap) => {
+      const mapa = {};
+      snap.forEach((d) => { mapa[d.id] = d.data(); });
+      partes.geral = mapa;
+      emitir();
+    }),
+    ...SALAS_KINDER_CHECKLIST.map((sala) =>
+      onSnapshot(doc(db, `eventos/${eventoId}/checklistKinder/${sala}`), (s) => {
+        partes[sala] = s.exists() ? (s.data().itens || {}) : {};
+        emitir();
+      })
+    ),
+  ];
+  return () => paragens.forEach((parar) => parar());
 }
 
 export function ouvirContagem(eventoId, cb) {
   if (!eventoId) return () => {};
   return onSnapshot(cContagem(eventoId), (s) => cb(s.exists() ? s.data() : null));
+}
+
+/** O mapa do auditório AO VIVO — para "pessoas no auditório" no
+ *  Início. Sistema diferente da Contagem manual acima (ver o
+ *  comentário grande em `MapaCalor.jsx`): o mapa é lugar a lugar,
+ *  marcado por quem tem a função Mapa na Base Pessoal. */
+export function ouvirMapaAcomodacao(eventoId, cb) {
+  if (!eventoId) return () => {};
+  return onSnapshot(cMapaAcomodacao(eventoId), (s) => cb(s.exists() ? s.data() : null));
 }
 
 /** A checklist de um culto para VÁRIOS cultos de uma vez — para a

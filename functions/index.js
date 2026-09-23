@@ -36,6 +36,17 @@ export {
   purgarFamiliasInativasKinder, purgarAnexosLicoesAntigasKinder,
 } from "./kinder.js";
 
+// Mural Onda: anúncios de dou/vendo/arrendo e de procuro, da igreja
+// toda — ficheiro próprio, mesmo motivo de kinder.js (ver o
+// comentário no topo de mural.js).
+export {
+  listarBasesMural, listarGDsMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
+  souAdminMuralAgora, desbloquearModeracaoMural, pedirContactoAnuncio, criarAnuncio, editarAnuncio,
+  definirFotosAnuncio, alterarEstadoAnuncio,
+  renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
+  resumoSemanalMural, manutencaoMural,
+} from "./mural.js";
+
 // Painel Pastoral: ler as 10 bases de uma vez, nunca escrever nelas —
 // ficheiro próprio pelo mesmo motivo do kinder.js (ver o comentário no
 // topo de pastoral.js). A ordem do culto que o pastor publica NÃO
@@ -44,7 +55,15 @@ export {
 export {
   panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
   desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
+  definirLiderBase, corrigirDuracaoSecaoCulto, arquivarContactoPastoral,
+  criarPessoaPastoral, reporPinPastoral,
 } from "./pastoral.js";
+
+// Contagem de crianças por sala (Kinder/SHIFT/New) — escreve direto
+// na Contagem da Base Pessoal, ficheiro próprio pelo mesmo motivo de
+// kinder.js/mural.js/pastoral.js (ver o comentário no topo de
+// contagemSalas.js).
+export { registarContagemSala } from "./contagemSalas.js";
 
 // Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio
 // por apagar dados a sério, sozinha, todos os dias — ver os três
@@ -164,7 +183,13 @@ async function basesDaPessoa(uid) {
 async function nomesDePessoas(baseId, ids) {
   const snaps = await Promise.all([...ids].map((id) => refPessoa(baseId, id).get()));
   return Object.fromEntries(snaps.filter((s) => s.exists).map((s) => [
-    s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+    s.id, {
+      nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "",
+      // sala fixa da Kinder (baby/fun/junior); undefined/null em
+      // qualquer outra base, que não tem este campo — sem custo para
+      // quem não usa (só escalasCrossBase lê `categoria` hoje).
+      categoria: s.data().categoria ?? null,
+    },
   ]));
 }
 
@@ -1679,12 +1704,53 @@ export const escalasCrossBase = onCall(async (req) => {
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
 
   const resultado = await Promise.all(bases.map(async (b) => {
-    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null };
+    // aditivo, para quem precisar de distinguir uma base que nunca
+    // serve no culto (Financeiro, Pastoral) — ver semEscalaDeCulto no
+    // Painel Pastoral. Não muda o que já existia para mais ninguém.
+    const base = { baseId: b.id, nome: b.nome ?? b.id, cor: b.cor ?? null, semEscalaDeCulto: b.semEscalaDeCulto === true };
     const escalaSnap = await db.doc(`eventos/${eventoId}/escalas/${b.id}`).get();
     if (!escalaSnap.exists) return { ...base, tipo: "vazio" };
     const escala = escalaSnap.data();
 
     if (Array.isArray(escala.lugares) && escala.lugares.length) {
+      // A Comunicação usa "lista aberta" por ministério — `lugares:
+      // [{ministerioId, pessoas: [id, ...]}]`, sem titular/aprendiz
+      // fixos (pedido do líder, ver CLAUDE.md dessa base: "acontece
+      // de ter dois fotógrafos... o modelo de 2 lugares fixos não
+      // dava"). Sem este ramo, `idsPessoas`/`itens` só olhavam para
+      // `titularId`/`aprendizId` — inexistentes neste formato — e a
+      // escala da Comunicação vinha sempre como "vazio", mesmo cheia
+      // (reportado 2026-09: "não está aparecendo a escala... da
+      // Comunicação"). Detecta pelo campo `pessoas` (array) no
+      // próprio lugar, que só este formato tem.
+      const listaAberta = escala.lugares.some((l) => Array.isArray(l.pessoas));
+      if (listaAberta) {
+        const idsPessoas = [...new Set(escala.lugares.flatMap((l) => l.pessoas || []).filter(Boolean))];
+        const idsMinisterios = [...new Set(escala.lugares.map((l) => l.ministerioId).filter(Boolean))];
+        const [pessoasSnaps, ministeriosSnaps] = await Promise.all([
+          Promise.all(idsPessoas.map((id) => refPessoa(b.id, id).get())),
+          Promise.all(idsMinisterios.map((id) => db.doc(`bases/${b.id}/ministerios/${id}`).get())),
+        ]);
+        const pessoaResumo = Object.fromEntries(
+          pessoasSnaps.filter((s) => s.exists).map((s) => [
+            s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+          ])
+        );
+        const nomeMinisterio = Object.fromEntries(ministeriosSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+        // uma "linha" por pessoa, sem aprendiz — a etiqueta titular/
+        // aprendiz aqui é da PESSOA (pessoa.ministerios[id]), não da
+        // escala, e não interessa a este resumo (ver CLAUDE.md).
+        const itens = escala.lugares
+          .filter((l) => (l.pessoas || []).length)
+          .flatMap((l) => (l.pessoas || []).map((id) => ({
+            ministerio: nomeMinisterio[l.ministerioId] ?? l.ministerioId,
+            titular: pessoaResumo[id] ?? null,
+            aprendiz: null,
+          })));
+        if (!itens.length) return { ...base, tipo: "vazio" };
+        return { ...base, tipo: "lugares", itens };
+      }
+
       const idsPessoas = [...new Set(escala.lugares.flatMap((l) => [l.titularId, l.aprendizId]).filter(Boolean))];
       const idsMinisterios = [...new Set(escala.lugares.map((l) => l.ministerioId).filter(Boolean))];
       const [pessoasSnaps, ministeriosSnaps] = await Promise.all([
@@ -1773,6 +1839,42 @@ export const checklistCrossBase = onCall(async (req) => {
         ministerioNome: f.ministerioId ? (ministerios[f.ministerioId]?.nome ?? null) : null,
         ministerioCor: f.ministerioId ? (ministerios[f.ministerioId]?.cor ?? null) : null,
       }));
+
+    // A Kinder não usa `bases/{b}/funcoes` para a checklist — o
+    // catálogo dela é `checklistSala` (título/subtítulo/horário por
+    // SALA, ver CLAUDE.md da Kinder), por isso `funcoes` ficava
+    // sempre vazio aqui e o painel mostrava "sem checklist criada"
+    // mesmo com itens de sobra (reportado 2026-09: "diz que não tem
+    // Checklist também"). Entra como mais "funções" no mesmo formato,
+    // com a SALA (baby/fun/junior) a fazer de "ministério" — mesmas
+    // cores de sempre (apps/kinder/src/lib/modelo.js, CATEGORIAS),
+    // duplicadas aqui como em qualquer outro sítio deste ficheiro que
+    // não importa de apps/*.
+    if (b.id === "kinder") {
+      const SALAS_KINDER = {
+        baby: { nome: "Baby", cor: "#7b5cff" },
+        fun: { nome: "Fun", cor: "#f5c400" },
+        junior: { nome: "Júnior", cor: "#1e7bf0" },
+      };
+      const checklistSalaSnap = await db.collection("bases/kinder/checklistSala").where("ativo", "==", true).get();
+      const itensSala = checklistSalaSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        // só os CRIADOS a sério (título preenchido) — `criarItemChecklist`
+        // (apps/kinder/src/lib/kinder.js) não valida um `titulo` vazio no
+        // cliente antes de gravar, e o formulário de "+ item" fica sempre
+        // visível por baixo da lista (campo "Título do item" em branco);
+        // sem este filtro, uma linha em branco tocada por engano entrava
+        // na conta como se fosse uma tarefa a sério (reportado 2026-09:
+        // "só tem 8, favor contar apenas os criados" — o painel mostrava 13).
+        .filter((it) => String(it.titulo ?? "").trim())
+        .map((it) => ({
+          id: it.id, nome: it.titulo, fase: it.fase || "pre",
+          ministerioId: it.categoria ?? null,
+          ministerioNome: SALAS_KINDER[it.categoria]?.nome ?? null,
+          ministerioCor: SALAS_KINDER[it.categoria]?.cor ?? null,
+        }));
+      funcoes.push(...itensSala);
+    }
 
     return { ...base, funcoes, pessoas, total: funcoes.length };
   }));
@@ -1988,6 +2090,108 @@ export const arquivarResumoAcomodacao = onCall(async (req) => {
   return { ok: true };
 });
 
+/** Conta os lugares dum mapa, sem `fechadoEm`/`fechadoPor`/`eventoId`
+ *  — mesma conta de `resumoAcomodacao`, mas para um mapa que ainda
+ *  não fechou (nada para gravar, só para mostrar). */
+function contarLugares(lugares) {
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
+  const ocupados = contagem.ocupado + contagem.visitante;
+  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  return {
+    ocupados: contagem.ocupado, visitantes: contagem.visitante, livres: contagem.livre,
+    reservados: contagem.reservado, bloqueados: contagem.bloqueado,
+    capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
+  };
+}
+
+const MESES_JANELA_MAPAS_POR_FECHAR = 6;
+
+/** Cultos com mapa AO VIVO por fechar: o mapa existe, tem gente
+ *  marcada (pelo menos um lugar diferente de "livre") e nunca foi
+ *  fechado. Reportado 2026-09: "Cultos fechados" (ResumosAcomodacao.jsx)
+ *  mostrava "nenhum ainda" enquanto o Painel Pastoral já tinha dados
+ *  de ocupação de domingos passados — porque `historicoPastoral` lê o
+ *  mapa AO VIVO sempre que não há resumo fechado (decisão de 2026-09:
+ *  "alguém preencheu mas não fechou, os números vão pros painéis da
+ *  mesma forma"). Até agora não havia como ver, corrigir nem zerar
+ *  esses mapas: `Acomodacao.jsx` só mostra o de HOJE, nunca um
+ *  domingo passado (de propósito — ver o comentário lá sobre porque
+ *  "corrigir data" foi removida). Esta função é o que falta: uma
+ *  lista, para o líder decidir por cada um — fechar a sério
+ *  (`fecharAcomodacao`, já aceita qualquer `eventoId`) ou limpar
+ *  (`limparMapaAcomodacaoAoVivo`, abaixo).
+ *
+ *  Só os últimos `MESES_JANELA_MAPAS_POR_FECHAR` meses — é uma lista
+ *  de atenção, não um histórico (esse já existe, é "Cultos fechados"). */
+export const mapasAcomodacaoPorFechar = onCall(async (req) => {
+  if (!req.auth?.uid || req.auth?.token?.baseId !== "pessoal") {
+    throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+  }
+  const hoje = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const desde = iso(new Date(hoje.getFullYear(), hoje.getMonth() - MESES_JANELA_MAPAS_POR_FECHAR, hoje.getDate()));
+  const antesDeHoje = iso(hoje); // hoje fica de fora — é o que o Mapa já mostra, sempre
+
+  const eventosSnap = await db.collection("eventos")
+    .where(admin.firestore.FieldPath.documentId(), ">=", desde)
+    .where(admin.firestore.FieldPath.documentId(), "<", antesDeHoje)
+    .get();
+  const eventos = eventosSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => e.ativo !== false);
+
+  const resultados = await Promise.all(eventos.map(async (e) => {
+    const mapaSnap = await db.doc(`eventos/${e.id}/acomodacao/mapa`).get();
+    if (!mapaSnap.exists || mapaSnap.data().fechado === true) return null;
+    const lugares = mapaSnap.data().lugares || {};
+    // "reservado"/"bloqueado" já vêm da PLANTA (A1-A4 fixos, a cadeira
+    // partida) mesmo num mapa que ninguém tocou — `estadoInicialLugares`
+    // grava-os assim desde a criação do documento. Só "ocupado" e
+    // "visitante" provam que alguém sentou gente a sério; é a mesma
+    // conta que `ocupados` usa no resumo (e no Painel Pastoral) — um
+    // mapa sem ninguém marcado não entra aqui, mesmo que o documento já
+    // exista.
+    const resumo = contarLugares(lugares);
+    if (resumo.ocupados + resumo.visitantes === 0) return null;
+    return { eventoId: e.id, data: e.data ?? e.id, ...resumo };
+  }));
+
+  return { cultos: resultados.filter(Boolean).sort((a, b) => b.eventoId.localeCompare(a.eventoId)) };
+});
+
+/** "Excluir" um mapa ao vivo que nunca chegou a fechar — zera todos
+ *  os lugares de volta a "livre", sem marcar `fechado`. Nunca apaga o
+ *  documento a sério (regra 5 do CLAUDE.md raiz): o mapa continua a
+ *  existir, só sem gente marcada, por isso some da lista acima e do
+ *  calor do Painel Pastoral (que passa a ler um mapa todo "livre" —
+ *  0 ocupados, não um culto ausente). Mesma permissão de fechar/
+ *  reabrir: líder da base, ou quem tinha a função Mapa nesse culto. */
+export const limparMapaAcomodacaoAoVivo = onCall(async (req) => {
+  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
+  if (baseId !== "pessoal") throw new HttpsError("permission-denied", "Só a Base Pessoal tem Acomodação.");
+
+  const { eventoId } = req.data || {};
+  if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
+
+  const souLiderBase = PAPEIS_LIDER.has(req.auth.token.papel);
+  if (!souLiderBase) {
+    const atribuicao = await db.doc(`eventos/${eventoId}/atribuicoes/drive`).get();
+    const souDrive = atribuicao.exists && (atribuicao.data().pessoas || []).includes(uid);
+    if (!souDrive) throw new HttpsError("permission-denied", "Só quem tem a função Mapa neste culto pode excluir.");
+  }
+
+  const mapaRef = db.doc(`eventos/${eventoId}/acomodacao/mapa`);
+  const mapa = await mapaRef.get();
+  if (!mapa.exists) throw new HttpsError("not-found", "Este culto ainda não tem mapa.");
+  if (mapa.data().fechado) throw new HttpsError("failed-precondition", "Este culto já foi fechado — reabre antes de limpar.");
+
+  const lugares = mapa.data().lugares || {};
+  const limpos = Object.fromEntries(Object.keys(lugares).map((id) => [id, "livre"]));
+  await mapaRef.update({ lugares: limpos });
+
+  return { ok: true };
+});
+
 /* ── ORDEM DO CULTO: PDF → texto → estrutura ──────────────────
  * O analisador vive em `ordemCultoPdf.js`, sem `firebase-admin` pelo
  * meio, para se poder correr com um `node` e um PDF de mentira — ver
@@ -2025,8 +2229,14 @@ export const publicarOrdemCulto = onCall(async (req) => {
   if (!eventoId || !Array.isArray(momentos) || !Array.isArray(avisos)) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
   }
-  if (!TIPOS_CULTO.has(tipoCulto)) {
-    throw new HttpsError("invalid-argument", "Falta escolher o tipo de culto (Ceia, Contribua ou Culto da Família).");
+  // além dos três fixos, aceita um tipo escrito à mão (botão "+ Outro"
+  // no Painel Pastoral) — só validado por forma (não vazio, não
+  // gigante), nunca contra a lista fechada: um tipo novo (ex. "Culto
+  // de Natal") não devia pedir deploy nenhum para poder ser publicado.
+  const tipoValido = TIPOS_CULTO.has(tipoCulto)
+    || (typeof tipoCulto === "string" && tipoCulto.trim().length > 0 && tipoCulto.trim().length <= 40);
+  if (!tipoValido) {
+    throw new HttpsError("invalid-argument", "Falta escolher (ou escrever) o tipo de culto.");
   }
   const evento = await db.doc(`eventos/${eventoId}`).get();
   if (!evento.exists) throw new HttpsError("not-found", "Culto não encontrado.");
@@ -2049,7 +2259,7 @@ export const publicarOrdemCulto = onCall(async (req) => {
 
   const avisosLimpos = avisos.map(({ nome, data, info }) => ({ nome, data, info }));
   await db.doc(`eventos/${eventoId}`).set({
-    tipoCulto,
+    tipoCulto: tipoCulto.trim(),
     ordem: {
       momentos, avisos: avisosLimpos, inicio: inicio ?? null, fim: fim ?? null,
       portasAbertas: portasAbertas ?? inicio ?? null,

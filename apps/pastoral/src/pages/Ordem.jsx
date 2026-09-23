@@ -9,6 +9,7 @@ import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
 import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import OrdemImprimivel from "../components/OrdemImprimivel";
+import NavCulto from "../components/NavCulto";
 
 function janela() {
   const h = new Date();
@@ -42,7 +43,7 @@ function janela() {
  * claim) e continua a ser dona das notas dela, que aparecem por cima
  * da ordem e nunca se confundem com o que o pastor escreveu.
  *
- * ── Desligada por omissão (2026-09) ──────────────────────────────
+ * ── Publicar continua desligado por omissão (2026-09) ────────────
  *
  * `publicarOrdemCulto` SUBSTITUI o campo `ordem` inteiro — não há
  * merge por secção. Isso é ótimo enquanto só a Backstage publica (é o
@@ -53,11 +54,17 @@ function janela() {
  *
  * Por isso `culto.podePublicar` fica `false` em `bases/pastoral`
  * (`scripts/seedPastoral.mjs`) até a equipa decidir mudar para este
- * caminho a sério — e o gatilho é literalmente essa claim: em vez de
- * uma flag nova, `podePublicarCulto` (o mesmo booleano que já protege
- * a Cloud Function) decide se esta tela mostra o formulário ou uma
- * explicação. Sem ele, publicar falharia com permission-denied depois
- * de a pessoa já ter composto tudo — pior do que não mostrar a tela.
+ * caminho a sério. **Mas isso já não esconde a tela inteira** (mudou
+ * 2026-09): compor, imprimir e guardar modelos nunca tocam no
+ * documento partilhado — só `publicarOrdemCulto`/`limparOrdemCulto`
+ * tocam, por isso só os botões "Publicar"/"Retirar" ficam desativados
+ * sem a claim, com uma legenda a dizer porquê. Pedido explícito do
+ * dono do produto: montar a ordem já com a equipa a ver a folha antes
+ * de decidir publicar de vez, em vez de uma tela vazia até essa
+ * decisão. `podePublicarCulto` (o mesmo booleano que já protege a
+ * Cloud Function do lado do servidor) é quem decide os dois botões —
+ * sem ele, publicar falharia com permission-denied mesmo carregando
+ * no botão, por isso ele nunca aparece clicável sem a claim.
  */
 export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const torrada = useTorrada();
@@ -67,16 +74,23 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const [avisos, setAvisos] = useState([]);
   const [tipoCulto, setTipoCulto] = useState("");
   const [modelos, setModelos] = useState([]);
+  const [modelosProntos, setModelosProntos] = useState(false);
   const [aPublicar, setAPublicar] = useState(false);
   const [nomeModelo, setNomeModelo] = useState("");
   const [aGuardarModelo, setAGuardarModelo] = useState(false);
   const [carregadoDe, setCarregadoDe] = useState(null);
+  const [aAdicionarTipo, setAAdicionarTipo] = useState(false);
+  const [outroTipo, setOutroTipo] = useState("");
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
 
   useEffect(() => ouvirEventos(de, ate, setEventos), [de, ate]);
-  useEffect(() => ouvirModelos(setModelos), []);
+  // `modelosProntos` marca a primeira emissão — sem isto não dá para
+  // distinguir "ainda a carregar" de "carregou e está mesmo vazio", e
+  // o culto sem ordem arriscava carregar com uma linha em branco antes
+  // do "Domingo típico" chegar a tempo.
+  useEffect(() => ouvirModelos((m) => { setModelos(m); setModelosProntos(true); }), []);
 
   useEffect(() => {
     if (!eventos.length) return;
@@ -85,61 +99,47 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
 
-  // ao trocar de culto, carrega o que já lá está (ou uma linha vazia).
-  // `carregadoDe` evita reescrever o formulário a cada emissão do
-  // listener de eventos: sem isto, escrever num campo e o snapshot
-  // chegar a seguir apagava o que se tinha acabado de escrever.
+  // ao trocar de culto, carrega o que já lá está. Sem ordem nenhuma,
+  // começa já da espinha do "Domingo típico" em vez de uma folha em
+  // branco (pedido explícito do dono do produto — "já monte baseado
+  // na ordem que sempre usamos") — só espera os modelos carregarem
+  // uma vez, para não mostrar vazio e trocar logo a seguir debaixo do
+  // dedo de quem já estivesse a escrever. `carregadoDe` evita
+  // reescrever o formulário a cada emissão do listener de eventos:
+  // sem isto, escrever num campo e o snapshot chegar a seguir apagava
+  // o que se tinha acabado de escrever.
   useEffect(() => {
     if (!evento || carregadoDe === evento.id) return;
-    const form = ordemParaFormulario(evento.ordem);
-    setMomentos(form.momentos);
-    setAvisos(form.avisos);
-    setTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data));
+    if (evento.ordem) {
+      const form = ordemParaFormulario(evento.ordem);
+      setMomentos(form.momentos);
+      setAvisos(form.avisos);
+      setTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data));
+      setCarregadoDe(evento.id);
+      return;
+    }
+    if (!modelosProntos) return;
+    const padrao = modelos.find((m) => m.padrao);
+    setMomentos(padrao ? modeloParaFormulario(padrao).momentos : [momentoVazio()]);
+    setAvisos([]);
+    setTipoCulto(tipoCultoDefault(evento.data));
     setCarregadoDe(evento.id);
-  }, [evento, carregadoDe]);
+  }, [evento, carregadoDe, modelos, modelosProntos]);
 
   const horas = useMemo(() => horasDaOrdem(momentos), [momentos]);
   const total = duracaoTotal(momentos);
 
   useEffect(() => {
     if (!ativo) return;
-    if (!podePublicarCulto) {
-      definirCabecalho({
-        titulo: "Ordem do culto",
-        subtitulo: "Ainda pela Backstage, como sempre",
-        chips: [],
-      });
-      return;
-    }
     definirCabecalho({
       titulo: "Ordem do culto",
       subtitulo: evento ? nomeEvento(evento) : "Escolhe o culto",
       chips: [
         `${Math.floor(total / 60)}h${String(total % 60).padStart(2, "0")}`,
-        evento?.ordem ? "Já publicada" : "Por publicar",
+        !podePublicarCulto ? "Rascunho — ainda não publica" : evento?.ordem ? "Já publicada" : "Por publicar",
       ],
     });
   }, [ativo, definirCabecalho, podePublicarCulto, evento, total]);
-
-  // Sem a claim, esta tela não compõe nem publica — ver o porquê no
-  // cabeçalho do ficheiro. Depois de TODOS os hooks (nunca antes: um
-  // return condicional acima deles quebraria a ordem dos hooks entre
-  // renderizações, o mesmo bug de regra que já derrubou a Técnica uma
-  // vez — ver eslint.config.js raiz).
-  if (!podePublicarCulto) {
-    return (
-      <div className="caixa" style={{ marginTop: 14 }}>
-        <p className="ds" style={{ marginTop: 0 }}>
-          A ordem do culto continua a subir pela Backstage, em PDF — como sempre.
-        </p>
-        <p className="ds" style={{ marginTop: 10 }}>
-          Esta tela já monta e publica a ordem diretamente, mas fica desligada até a equipa decidir usar este
-          caminho a sério: publicar por aqui e pela Backstage é o mesmo documento, e o segundo a publicar
-          apaga o que o primeiro tinha posto.
-        </p>
-      </div>
-    );
-  }
 
   /* ── momentos ────────────────────────────────────────────── */
   const atualizar = (i, campo, valor) =>
@@ -164,7 +164,9 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   async function publicar() {
     const ms = limparMomentos(momentos);
     if (!ms.length) return torrada("Põe pelo menos um momento com hora e nome.");
-    if (!TIPOS_CULTO.some((t) => t.id === tipoCulto)) return torrada("Escolhe o tipo de culto.");
+    // além dos fixos, aceita um tipo escrito à mão (ver "+ Outro" mais
+    // abaixo) — a validação a sério é a mesma da Cloud Function
+    if (!tipoCulto?.trim()) return torrada("Escolhe (ou escreve) o tipo de culto.");
 
     setAPublicar(true);
     try {
@@ -223,19 +225,30 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
     torrada(`"${modelo.nome}" carregado — as horas e os nomes ficaram, os responsáveis não.`);
   }
 
+  function usarOutroTipo() {
+    if (!outroTipo.trim()) return;
+    setTipoCulto(outroTipo.trim());
+    setOutroTipo("");
+    setAAdicionarTipo(false);
+  }
+
   return (
     <>
-      <select
-        className="campo ordselect" value={eventoId ?? ""}
-        onChange={(e) => { setEventoId(e.target.value); setCarregadoDe(null); }}
-        style={{ marginTop: 14 }}
-      >
-        {eventos.map((e) => (
-          <option key={e.id} value={e.id}>
-            {nomeEvento(e)}{e.ordem ? " · com ordem" : ""}
-          </option>
-        ))}
-      </select>
+      <NavCulto
+        eventos={eventos} eventoId={eventoId} evento={evento}
+        onEscolher={(id) => { setEventoId(id); setCarregadoDe(null); }}
+        extra={evento?.ordem ? <span className="tag lim">com ordem</span> : null}
+      />
+
+      {!podePublicarCulto && (
+        <div className="caixa" style={{ marginTop: 14 }}>
+          <p className="ds" style={{ marginTop: 0 }}>
+            A ordem oficial continua a subir pela Backstage, em PDF — como sempre. Aqui dá para montar e imprimir
+            um rascunho já, mas <b>publicar às dez bases ainda está desligado</b>: publicar por aqui e pela
+            Backstage é o mesmo documento, e o segundo a publicar apaga o que o primeiro tinha posto.
+          </p>
+        </div>
+      )}
 
       {!eventos.length && (
         <div className="vaz" style={{ marginTop: 12 }}>
@@ -245,30 +258,36 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
       )}
 
       {/* ── modelos ─────────────────────────────────────────── */}
-      {modelos.length > 0 && (
-        <div className="sect">
-          <div className="cabecalho"><h3>Começar de um modelo</h3><span className="cap">{modelos.length}</span></div>
-          <p className="ds" style={{ marginTop: 0 }}>
-            Carrega a espinha do domingo típico. As horas e os nomes vêm; os responsáveis não — quem prega muda
-            todas as semanas, e um modelo que trouxesse o nome da semana passada publicava o pregador errado.
-          </p>
-          {modelos.map((m) => (
-            <div className="linha" key={m.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="nmt">{m.nome}</p>
-                <p className="ds">{m.momentos?.length ?? 0} momentos</p>
-              </div>
-              <button className="btn sec" style={{ flex: "none" }} onClick={() => carregar(m)}>Usar</button>
-              <button
-                className="btn sec" style={{ flex: "none", color: "var(--magenta)" }}
-                onClick={() => apagarModelo(m.id).then(() => torrada("Modelo apagado."))}
-              >
-                Apagar
-              </button>
-            </div>
-          ))}
+      <div className="sect">
+        <div className="cabecalho"><h3>Modelos</h3><span className="cap">{modelos.length}</span></div>
+        <p className="ds" style={{ marginTop: 0 }}>
+          Carrega a espinha de um domingo típico, ou guarda a de agora como modelo novo. As horas e os nomes
+          ficam; os responsáveis não — quem prega muda todas as semanas, e um modelo que trouxesse o nome da
+          semana passada publicava o pregador errado.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input
+            className="campo" style={{ marginTop: 0, flex: 1 }} value={nomeModelo}
+            placeholder="Guardar isto como modelo" onChange={(e) => setNomeModelo(e.target.value)}
+          />
+          <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarModelo} onClick={guardar}>Guardar</button>
         </div>
-      )}
+        {modelos.length > 0 && modelos.map((m) => (
+          <div className="linha" key={m.id} style={{ marginTop: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="nmt">{m.nome}</p>
+              <p className="ds">{m.momentos?.length ?? 0} momentos</p>
+            </div>
+            <button className="btn sec" style={{ flex: "none" }} onClick={() => carregar(m)}>Usar</button>
+            <button
+              className="btn sec" style={{ flex: "none", color: "var(--magenta)" }}
+              onClick={() => apagarModelo(m.id).then(() => torrada("Modelo apagado."))}
+            >
+              Apagar
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* ── os momentos ─────────────────────────────────────── */}
       <div className="sect">
@@ -279,34 +298,56 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
 
         {momentos.map((m, i) => (
           <div className="caixa" key={m._k} style={{ marginTop: i === 0 ? 8 : 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 9 }}>
-              <input
-                className="campo" style={{ marginTop: 0 }} type="time" value={m.hora}
-                onChange={(e) => atualizar(i, "hora", e.target.value)} aria-label="Hora"
-              />
-              <input
-                className="campo" style={{ marginTop: 0 }} value={m.momento} placeholder="O que é (ex.: Louvor)"
-                onChange={(e) => atualizar(i, "momento", e.target.value)} aria-label="Momento"
-              />
+            {/* 118px, não 84px: um <input type="time"> pede espaço para
+                as duas dezenas E os dois pontos — a 84px o browser
+                cortava e só dava para ver a hora, nunca os minutos
+                (bug real, reportado 2026-09) */}
+            <div style={{ display: "grid", gridTemplateColumns: "118px 1fr", gap: 9 }}>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} type="time" value={m.hora}
+                  onChange={(e) => atualizar(i, "hora", e.target.value)} aria-label="Hora"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Hora</p>
+              </div>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} value={m.momento} placeholder="O que é (ex.: Louvor)"
+                  onChange={(e) => atualizar(i, "momento", e.target.value)} aria-label="Momento"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>O nome que aparece na ordem</p>
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 9, marginTop: 9 }}>
-              <input
-                className="campo" style={{ marginTop: 0 }} type="number" min="0" inputMode="numeric"
-                value={m.minutos} onChange={(e) => atualizar(i, "minutos", e.target.value)} aria-label="Minutos"
-              />
-              <input
-                className="campo" style={{ marginTop: 0 }} value={m.responsavel ?? ""} placeholder="Quem (opcional)"
-                onChange={(e) => atualizar(i, "responsavel", e.target.value)} aria-label="Responsável"
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "118px 1fr", gap: 9, marginTop: 9 }}>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} type="number" min="0" inputMode="numeric"
+                  value={m.minutos} onChange={(e) => atualizar(i, "minutos", e.target.value)} aria-label="Minutos"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Minutos</p>
+              </div>
+              <div>
+                <input
+                  className="campo" style={{ marginTop: 0 }} value={m.responsavel ?? ""} placeholder="Quem (opcional)"
+                  onChange={(e) => atualizar(i, "responsavel", e.target.value)} aria-label="Responsável"
+                />
+                <p className="cap" style={{ marginTop: 4 }}>Quem executa (opcional)</p>
+              </div>
             </div>
-            <input
-              className="campo" value={m.projecao ?? ""} placeholder="Projeção (opcional)"
-              onChange={(e) => atualizar(i, "projecao", e.target.value)} aria-label="Projeção"
-            />
-            <input
-              className="campo" value={m.detalhe ?? ""} placeholder="Detalhe (opcional)"
-              onChange={(e) => atualizar(i, "detalhe", e.target.value)} aria-label="Detalhe"
-            />
+            <div>
+              <input
+                className="campo" value={m.projecao ?? ""} placeholder="Projeção (opcional)"
+                onChange={(e) => atualizar(i, "projecao", e.target.value)} aria-label="Projeção"
+              />
+              <p className="cap" style={{ marginTop: 4 }}>O que entra no telão (opcional)</p>
+            </div>
+            <div>
+              <input
+                className="campo" value={m.detalhe ?? ""} placeholder="Detalhe (opcional)"
+                onChange={(e) => atualizar(i, "detalhe", e.target.value)} aria-label="Detalhe"
+              />
+              <p className="cap" style={{ marginTop: 4 }}>Nota extra para quem monta (opcional)</p>
+            </div>
             {/* setas em vez de arrasto: uma dependência a menos e
                 funciona melhor a um polegar só — mesma decisão do
                 Repertório da Louvor e da checklist da Técnica */}
@@ -385,9 +426,28 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         </p>
         <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
           {TIPOS_CULTO.map((t) => (
-            <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => setTipoCulto(t.id)}>{t.nome}</button>
+            <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => { setTipoCulto(t.id); setAAdicionarTipo(false); }}>{t.nome}</button>
           ))}
+          {/* um tipo escrito à mão (ex.: "Culto de Natal") também
+              aparece aqui como botão, escolhido, até se trocar de
+              culto — não é gravado numa lista partilhada nenhuma, só
+              vale para esta ordem (publicarOrdemCulto já aceita
+              qualquer texto não vazio, ver functions/index.js) */}
+          {tipoCulto && !TIPOS_CULTO.some((t) => t.id === tipoCulto) && (
+            <button data-on="1">{tipoCulto}</button>
+          )}
+          <button data-on={aAdicionarTipo ? "1" : "0"} onClick={() => setAAdicionarTipo((v) => !v)}>+ Outro</button>
         </div>
+        {aAdicionarTipo && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input
+              className="campo" style={{ marginTop: 0, flex: 1 }} value={outroTipo}
+              placeholder="Nome do tipo de culto" onChange={(e) => setOutroTipo(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && usarOutroTipo()}
+            />
+            <button className="btn sec" style={{ flex: "none" }} onClick={usarOutroTipo}>Usar</button>
+          </div>
+        )}
       </div>
 
       {/* ── resumo e publicar ───────────────────────────────── */}
@@ -400,9 +460,16 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         </p>
       </div>
 
-      <button className="btn full" style={{ marginTop: 14 }} disabled={aPublicar || !eventoId} onClick={publicar}>
+      <button
+        className="btn full" style={{ marginTop: 14 }}
+        disabled={aPublicar || !eventoId || !podePublicarCulto}
+        onClick={publicar}
+      >
         {aPublicar ? "A publicar…" : evento?.ordem ? "Republicar às dez bases" : "Publicar às dez bases"}
       </button>
+      {!podePublicarCulto && (
+        <p className="cap" style={{ marginTop: 6, textAlign: "center" }}>Desligado até a equipa decidir ativar.</p>
+      )}
 
       {/* imprime o que está no formulário, publicado ou não — quem
           monta quer ver a folha antes de publicar, e não depois. O
@@ -415,15 +482,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
         Imprimir / guardar em PDF
       </button>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input
-          className="campo" style={{ marginTop: 0, flex: 1 }} value={nomeModelo}
-          placeholder="Guardar isto como modelo" onChange={(e) => setNomeModelo(e.target.value)}
-        />
-        <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarModelo} onClick={guardar}>Guardar</button>
-      </div>
-
-      {evento?.ordem && (
+      {evento?.ordem && podePublicarCulto && (
         <button className="btn sec full" style={{ marginTop: 8, marginBottom: 20, color: "var(--magenta)" }} disabled={aPublicar} onClick={limpar}>
           Retirar a ordem deste culto
         </button>

@@ -32,6 +32,11 @@ apps/new/               App da Base New. Domínio: new.igrejaonda.pt
 apps/shift/             App da Base SHIFT. Domínio: shift.igrejaonda.pt
 apps/financeiro/        App do Financeiro. Domínio: financeiro.igrejaonda.pt
 apps/pastoral/          Painel Pastoral. Domínio: pastoral.igrejaonda.pt
+apps/mural/             Mural Onda — anúncios de dou/vendo/arrendo e de
+                        procuro, da igreja toda. NÃO é uma base (é como
+                        eventos/: da igreja, não de uma equipa de
+                        voluntários) — mesmo assim é um Worker Cloudflare
+                        próprio, como qualquer app. Domínio: mural.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -87,6 +92,10 @@ bases, nunca no mesmo commit que uma correção local.
 | Financeiro | `apps/financeiro` | `financeiro.igrejaonda.pt` | `apps/financeiro/CLAUDE.md` |
 | Pastoral | `apps/pastoral` | `pastoral.igrejaonda.pt` | `apps/pastoral/CLAUDE.md` |
 
+Fora desta tabela de propósito — não é uma base, é da igreja toda
+(mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,
+`mural.igrejaonda.pt`, `apps/mural/CLAUDE.md`.
+
 ## Stack
 
 React + Vite (SPA, sem SSR — tudo privado atrás de login), Firestore,
@@ -113,6 +122,52 @@ Admin SDK — os dois SDKs do Firestore não são iguais nisto, e já
 partiu o ecrã de entrada em produção uma vez) só aparece a chamar a
 função a sério. Não dês um deploy de Functions por terminado sem isto
 passar.
+
+**`npm run smoke` só cobre `dadosEntrada` — uma Cloud Function `onCall`
+NOVA precisa de ser testada à parte.** Reportado 2026-09: três funções
+novas (`definirLiderBase`, `corrigirDuracaoSecaoCulto`,
+`arquivarContactoPastoral`) davam "internal" no cliente, com a consola
+do browser a mostrar CORS a bloquear o preflight. Parecia IAM do Cloud
+Run — mas a causa real era mais simples e mais fácil de repetir: as
+três estavam exportadas de `functions/pastoral.js` mas **nunca
+chegaram ao `export { ... } from "./pastoral.js"` em
+`functions/index.js`** — o Firebase só descobre uma função pelo que
+sai desse ficheiro de entrada. Sem lá estar, a função nunca é criada
+no Cloud Run; o pedido dá 404 puro (sem cabeçalhos de CORS nenhuns,
+por isso o browser via isto como bloqueio de CORS), e nem aparece no
+log do deploy — nem como criada, nem como ignorada. `firebase deploy`
+não avisa, `node --check` não apanha (o ficheiro compila bem), e
+`npm run smoke` também não, porque só chama `dadosEntrada`. **Ao criar
+uma Cloud Function num ficheiro próprio (padrão de `kinder.js`/
+`mural.js`/`pastoral.js`), o `export { ... } from "./ficheiro.js"`
+correspondente em `index.js` tem de listar o nome dela — confirma
+sempre antes de dar o deploy por terminado.** `functions/opcoes.js`
+também tem `invoker: "public"` em `setGlobalOptions`, por segurança —
+Functions de 2ª geração correm sobre Cloud Run, que por omissão exige
+`roles/run.invoker`; isto não depende de nenhuma função em concreto,
+mas se uma função existente (já exportada em `index.js`) começar a dar
+este erro exato, é a segunda coisa a verificar.
+
+**`FieldValue.serverTimestamp()` nunca dentro de um array — lança na
+escrita, não no `node --check`.** Terceira coisa a verificar, se uma
+função já exportada e já invocável (sem o erro de CORS/404 acima) der
+"internal"/500 mesmo assim: `corrigirDuracaoSecaoCulto`
+(`functions/pastoral.js`) escrevia `corrigidoEm:
+admin.firestore.FieldValue.serverTimestamp()` dentro de um objeto que
+é um ELEMENTO do array `secoesReais`, gravado por inteiro
+(`ref.set({ secoesReais: [...] })`). O Firestore recusa um sentinel
+`serverTimestamp()`/`increment()`/`arrayUnion()`/`arrayRemove()`
+aninhado dentro de um array — lança logo ao gravar ("cannot be used
+inside an array"), e como a exceção não é um `HttpsError`, o `onCall`
+embrulha-a num "internal" genérico para o cliente. `node --check`
+compila na boa (é JavaScript válido), e não há emulador de Functions
+neste repo para apanhar isto antes do deploy — só aparece a chamar a
+função a sério, com dados que cheguem a essa escrita. Corrigido com
+`admin.firestore.Timestamp.now()` (um valor a sério, não um sentinel
+que precisa do servidor para resolver) — serve para qualquer campo
+"quando" dentro de um array em qualquer base; só os campos de
+NÍVEL DE DOCUMENTO (fora de arrays) podem continuar a usar
+`serverTimestamp()`.
 
 ## Regras que não se negoceiam (valem em qualquer base)
 
