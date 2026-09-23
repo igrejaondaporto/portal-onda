@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   ouvirEnquetesGestao, ouvirUltimasEnquetes, ouvirRespostas, obterEventosPorIds,
-  fecharEnquete, reabrirEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp,
+  fecharEnquete, reabrirEnquete, excluirEnquete, linkWhatsApp,
 } from "../../lib/enquetes";
+import { useMensagensEnquete, dominioDaBase } from "@portal/shared/lib/useMensagensEnquete.js";
+import { textoEnquete, textoLembrete } from "@portal/shared/lib/mensagensEnquete.js";
+import EditarMensagemEnquete from "@portal/shared/components/EditarMensagemEnquete.jsx";
 import { obterEventosDoMes } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, dataCurta, MESES } from "@portal/shared/lib/data.js";
@@ -61,6 +64,7 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, onEditar }
 
 function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
   const torrada = useTorrada();
+  const { mensagens, guardar: guardarMensagem } = useMensagensEnquete();
   const [respostas, setRespostas] = useState([]);
   const [aFechar, setAFechar] = useState(false);
   const [aReabrir, setAReabrir] = useState(false);
@@ -102,7 +106,7 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
   }
 
   function lembrar(pessoa) {
-    const texto = `Olá ${pessoa.nome.split(" ")[0]}, ainda não recebi a tua resposta à enquete de indisponibilidades. Podes responder no Início do portal? 🙏`;
+    const texto = textoLembrete(mensagens.lembrete, pessoa);
     window.open(`https://wa.me/${telefoneWa(pessoa.telefone)}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
@@ -139,7 +143,13 @@ function CartaoEnquete({ enquete, voluntarios, eventosPorId, onExcluida }) {
 
       {naoResponderam.length > 0 && (
         <>
-          <label className="rot" style={{ marginTop: 16 }}>Ainda não respondeu ({naoResponderam.length})</label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 }}>
+            <label className="rot" style={{ marginTop: 0 }}>Ainda não respondeu ({naoResponderam.length})</label>
+            <EditarMensagemEnquete
+              tipo="lembrete" rotulo="Editar mensagem" mensagens={mensagens} guardar={guardarMensagem}
+              dominio={dominioDaBase()} nomeExemplo={naoResponderam[0]?.nome?.split(" ")[0]}
+            />
+          </div>
           {naoResponderam.map((p) => (
             <div className="linha" key={p.id}>
               <Avatar pessoa={p} tamanho={34} fonte={13} />
@@ -242,6 +252,7 @@ function UltimasEnquetes({ voluntarios }) {
 
 export default function SecaoEnquetes({ voluntarios }) {
   const torrada = useTorrada();
+  const { mensagens, guardar: guardarMensagem } = useMensagensEnquete();
   const hoje = new Date();
   const [enquetesGestao, setEnquetesGestao] = useState(undefined); // undefined = ainda a carregar
   const [eventosPorId, setEventosPorId] = useState({});
@@ -267,6 +278,8 @@ export default function SecaoEnquetes({ voluntarios }) {
   }, []);
 
   const abertas = (enquetesGestao || []).filter((e) => e.estado === "aberta");
+  const listaAbertas = abertas.map((e) => ({ mes: e.id, prazo: e.prazo }));
+  const textoGrupo = textoEnquete(mensagens.enquete, listaAbertas, dominioDaBase());
   const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
   const mesQueVemId = `${proximo.getFullYear()}-${String(proximo.getMonth() + 1).padStart(2, "0")}`;
   const jaHaEnqueteDoMesQueVem = (enquetesGestao || []).some((e) => e.id === mesQueVemId);
@@ -276,7 +289,7 @@ export default function SecaoEnquetes({ voluntarios }) {
 
   async function copiarTexto() {
     try {
-      await navigator.clipboard.writeText(textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo }))));
+      await navigator.clipboard.writeText(textoGrupo);
       torrada("Texto copiado");
     } catch {
       torrada("Não foi possível copiar — copia manualmente.");
@@ -308,15 +321,21 @@ export default function SecaoEnquetes({ voluntarios }) {
 
       {abertas.length > 0 && (
         <>
-          <label className="rot">Texto pronto para o WhatsApp</label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <label className="rot">Texto pronto para o WhatsApp</label>
+            <EditarMensagemEnquete
+              tipo="enquete" mensagens={mensagens} guardar={guardarMensagem}
+              enquetes={listaAbertas} dominio={dominioDaBase()}
+            />
+          </div>
           <p style={{ lineHeight: 1.6, fontSize: 13.5, whiteSpace: "pre-wrap" }}>
-            {textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo })))}
+            {textoGrupo}
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} onClick={copiarTexto}>Copiar texto</button>
             <a
               className="btn" style={{ flex: 1, fontSize: 12.5, textAlign: "center" }}
-              href={linkWhatsApp(textoWhatsApp(abertas.map((e) => ({ mes: e.id, prazo: e.prazo }))))}
+              href={linkWhatsApp(textoGrupo)}
               target="_blank" rel="noreferrer"
             >
               Abrir WhatsApp
