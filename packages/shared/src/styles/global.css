@@ -1461,6 +1461,13 @@ textarea.campo {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* O logo que o NavBar põe no topo do menu existe só no computador —
+ * no telemóvel o logo vive no cabeçalho, e aqui seria mais um botão a
+ * roubar uma coluna da grelha (visto no teste: com 6 abas, passava a
+ * haver 7 células e a barra partia em duas linhas). */
+.navb .navb-logo {
+  display: none;
+}
 .navb button::before {
   content: "";
   position: absolute;
@@ -1601,24 +1608,137 @@ textarea.campo {
   .logo {
     font-size: 22px;
   }
+  /* ── Computador: menu lateral + coluna central ──
+   *
+   * Até 2026-09 um ecrã largo era o telemóvel esticado: botões e
+   * campos com 900px de largura e a barra do polegar a boiar no fundo.
+   * Nasceu na Técnica (pedido do líder: "no celular está excelente, no
+   * computador não sinto otimização") e passou a todas as bases porque
+   * a casca é a mesma em todas — `.app` > `.crista.topo` + `.corpo`,
+   * mais o `NavBar`.
+   *
+   * A barra de baixo e o menu lateral são o MESMO elemento, só
+   * redesenhado: nada é duplicado, e o tour continua a apontar aos
+   * mesmos `data-tour="nav-…"`. O telemóvel não muda nada.
+   *
+   * A largura da coluna (`--coluna`) é o único número a mexer se um
+   * painel precisar de mais espaço. */
+  :root {
+    --lateral: 224px;
+    --coluna: 760px;
+  }
+
+  .navb {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: var(--lateral);
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    padding: 22px 14px 24px;
+    box-shadow: 10px 0 30px rgba(0, 20, 120, 0.12);
+  }
+  .navb.on {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .navb .navb-logo {
+    display: block;
+    margin: 12px 14px 26px;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    /* o tamanho, a cor e o espaçamento vêm repetidos de `.logo` porque
+     * `.navb button` (0,1,1) é mais específico do que `.logo` (0,1,0) e
+     * ganhava-lhe: o logo saía do tamanho dos rótulos do menu, 14px, e
+     * meio apagado. Medido, não suposto. */
+    font-size: 22px;
+    letter-spacing: -0.035em;
+    color: #fff;
+  }
+  .navb button {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .navb button svg {
+    width: 21px;
+    height: 21px;
+  }
+  .navb button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+  .navb button[data-on="1"] {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+  }
+  /* o traço lima que no telemóvel marca a aba por cima do ícone passa
+   * para a margem esquerda do menu, à altura do botão aceso */
+  .navb button::before {
+    top: 50%;
+    left: -14px;
+    width: 3px;
+    height: 22px;
+    transform: translateY(-50%);
+    border-radius: 0 3px 3px 0;
+  }
+  .navb-alerta {
+    top: 10px;
+    left: 28px;
+    margin-left: 0;
+  }
+
+  /* com o logo no menu, o do cabeçalho seria o segundo */
+  .crista.topo .logo {
+    display: none;
+  }
+  .crista.topo .lin {
+    justify-content: flex-end;
+  }
+  /* só encosta ao menu quando há menu: há telas com `.corpo` e sem
+     barra nenhuma, e essas não podem ganhar uma margem vazia */
+  body:has(.navb.on) .app {
+    margin-left: var(--lateral);
+  }
+
   .crista.topo {
-    padding: 26px 46px 0;
+    padding: 26px 40px 0;
+  }
+  /* o título alinha com a coluna de baixo, não com a margem da janela;
+     a curva continua de ponta a ponta */
+  .crista.topo > :not(.curva) {
+    max-width: var(--coluna);
+    margin-left: auto;
+    margin-right: auto;
   }
   .corpo {
-    padding: 8px 46px 124px;
-    max-width: 1120px;
+    padding: 8px 40px 64px;
+    max-width: calc(var(--coluna) + 80px);
     margin: 0 auto;
   }
+  /* o `.duas` era duas colunas no computador. Numa coluna de 760px não
+     cabem, e o pedido foi manter o que o telemóvel mostra. */
   .duas {
-    display: grid;
-    grid-template-columns: 1.3fr 0.7fr;
-    gap: 0 50px;
-    align-items: start;
+    display: block;
   }
-  .navb {
-    max-width: 560px;
-    margin: 0 auto;
-    border-radius: 26px 26px 0 0;
+  /* sem barra em baixo, a faixa da vista encosta ao canto, ao lado do
+     menu lateral, em vez de ficar suspensa a meio do ecrã */
+  .vistavol {
+    left: calc(var(--lateral) + 24px);
+    bottom: 24px;
+    transform: none;
   }
 }
 

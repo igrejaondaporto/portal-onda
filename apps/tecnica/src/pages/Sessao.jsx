@@ -273,12 +273,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         </div>
       </div>
       <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivoGravando ? ["culto"] : []} />
-      {/* Só existe no computador (tecnica.css, secção 4): o topo do menu
-        * lateral. No telemóvel o logo continua no cabeçalho. */}
-      <button className="logo tec-lateral-logo" onClick={() => irPara("inicio")} aria-label="Ir para o Início">
-        <i>igreja</i>
-        <b>onda</b>
-      </button>
       {vista && (
         <BarraVistaVoluntario etiqueta={vista.nome} onSair={() => setVista(null)} />
       )}
