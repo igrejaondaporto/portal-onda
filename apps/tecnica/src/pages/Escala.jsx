@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios } from "../lib/painel";
+import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase, ouvirMinisterios, guardarEscalaTecnica } from "../lib/painel";
+import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import SheetEscalaMinisterios from "../components/painel/SheetEscalaMinisterios";
 import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 
-export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+  const torrada = useTorrada();
+  const souLiderBase = papel === "lider_base";
   const [eventosMes, setEventosMes] = useState([]);
+  const [aEditar, setAEditar] = useState(null);      // id do culto a editar
+  const [aConfirmarLimpar, setAConfirmarLimpar] = useState(false);
+  const [aLimpar, setALimpar] = useState(false);
   const [voluntarios, setVoluntarios] = useState([]);
   const [ministerios, setMinisterios] = useState([]);
   const [base, setBase] = useState(null);
@@ -49,6 +56,28 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
   }, [ativo, eventosMes.length, temEscala, mes, base]);
 
   const lugarDe = (ev, ministerioId) => (ev.escala.lugares || []).find((l) => l.ministerioId === ministerioId);
+  const comEscala = eventosMes.filter((e) => (e.escala.lugares || []).some((l) => l.titularId || l.aprendizId));
+
+  /** Apaga quem serve em TODOS os cultos do mês, sem tocar nos cultos.
+   *  É para o caso de a escala ter sido montada cedo demais (ou de
+   *  vir de dados de exemplo) e a enquete ainda estar aberta: mais
+   *  vale a tabela vazia do que uma tabela que ninguém pode cumprir.
+   *  Culto a culto pela mesma função de sempre — assim a validação e
+   *  a permissão são exatamente as de guardar uma escala à mão. */
+  async function limparMes() {
+    setALimpar(true);
+    try {
+      for (const ev of comEscala) {
+        await guardarEscalaTecnica(ev.id, { liderEscala: null, lugares: [] });
+      }
+      torrada(`Escala de ${MESES[mes].toLowerCase()} limpa`);
+      setAConfirmarLimpar(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível limpar a escala.");
+    } finally {
+      setALimpar(false);
+    }
+  }
 
   return (
     <>
@@ -96,6 +125,34 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
               </table>
             </div>
             <p className="ds" style={{ marginTop: 12 }}>O teu nome aparece a azul. "+nome" é quem está em treino.</p>
+            {souLiderBase && (
+              aConfirmarLimpar ? (
+                <div className="caixa" style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 13.5, fontWeight: 700 }}>
+                    Limpar a escala de {MESES[mes].toLowerCase()}?
+                  </p>
+                  <p className="ds" style={{ marginTop: 4 }}>
+                    Sai quem está escalado em {comEscala.length} culto{comEscala.length === 1 ? "" : "s"}. Os cultos ficam,
+                    e a tabela volta a "falta dizer quem serve".
+                  </p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button className="btn sec" style={{ flex: 1, fontSize: 12.5 }} disabled={aLimpar} onClick={() => setAConfirmarLimpar(false)}>
+                      Cancelar
+                    </button>
+                    <button className="btn" style={{ flex: 1, fontSize: 12.5, background: "var(--magenta)" }} disabled={aLimpar} onClick={limparMes}>
+                      {aLimpar ? "A limpar…" : "Limpar a escala"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="btn sec full" style={{ marginTop: 12, color: "var(--magenta)" }}
+                  onClick={() => setAConfirmarLimpar(true)}
+                >
+                  Limpar a escala de {MESES[mes].toLowerCase()}
+                </button>
+              )
+            )}
           </>
         ) : (
           <div className="semescala" style={{ marginTop: 16 }}>
@@ -168,11 +225,33 @@ export default function Escala({ uid, mes, ano, mudarMes, eventoIdFoco, focoSeq,
             ) : (
               <div className="vaz">Ainda ninguém escalado.</div>
             )}
+            {/* O líder mudava a escala só pelo Painel do líder, três
+              * toques mais longe — e é aqui, a olhar para o mês, que
+              * ele vê que está errada. Mesma folha do Painel, para não
+              * haver dois editores a divergir. */}
+            {souLiderBase && (
+              <button
+                className="btn sec full" style={{ margin: "10px 0 4px" }}
+                onClick={() => setAEditar(ev.id)}
+              >
+                {ministerios.some((m) => lugarDe(ev, m.id)?.titularId) ? "Editar escala" : "Montar escala"}
+              </button>
+            )}
             </CartaoCulto>
           );
         })}
       </div>
       <p className="nota">Quem não pode servir avisa pelo WhatsApp. O {nomeLiderBase} atualiza a escala aqui.</p>
+
+      {aEditar && (
+        <SheetEscalaMinisterios
+          evento={eventosMes.find((e) => e.id === aEditar)}
+          ministerios={ministerios}
+          voluntarios={voluntarios}
+          onFechar={() => setAEditar(null)}
+          onGuardado={(msg) => { setAEditar(null); torrada(msg); }}
+        />
+      )}
     </>
   );
 }

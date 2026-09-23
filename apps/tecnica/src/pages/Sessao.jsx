@@ -198,7 +198,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
             />

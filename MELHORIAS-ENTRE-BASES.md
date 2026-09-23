@@ -201,6 +201,18 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   `<button className="logo tec-lateral-logo">` no `Sessao.jsx` — porta
   para qualquer base copiando a secção e trocando o prefixo. Se chegar
   a três bases, é caso para ir para o global.css.
+- **Editar a escala onde ela se vê, e limpar o mês inteiro**
+  (`apps/tecnica/src/pages/Escala.jsx`). O líder via a tabela do mês na
+  aba Escala mas só a podia corrigir pelo Painel do líder, três toques
+  mais longe — e é a olhar para a tabela que ele percebe que está
+  errada. Agora cada cartão de culto tem "Editar escala" (a MESMA folha
+  do Painel, para não haver dois editores a divergir) e, por baixo da
+  tabela, "Limpar a escala de <mês>" com confirmação. Limpar percorre
+  os cultos do mês e chama a função de guardar com `lugares: []` — a
+  permissão e a validação são as mesmas de guardar à mão, e os cultos
+  ficam de pé. Nasceu de uma escala de exemplo que sobrou nos dados com
+  a enquete ainda aberta. Qualquer base com escala por mês tem o mesmo
+  problema no dia em que montar a escala cedo demais.
 
 - **Gráficos como componentes partilhados**
   (`apps/pastoral/src/components/LinhaTempo.jsx` e `Funil.jsx`,
