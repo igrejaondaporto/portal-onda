@@ -6,6 +6,7 @@ import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
+import BarraVistaVoluntario from "@portal/shared/components/BarraVistaVoluntario.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
@@ -83,6 +84,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     });
   }, [uid]);
 
+  /* ── Ver o painel como voluntário ──
+   * Pedido do líder da Técnica, para todas as bases: poder confirmar
+   * o que a equipa vê. Não é papel novo nem login falso — o token
+   * continua a ser o dele, e o servidor também o trata como líder. O
+   * que muda é o papel que desce para as telas, e com ele todos os
+   * botões que só o líder tem. A saída fica na faixa, sempre à vista,
+   * porque aqui dentro o menu do perfil passa a ser o de um
+   * voluntário (é esse o objetivo). */
+  const [vista, setVista] = useState(null);           // null = desligada
+  const papelEfetivo = vista ? "voluntario" : papel;
   const lider = souLider(papel);
   // ponto no separador "Lição": há uma lição da minha sala que ainda
   // não abri neste aparelho (as líderes veem as das três salas)
@@ -192,7 +203,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
               {...comum} mes={mes} ano={ano} abaInicial={abaCulto} ativo={pagina === "culto"}
-              podePublicarCulto={podePublicarCulto} aoVivoGravando={aoVivoGravando}
+              podePublicarCulto={vista ? false : podePublicarCulto} aoVivoGravando={aoVivoGravando}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
@@ -201,9 +212,9 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
             />
           </div>
           <div style={{ display: pagina === "chamadas" ? "" : "none" }}>
-            <Chamadas papel={papel} pessoa={pessoa} ativo={pagina === "chamadas"} definirCabecalho={setCab} />
+            <Chamadas papel={papelEfetivo} pessoa={pessoa} ativo={pagina === "chamadas"} definirCabecalho={setCab} />
           </div>
-          {pagina === "reembolsos" && <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />}
+          {pagina === "reembolsos" && <Reembolsos uid={uid} papel={papelEfetivo} definirCabecalho={setCab} />}
           {pagina === "perfil" && (
             <Perfil
               {...comum} onAtualizarPessoa={setPessoa}
@@ -221,12 +232,16 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         pagina={pagina} onIr={irPara} itens={ABAS}
         alertas={[...(aoVivoGravando ? ["culto"] : []), ...(licaoNova ? ["licao"] : [])]}
       />
+      {vista && (
+        <BarraVistaVoluntario onSair={() => setVista(null)} />
+      )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papel} irPara={irPara}
+          baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa} baseIdAtual={baseId} basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
+          onVerComoVoluntario={() => { setVista({}); irPara("inicio"); }}
           onAbrirPerfil={() => irPara("perfil")}
         />
       )}
