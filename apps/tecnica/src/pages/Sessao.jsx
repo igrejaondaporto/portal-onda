@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
+import { ouvirMinisterios } from "../lib/painel";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
+import BarraVistaVoluntario from "@portal/shared/components/BarraVistaVoluntario.jsx";
+import SheetEscolherVista from "@portal/shared/components/SheetEscolherVista.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
@@ -98,8 +101,32 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     });
   }, [uid]);
 
-  const lider = papel === "lider_base";
+  /* ── Ver o painel como voluntário ──
+   * O líder pediu para poder confirmar o que a equipa vê. Não é um
+   * papel novo nem um login falso: o token continua a ser o dele (e o
+   * servidor também o trata como líder) — o que muda é o papel que
+   * desce para as telas, e com ele todos os botões que só o líder tem.
+   * Na Técnica escolhe-se ainda o ministério, porque é ele que decide
+   * a checklist do domingo: ver "o painel de um voluntário" sem dizer
+   * de qual ministério mostrava justamente o caso menos útil. */
+  const [vista, setVista] = useState(null);          // null = desligada
+  const [aEscolherVista, setAEscolherVista] = useState(false);
+  const [ministerios, setMinisterios] = useState([]);
+  const souLiderMesmo = papel === "lider_base";
+  useEffect(() => {
+    if (!souLiderMesmo) return;
+    return ouvirMinisterios(setMinisterios);
+  }, [souLiderMesmo]);
+
+  const papelEfetivo = vista ? "voluntario" : papel;
+  const lider = papelEfetivo === "lider_base";
   const ABAS = lider ? [...ABAS_BASE, ["montar", "Montar", ICONE_MONTAR]] : ABAS_BASE;
+
+  function entrarNaVista(ministerioId, nome) {
+    setVista({ ministerioId, nome });
+    setAEscolherVista(false);
+    setPagina("inicio");                              // "Montar" deixa de existir
+  }
 
   function irPara(p) {
     setPagina(p);
@@ -189,7 +216,8 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <div className="corpo">
           <div style={{ display: pagina === "inicio" ? "" : "none" }}>
             <Inicio
-              uid={uid} papel={papel} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} mes={mes} ano={ano} mudarMes={mudarMes}
+              ministerioVisto={vista?.ministerioId ?? null} vendoComoVoluntario={!!vista}
               ativo={pagina === "inicio"} definirCabecalho={setCab}
               onIrEscala={irParaEscala}
               onIrInventario={() => irPara("inventario")} onIrCulto={irParaCulto}
@@ -198,40 +226,40 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           <div style={{ display: pagina === "escala" ? "" : "none" }}>
             <Escala
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes}
               eventoIdFoco={focoEscala} focoSeq={focoEscalaSeq}
               ativo={pagina === "escala"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "culto" ? "" : "none" }}>
             <Culto
-              uid={uid} papel={papel} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
+              uid={uid} papel={papelEfetivo} mes={mes} ano={ano} mudarMes={mudarMes} abaInicial={abaCulto}
               ativo={pagina === "culto"} definirCabecalho={setCab}
               onVerFuncoes={irParaEscala}
-              podePublicarCulto={podePublicarCulto}
+              podePublicarCulto={vista ? false : podePublicarCulto}
               aoVivoGravando={aoVivoGravando}
             />
           </div>
           <div style={{ display: pagina === "inventario" ? "" : "none" }}>
             <Equipamentos
-              uid={uid} papel={papel} ativo={pagina === "inventario"} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} ativo={pagina === "inventario"} definirCabecalho={setCab}
             />
           </div>
           <div style={{ display: pagina === "wiki" ? "" : "none" }}>
             <Wiki
-              uid={uid} papel={papel} pessoa={pessoa} ativo={pagina === "wiki"} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} ativo={pagina === "wiki"} definirCabecalho={setCab}
               wikiIdFoco={focoWiki} focoSeq={focoWikiSeq}
             />
           </div>
           {pagina === "reembolsos" && (
-            <Reembolsos uid={uid} papel={papel} definirCabecalho={setCab} />
+            <Reembolsos uid={uid} papel={papelEfetivo} definirCabecalho={setCab} />
           )}
           {pagina === "montar" && lider && (
             <Montar ativo={pagina === "montar"} definirCabecalho={setCab} />
           )}
           {pagina === "perfil" && (
             <Perfil
-              uid={uid} papel={papel} pessoa={pessoa} definirCabecalho={setCab}
+              uid={uid} papel={papelEfetivo} pessoa={pessoa} definirCabecalho={setCab}
               onAtualizarPessoa={setPessoa} onIrReembolsos={() => irPara("reembolsos")}
               onIrPainel={() => irPara("painel")} onVerFuncoes={irParaEscala}
             />
@@ -251,14 +279,25 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <i>igreja</i>
         <b>onda</b>
       </button>
+      {vista && (
+        <BarraVistaVoluntario etiqueta={vista.nome} onSair={() => setVista(null)} />
+      )}
+      {aEscolherVista && (
+        <SheetEscolherVista
+          ministerios={ministerios}
+          onEscolher={entrarNaVista}
+          onFechar={() => setAEscolherVista(false)}
+        />
+      )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papel} irPara={irPara}
+          baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
           onFechar={() => setMenuAberto(false)}
           onAbrirPainel={() => irPara("painel")}
+          onVerComoVoluntario={() => setAEscolherVista(true)}
           onAbrirPerfil={() => irPara("perfil")}
         />
       )}

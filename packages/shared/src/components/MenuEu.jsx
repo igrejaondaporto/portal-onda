@@ -3,7 +3,7 @@ import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 
-export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour }) {
+export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
   // da base (ver apps/louvor/src/lib/modelo.js) — nenhuma outra base
   // consegue produzir esse papel no token, seguro tratar aqui.
@@ -55,6 +55,15 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
+          </button>
+        )}
+        {/* Ver o painel pelos olhos da equipa. Só o líder o tem, e
+          * enquanto a vista está ligada este menu é o de um
+          * voluntário — a saída fica na faixa (BarraVistaVoluntario),
+          * sempre à vista. */}
+        {lider && onVerComoVoluntario && (
+          <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { onFechar(); onVerComoVoluntario(); }}>
+            Painel do voluntário
           </button>
         )}
         {onAbrirTour && (

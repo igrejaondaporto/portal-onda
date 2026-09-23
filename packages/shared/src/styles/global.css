@@ -1494,6 +1494,51 @@ textarea.campo {
   animation: respirar 1.2s ease-in-out infinite;
 }
 
+/* ── "A ver como voluntário" ──────────────────────────────────
+ * A faixa que fica à vista enquanto o líder espreita o painel pelos
+ * olhos da equipa. Flutua acima da barra de navegação no telemóvel
+ * (que tem ~78px) e no canto de baixo no computador — nunca por cima
+ * do conteúdo que se está a avaliar. Cor de tinta, como a torrada:
+ * lê-se como aviso do sistema, não como parte da tela. */
+.vistavol {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 92vw;
+  background: var(--tinta);
+  color: #fff;
+  padding: 9px 9px 9px 18px;
+  border-radius: 100px;
+  box-shadow: 0 8px 30px rgba(10, 15, 46, 0.32);
+  font-size: 13px;
+  font-weight: 600;
+  animation: up2 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.vistavol-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vistavol-sair {
+  flex: none;
+  border: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 15px;
+  border-radius: 100px;
+}
+.vistavol-sair:active {
+  transform: scale(0.94);
+}
+
 @media (min-width: 900px) {
   .login {
     display: grid;
