@@ -13,6 +13,7 @@ import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Avatares from "@portal/shared/components/Avatares.jsx";
 import Bola from "../components/Bola";
 import Calendario from "../components/Calendario";
+import ContagemCriancas from "../components/ContagemCriancas";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBase.jsx";
@@ -220,10 +221,14 @@ export default function Inicio({
   const carregandoRespostas = enquetesDentroDoPrazo.some((e) => !(e.id in minhasRespostas));
   const todasRespondidas = enquetesDentroDoPrazo.length > 0 && enquetesDentroDoPrazo.every((e) => !!minhasRespostas[e.id]);
   const mesesEnquete = enquetesDentroDoPrazo.map((e) => MESES[Number(e.id.split("-")[1]) - 1]).join(" e ");
+  // o culto de HOJE, não "meuEvento" (esse é o próximo em que sirvo,
+  // pode não ser hoje) — para "Quantas crianças estão presentes?".
+  const eventoHoje = eventosMes.find((ev) => ev.data === hojeISO) ?? null;
 
   return (
     <>
       <RecadoPastoral papel={papel} />
+      <ContagemCriancas eventoId={eventoHoje?.id ?? null} souLiderBase={souLiderBase} />
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>

@@ -363,6 +363,34 @@ O caminho a apagar vem do próprio `url` guardado (nunca precisa de
 reconstruir o nome, que varia com a extensão real do ficheiro) —
 `caminhoDeUrlStorage()` extrai o caminho do download URL do Firebase.
 
+## Quantas crianças estão presentes — popup no Início
+
+Pedido 2026-09: "logo NA TELA inicial do domingo já apareça um POP UP
+GRANDE perguntando quantas crianças estão presentes... e essa
+contagem já vai direto pra contagem da base pessoal, que também já
+apareça na contagem do Painel Pastoral." `ContagemCriancas.jsx`
+(`components/`), montado no topo do Início.
+
+**Não é o check-in.** É um número manual, rápido, por sala — nada a
+ver com `CHECKIN_ATIVO`/famílias/QR (esse continua desligado por
+pedido da líder, ver "O que este base tem" mais abaixo). Escreve
+direto em `eventos/{e}/contagem/geral` — a Contagem da Base Pessoal,
+não `eventos/{e}/contagemKinder` (essa é a correção do check-in ao
+vivo, outra pergunta, hoje sem uso). Cloud Function
+`registarContagemSala` (`functions/contagemSalas.js`, partilhada com
+SHIFT e New) valida que só se escreve a categoria certa
+(`baby`/`fun`/`junior`) e, para quem não é líder geral, só a da
+própria sala (`bases/kinder/pessoas/{uid}.categoria`) — mesmo
+isolamento por sala do resto da app.
+
+O popup aparece sozinho, uma vez por domingo, enquanto faltar alguma
+sala por preencher (a líder geral vê as três; uma líder de sala só a
+sua). Depois de preenchido fica um cartão (`.kin-num`, a paleta suave
+da sala — já "menos vibrante" por natureza); por preencher usa a cor
+cheia (`.kin-num.porfazer`) para continuar a chamar a atenção mesmo
+que o popup tenha sido fechado sem preencher. Tocar reabre o mesmo
+popup para corrigir.
+
 ## Checklist da sala — Pré-culto/Durante/Pós-culto
 
 Mesmo padrão de fases das outras bases (Apoio, Backstage,

@@ -184,6 +184,11 @@
 .kin-num span { font-size: 12px; font-weight: 700; }
 /* sala no limite da capacidade — mesmo tratamento do .kin-cat-n.no-limite */
 .kin-num.no-limite { background: #ffe3ea; color: #b4124f; }
+/* contagem de crianças ainda por preencher — cor CHEIA da sala, para
+ * continuar a chamar a atenção mesmo se o popup grande for fechado
+ * sem preencher; "menos vibrante" (a suave, por omissão) só depois
+ * de preenchido (pedido 2026-09, ContagemCriancas.jsx). */
+.kin-num.porfazer { background: var(--c); color: var(--c-texto); }
 
 /* ── páginas dos pais (/registo, /familia/<token>) — sem conta ── */
 .kin-publico .folha { padding-bottom: 60px; }

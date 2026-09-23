@@ -20,6 +20,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import Calendario from "../components/Calendario";
 import ItensChecklist from "../components/sala/ItensChecklist";
+import ContagemCriancas from "../components/ContagemCriancas";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
@@ -209,6 +210,8 @@ export default function Inicio({
 
       <div className="duas">
         <div>
+          <ContagemCriancas eventoId={eventoHoje?.id ?? null} lider={lider} liderGeral={liderGeral} restrita={restrita} />
+
           {CHECKIN_ATIVO && eventoHoje && (
             <div className="sect" data-tour="hoje-bloco">
               <div className="cabecalho"><h3>Hoje nas salas</h3><span className="cap">{naSalaVisivel.length} crianças</span></div>

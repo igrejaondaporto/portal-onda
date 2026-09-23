@@ -33,6 +33,12 @@ export const cAtribuicoes = (ev) => collection(db, `eventos/${ev}/atribuicoes`);
 export const cChecklist   = (ev) => collection(db, `eventos/${ev}/checklist`);
 export const cEnquetes    = () => collection(db, `bases/${BASE_ID}/enquetes`);
 export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enquetes/${mes}/respostas`);
+/** A Contagem da Base Pessoal — `eventos/{e}/contagem/geral`, mesmo
+ *  documento de `apps/pessoal/src/lib/contagem.js`. Leitura já é
+ *  aberta (`allow read: if autenticado()`); a escrita da categoria
+ *  "new" passa pela Cloud Function `registarContagemSala` (ver
+ *  `lib/contagemCriancas.js`) — nunca direta. */
+export const cContagemPessoal = (ev) => doc(db, `eventos/${ev}/contagem/geral`);
 
 export const FASES = [
   ["pre",     "Pré-culto",      "Antes de abrir as portas"],

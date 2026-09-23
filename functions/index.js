@@ -59,6 +59,12 @@ export {
   criarPessoaPastoral, reporPinPastoral,
 } from "./pastoral.js";
 
+// Contagem de crianças por sala (Kinder/SHIFT/New) — escreve direto
+// na Contagem da Base Pessoal, ficheiro próprio pelo mesmo motivo de
+// kinder.js/mural.js/pastoral.js (ver o comentário no topo de
+// contagemSalas.js).
+export { registarContagemSala } from "./contagemSalas.js";
+
 // Retenção RGPD (os prazos do CLAUDE.md da raiz), em ficheiro próprio
 // por apagar dados a sério, sozinha, todos os dias — ver os três
 // travões no topo de retencao.js. `ensaiarRetencao` diz o que ia

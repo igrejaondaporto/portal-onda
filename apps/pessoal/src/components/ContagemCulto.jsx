@@ -115,7 +115,7 @@ export default function ContagemCulto({ eventoId, uid, voluntarios }) {
           <h3>Contagem do culto</h3>
           <p className="ds" style={{ marginTop: 3 }}>Cada número tem o seu próprio significado.</p>
         </div>
-        {preenchidas > 0 && <span className="cap">{preenchidas}/9</span>}
+        {preenchidas > 0 && <span className="cap">{preenchidas}/{CATEGORIAS_CONTAGEM.length}</span>}
       </div>
       <p className="ds contagem-aviso">Não somes estas categorias entre si. Campo vazio significa que ainda não foi contado.</p>
 

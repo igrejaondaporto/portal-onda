@@ -261,21 +261,32 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   /* ── crianças ─────────────────────────────────────────────── */
 
-  /** Quantas crianças por sala, em média por domingo — o check-in a
-   *  sério da Kinder, cruzado por categoria. Média, não o total do
-   *  período: "480 crianças em quatro meses" não diz nada sobre um
-   *  domingo normal, e é essa a pergunta ("quantas crianças temos?"). */
+  /** Quantas crianças por sala, em média por domingo — o popup
+   *  "Quantas crianças estão presentes?" de cada painel (Kinder/SHIFT/
+   *  New, pedido 2026-09), que escreve direto na Contagem da Base
+   *  Pessoal (`c.contagem.{baby,fun,junior,new,shift}`). Média, não o
+   *  total do período: "480 crianças em quatro meses" não diz nada
+   *  sobre um domingo normal, e é essa a pergunta ("quantas crianças
+   *  temos?"). Já foi o check-in a sério da Kinder (`c.kinder`) — essa
+   *  função continua a existir mas está desligada na Kinder por
+   *  pedido da líder (`CHECKIN_ATIVO=false`), por isso ficava sempre
+   *  vazia; a Contagem é hoje a única fonte com dados a sério, e é a
+   *  mesma nas cinco categorias (nunca uma mistura das duas). */
   const criancasPorSala = useMemo(() => {
     if (!dados) return [];
-    const cultosComKinder = dados.cultos.filter((c) => c.kinder);
-    if (!cultosComKinder.length) return [];
-    const media = (chave) =>
-      Math.round(cultosComKinder.reduce((t, c) => t + (c.kinder[chave] ?? 0), 0) / cultosComKinder.length);
+    const cultosComContagem = dados.cultos.filter((c) => c.contagem);
+    if (!cultosComContagem.length) return [];
+    const media = (chave) => {
+      const vals = cultosComContagem.map((c) => c.contagem[chave]).filter((n) => n !== null && n !== undefined);
+      return vals.length ? Math.round(vals.reduce((t, n) => t + n, 0) / vals.length) : null;
+    };
     return [
       { chave: "baby", rotulo: "Baby", valor: media("baby") },
       { chave: "fun", rotulo: "Fun", valor: media("fun") },
-      { chave: "junior", rotulo: "Junior", valor: media("junior") },
-    ];
+      { chave: "junior", rotulo: "Júnior", valor: media("junior") },
+      { chave: "new", rotulo: "New", valor: media("new") },
+      { chave: "shift", rotulo: "Shift", valor: media("shift") },
+    ].filter((s) => s.valor !== null);
   }, [dados]);
 
   useEffect(() => {
@@ -319,7 +330,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho">
               <h3>Presença na igreja</h3>
-              <span className="cap">membros + visitantes + equipa</span>
+              <span className="cap">visitantes + equipa</span>
             </div>
             <LinhaTempo
               pontos={presencas}
@@ -359,7 +370,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
           <div className="sect">
             <div className="cabecalho"><h3>Crianças</h3><span className="cap">média por domingo</span></div>
-            <Barras linhas={criancasPorSala} vazio="Ainda não há check-in da Kinder neste período." />
+            <Barras linhas={criancasPorSala} vazio="Ainda não há contagem de crianças neste período." />
           </div>
 
           <div className="sect">

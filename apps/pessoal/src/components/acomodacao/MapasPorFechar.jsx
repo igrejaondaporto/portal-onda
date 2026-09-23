@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { chamar } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
+import SheetEditarMapa from "./SheetEditarMapa";
 
 /**
  * Mapas AO VIVO que nunca foram fechados — a lista que faltava.
@@ -15,24 +16,30 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  * muito menos corrigir — `Acomodacao.jsx` só mostra o mapa de HOJE,
  * nunca um domingo passado.
  *
- * Cada linha dá duas saídas: **Fechar agora** (a mesma
- * `fecharAcomodacao` de sempre — já aceita qualquer culto, não só o
- * de hoje) move o culto para "Cultos fechados" a sério, com o resumo
- * gravado; **Excluir** (`limparMapaAcomodacaoAoVivo`) zera os lugares
- * de volta a "livre" sem fechar — para quando os números eram um
- * teste ou um engano, não um domingo a sério por fechar. Nenhum dos
- * dois apaga o documento (regra 5 do CLAUDE.md raiz).
+ * Cada linha dá três saídas: **Editar** (pedido 2026-09 — "abre o
+ * mapa lá na tela e eu vou editando novamente") abre
+ * `SheetEditarMapa.jsx`, o mesmo grelhado/controlos de
+ * `Acomodacao.jsx`, só que para este `eventoId` em vez do de hoje —
+ * marcações gravam ao vivo, o culto continua por fechar até alguém
+ * decidir; **Fechar agora** (a mesma `fecharAcomodacao` de sempre —
+ * já aceita qualquer culto, não só o de hoje) move o culto para
+ * "Cultos fechados" a sério, com o resumo gravado; **Excluir**
+ * (`limparMapaAcomodacaoAoVivo`) zera os lugares de volta a "livre"
+ * sem fechar — para quando os números eram um teste ou um engano, não
+ * um domingo a sério por fechar. Nenhuma das duas últimas apaga o
+ * documento (regra 5 do CLAUDE.md raiz).
  *
  * Só a líder vê os botões — mesmo motivo de `ResumosAcomodacao.jsx`:
  * saber quem teve a função Mapa em CADA culto passado pediria mais
  * uma leitura por linha, e o servidor já confirma a permissão a
  * sério de qualquer forma.
  */
-export default function MapasPorFechar({ souLiderBase }) {
+export default function MapasPorFechar({ souLiderBase, uid, papel }) {
   const torrada = useTorrada();
   const [cultos, setCultos] = useState(null);
   const [aAgir, setAAgir] = useState(null);
   const [confirmarLimpar, setConfirmarLimpar] = useState(null);
+  const [aEditar, setAEditar] = useState(null);
 
   useEffect(() => {
     let vivo = true;
@@ -93,6 +100,12 @@ export default function MapasPorFechar({ souLiderBase }) {
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button
                   className="btn sec" style={{ flex: 1, padding: "8px 12px", fontSize: 12.5 }}
+                  disabled={chaveAgir} onClick={() => setAEditar(c.eventoId)}
+                >
+                  Editar
+                </button>
+                <button
+                  className="btn sec" style={{ flex: 1, padding: "8px 12px", fontSize: 12.5 }}
                   disabled={chaveAgir} onClick={() => fechar(c.eventoId)}
                 >
                   {chaveAgir ? "…" : "Fechar agora"}
@@ -127,6 +140,10 @@ export default function MapasPorFechar({ souLiderBase }) {
           </div>
         );
       })}
+
+      {aEditar && (
+        <SheetEditarMapa eventoId={aEditar} uid={uid} papel={papel} onFechar={() => setAEditar(null)} />
+      )}
     </div>
   );
 }
