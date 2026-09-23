@@ -21,6 +21,7 @@ import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolic
 import Calendario from "../components/Calendario";
 import ItensChecklist from "../components/sala/ItensChecklist";
 import ContagemCriancas from "../components/ContagemCriancas";
+import RepertorioLouvorKinder from "../components/licao/RepertorioLouvorKinder";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
@@ -283,6 +284,7 @@ export default function Inicio({
             ) : (
               <div className="vaz">Ainda não há lição para a tua sala.</div>
             )}
+            {proximoCulto && <RepertorioLouvorKinder eventoId={proximoCulto.id} />}
           </div>
 
           <div className="sect">

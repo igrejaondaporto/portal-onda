@@ -363,6 +363,24 @@ O caminho a apagar vem do próprio `url` guardado (nunca precisa de
 reconstruir o nome, que varia com a extensão real do ficheiro) —
 `caminhoDeUrlStorage()` extrai o caminho do download URL do Firebase.
 
+## Repertório do Louvor Kinder no bloco da Lição
+
+Pedido 2026-09: dentro do bloco "Lição" do Início aparece o repertório
+que o líder do Louvor Kinder escolheu para o próximo culto
+(`components/licao/RepertorioLouvorKinder.jsx`) — **o mesmo para as
+três salas** ("um repertório para todas as salas da Kinder, é o mesmo
+repertório"), por isso não passa pelo isolamento por sala.
+
+O Louvor Kinder é outra base (`apps/louvorkinder`). A Kinder só lê
+`bases/louvorkinder/repertorios/{eventoId}` (`cRepertorioLouvorKinder`,
+`lib/modelo.js`), aberto em `firestore.rules` só para ela e só para
+leitura — nunca a biblioteca (`musicas`) nem o repertório da Louvor
+adulta. Cada item já traz título, artista, capa e links copiados (o
+mesmo que a Técnica usa para ler o da Louvor). Montar e mudar é
+sempre no painel do Louvor Kinder, nunca aqui. Sem repertório (ou sem
+permissão), mostra "O Louvor Kinder ainda não montou o repertório
+deste culto." em vez de partir o Início.
+
 ## Quantas crianças estão presentes — popup no Início
 
 Pedido 2026-09: "logo NA TELA inicial do domingo já apareça um POP UP
