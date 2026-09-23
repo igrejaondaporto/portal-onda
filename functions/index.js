@@ -1707,6 +1707,44 @@ export const escalasCrossBase = onCall(async (req) => {
     const escala = escalaSnap.data();
 
     if (Array.isArray(escala.lugares) && escala.lugares.length) {
+      // A Comunicação usa "lista aberta" por ministério — `lugares:
+      // [{ministerioId, pessoas: [id, ...]}]`, sem titular/aprendiz
+      // fixos (pedido do líder, ver CLAUDE.md dessa base: "acontece
+      // de ter dois fotógrafos... o modelo de 2 lugares fixos não
+      // dava"). Sem este ramo, `idsPessoas`/`itens` só olhavam para
+      // `titularId`/`aprendizId` — inexistentes neste formato — e a
+      // escala da Comunicação vinha sempre como "vazio", mesmo cheia
+      // (reportado 2026-09: "não está aparecendo a escala... da
+      // Comunicação"). Detecta pelo campo `pessoas` (array) no
+      // próprio lugar, que só este formato tem.
+      const listaAberta = escala.lugares.some((l) => Array.isArray(l.pessoas));
+      if (listaAberta) {
+        const idsPessoas = [...new Set(escala.lugares.flatMap((l) => l.pessoas || []).filter(Boolean))];
+        const idsMinisterios = [...new Set(escala.lugares.map((l) => l.ministerioId).filter(Boolean))];
+        const [pessoasSnaps, ministeriosSnaps] = await Promise.all([
+          Promise.all(idsPessoas.map((id) => refPessoa(b.id, id).get())),
+          Promise.all(idsMinisterios.map((id) => db.doc(`bases/${b.id}/ministerios/${id}`).get())),
+        ]);
+        const pessoaResumo = Object.fromEntries(
+          pessoasSnaps.filter((s) => s.exists).map((s) => [
+            s.id, { nome: s.data().nome, foto: s.data().foto ?? null, telefone: s.data().telefone ?? "" },
+          ])
+        );
+        const nomeMinisterio = Object.fromEntries(ministeriosSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().nome]));
+        // uma "linha" por pessoa, sem aprendiz — a etiqueta titular/
+        // aprendiz aqui é da PESSOA (pessoa.ministerios[id]), não da
+        // escala, e não interessa a este resumo (ver CLAUDE.md).
+        const itens = escala.lugares
+          .filter((l) => (l.pessoas || []).length)
+          .flatMap((l) => (l.pessoas || []).map((id) => ({
+            ministerio: nomeMinisterio[l.ministerioId] ?? l.ministerioId,
+            titular: pessoaResumo[id] ?? null,
+            aprendiz: null,
+          })));
+        if (!itens.length) return { ...base, tipo: "vazio" };
+        return { ...base, tipo: "lugares", itens };
+      }
+
       const idsPessoas = [...new Set(escala.lugares.flatMap((l) => [l.titularId, l.aprendizId]).filter(Boolean))];
       const idsMinisterios = [...new Set(escala.lugares.map((l) => l.ministerioId).filter(Boolean))];
       const [pessoasSnaps, ministeriosSnaps] = await Promise.all([
@@ -1795,6 +1833,34 @@ export const checklistCrossBase = onCall(async (req) => {
         ministerioNome: f.ministerioId ? (ministerios[f.ministerioId]?.nome ?? null) : null,
         ministerioCor: f.ministerioId ? (ministerios[f.ministerioId]?.cor ?? null) : null,
       }));
+
+    // A Kinder não usa `bases/{b}/funcoes` para a checklist — o
+    // catálogo dela é `checklistSala` (título/subtítulo/horário por
+    // SALA, ver CLAUDE.md da Kinder), por isso `funcoes` ficava
+    // sempre vazio aqui e o painel mostrava "sem checklist criada"
+    // mesmo com itens de sobra (reportado 2026-09: "diz que não tem
+    // Checklist também"). Entra como mais "funções" no mesmo formato,
+    // com a SALA (baby/fun/junior) a fazer de "ministério" — mesmas
+    // cores de sempre (apps/kinder/src/lib/modelo.js, CATEGORIAS),
+    // duplicadas aqui como em qualquer outro sítio deste ficheiro que
+    // não importa de apps/*.
+    if (b.id === "kinder") {
+      const SALAS_KINDER = {
+        baby: { nome: "Baby", cor: "#7b5cff" },
+        fun: { nome: "Fun", cor: "#f5c400" },
+        junior: { nome: "Júnior", cor: "#1e7bf0" },
+      };
+      const checklistSalaSnap = await db.collection("bases/kinder/checklistSala").where("ativo", "==", true).get();
+      const itensSala = checklistSalaSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((it) => ({
+          id: it.id, nome: it.titulo, fase: it.fase || "pre",
+          ministerioId: it.categoria ?? null,
+          ministerioNome: SALAS_KINDER[it.categoria]?.nome ?? null,
+          ministerioCor: SALAS_KINDER[it.categoria]?.cor ?? null,
+        }));
+      funcoes.push(...itensSala);
+    }
 
     return { ...base, funcoes, pessoas, total: funcoes.length };
   }));

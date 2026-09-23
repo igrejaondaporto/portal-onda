@@ -665,8 +665,15 @@ service cloud.firestore {
       // checklist de sala marcada (um doc por sala) e contagem corrigida
       // à mão — escrita direta, para funcionar sem rede ao domingo, como
       // a contagem da Pessoal. Sem delete: fazem parte do histórico.
+      // Leitura aberta a qualquer autenticado, mesmo padrão de
+      // `checklist/{c}` acima (não `minhaBase('kinder')`) — o Painel
+      // Pastoral lê isto ao vivo, como já lê a checklist de qualquer
+      // outra base (ver `checklistCrossBase`/CLAUDE.md do painel:
+      // "função para o catálogo, onSnapshot para o estado"). Sem
+      // dados sensíveis aqui — só "quem marcou, a que horas"; saúde de
+      // criança fica em `ocorrencias`, que o painel nunca vê.
       match /checklistKinder/{sala} {
-        allow read:           if minhaBase('kinder');
+        allow read:           if autenticado();
         allow create, update: if minhaBase('kinder');
         allow delete:         if false;
       }
