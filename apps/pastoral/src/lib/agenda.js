@@ -11,7 +11,7 @@
  *    filtram, recusam a query inteira.
  */
 import {
-  addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  collection, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 
@@ -35,8 +35,15 @@ const limpar = (d) => ({
   participantes: d.participantes,
 });
 
-export const criarPrivado = (uid, dados) =>
-  addDoc(cAgenda(), { ...limpar(dados), criadoPor: uid, ativo: true, criadoEm: serverTimestamp() });
+/** `semanas` > 1 cria o mesmo evento em N semanas seguidas, numa
+ *  escrita só (ou todos, ou nenhum). */
+export async function criarPrivado(uid, dados, semanas = 1) {
+  const lote = writeBatch(db);
+  for (const data of datasRepetidas(dados.data, semanas)) {
+    lote.set(doc(cAgenda()), { ...limpar({ ...dados, data }), criadoPor: uid, ativo: true, criadoEm: serverTimestamp() });
+  }
+  await lote.commit();
+}
 
 export const editarPrivado = (id, dados) =>
   updateDoc(doc(cAgenda(), id), { ...limpar(dados), atualizadoEm: serverTimestamp() });
@@ -74,4 +81,33 @@ export async function basesComEscala(eventoId) {
       return (e.pessoas?.length ?? 0) > 0 || (e.lugares ?? []).some((l) => l.titularId);
     })
     .map((d) => d.id);
+}
+
+/** A data e as N-1 semanas seguintes, no mesmo dia da semana. */
+export function datasRepetidas(data, semanas = 1) {
+  return Array.from({ length: Math.max(1, semanas) }, (_, k) => {
+    const d = new Date(`${data}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 7 * k);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
+/** Que eventos já estão nestas datas À MESMA HORA — bloqueia sempre
+ *  (pedido 2026-09). Olha para os da igreja (uma query ao intervalo) e
+ *  para os privados que esta pessoa vê. Os da igreja também são
+ *  bloqueados no servidor (guardarEventoIgreja); os privados só aqui,
+ *  porque o servidor não vê a agenda de ninguém. `ignorar` é o id do
+ *  próprio evento, ao editar. */
+export async function conflitosDeHora({ datas, hora, privados, ignorar }) {
+  if (!hora || !datas.length) return [];
+  const q = query(collection(db, "eventos"), where("data", ">=", datas[0]), where("data", "<=", datas.at(-1)), orderBy("data"));
+  const alvo = new Set(datas);
+  const daIgreja = (await getDocs(q)).docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((e) => e.ativo !== false && e.id !== ignorar && alvo.has(e.data) && e.horaCulto === hora)
+    .map((e) => ({ data: e.data, nome: e.tipo || "Culto de domingo" }));
+  const meus = privados
+    .filter((p) => p.id !== ignorar && alvo.has(p.data) && p.hora === hora)
+    .map((p) => ({ data: p.data, nome: p.titulo }));
+  return [...daIgreja, ...meus].sort((a, b) => a.data.localeCompare(b.data));
 }

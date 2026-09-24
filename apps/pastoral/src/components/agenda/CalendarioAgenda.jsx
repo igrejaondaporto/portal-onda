@@ -53,7 +53,10 @@ export default function CalendarioAgenda({ uid }) {
       if (p.data < de || p.data > ate) continue;
       (m[p.data] ||= { igreja: [], privados: [] }).privados.push(p);
     }
-    for (const d of Object.values(m)) d.privados.sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? ""));
+    for (const d of Object.values(m)) {
+      d.igreja.sort((a, b) => (a.horaCulto ?? "").localeCompare(b.horaCulto ?? ""));
+      d.privados.sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? ""));
+    }
     return m;
   }, [eventos, privados, de, ate]);
 
@@ -188,13 +191,13 @@ export default function CalendarioAgenda({ uid }) {
 
       {sheet?.tipo === "igreja" && (
         <SheetEventoIgreja
-          evento={sheet.evento} dataInicial={sheet.data} bases={bases} hoje={hoje}
+          evento={sheet.evento} dataInicial={sheet.data} bases={bases} privados={privados} hoje={hoje}
           onFechar={() => setSheet(null)}
         />
       )}
       {sheet?.tipo === "privado" && (
         <SheetEventoPrivado
-          uid={uid} evento={sheet.evento} dataInicial={sheet.data} equipa={equipa}
+          uid={uid} evento={sheet.evento} dataInicial={sheet.data} equipa={equipa} privados={privados}
           onFechar={() => setSheet(null)}
         />
       )}
