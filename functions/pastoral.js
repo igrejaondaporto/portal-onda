@@ -1034,6 +1034,114 @@ export const definirTipoCulto = onCall(async (req) => {
 });
 
 /* ══════════════════════════════════════════════════════════════
+ *  AGENDA — eventos da igreja criados pelo pastor
+ * ══════════════════════════════════════════════════════════════
+ *
+ * Pedido 2026-09: um calendário no painel com os eventos da igreja e
+ * os privados de cada pastor. Os PRIVADOS são escrita direta
+ * (`bases/pastoral/agenda`, ver firestore.rules). Os da IGREJA são
+ * os mesmos `eventos/{data}` que as dez bases já leem — calendário,
+ * escala, enquete — por isso passam por aqui (eventos é write:false).
+ *
+ * "Só algumas bases servem" NÃO é um campo novo: grava-se
+ * `escopo:"global"` com as outras em `dispensadaPor`, que é o que
+ * cada base já usa para esconder um evento ("não servimos",
+ * `visivelParaBase` em cada lib/painel.js). Assim nenhuma base
+ * precisou de mudar uma linha, e o líder de uma base não escolhida
+ * pode, na mesma, desmarcar o "não servimos" e servir.
+ *
+ * Só eventos com `tipo` (os cultos especiais) — os domingos são de
+ * `gerarDomingos` e não se editam nem apagam daqui. Um evento
+ * `escopo:"base"` é de uma base só e continua a ser dela. */
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function hojeEmLisboa() {
+  const partes = new Intl.DateTimeFormat("en", {
+    timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const valor = (tipo) => partes.find((p) => p.type === tipo)?.value;
+  return `${valor("year")}-${valor("month")}-${valor("day")}`;
+}
+
+/** As bases que servem em cultos — sem as que não têm escala (Financeiro). */
+async function basesQueServem() {
+  return (await basesDaIgreja()).filter((b) => b.semEscalaDeCulto !== true).map((b) => b.id);
+}
+
+function exigeEventoDaIgrejaEditavel(snap) {
+  if (!snap.exists || snap.data().ativo === false) throw new HttpsError("not-found", "Evento não encontrado.");
+  const d = snap.data();
+  if (!d.tipo) throw new HttpsError("failed-precondition", "Os domingos não se mudam por aqui.");
+  if (d.escopo === "base") {
+    throw new HttpsError("failed-precondition", "Este evento é só de uma base — muda-se nessa base.");
+  }
+  return d;
+}
+
+export const guardarEventoIgreja = onCall(async (req) => {
+  const uid = exigeVisaoPastoral(req);
+  const { data, nome, horaCulto, horaChegada, local, nota, bases, editar } = req.data || {};
+  if (!DATA_ISO.test(String(data || ""))) throw new HttpsError("invalid-argument", "Data inválida.");
+  if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 60) {
+    throw new HttpsError("invalid-argument", "Falta o nome do evento.");
+  }
+  if (!HORA.test(String(horaCulto || "")) || !HORA.test(String(horaChegada || ""))) {
+    throw new HttpsError("invalid-argument", "Horas inválidas.");
+  }
+  if ((local && (typeof local !== "string" || local.length > 80)) || (nota && (typeof nota !== "string" || nota.length > 300))) {
+    throw new HttpsError("invalid-argument", "Local ou nota demasiado longos.");
+  }
+  const servem = await basesQueServem();
+  if (!Array.isArray(bases) || !bases.length) throw new HttpsError("invalid-argument", "Escolhe pelo menos uma base.");
+  if (bases.some((b) => !servem.includes(b))) throw new HttpsError("invalid-argument", "Base desconhecida.");
+
+  const campos = {
+    tipo: nome.trim(), horaCulto, horaChegada,
+    local: local?.trim() || null, nota: nota?.trim() || null,
+    dispensadaPor: servem.filter((b) => !bases.includes(b)),
+  };
+  const ref = db().doc(`eventos/${data}`);
+  const snap = await ref.get();
+  if (editar) {
+    exigeEventoDaIgrejaEditavel(snap);
+    await ref.set({
+      ...campos, atualizadoPor: uid, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { eventoId: data };
+  }
+  if (snap.exists && snap.data().ativo !== false) {
+    throw new HttpsError("already-exists", "Já há um evento nesse dia — só cabe um evento da igreja por dia.");
+  }
+  // .set() sem merge, como criarCultoEspecial: um `ativo:false` antigo
+  // na mesma data é substituído por inteiro
+  await ref.set({
+    data, ...campos, escopo: "global", baseId: null, origem: "pastoral",
+    criadoPor: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { eventoId: data };
+});
+
+/** Apagar a sério, como `excluirCultoEspecial` (o id é a data — um
+ *  `ativo:false` prendia o dia para sempre), mas com as escalas de
+ *  TODAS as bases, não só a de quem apaga. Só eventos futuros: um que
+ *  já passou tem contagem/checklist/registo, e isso é histórico
+ *  (regra 5 do CLAUDE.md raiz). O cliente avisa antes quais bases já
+ *  tinham escalado gente. */
+export const apagarEventoIgreja = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { eventoId } = req.data || {};
+  if (!DATA_ISO.test(String(eventoId || ""))) throw new HttpsError("invalid-argument", "Falta o evento.");
+  const ref = db().doc(`eventos/${eventoId}`);
+  const d = exigeEventoDaIgrejaEditavel(await ref.get());
+  if (d.data < hojeEmLisboa()) {
+    throw new HttpsError("failed-precondition", "Um evento que já passou não se apaga — é histórico.");
+  }
+  await db().recursiveDelete(ref);
+  return { ok: true };
+});
+
+/* ══════════════════════════════════════════════════════════════
  *  RECADO DO PASTOR — de ida, sem resposta
  * ══════════════════════════════════════════════════════════════
  *
