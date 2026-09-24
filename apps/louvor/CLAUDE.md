@@ -62,7 +62,6 @@ eventos/{e}/escalas/louvor
     { papel: "guitarra", pessoaId: "..." },
   ]
   pessoas: [...]                                // união plana, recalculada no servidor
-  enfase: "ceia" | "contribua" | "familia"       // ver ENFASES em lib/modelo.js
   coresRoupa: ["#0092D4", "#D8F24B"]             // 1 a 3 hex
   dataEnsaio: "2026-09-10" | null
   observacaoLider: "texto livre" | null
@@ -78,13 +77,24 @@ papéis em 2026-09 (Lead/Co-lead/Back, pedido do líder) — escalados
 antigos com `papel:"vocal"` continuam gravados, só perdem o nome
 bonito.
 
-`enfase`/`coresRoupa`/`dataEnsaio`/`observacaoLider` são gravados
-pela Cloud Function `definirDetalhesCultoLouvor` (`lib/culto.js`),
-separada de `guardarEscalaLouvor` — editar "quem serve" e editar
-"detalhes do culto" são gestos distintos. `enfase` tem um default
-calculado no cliente quando ainda não foi definida (`enfaseDefault`
-em `lib/modelo.js`): primeiro domingo do mês é sempre Ceia, os outros
-começam em Culto da Família — o líder troca livremente depois.
+`coresRoupa`/`dataEnsaio`/`observacaoLider` são gravados pela Cloud
+Function `definirDetalhesCultoLouvor` (`lib/culto.js`), separada de
+`guardarEscalaLouvor` — editar "quem serve" e editar "detalhes do
+culto" são gestos distintos.
+
+**Tipo de culto (Ceia/Contribua/Culto da Família…) não é campo desta
+base** — é `eventos/{eventoId}.tipoCulto`, global, o mesmo valor que
+a Backstage grava ao publicar a Ordem do Culto (ver
+`packages/shared/src/lib/tipoCulto.js`). `tipoCultoDefault(data)` é
+só a sugestão para quando ainda não há nada gravado (primeiro domingo
+do mês = Ceia, os outros = Culto da Família) — nunca grava sozinha.
+Desde 2026-09 a LISTA de tipos é editável (pedido do dono do produto:
+"adicionei uma etiqueta nova no Painel Pastoral, quero que apareça em
+todas as bases") — vem de `config/tiposCulto`, global, só o Painel
+Pastoral edita; esta base só lê (`useTiposCulto()`,
+`TiposCultoContext.jsx` em `packages/shared`, montado em
+`Sessao.jsx`), em `Escala.jsx` (etiqueta do culto, quadro do mês) e
+`Inicio.jsx`.
 
 O cartão de cada culto em Escala (`Escala.jsx`, `DetalhesCulto`)
 mostra tudo isto em caixinhas separadas, cada uma com uma cor leve de
