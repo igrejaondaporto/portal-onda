@@ -4,7 +4,7 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto } from "../lib/presenca";
+import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto, usaJuniorFunAntigo } from "../lib/presenca";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -16,6 +16,13 @@ const PERIODOS = [
   ["12m", "12 meses"],
   ["ano", "Este ano"],
 ];
+
+/** Domingos de antes do Formulário da Base Pessoal, contados na
+ *  planilha antiga (pedido 2026-09: "só para ter algo ali"). Um número
+ *  fixo aqui, e não contactos inventados em `contactos` — esses
+ *  entrariam no funil de visitantes como pessoas que não existem.
+ *  Prevalece sobre o que o Formulário tiver para esse domingo. */
+const CADASTRADOS_PLANILHA = { "2026-09-06": 9 };
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -46,7 +53,8 @@ function janelaDe(periodo) {
  */
 export default function Numeros({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
-  const [periodo, setPeriodo] = useState("12m");
+  // 3 meses por omissão (pedido 2026-09) — é o que se olha no dia a dia
+  const [periodo, setPeriodo] = useState("3m");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   // qual momento (categoria) do "O culto começa a horas?" está
@@ -140,8 +148,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
   const visitantesCadastrados = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
-      .filter((c) => c.visitantesCadastrados > 0)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.visitantesCadastrados }));
+      .map((c) => ({ c, n: CADASTRADOS_PLANILHA[c.data] ?? c.visitantesCadastrados }))
+      .filter(({ n }) => n > 0)
+      .map(({ c, n }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: n }));
   }, [dados]);
 
   /** Quantos foram escalados em cada culto, somando as dez bases —
@@ -302,7 +311,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
       { chave: "baby", rotulo: "Baby", valor: mediaDe("baby") },
       { chave: "fun", rotulo: "Fun", valor: mediaDe("fun"), sempre: true },
       { chave: "junior", rotulo: "Júnior", valor: mediaDe("junior"), sempre: true },
-      { chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 13/9)", valor: mediaDe("juniorFun") },
+      {
+        chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 6/9)",
+        valor: media(cultosComContagem.filter((c) => usaJuniorFunAntigo(c.contagem)).map((c) => c.contagem.juniorFun)),
+      },
       { chave: "new", rotulo: "New", valor: mediaDe("new") },
       { chave: "shift", rotulo: "Shift", valor: mediaDe("shift") },
     ].filter((s) => s.sempre || s.valor !== null);

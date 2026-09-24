@@ -538,6 +538,16 @@ bug "a data não fica no sítio certo", 2026-09).
 **Crianças mostra sempre Fun e Júnior**, com "—" enquanto não houver
 número; até 13/9 as duas salas contavam-se juntas (`juniorFun`), que
 aparece numa linha à parte com esse nome — nunca dividida às duas.
+**O `juniorFun` só conta num domingo sem `junior`/`fun`**
+(`usaJuniorFunAntigo`, `lib/presenca.js`): em 13/9 a líder preencheu
+depois Júnior e Fun na Contagem, e o painel somava os dois ao 14
+antigo (pedido 2026-09: "desconsidera o valor antigo").
+
+Números abre em **3 meses** por omissão (pedido 2026-09).
+
+"Visitantes cadastrados" de 6/9 (9) vem da planilha antiga
+(`CADASTRADOS_PLANILHA`, `Numeros.jsx`), não do Formulário — de
+propósito um número fixo e não contactos inventados.
 
 `components/Barras.jsx` é o do Financeiro com uma diferença — o
 `formatar` entra por prop, porque aqui o valor nem sempre é dinheiro.
