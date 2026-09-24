@@ -79,12 +79,17 @@ export async function obterEstatisticasEscala(dias = 90) {
 /* ── escala do mês ────────────────────────────────────────── */
 const pad2 = (n) => String(n).padStart(2, "0");
 
-/** Evento escopo:"base" de outra base, ou um evento global que esta
- *  base marcou "não servimos" — não aparece no calendário, escala,
- *  enquete nem em lado nenhum desta app. Não é sigilo a sério (ver
- *  CLAUDE.md raiz): o documento em si continua legível por qualquer
- *  autenticado, isto só filtra o que a interface mostra. */
+/** Evento escopo:"base" de outra base, um evento global que esta
+ *  base marcou "não servimos", ou QUALQUER culto especial — não
+ *  aparece no calendário, escala, lições nem em lado nenhum desta app.
+ *  A Kinder só serve nos domingos normais (pedido da líder, 2026-09):
+ *  os especiais (`tipo` preenchido; os domingos de gerarDomingos têm
+ *  `tipo:null`) saíram todos, e com eles o "Adicionar culto especial"
+ *  do Painel. Não é sigilo a sério (ver CLAUDE.md raiz): o documento
+ *  continua legível por qualquer autenticado, isto só filtra o que a
+ *  interface mostra. */
 function visivelParaBase(ev) {
+  if (ev.tipo) return false;
   if (ev.escopo === "base" && ev.baseId !== BASE_ID) return false;
   if ((ev.dispensadaPor || []).includes(BASE_ID)) return false;
   return true;
@@ -167,8 +172,6 @@ export async function obterIndisponibilidadesCrossBase(domingoIds) {
   }));
   return mapa;
 }
-
-export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
 
 /** "Esta base não serve neste evento" — tira o evento global do
  *  calendário/enquete desta base (ver visivelParaBase). Reversível. */

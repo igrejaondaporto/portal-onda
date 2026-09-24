@@ -46,7 +46,10 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   useEffect(() => ouvirInventario(setItens), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
 
-  const podeGerir = souLiderBase;
+  // itens (criar/editar/remover) são de qualquer voluntário — pedido da
+  // líder, 2026-09 (exigeGestorInventario deixa passar na Kinder). A
+  // lista de compras continua só das líderes.
+  const podeGerirCompras = souLiderBase;
 
   const itensDaSala = sala ? itens.filter((i) => !i.sala || i.sala === sala || i.sala === "partilhado") : itens;
   const falta = itensDaSala.filter((i) => i.quantidade <= i.minimo);
@@ -56,7 +59,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Inventário</em>,
-      subtitulo: podeGerir ? "O material de cada sala e a lista de compras, sempre atualizados" : "O material de cada sala, sempre atualizado",
+      subtitulo: podeGerirCompras ? "O material de cada sala e a lista de compras, sempre atualizados" : "O material de cada sala, sempre atualizado",
       chips: [`${itensDaSala.length} itens`, falta.length ? `${falta.length} no mínimo ou esgotados` : "Tudo em ordem"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,11 +159,9 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
           <SeletorCategoria valor={sala} onMudar={setSala} rotuloTodas="Todas as salas" />
         )}
       </div>
-      {podeGerir && (
-        <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "item", item: null, sala })}>
-          Adicionar item
-        </button>
-      )}
+      <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "item", item: null, sala })}>
+        Adicionar item
+      </button>
       {categorias.map((cat) => (
         <div className="sect" key={cat}>
           <div className="cabecalho"><h3>{cat}</h3></div>
@@ -181,7 +182,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <p className="nmt" style={{ minWidth: 0, flex: "0 1 auto" }}>{i.nome}</p>
-                    {podeGerir && estado.nivel !== "ok" && (
+                    {podeGerirCompras && estado.nivel !== "ok" && (
                       jaNaLista ? (
                         <span
                           style={{
@@ -212,14 +213,12 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
                   </p>
                   {i.observacoes && <p className="ds">{i.observacoes}</p>}
                   {i.sala && i.sala !== "partilhado" && <span className="kin-tagcat" style={{ marginTop: 4, display: "inline-block" }}>{nomeCategoria(i.sala)}</span>}
-                  {podeGerir && (
-                    <button
-                      className="btn sec" style={{ marginTop: 8, padding: "6px 12px", fontSize: 12 }}
-                      onClick={() => setSheet({ tipo: "item", item: i })}
-                    >
-                      Editar
-                    </button>
-                  )}
+                  <button
+                    className="btn sec" style={{ marginTop: 8, padding: "6px 12px", fontSize: 12 }}
+                    onClick={() => setSheet({ tipo: "item", item: i })}
+                  >
+                    Editar
+                  </button>
                 </div>
                 <div className="qtd">
                   <button className="qb" onClick={() => mexer(i, -1)}>−</button>
@@ -241,7 +240,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
         </div>
       ))}
 
-      {podeGerir && (
+      {podeGerirCompras && (
         <>
           <div style={{ height: 8, background: "var(--agua)", borderRadius: 6, margin: "26px -4px 0" }} />
 
@@ -318,7 +317,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
             )}
           </div>
 
-          <ListasComprasSalvas podeGerir={podeGerir} />
+          <ListasComprasSalvas podeGerir={podeGerirCompras} />
         </>
       )}
 
