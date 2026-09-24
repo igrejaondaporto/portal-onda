@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { MESES, dataPorExtenso } from "@portal/shared/lib/data.js";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
+import RepertorioLouvorKinder from "../components/licao/RepertorioLouvorKinder";
 import { minhaSalaRestrita, nomeCategoria, souLider, souLiderGeral, souMestra, varsCategoria } from "../lib/modelo";
 import { licoesDaSala, licoesVistas, marcarLicaoVista, desativarLicao } from "../lib/licoes";
 import { ouvirEventosDoMes } from "../lib/painel";
@@ -143,6 +144,11 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
                     ? `${doEvento.length} ${doEvento.length === 1 ? "lição" : "lições"}${semVer ? ` · ${semVer} nova${semVer === 1 ? "" : "s"}` : ""}`
                     : "Ainda sem lição"}
                 >
+                  {/* Louvor em cima das lições das salas — é o mesmo para
+                    * as três (pedido do líder, 2026-09). O CartaoCulto só
+                    * monta o corpo com o box aberto, por isso cada culto
+                    * só pede a escala quando alguém o abre. */}
+                  <RepertorioLouvorKinder eventoId={ev.id} />
                   {doEvento.length === 0 ? (
                     <div className="vaz">
                       {sala ? `Ainda não há lição da sala ${nomeCategoria(sala)} para este culto.` : "Ainda não há lição para este culto."}
