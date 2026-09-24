@@ -528,7 +528,11 @@ export const historicoPastoral = onCall(async (req) => {
  *  um domingo fraco. Daí `finalizada`: só a contagem que a Pessoal
  *  marcou como terminada entra nas tendências. */
 const AUDITORIO = ["visitantes", "voluntarios"];
-const SALAS = ["new", "shift", "junior", "fun", "baby"];
+// "juniorFun" é a categoria de antes de Júnior e Fun se separarem
+// (dados até 2026-09-13) — entra no total das salas para os domingos
+// antigos não perderem essas crianças; nunca coexiste com junior/fun
+// no mesmo culto.
+const SALAS = ["new", "shift", "junior", "fun", "baby", "juniorFun"];
 
 function resumirContagem(c) {
   const cats = c.categorias || {};
@@ -557,6 +561,11 @@ function resumirContagem(c) {
     junior: valor("junior"),
     fun: valor("fun"),
     baby: valor("baby"),
+    juniorFun: valor("juniorFun"),
+    // "pessoas presentes durante a mensagem" — o número do auditório
+    // nos domingos de antes do Mapa (ver MAPA_DESDE em
+    // apps/pastoral/src/lib/presenca.js)
+    mensagem: valor("mensagem"),
   };
 }
 

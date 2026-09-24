@@ -44,19 +44,26 @@ export const registarContagemSala = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Categoria inválida para esta base.");
   }
 
-  // Kinder: a líder geral preenche as três salas; uma líder de sala
-  // (papel "auxiliar", ver BASES_COM_AUXILIAR em index.js) só a
-  // própria — mesmo isolamento por sala do resto da Kinder (CLAUDE.md
-  // dela: "Baby não vê nada do Fun..."). SHIFT/New não têm papel
-  // "auxiliar" nenhum, por isso é sempre a líder da base.
-  if (baseId === "kinder" && papel !== "lider_base") {
-    if (papel !== "auxiliar") throw new HttpsError("permission-denied", "Só a líder pode preencher esta contagem.");
+  // Pedido 2026-09: qualquer voluntário da base marca — "se ninguém
+  // marcar, a pergunta fica pendente até alguém marcar". Na Kinder,
+  // quem não é a líder geral só marca a PRÓPRIA sala (mesmo isolamento
+  // por sala de sempre, CLAUDE.md da Kinder). Depois de marcado, só as
+  // líderes corrigem — um voluntário que abre o Início mais tarde não
+  // escreve por cima do que outro já contou.
+  const souLiderGeral = papel === "lider_base";
+  const souLider = souLiderGeral || papel === "auxiliar";
+  if (baseId === "kinder" && !souLiderGeral) {
     const pessoaSnap = await db().doc(`bases/kinder/pessoas/${req.auth.uid}`).get();
     if (!pessoaSnap.exists || pessoaSnap.data().categoria !== categoria) {
-      throw new HttpsError("permission-denied", "Só a líder da tua sala pode preencher esta contagem.");
+      throw new HttpsError("permission-denied", "Só podes marcar a contagem da tua sala.");
     }
-  } else if (baseId !== "kinder" && papel !== "lider_base") {
-    throw new HttpsError("permission-denied", "Só a líder da base pode preencher esta contagem.");
+  }
+  const ref = db().doc(`eventos/${eventoId}/contagem/geral`);
+  if (!souLider) {
+    const atual = (await ref.get()).data()?.categorias?.[categoria]?.valor;
+    if (atual !== null && atual !== undefined) {
+      throw new HttpsError("failed-precondition", "Esta contagem já foi marcada — só a líder pode corrigir.");
+    }
   }
 
   let valorNormalizado = null;
@@ -67,7 +74,7 @@ export const registarContagemSala = onCall(async (req) => {
     }
   }
 
-  await db().doc(`eventos/${eventoId}/contagem/geral`).set({
+  await ref.set({
     eventoId,
     categorias: {
       [categoria]: {
