@@ -137,6 +137,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── tipos de culto (Ceia/Contribua/Culto da Família…) — global,
+    // a mesma lista para todas as bases (packages/shared/src/lib/
+    // tipoCulto.js). Todas leem (é lido ao publicar/rever a Ordem do
+    // Culto e ao mostrar a etiqueta em qualquer base); só quem publica
+    // a ordem — o Painel Pastoral — edita a lista (pedido do líder,
+    // 2026-09: um tipo novo adicionado lá passa a aparecer em todas as
+    // bases, sem precisar de deploy). Escrita direta do cliente, sem
+    // Cloud Function — a mesma decisão de bases/{b}/definicoes/{doc}.
+    match /config/tiposCulto {
+      allow read:  if autenticado();
+      allow write: if vejoTudoPastoral();
+    }
+
     // ── índice leve de busca da Wiki (Base Técnica) — recalculado
     // pela Cloud Function a cada publicação, nunca escrito pelo cliente
     match /wikiIndice/{base} {
