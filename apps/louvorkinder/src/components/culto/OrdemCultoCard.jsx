@@ -4,6 +4,7 @@ import { ouvirCultoAoVivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { nomeEvento, hojeISO, haAtras } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import OrdemCultoTimeline from "./OrdemCultoTimeline";
 import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
 
@@ -14,6 +15,7 @@ import SheetRevisaoOrdem from "./SheetRevisaoOrdem";
  *  (hoje só a Backstage) — as outras bases só leem. */
 export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, chegada, pdfUrlExistente, onPdfEnviado, onNotasGuardadas, onVerFuncoes }) {
   const torrada = useTorrada();
+  const tiposCulto = useTiposCulto();
   const inputRef = useRef(null);
   const [aEnviar, setAEnviar] = useState(false);
   const [aConfirmarRemover, setAConfirmarRemover] = useState(false);
@@ -118,7 +120,7 @@ export default function OrdemCultoCard({ evento, aberto, onAbrir, podePublicar, 
           <p className="nm">
             {nomeEvento(evento)}
             <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 8, fontSize: 10.5 }}>
-              {nomeTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data))}
+              {nomeTipoCulto(tiposCulto, evento.tipoCulto || tipoCultoDefault(evento.data))}
             </span>
           </p>
           <p className="ds">
