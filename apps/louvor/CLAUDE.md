@@ -463,7 +463,7 @@ Regras:
 - Linhas com o mesmo `nomeMusica` + `nomeArtista` viram **uma música com várias versões** (`chaveIdentidade` é quem decide, não o texto exato da linha).
 - Roda uma vez, direto no Firestore de produção (Admin SDK, como os outros `scripts/seed*.mjs`) — repetir não duplica: música existente (mesma `chaveIdentidade`) ganha só a versão nova, se `nomeVersao` também for novo.
 
-Script: `scripts/importarLouveAppLouvor.mjs <ficheiro.xlsx>`. Só precisa do `service-account.json` na raiz (já existe) e do export do LouveApp.
+Script: `scripts/importarLouveAppLouvor.mjs <ficheiro.xlsx>`. Só precisa do `service-account.json` na raiz (já existe) e do export do LouveApp. Serve também o Louvor Kinder (`--base=louvorkinder`, ver `apps/louvorkinder/CLAUDE.md`), e aceita o cabeçalho legível que o LouveApp passou a exportar ("Nome da música", "Artista", "Álbum"…) e durações em `m:ss`. A capa só é aceite com título e artista a bater (antes caía no primeiro resultado do Deezer às cegas).
 
 ## 5. Resolução automática — capa e busca por nome
 

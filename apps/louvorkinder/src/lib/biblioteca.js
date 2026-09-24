@@ -23,6 +23,13 @@ export const CLASSIFICACOES = [
   { id: "contemplacao", nome: "Contemplação", ajuda: "Concentram-se em meditar na Pessoa de Deus, Seu caráter e Suas qualidades." },
   { id: "especiais", nome: "Especiais", ajuda: "Temas como casamento, batizados e datas." },
   { id: "louvor", nome: "Louvor", ajuda: "Expressam elogio e agradecimento por aquilo que Deus fez, faz ou fará." },
+  // As cinco abaixo só existem no Louvor Kinder — vieram do LouveApp
+  // do louvor infantil (importação de 2026-09, ver CLAUDE.md desta base).
+  { id: "infantil", nome: "Infantil", ajuda: "Feitas para crianças — letra simples, fácil de cantar." },
+  { id: "animada", nome: "Animada", ajuda: "Ritmo rápido, com gestos ou coreografia." },
+  { id: "calma", nome: "Calma", ajuda: "Mais tranquilas — para acalmar a sala ou para um momento de oração." },
+  { id: "biblica", nome: "Bíblica", ajuda: "Contam uma história ou um texto da Bíblia." },
+  { id: "antiga", nome: "Antiga", ajuda: "Clássicos que as famílias já conhecem." },
 ];
 
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
