@@ -6,10 +6,23 @@ import {
   limparAvisos, limparMomentos, modeloParaFormulario, momentoVazio, ordemParaFormulario, ouvirModelos,
 } from "../lib/ordem";
 import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
-import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { tipoCultoDefault, guardarTiposCulto } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import OrdemImprimivel from "../components/OrdemImprimivel";
 import NavCulto from "../components/NavCulto";
+
+const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** id novo a partir do nome — igual ao mesmo mecanismo dos papéis da
+ *  escala (SecaoPapeisEscala.jsx, Louvor): sufixo -2/-3… só se
+ *  colidir com um id já existente. */
+function gerarIdTipoCulto(nome, existentes) {
+  const base = norm(nome).replace(/[^a-z0-9]+/g, "").slice(0, 24) || "tipo";
+  let id = base, n = 2;
+  while (existentes.has(id)) id = `${base}${n++}`;
+  return id;
+}
 
 function janela() {
   const h = new Date();
@@ -68,6 +81,7 @@ function janela() {
  */
 export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const torrada = useTorrada();
+  const tiposCulto = useTiposCulto();
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
   const [momentos, setMomentos] = useState([momentoVazio()]);
@@ -81,6 +95,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const [carregadoDe, setCarregadoDe] = useState(null);
   const [aAdicionarTipo, setAAdicionarTipo] = useState(false);
   const [outroTipo, setOutroTipo] = useState("");
+  const [aGuardarTipo, setAGuardarTipo] = useState(false);
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
@@ -225,11 +240,35 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
     torrada(`"${modelo.nome}" carregado — as horas e os nomes ficaram, os responsáveis não.`);
   }
 
-  function usarOutroTipo() {
-    if (!outroTipo.trim()) return;
-    setTipoCulto(outroTipo.trim());
-    setOutroTipo("");
-    setAAdicionarTipo(false);
+  /** "+ Outro" passa a acrescentar a sério ao catálogo global
+   *  (pedido do dono do produto, 2026-09: "adicionei uma etiqueta
+   *  nova no Painel Pastoral, quero que apareça em todas as bases") —
+   *  não é mais um texto que só vale para este culto. Se já existir
+   *  um tipo com o mesmo nome (comparação sem acentos/maiúsculas),
+   *  reutiliza-o em vez de duplicar. */
+  async function usarOutroTipo() {
+    const nome = outroTipo.trim();
+    if (!nome) return;
+    const existente = tiposCulto.find((t) => norm(t.nome) === norm(nome));
+    if (existente) {
+      setTipoCulto(existente.id);
+      setOutroTipo("");
+      setAAdicionarTipo(false);
+      return;
+    }
+    setAGuardarTipo(true);
+    try {
+      const id = gerarIdTipoCulto(nome, new Set(tiposCulto.map((t) => t.id)));
+      await guardarTiposCulto([...tiposCulto, { id, nome }]);
+      setTipoCulto(id);
+      setOutroTipo("");
+      setAAdicionarTipo(false);
+      torrada(`"${nome}" adicionado — já aparece em todas as bases`);
+    } catch (e) {
+      torrada(e.message || "Não foi possível adicionar o tipo de culto.");
+    } finally {
+      setAGuardarTipo(false);
+    }
   }
 
   return (
@@ -425,15 +464,17 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
           não de cada base por si.
         </p>
         <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
-          {TIPOS_CULTO.map((t) => (
+          {tiposCulto.map((t) => (
             <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => { setTipoCulto(t.id); setAAdicionarTipo(false); }}>{t.nome}</button>
           ))}
-          {/* um tipo escrito à mão (ex.: "Culto de Natal") também
-              aparece aqui como botão, escolhido, até se trocar de
-              culto — não é gravado numa lista partilhada nenhuma, só
-              vale para esta ordem (publicarOrdemCulto já aceita
-              qualquer texto não vazio, ver functions/index.js) */}
-          {tipoCulto && !TIPOS_CULTO.some((t) => t.id === tipoCulto) && (
+          {/* Rede de segurança para um culto ANTIGO cujo tipoCulto é
+              texto solto, de antes de "+ Outro" gravar no catálogo
+              (2026-09) — mostra-o escolhido mesmo sem estar em
+              tiposCulto, em vez de o botão nenhum ficar aceso.
+              publicarOrdemCulto continua a aceitar qualquer texto não
+              vazio (ver functions/index.js), mas "+ Outro" agora só
+              produz um id da lista partilhada (ver usarOutroTipo). */}
+          {tipoCulto && !tiposCulto.some((t) => t.id === tipoCulto) && (
             <button data-on="1">{tipoCulto}</button>
           )}
           <button data-on={aAdicionarTipo ? "1" : "0"} onClick={() => setAAdicionarTipo((v) => !v)}>+ Outro</button>
@@ -445,7 +486,9 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
               placeholder="Nome do tipo de culto" onChange={(e) => setOutroTipo(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && usarOutroTipo()}
             />
-            <button className="btn sec" style={{ flex: "none" }} onClick={usarOutroTipo}>Usar</button>
+            <button className="btn sec" style={{ flex: "none" }} disabled={aGuardarTipo} onClick={usarOutroTipo}>
+              {aGuardarTipo ? "A guardar…" : "Usar"}
+            </button>
           </div>
         )}
       </div>

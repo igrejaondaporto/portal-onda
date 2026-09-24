@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
+import { TiposCultoProvider } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { TourProvider, TourAutoStart } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
@@ -80,6 +81,7 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
 
   return (
     <TorradaProvider>
+    <TiposCultoProvider>
     <TourProvider>
       <TourAutoStart baseId={baseId} papel="lider_base" mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
       <Tour />
@@ -161,6 +163,7 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
       </div>
       <NavBar pagina={pagina} onIr={irPara} itens={ABAS} alertas={aoVivo ? ["domingo"] : []} />
     </TourProvider>
+    </TiposCultoProvider>
     </TorradaProvider>
   );
 }

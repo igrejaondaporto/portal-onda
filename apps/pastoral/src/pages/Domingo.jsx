@@ -5,6 +5,7 @@ import {
 } from "../lib/culto";
 import { hojeISO, nomeEvento } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { cruzarComReal } from "@portal/shared/lib/ordemAoVivo.js";
 import Atraso from "../components/Atraso";
 import SheetRecado from "../components/SheetRecado";
@@ -49,6 +50,7 @@ function janela() {
  * dessa base, e as regras já o garantem.
  */
 export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, podePublicarCulto }) {
+  const tiposCulto = useTiposCulto();
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
   const [escalas, setEscalas] = useState(null);       // null = a carregar
@@ -131,11 +133,11 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
         ? "A acontecer agora"
         : "As dez bases neste culto, num sítio só",
       chips: [
-        evento?.tipoCulto ? nomeTipoCulto(evento.tipoCulto) : null,
+        evento?.tipoCulto ? nomeTipoCulto(tiposCulto, evento.tipoCulto) : null,
         evento?.ordem ? "Ordem publicada" : "Sem ordem publicada",
       ].filter(Boolean),
     });
-  }, [ativo, definirCabecalho, evento, aoVivoId, eventoId, hoje]);
+  }, [ativo, definirCabecalho, evento, aoVivoId, eventoId, hoje, tiposCulto]);
 
   /* ── checklist: percentagem por base, ao vivo ────────────── */
   const porBase = useMemo(() => {
