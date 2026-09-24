@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { ouvirContagemPessoal, registarContagemSala } from "../lib/contagemCriancas";
+import { dataCurta } from "@portal/shared/lib/data.js";
+import { domingoDaContagem, ouvirContagemPessoal, registarContagemSala } from "../lib/contagemCriancas";
 
 /** A categoria desta base dentro da Contagem da Base Pessoal — ver
  *  `functions/contagemSalas.js` (`CATEGORIAS_POR_BASE`). */
@@ -15,11 +16,20 @@ const CATEGORIA = "shift";
  * depois de preenchido fica um cartão simples (`.caixa`, sem o
  * destaque vivo do popup), tocar reabre para corrigir.
  *
+ * QUEM (pedido 2026-09): QUALQUER pessoa da base marca, se ainda
+ * ninguém marcou; depois de marcado, só a líder corrige (o servidor
+ * recusa a um voluntário escrever por cima — `functions/contagemSalas.js`).
+ * QUANDO: o domingo mais recente até hoje (`domingoDaContagem`) — se
+ * ninguém marcou no domingo, a pergunta continua no Início durante a
+ * semana até alguém marcar. O popup só abre sozinho no próprio
+ * domingo; nos outros dias fica o cartão "a precisar de ti".
+ *
  * Escreve na Contagem da BASE PESSOAL (`registarContagemSala`,
  * `functions/contagemSalas.js`), a mesma que o Painel Pastoral e a
  * própria Base Pessoal já leem.
  */
-export default function ContagemCriancas({ eventoId, souLiderBase }) {
+export default function ContagemCriancas({ podeCorrigir }) {
+  const { eventoId, hoje: eDomingo } = domingoDaContagem();
   const torrada = useTorrada();
   const [contagem, setContagem] = useState(null);
   const [carregado, setCarregado] = useState(false);
@@ -39,11 +49,15 @@ export default function ContagemCriancas({ eventoId, souLiderBase }) {
   useEffect(() => {
     if (abriuSozinho.current || !carregado) return;
     abriuSozinho.current = true;
-    if (valor == null) abrir();
+    if (valor == null && eDomingo) abrir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregado, valor]);
 
+  // marcado e sem ser líder: só leitura
+  const soLeitura = valor != null && !podeCorrigir;
+
   function abrir() {
+    if (soLeitura) return;
     setRascunho(valor == null ? "" : String(valor));
     setAberto(true);
   }
@@ -63,7 +77,9 @@ export default function ContagemCriancas({ eventoId, souLiderBase }) {
     }
   }
 
-  if (!souLiderBase || !eventoId) return null;
+  if (!carregado) return null;
+  const estao = eDomingo ? "estão" : "estavam";
+  const quando = eDomingo ? "Hoje" : `Domingo, ${dataCurta(eventoId)}`;
 
   return (
     <>
@@ -71,16 +87,16 @@ export default function ContagemCriancas({ eventoId, souLiderBase }) {
         <div className="destaque" onClick={abrir}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
-            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Quantos adolescentes estão presentes?</p>
-            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Vai direto para a Contagem da Base Pessoal</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Quantos adolescentes {estao} presentes?</p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>{quando} · ainda ninguém marcou</p>
           </div>
           <span style={{ fontSize: 24 }}>›</span>
         </div>
       ) : (
-        <div className="linha" style={{ cursor: "pointer" }} onClick={abrir} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") abrir(); }}>
+        <div className="linha" style={{ cursor: soLeitura ? "default" : "pointer" }} onClick={abrir} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") abrir(); }}>
           <div style={{ flex: 1 }}>
             <p className="nmt">Adolescentes presentes</p>
-            <p className="ds">Toca para corrigir</p>
+            <p className="ds">{quando} · {soLeitura ? "só a líder pode corrigir" : "toca para corrigir"}</p>
           </div>
           <p style={{ fontSize: 22, fontWeight: 800 }}>{valor}</p>
         </div>
@@ -91,8 +107,11 @@ export default function ContagemCriancas({ eventoId, souLiderBase }) {
           <div className="veu on" onClick={() => setAberto(false)} />
           <div className="pin on" role="dialog" aria-modal="true" aria-label="Quantos adolescentes estão presentes">
             <div className="pux" />
-            <h2>Quantos adolescentes estão presentes?</h2>
-            <p className="ds" style={{ marginTop: 6 }}>Vai direto para a Contagem da Base Pessoal — não é preciso repetir lá.</p>
+            <h2>Quantos adolescentes {estao} presentes?</h2>
+            <p className="ds" style={{ marginTop: 6 }}>
+              {quando}. Vai direto para a Contagem da Base Pessoal — não é preciso repetir lá.
+              {!podeCorrigir && " Depois de guardado, só a líder pode corrigir."}
+            </p>
             <input
               className="campo" style={{ marginTop: 14 }} type="number" inputMode="numeric" min="0" step="1" placeholder="—"
               value={rascunho} onChange={(e) => setRascunho(e.target.value)}

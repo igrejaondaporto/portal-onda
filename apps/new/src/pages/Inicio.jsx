@@ -221,14 +221,11 @@ export default function Inicio({
   const carregandoRespostas = enquetesDentroDoPrazo.some((e) => !(e.id in minhasRespostas));
   const todasRespondidas = enquetesDentroDoPrazo.length > 0 && enquetesDentroDoPrazo.every((e) => !!minhasRespostas[e.id]);
   const mesesEnquete = enquetesDentroDoPrazo.map((e) => MESES[Number(e.id.split("-")[1]) - 1]).join(" e ");
-  // o culto de HOJE, não "meuEvento" (esse é o próximo em que sirvo,
-  // pode não ser hoje) — para "Quantas crianças estão presentes?".
-  const eventoHoje = eventosMes.find((ev) => ev.data === hojeISO) ?? null;
 
   return (
     <>
       <RecadoPastoral papel={papel} />
-      <ContagemCriancas eventoId={eventoHoje?.id ?? null} souLiderBase={souLiderBase} />
+      <ContagemCriancas podeCorrigir={papel === "lider_base" || papel === "auxiliar"} />
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (
         <div className="destaque" onClick={() => setAResponderEnquete(true)}>
           <div>

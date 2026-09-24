@@ -211,7 +211,7 @@ export default function Inicio({
 
       <div className="duas">
         <div>
-          <ContagemCriancas eventoId={eventoHoje?.id ?? null} lider={lider} liderGeral={liderGeral} restrita={restrita} />
+          <ContagemCriancas lider={lider} liderGeral={liderGeral} restrita={restrita} />
 
           {CHECKIN_ATIVO && eventoHoje && (
             <div className="sect" data-tour="hoje-bloco">
