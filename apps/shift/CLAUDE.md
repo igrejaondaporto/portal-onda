@@ -130,6 +130,9 @@ recente até hoje (`domingoDaContagem`, `lib/contagemCriancas.js`), por
 isso fica pendente no Início durante a semana até alguém marcar; o
 popup só abre sozinho no próprio domingo.
 
+Aparece mesmo a quem não está escalado num culto próximo: sem
+`meuEvento` o resto do Início fica vazio, mas o contador não.
+
 ## Detalhes ainda por fechar com a líder
 
 - Chegada, cor, nome bonito das funções, se há ministérios (hoje

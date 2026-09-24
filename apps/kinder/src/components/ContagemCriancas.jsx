@@ -15,7 +15,8 @@ import { domingoDaContagem, ouvirContagemPessoal, registarContagemSala } from ".
  * QUEM (pedido 2026-09, "se ninguém da base marcar, deixar a pergunta
  * pendente até alguém marcar"):
  * - QUALQUER voluntário marca a SUA sala, se ainda estiver vazia; a
- *   líder geral vê e marca as três. Mesmo isolamento por sala de
+ *   líder geral vê e marca as três, e quem ainda não tem sala definida
+ *   também as vê (e marca qualquer uma que esteja vazia). Mesmo isolamento por sala de
  *   sempre (`minhaSalaRestrita`), e o servidor confirma a sala.
  * - Depois de marcada, SÓ a líder (geral ou de sala) corrige — o
  *   servidor recusa a um voluntário escrever por cima.
@@ -37,7 +38,10 @@ export default function ContagemCriancas({ lider, liderGeral, restrita }) {
   const [aGuardar, setAGuardar] = useState(false);
   const abriuSozinho = useRef(false);
 
-  const salas = liderGeral ? CATEGORIAS : (restrita ? CATEGORIAS.filter((c) => c.id === restrita) : []);
+  // quem tem sala vê só a sua; a líder geral E quem ainda não tem sala
+  // definida veem as três (pedido 2026-09: "PRA TODOS OS VOLUNTÁRIOS" —
+  // antes, sem sala, o contador não aparecia a ninguém assim)
+  const salas = !liderGeral && restrita ? CATEGORIAS.filter((c) => c.id === restrita) : CATEGORIAS;
 
   useEffect(() => {
     setCarregado(false);
