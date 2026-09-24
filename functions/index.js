@@ -1709,6 +1709,38 @@ export const guardarEscalaComunicacao = onCall(async (req) => {
  * de propósito não deixam o cliente ler pessoas de outra base. Duas
  * formas de escala: lista simples (Apoio/Backstage) ou lugares por
  * ministério (Técnica) — devolve os dois formatos já com nomes. */
+/** Quem toca no Louvor Kinder num culto, para a Kinder mostrar no
+ *  bloco de Louvor do Início e no box do dia em Lições (pedido do
+ *  líder, 2026-09: "mostrar quem vai estar tocando no dia, e o
+ *  instrumento de cada um"). A Kinder não lê a escala nem os perfis
+ *  do Louvor Kinder (as regras fecham `eventos/{e}/escalas/{base}` e
+ *  `bases/{base}/pessoas` à própria base, e o perfil tem o telefone) —
+ *  esta função devolve só o nome e os papéis, nada mais. Uma entrada
+ *  por pessoa (a mesma pessoa pode estar em dois papéis, ver
+ *  `variosPapeisPorPessoa`), pela ordem da escala. */
+export const escalaLouvorKinderDoCulto = onCall(async (req) => {
+  const baseId = req.auth?.token?.baseId;
+  if (baseId !== "kinder" && baseId !== "louvorkinder") {
+    throw new HttpsError("permission-denied", "Só a Kinder e o Louvor Kinder veem esta escala.");
+  }
+  const { eventoId } = req.data || {};
+  if (typeof eventoId !== "string" || !eventoId || eventoId.includes("/")) {
+    throw new HttpsError("invalid-argument", "Falta o culto.");
+  }
+  const snap = await db.doc(`eventos/${eventoId}/escalas/louvorkinder`).get();
+  const porPessoa = new Map();
+  for (const e of (snap.exists ? snap.data().escalados : null) || []) {
+    if (!e?.pessoaId) continue;
+    if (!porPessoa.has(e.pessoaId)) porPessoa.set(e.pessoaId, []);
+    porPessoa.get(e.pessoaId).push(e.papel);
+  }
+  const perfis = await Promise.all([...porPessoa.keys()].map((id) => refPessoa("louvorkinder", id).get()));
+  const escalados = perfis
+    .filter((p) => p.exists && p.data().ativo !== false)
+    .map((p) => ({ nome: p.data().nome ?? "", papeis: porPessoa.get(p.id) }));
+  return { escalados };
+});
+
 export const escalasCrossBase = onCall(async (req) => {
   if (req.auth?.token?.ve_todas_escalas !== true) {
     throw new HttpsError("permission-denied", "Sem acesso à escala de outras bases.");
