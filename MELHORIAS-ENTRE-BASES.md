@@ -333,6 +333,36 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
 
+- **Os textos de WhatsApp da enquete são do líder**
+  (`lib/mensagensEnquete.js`, `lib/useMensagensEnquete.js`,
+  `components/SheetEditarMensagem.jsx`, `components/EditarMensagemEnquete.jsx`).
+  O texto ao grupo e o "Lembrar" individual eram frases fixas dentro do
+  código de cada base — oito cópias, iguais exceto o endereço no fim.
+  Agora guardam-se **por base**, em `bases/{base}/definicoes/
+  mensagensEnquete` (`{ enquete, lembrete }`), e o líder escreve-os num
+  editor com pré-visualização. Como o texto muda todos os meses (os
+  meses, os prazos), guarda-se o MODELO, com marcas `{meses}`,
+  `{prazos}` e `{nome}` que o portal preenche na hora de enviar; os
+  botões "+ Mês", "+ Prazo", "+ Nome" inserem-nas, porque escrever
+  chavetas num telemóvel é penoso. Uma marca inventada (`{mes}`)
+  bloqueia o guardar — senão o grupo inteiro recebia "{mes}" à letra.
+  `null` num campo = texto de fábrica, e é isso que se grava quando o
+  líder volta ao original, para as melhorias futuras do texto de
+  fábrica lhe chegarem sozinhas. **Sem Cloud Function e sem regras
+  novas:** `definicoes/{doc}` já deixava o líder de qualquer base
+  escrever direto. O texto de fábrica passou a viver num só sítio e foi
+  comparado byte a byte com o antigo de cada base (8 bases × 4 casos,
+  nenhuma diferença) — `npm run teste:mensagens` guarda-o.
+  **Ligado em 6 bases:** Técnica, Apoio, Pessoal, Backstage, Louvor e
+  Comunicação (esta só tem o texto do grupo — não tem "Lembrar"
+  individual, e não se inventou um). **New e SHIFT** não têm ecrã de
+  líder para a enquete, por isso nada se ligou; mas a função antiga
+  continua lá, morta, e diz "apoio.igrejaonda.pt" em vez do endereço da
+  própria base. Quando ganharem esse ecrã, usar este módulo e apagar
+  a cópia. O endereço do texto de fábrica vem agora de
+  `window.location.hostname` (`dominioDaBase`), não escrito à mão — foi
+  assim que essas duas ficaram com o endereço errado.
+
 - **"Painel do voluntário": o líder vê o que a equipa vê**
   (`MenuEu.jsx`, `BarraVistaVoluntario.jsx`, `SheetEscolherVista.jsx`).
   Não é papel novo nem login falso: o token continua a ser o do líder

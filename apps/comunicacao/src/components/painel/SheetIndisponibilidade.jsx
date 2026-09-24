@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { ouvirRespostas, fecharEnquete, reabrirEnquete, excluirEnquete, textoWhatsApp, linkWhatsApp } from "../../lib/enquetes";
+import { ouvirRespostas, fecharEnquete, reabrirEnquete, excluirEnquete, linkWhatsApp } from "../../lib/enquetes";
+import { useMensagensEnquete, dominioDaBase } from "@portal/shared/lib/useMensagensEnquete.js";
+import { textoEnquete } from "@portal/shared/lib/mensagensEnquete.js";
+import EditarMensagemEnquete from "@portal/shared/components/EditarMensagemEnquete.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
 import SheetResponderEnquete from "../SheetResponderEnquete";
@@ -12,12 +15,16 @@ const nomeMes = (mes) => MESES[Number(mes.split("-")[1]) - 1];
  *  aqui: isso continua a acontecer culto a culto, em Escala. */
 export default function SheetIndisponibilidade({ enquete, voluntarios, eventosPorId, onFechar, onMudou }) {
   const torrada = useTorrada();
+  const { mensagens, guardar: guardarMensagem } = useMensagensEnquete();
   const [respostas, setRespostas] = useState([]);
   const [aEnviar, setAEnviar] = useState(false);
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [respostaAlvo, setRespostaAlvo] = useState(null); // { pessoa, resposta|null } — edição/voto pelo líder
 
   useEffect(() => ouvirRespostas(enquete.id, setRespostas), [enquete.id]);
+
+  const listaEnquete = [{ mes: enquete.id, prazo: enquete.prazo }];
+  const textoGrupo = textoEnquete(mensagens.enquete, listaEnquete, dominioDaBase());
 
   const responderam = new Set(respostas.map((r) => r.id));
   const naoResponderam = voluntarios.filter((p) => !responderam.has(p.id));
@@ -55,13 +62,23 @@ export default function SheetIndisponibilidade({ enquete, voluntarios, eventosPo
           {respostas.length} de {voluntarios.length} responderam · prazo {dataPorExtenso(enquete.prazo)}
         </p>
 
-        <a
-          className="btn sec full" style={{ marginTop: 14, textDecoration: "none", textAlign: "center" }}
-          href={linkWhatsApp(textoWhatsApp({ mes: enquete.id, prazo: enquete.prazo }))}
-          target="_blank" rel="noreferrer"
-        >
-          Copiar texto para o WhatsApp
-        </a>
+        {/* O texto do grupo é o do líder, se ele o escreveu. O botão dizia
+          * "Copiar", mas o que faz é abrir o WhatsApp já com o texto
+          * escrito — o rótulo passa a dizer isso. */}
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <a
+            className="btn sec" style={{ flex: 1, textDecoration: "none", textAlign: "center" }}
+            href={linkWhatsApp(textoGrupo)}
+            target="_blank" rel="noreferrer"
+          >
+            Abrir WhatsApp com o texto
+          </a>
+          <EditarMensagemEnquete
+            tipo="enquete" mensagens={mensagens} guardar={guardarMensagem}
+            enquetes={listaEnquete} dominio={dominioDaBase()}
+            estilo={{ padding: "0 16px", fontSize: 13 }}
+          />
+        </div>
 
         <label className="rot" style={{ marginTop: 16 }}>Por domingo</label>
         {(enquete.domingos || []).map((id) => {

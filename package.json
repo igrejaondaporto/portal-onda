@@ -18,7 +18,8 @@
     "smoke": "node scripts/smoke-functions.mjs",
     "verificar:isolamento": "node scripts/verificar-isolamento.mjs",
     "teste:ciclo": "node scripts/e2e-ciclo-base.mjs",
-    "teste:ordem": "node scripts/testa-ordem-culto.mjs"
+    "teste:ordem": "node scripts/testa-ordem-culto.mjs",
+    "teste:mensagens": "node scripts/testa-mensagens-enquete.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

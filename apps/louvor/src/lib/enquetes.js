@@ -105,13 +105,6 @@ export const excluirEnquete = (mes) => chamar("excluirEnquete")({ mes }).then((r
 export const marcarEscalaPublicada = (mes) => chamar("marcarEscalaPublicada")({ mes }).then((r) => r.data);
 export const responderEnquete = (dados) => chamar("responderEnquete")(dados).then((r) => r.data);
 
-const nomeDoMes = (mes) => {
-  const [ano, m] = mes.split("-");
-  return new Date(Number(ano), Number(m) - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
-};
-const dataPorExtensoTexto = (iso) =>
-  iso ? new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "long" }) : "";
-
 /** "3 dias restantes"/"último dia" até ao fim do dia do prazo —
  *  mesmo relógio mostrado no popup obrigatório e no balão fixo do
  *  Início (pedido do líder). `new Date(ano,mes,dia,23,59,59)` local,
@@ -144,21 +137,6 @@ export function percentagemDecorridaVoto(abertaEm, prazoISO) {
   const restanteMs = fimMs - Date.now();
   if (restanteMs <= 0) return 100;
   return Math.max(0, Math.min(100, Math.round(100 - (restanteMs / totalMs) * 100)));
-}
-
-/** Texto pronto para o wa.me — o líder cola o link e o WhatsApp abre
- *  já com a mensagem escrita, só falta escolher o grupo. Recebe uma
- *  ou duas enquetes ({mes, prazo}) — quando são duas (líder abriu os
- *  dois meses de uma vez), o texto já avisa que é para os dois. */
-export function textoWhatsApp(enquetes) {
-  const lista = Array.isArray(enquetes) ? enquetes : [enquetes];
-  if (lista.length === 1) {
-    const { mes, prazo } = lista[0];
-    return `Pessoal, já está aberta a enquete de indisponibilidades de ${nomeDoMes(mes)}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal. Prazo: até ${dataPorExtensoTexto(prazo)}.\n\nlouvor.igrejaonda.pt 🙏`;
-  }
-  const nomes = lista.map((e) => nomeDoMes(e.mes)).join(" e ");
-  const prazos = lista.map((e) => `${nomeDoMes(e.mes)}: até ${dataPorExtensoTexto(e.prazo)}`).join("\n");
-  return `Pessoal, já estão abertas as enquetes de indisponibilidade de ${nomes}! Se não tiveres nenhuma, basta tocar em "Não tenho indisponibilidades" no Início do portal — vai pedir os dois meses seguidos.\n\nPrazos:\n${prazos}\n\nlouvor.igrejaonda.pt 🙏`;
 }
 
 export const linkWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(texto)}`;
