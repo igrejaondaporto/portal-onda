@@ -1085,6 +1085,11 @@ const ESCALA_LOUVOR_POR_BASE = {
   louvor: {
     papeis: new Set(["lead", "colead", "back", "teclado", "guitarra", "baixo", "bateria"]),
     papelLead: "lead",
+    // Pedido do líder (2026-09): a própria Louvor edita os papéis em
+    // Definições da base → Papéis da escala (apps/louvor/src/
+    // components/painel/SecaoPapeisEscala.jsx). O Set acima passa a
+    // ser só o valor de arranque/reserva — ver papeisValidosDaBase.
+    papeisEditaveis: true,
   },
   louvorkinder: {
     papeis: new Set(["voz", "violao", "cajon"]),
@@ -1095,17 +1100,38 @@ const ESCALA_LOUVOR_POR_BASE = {
     variosPapeisPorPessoa: true,
   },
 };
-const papelEscalaValido = (baseId, papel) => !!ESCALA_LOUVOR_POR_BASE[baseId]?.papeis.has(papel);
+
+/** Os papéis válidos de uma base HOJE. Para uma base com
+ *  `papeisEditaveis` (a Louvor), vem de
+ *  `bases/{baseId}/definicoes/papeisEscala` (o mesmo documento que o
+ *  cliente lê e edita, ver apps/louvor/src/lib/modelo.js) — só os
+ *  `ativo !== false`; sem doc ainda (base nova, nunca editada) ou com
+ *  a lista vazia, cai no Set fixo de ESCALA_LOUVOR_POR_BASE, nunca
+ *  fica sem papel nenhum válido. Uma leitura só por pedido — os
+ *  chamadores com mais do que um culto (rascunho, publicar) reusam o
+ *  mesmo Set em vez de reler o doc por domingo. */
+async function papeisValidosDaBase(baseId) {
+  const cfg = ESCALA_LOUVOR_POR_BASE[baseId];
+  if (!cfg) return new Set();
+  if (!cfg.papeisEditaveis) return cfg.papeis;
+  const snap = await db.doc(`bases/${baseId}/definicoes/papeisEscala`).get();
+  const lista = snap.exists ? snap.data().lista : null;
+  const ativos = Array.isArray(lista) ? lista.filter((p) => p?.id && p.ativo !== false) : [];
+  return ativos.length ? new Set(ativos.map((p) => p.id)) : cfg.papeis;
+}
 
 /** Recusa escalados repetidos: por pessoa (uma pessoa, um papel — a
  *  Louvor) ou, com `variosPapeisPorPessoa`, só o par pessoa+papel.
  *  Devolve os escalados limpos. Usado pela escala ao vivo e pelo
- *  rascunho — as duas têm de aceitar exatamente o mesmo. */
-function limparEscaladosLouvor(baseId, escalados) {
+ *  rascunho — as duas têm de aceitar exatamente o mesmo.
+ *  `papeisValidos` já vem resolvido (ver papeisValidosDaBase) — nunca
+ *  uma leitura aqui dentro, para não repetir por item de um rascunho
+ *  com vários domingos. */
+function limparEscaladosLouvor(baseId, papeisValidos, escalados) {
   const variosPapeis = !!ESCALA_LOUVOR_POR_BASE[baseId]?.variosPapeisPorPessoa;
   const usados = new Set();
   return (escalados || []).map((e) => {
-    if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
+    if (!e?.pessoaId || !e.papel || !papeisValidos.has(e.papel)) {
       throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
     }
     const chave = variosPapeis ? `${e.pessoaId}|${e.papel}` : e.pessoaId;
@@ -1136,7 +1162,8 @@ export const guardarEscalaLouvor = onCall(async (req) => {
       "Só o líder da base ou o líder de escala deste culto pode fazer isto.");
   }
 
-  await escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala);
+  const papeisValidos = await papeisValidosDaBase(baseId);
+  await escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala, papeisValidos);
   return { ok: true };
 });
 
@@ -1145,11 +1172,11 @@ export const guardarEscalaLouvor = onCall(async (req) => {
  *  seu próprio exigeLider, um domingo de cada vez). Faz sempre a
  *  validação completa (papel válido, sem duplicar pessoa — ou pessoa+papel, ver limparEscaladosLouvor —, conflito
  *  entre bases) — nunca a versão leve de guardarRascunhoEscala. */
-async function escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala) {
+async function escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala, papeisValidos) {
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
   const snap = await ref.get();
 
-  const escaladosLimpos = limparEscaladosLouvor(baseId, escalados);
+  const escaladosLimpos = limparEscaladosLouvor(baseId, papeisValidos, escalados);
   const pessoas = new Set(escaladosLimpos.map((e) => e.pessoaId));
 
   const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
@@ -1221,9 +1248,10 @@ export const guardarRascunhoEscala = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Faltam os domingos do rascunho.");
   }
 
+  const papeisValidos = await papeisValidosDaBase(baseId);
   const itensLimpos = itens.map((it) => {
     if (!it?.eventoId) throw new HttpsError("invalid-argument", "Item do rascunho sem culto.");
-    const escalados = limparEscaladosLouvor(baseId, it.escalados);
+    const escalados = limparEscaladosLouvor(baseId, papeisValidos, it.escalados);
     return { eventoId: it.eventoId, liderEscala: it.liderEscala || null, escalados };
   });
 
@@ -1255,8 +1283,9 @@ export const publicarRascunhoEscala = onCall(async (req) => {
   const { itens = [] } = snap.data();
   if (!itens.length) throw new HttpsError("failed-precondition", "Este rascunho não tem domingos.");
 
+  const papeisValidos = await papeisValidosDaBase(baseId);
   for (const item of itens) {
-    await escreverEscalaLouvor(item.eventoId, baseId, item.escalados, item.liderEscala);
+    await escreverEscalaLouvor(item.eventoId, baseId, item.escalados, item.liderEscala, papeisValidos);
     await db.doc(`eventos/${item.eventoId}/escalas/${baseId}`).set({
       publicado: true,
       publicadoEm: admin.firestore.FieldValue.serverTimestamp(),
