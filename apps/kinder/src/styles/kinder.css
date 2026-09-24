@@ -351,6 +351,15 @@
  * Mesmo desenho do cartão de repertório da Técnica, mais compacto. */
 .kin-rep { margin-top: 14px; }
 .kin-rep-tit { font-size: 13px; font-weight: 800; margin: 0 0 8px; }
+.kin-rep-escala {
+  padding: 8px 12px; border-radius: 14px; margin-bottom: 8px;
+  background: #fff; border: 1px solid var(--fio);
+}
+.kin-rep-quem {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  margin: 3px 0; font-size: 13.5px;
+}
+.kin-rep-quem span { color: var(--cinza); font-size: 12.5px; white-space: nowrap; }
 .kin-rep-item {
   display: flex; flex-direction: column; gap: 8px;
   padding: 10px 12px; border-radius: 14px;

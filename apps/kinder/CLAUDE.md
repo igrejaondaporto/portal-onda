@@ -381,6 +381,19 @@ sempre no painel do Louvor Kinder, nunca aqui. Sem repertório (ou sem
 permissão), mostra "O Louvor Kinder ainda não montou o repertório
 deste culto." em vez de partir o Início.
 
+**Quem toca, e em que instrumento** (2026-09, pedido do líder) — por
+cima das músicas, uma linha por pessoa ("Ana Lima · 🎤 Voz · 🎸
+Violão"). Vem da Cloud Function `escalaLouvorKinderDoCulto`
+(`functions/index.js`), que devolve só nome e papéis: a Kinder não lê
+a escala nem os perfis do Louvor Kinder (o perfil tem o telefone).
+Leitura única, não ao vivo; se falhar, a secção simplesmente não
+aparece. Os nomes dos papéis são uma cópia de `PAPEIS` do Louvor
+Kinder em `lib/repertorioLouvorKinder.js` — mudar lá, mudar aqui.
+
+**Também em Lições** — o mesmo componente abre no topo do box de cada
+culto (`Licao.jsx`), por cima das lições das salas, porque o louvor é
+o mesmo para as três.
+
 ## Quantas crianças estão presentes — popup no Início
 
 Pedido 2026-09: "logo NA TELA inicial do domingo já apareça um POP UP
