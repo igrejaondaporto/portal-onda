@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer, ouvirCantoresComVersao } from "../lib/biblioteca";
 import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { souLiderOuAuxiliar, PAPEL_LEAD } from "../lib/modelo";
+import { ouvirRepertorio, removerMusicaDoRepertorio } from "../lib/repertorio";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { dataCurta } from "@portal/shared/lib/data.js";
 import SheetAdicionarMusica from "../components/biblioteca/SheetAdicionarMusica";
 import SheetMusicaDetalhe from "../components/biblioteca/SheetMusicaDetalhe";
 import SheetVersaoParaRepertorio from "../components/biblioteca/SheetVersaoParaRepertorio";
@@ -72,6 +74,10 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const [paraRepertorio, setParaRepertorio] = useState(null); // música escolhida para o atalho "+ repertório"
   const [proximoEventoId, setProximoEventoId] = useState(null);
   const [proximoEventoLeadId, setProximoEventoLeadId] = useState(null);
+  const [proximoEventoData, setProximoEventoData] = useState(null);
+  const [noRepertorio, setNoRepertorio] = useState(() => new Set()); // musicaIds já no repertório do próximo culto
+  const [aTirar, setATirar] = useState(null); // música à espera de confirmar "tirar do repertório"
+  const [aTirarEmCurso, setATirarEmCurso] = useState(false);
   const audioRef = useRef(null);
   const paginaAtivaRef = useRef(null);
 
@@ -97,9 +103,30 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
       const hojeStr = hoje.toISOString().slice(0, 10);
       const ev = eventos.find((e) => e.data >= hojeStr) ?? eventos.at(-1);
       setProximoEventoId(ev.id);
+      setProximoEventoData(ev.data);
       setProximoEventoLeadId(ev.escala?.escalados?.find((e) => e.papel === PAPEL_LEAD)?.pessoaId ?? null);
     });
   }, []);
+
+  // O repertório desse mesmo culto, ao vivo — para o botão de cada
+  // música mostrar se já lá está (✓, e tocar tira) ou não (+ adiciona).
+  useEffect(() => ouvirRepertorio(proximoEventoId, (rep) => setNoRepertorio(new Set(
+    (rep?.itens || []).filter((it) => it.tipo === "musica").map((it) => it.musicaId)
+  ))), [proximoEventoId]);
+
+  async function tirarDoRepertorio() {
+    if (!aTirar || !proximoEventoId || aTirarEmCurso) return;
+    setATirarEmCurso(true);
+    try {
+      await removerMusicaDoRepertorio(proximoEventoId, aTirar.id, uid);
+      torrada(`"${aTirar.titulo}" saiu do repertório`);
+      setATirar(null);
+    } catch (e) {
+      torrada(e.message || "Não foi possível tirar do repertório.");
+    } finally {
+      setATirarEmCurso(false);
+    }
+  }
 
   async function alternarPreview(e, musica) {
     e.stopPropagation();
@@ -260,14 +287,25 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
                 ) : (
                   <span className={`bib-frescor ${f.classe}`}>{f.texto}</span>
                 )}
-                <button
-                  className="bib-add-rep" aria-label="Adicionar ao repertório"
-                  onClick={(e) => { e.stopPropagation(); setParaRepertorio(m); }}
-                >
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
-                  </svg>
-                </button>
+                {noRepertorio.has(m.id) ? (
+                  <button
+                    className="bib-add-rep no" aria-label="Tirar do repertório" title="No repertório — tocar para tirar"
+                    onClick={(e) => { e.stopPropagation(); setATirar(m); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    className="bib-add-rep" aria-label="Adicionar ao repertório"
+                    onClick={(e) => { e.stopPropagation(); setParaRepertorio(m); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -307,6 +345,7 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           musica={musicaAberta} versoes={versoesAberta}
           onFechar={() => setAbertaId(null)}
           onAdicionarRepertorio={() => { setAbertaId(null); setParaRepertorio(musicaAberta); }}
+          onTirarRepertorio={noRepertorio.has(musicaAberta.id) ? () => { setAbertaId(null); setATirar(musicaAberta); } : null}
         />
       )}
       {paraRepertorio && (
@@ -316,6 +355,22 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
           onFechar={() => setParaRepertorio(null)}
           onAdicionada={() => setParaRepertorio(null)}
         />
+      )}
+      {aTirar && (
+        <>
+          <div className="veu on" onClick={() => !aTirarEmCurso && setATirar(null)} />
+          <div className="pin on" role="dialog" aria-modal="true">
+            <div className="pux" />
+            <h2>Tirar do repertório?</h2>
+            <p className="sb2">
+              "{aTirar.titulo}" sai do repertório{proximoEventoData ? ` de ${dataCurta(proximoEventoData)}` : ""}. Continua na biblioteca.
+            </p>
+            <button className="btn full" style={{ marginTop: 16, background: "var(--magenta)" }} disabled={aTirarEmCurso} onClick={tirarDoRepertorio}>
+              {aTirarEmCurso ? "A tirar…" : "Tirar do repertório"}
+            </button>
+            <button className="btn sec full" style={{ marginTop: 9 }} disabled={aTirarEmCurso} onClick={() => setATirar(null)}>Cancelar</button>
+          </div>
+        </>
       )}
       <audio ref={audioRef} onEnded={() => setATocarId(null)} style={{ display: "none" }} />
     </>

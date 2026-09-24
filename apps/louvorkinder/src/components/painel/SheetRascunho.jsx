@@ -6,6 +6,7 @@ import { MESES, nomeEvento, dataPorExtenso } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetEscala from "./SheetEscala";
 import SheetNovoCulto from "./SheetNovoCulto";
+import { pessoasEscaladas } from "../../lib/modelo";
 
 /** Um domingo (ou culto especial) dentro do rascunho — cartão próprio
  *  em vez de uma linha só, porque carrega duas ações (escalar,
@@ -14,14 +15,15 @@ import SheetNovoCulto from "./SheetNovoCulto";
  *  para o box lá dentro de Escala geral mesmo") — ver DetalhesCulto
  *  em Escala.jsx. */
 function CartaoDomingo({ item, evento, pessoaPorId, onEscalar, onRemover }) {
-  const pessoas = item.escalados.map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
+  const porPessoa = pessoasEscaladas(item.escalados); // a mesma pessoa em dois papéis conta uma vez
+  const pessoas = porPessoa.map((e) => pessoaPorId(e.pessoaId)).filter(Boolean);
   return (
     <div className="caixa" style={{ marginTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={onEscalar}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p className="nmt">{evento ? nomeEvento(evento) : dataPorExtenso(item.eventoId)}</p>
           <p className="ds">
-            {item.escalados.length ? `${item.escalados.length} pessoa${item.escalados.length === 1 ? "" : "s"}` : "Ninguém escalado"}
+            {porPessoa.length ? `${porPessoa.length} pessoa${porPessoa.length === 1 ? "" : "s"}` : "Ninguém escalado"}
             {item.liderEscala ? " · líder definido" : ""}
           </p>
         </div>

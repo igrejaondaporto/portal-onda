@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
-import { cEscala, meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar } from "../lib/modelo";
+import { cEscala, meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar, pessoasEscaladas } from "../lib/modelo";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
@@ -394,14 +394,14 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         </div>
         <div className="sect">
           <div className="cabecalho"><h3>Servem contigo</h3></div>
-          {(meuEvento.escala.escalados || []).filter((e) => e.pessoaId !== uid).length ? (
-            (meuEvento.escala.escalados || []).filter((e) => e.pessoaId !== uid).map((e) => {
+          {pessoasEscaladas(meuEvento.escala.escalados).filter((e) => e.pessoaId !== uid).length ? (
+            pessoasEscaladas(meuEvento.escala.escalados).filter((e) => e.pessoaId !== uid).map((e) => {
               const p = voluntarios.find((x) => x.id === e.pessoaId);
               if (!p) return null;
               return (
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
-                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
+                  resumo={e.papeis.map((id) => `${emojiPapel(id)} ${nomePapel(id)}`).join(" · ")}
                   tagExtra={meuEvento.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
                   aberta={contactoAberto === e.pessoaId}
                   onToggle={() => setContactoAberto((a) => (a === e.pessoaId ? null : e.pessoaId))}

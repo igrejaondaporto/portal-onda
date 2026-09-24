@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar } from "../lib/modelo";
+import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, pessoasEscaladas } from "../lib/modelo";
 import { ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
@@ -104,7 +104,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
     }
   }
 
-  const escalados = evento.escala.escalados || [];
+  const escalados = pessoasEscaladas(evento.escala.escalados); // uma entrada por pessoa, com os papéis juntos
 
   return (
     <>
@@ -126,7 +126,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
               return (
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
-                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
+                  resumo={e.papeis.map((id) => `${emojiPapel(id)} ${nomePapel(id)}`).join(" · ")}
                   tagExtra={(
                     <>
                       {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}

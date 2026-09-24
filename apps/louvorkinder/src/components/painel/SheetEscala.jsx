@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { publicarEscala } from "../../lib/rascunho";
-import { PAPEIS, nomePapel } from "../../lib/modelo";
+import { PAPEIS, nomePapel, pessoasEscaladas } from "../../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -12,9 +12,11 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  * Agrupado por instrumento (`pessoa.instrumentos`, definido no perfil
  * em SheetPessoa.jsx) — cada bloco só lista quem toca aquilo, como um
  * "ministério" dentro da base. Quem toca mais do que um aparece em
- * mais do que um bloco; escalar num bloco onde já está escalado
- * noutro move-a para aqui (nunca em dois papéis ao mesmo tempo, ver
- * guardarEscalaLouvor). Quem não tem nenhum instrumento no perfil
+ * mais do que um bloco — e, ao contrário da Louvor, pode ficar
+ * escalado em mais do que um ao mesmo tempo (Voz + Violão no mesmo
+ * culto, pedido do líder 2026-09; o servidor aceita, ver
+ * `variosPapeisPorPessoa` em functions/index.js). Cada toque mexe só
+ * no par pessoa+papel daquele bloco. Quem não tem nenhum instrumento no perfil
  * (não canta nem toca nada — fica só "Voluntário" no papel de base,
  * ver PainelLider.jsx) nem aparece aqui — pedido do líder, 2026-09:
  * essas pessoas não servem em papel nenhum da escala.
@@ -56,10 +58,13 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     }
   }
 
-  function tirar(id) {
+  // Tira a pessoa só deste papel; só deixa de ser líder de escala se
+  // não ficar em papel nenhum.
+  function tirar(id, papel) {
     const anterior = { escalados, liderEscala };
-    const novosEscalados = escalados.filter((e) => e.pessoaId !== id);
-    const novoLider = liderEscala === id ? null : liderEscala;
+    const novosEscalados = escalados.filter((e) => !(e.pessoaId === id && e.papel === papel));
+    const aindaEscalado = novosEscalados.some((e) => e.pessoaId === id);
+    const novoLider = liderEscala === id && !aindaEscalado ? null : liderEscala;
     setEscalados(novosEscalados);
     setLiderEscala(novoLider);
     persistir(novosEscalados, novoLider, anterior);
@@ -72,13 +77,6 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
     setEscalados(novosEscalados);
     setLiderEscala(novoLider);
     persistir(novosEscalados, novoLider, anterior);
-  }
-
-  function trocarPapel(id, papel) {
-    const anterior = { escalados, liderEscala };
-    const novosEscalados = escalados.map((e) => (e.pessoaId === id ? { ...e, papel } : e));
-    setEscalados(novosEscalados);
-    persistir(novosEscalados, liderEscala, anterior);
   }
 
   function definirLider(id) {
@@ -136,25 +134,26 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   }
 
   // Linha dentro de um bloco de instrumento — clicar no nome escala
-  // aqui (ou move para aqui, se já estava noutro papel); clicar de
-  // novo, já escalado, tira. Sem seletor: já se sabe o papel, é o
+  // aqui (somando a outro papel que já tenha); clicar de novo, já
+  // escalado aqui, tira só daqui. Sem seletor: já se sabe o papel, é o
   // bloco onde está.
   function linhaNoBloco(p, papelId) {
-    const entrada = escalados.find((e) => e.pessoaId === p.id);
+    const outrosPapeis = escalados.filter((e) => e.pessoaId === p.id && e.papel !== papelId).map((e) => nomePapel(e.papel));
     const lid = liderEscala === p.id;
-    const aquiEscalado = entrada?.papel === papelId;
+    const aquiEscalado = escalados.some((e) => e.pessoaId === p.id && e.papel === papelId);
     const { semServico, stat, texto } = linhaEstatistica(p);
     return (
       <div key={p.id} className="opcao" style={{ cursor: "default", ...(semServico ? { background: "rgba(214,32,105,.06)", borderRadius: 12 } : {}) }}>
         <span
-          onClick={() => (aquiEscalado ? tirar(p.id) : entrada ? trocarPapel(p.id, papelId) : juntarComPapel(p.id, papelId))}
+          onClick={() => (aquiEscalado ? tirar(p.id, papelId) : juntarComPapel(p.id, papelId))}
           style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }}
         >
           <Avatar pessoa={p} tamanho={38} fonte={15} />
           <span style={{ flex: 1 }}>
             <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
             <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-              {entrada && !aquiEscalado ? `já escalado como ${nomePapel(entrada.papel)}` : aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
+              {aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
+              {outrosPapeis.length > 0 && ` · também em ${outrosPapeis.join(", ")}`}
             </span>
             <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
               {texto}
@@ -166,7 +165,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
           <button className={`estrela${lid ? " on" : ""}`} onClick={() => definirLider(p.id)} title="Líder de escala">★</button>
         )}
         {aquiEscalado && (
-          <span className="chk on" onClick={() => tirar(p.id)} style={{ cursor: "pointer" }}>✓</span>
+          <span className="chk on" onClick={() => tirar(p.id, papelId)} style={{ cursor: "pointer" }}>✓</span>
         )}
       </div>
     );
@@ -178,7 +177,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
       <div className="pin on" role="dialog" aria-modal="true">
         <div className="pux" />
         <h2>{nomeEvento(evento)}</h2>
-        <p className="sb2">{escalados.length} pessoas · chegada {evento.horaChegada || "07:00"}</p>
+        <p className="sb2">{pessoasEscaladas(escalados).length} pessoas · chegada {evento.horaChegada || "07:00"}</p>
         <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
           Toca no nome, dentro do instrumento, para escalar. A estrela define quem é o líder de escala.
         </p>

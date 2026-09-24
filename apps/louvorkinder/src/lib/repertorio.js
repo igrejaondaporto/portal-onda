@@ -8,7 +8,7 @@
  */
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
-import { registarUsoVersao } from "./biblioteca";
+import { registarUsoVersao, desfazerUsoVersao } from "./biblioteca";
 
 const refRepertorio = (eventoId) => doc(db, `bases/${BASE_ID}/repertorios/${eventoId}`);
 
@@ -85,4 +85,26 @@ export async function adicionarMusicaAoRepertorio(eventoId, musica, versaoId, ui
     atualizadoPor: uid,
   }, { merge: true });
   registarUsoVersao({ eventoId, musicaId: musica.id, versaoId });
+}
+
+/** O contrário do atalho acima — "tirar do repertório" direto da
+ *  Biblioteca (pedido do líder, 2026-09: havia o "+" mas nada para
+ *  voltar atrás sem ir ao Repertório). Tira TODAS as entradas dessa
+ *  música (a mesma música pode estar lá duas vezes, noutra versão —
+ *  decisão 7 do CLAUDE.md) e desfaz o uso de cada versão, exatamente
+ *  como o ✕ de Repertorio.jsx. Lê o que lá está na hora, como
+ *  adicionarMusicaAoRepertorio. Devolve quantas entradas tirou. */
+export async function removerMusicaDoRepertorio(eventoId, musicaId, uid) {
+  const ref = refRepertorio(eventoId);
+  const snap = await getDoc(ref);
+  const itensAtuais = snap.exists() ? (snap.data().itens || []) : [];
+  const tirados = itensAtuais.filter((it) => it.tipo === "musica" && it.musicaId === musicaId);
+  if (!tirados.length) return 0;
+  await setDoc(ref, {
+    itens: itensAtuais.filter((it) => !tirados.includes(it)),
+    atualizadoEm: serverTimestamp(),
+    atualizadoPor: uid,
+  }, { merge: true });
+  for (const it of tirados) desfazerUsoVersao({ eventoId, musicaId, versaoId: it.versaoId });
+  return tirados.length;
 }

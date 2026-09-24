@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { confirmarPresenca, confirmarPresencaEnsaio } from "../lib/confirmacao";
-import { emojiPapel, nomePapel } from "../lib/modelo";
+import { emojiPapel, nomePapel, pessoasEscaladas } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -44,7 +44,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
   const passoSeguro = Math.min(passo, Math.max(cultos.length - 1, 0));
   const culto = cultos[passoSeguro];
   const ultimoPasso = passoSeguro === cultos.length - 1;
-  const escalados = culto?.escala?.escalados || [];
+  const escalados = pessoasEscaladas(culto?.escala?.escalados); // uma entrada por pessoa
   const dataAlvo = (c) => (tipo === "ensaio" ? c?.escala?.dataEnsaio : c?.data);
   const confirmarFn = tipo === "ensaio" ? confirmarPresencaEnsaio : confirmarPresenca;
   const verbo = tipo === "ensaio" ? "ir ao ensaio de" : "servir";
@@ -105,7 +105,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
               const p = pessoaPorId(e.pessoaId);
               return (
                 <p key={e.pessoaId} className="ds" style={{ margin: "3px 0" }}>
-                  {emojiPapel(e.papel)} {nomePapel(e.papel)} — {p?.nome ?? "…"}
+                  {e.papeis.map((id) => `${emojiPapel(id)} ${nomePapel(id)}`).join(" · ")} — {p?.nome ?? "…"}
                 </p>
               );
             })}
