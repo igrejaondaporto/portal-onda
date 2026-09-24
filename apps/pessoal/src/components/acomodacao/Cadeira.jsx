@@ -51,7 +51,11 @@ function Cadeira({ id, x, y, sw, sh, estado, selecionado, cores, onPointerDownLu
         />
       )}
       {estado === "reservado" && <circle cy={(-sh * 0.16).toFixed(1)} r={(sw * 0.1).toFixed(1)} fill="#fff" opacity=".92" pointerEvents="none" />}
-      {estado === "visitante" && <circle cy={(-sh * 0.16).toFixed(1)} r={(sw * 0.1).toFixed(1)} fill="#0A0D2E" opacity=".8" pointerEvents="none" />}
+      {/* apelo: um anel branco — lê-se por forma, não só pela cor */}
+      {(estado === "apelo" || estado === "apeloVisitante") && (
+        <circle cy={(-sh * 0.16).toFixed(1)} r={(sw * 0.17).toFixed(1)} fill="none" stroke="#fff" strokeWidth={(sw * 0.06).toFixed(1)} pointerEvents="none" />
+      )}
+      {(estado === "visitante" || estado === "apeloVisitante") && <circle cy={(-sh * 0.16).toFixed(1)} r={(sw * 0.1).toFixed(1)} fill="#0A0D2E" opacity=".8" pointerEvents="none" />}
     </g>
   );
 }

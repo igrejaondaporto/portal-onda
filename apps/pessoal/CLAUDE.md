@@ -155,11 +155,23 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   isso `pages/Acomodacao.jsx` também mostra "Reabrir para marcar de
   novo" direto no aviso de culto fechado, para quem tem acesso
   (`souDrive`) — sem depender de estar naquela lista.
-- Estados possíveis de um lugar: `livre | ocupado | visitante |
-  reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
-  livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto
-  escuro), reservado `#3B82F6` (+ ponto branco), bloqueado `#5A6072`
-  (+ X branco).
+- Estados possíveis de um lugar: `livre | ocupado | visitante | apelo
+  | apeloVisitante | reservado | bloqueado`. Cores fixas (não mexer sem
+  avisar a líder): livre `#8E2028`, ocupado `#C8F02E`, visitante
+  `#F5C518` (+ ponto escuro), apelo `#A259FF` (+ anel branco; se era
+  visitante, também o ponto), reservado `#3B82F6` (+ ponto branco),
+  bloqueado `#5A6072` (+ X branco).
+- **Manter o dedo = APELO** (pedido 2026-09 — antes bloqueava a
+  cadeira). Quem respondeu ao apelo continua sentado: `apelo` conta em
+  `ocupados`, `apeloVisitante` em `visitantes` (para o nº de visitantes
+  não baixar quando um deles responde), e os dois à parte em `apelo`
+  no resumo. Manter outra vez desfaz. As contas estão em
+  `contarEstados`/`alternarApelo` (`lib/modelo.js`) e, do lado do
+  servidor, em `resumoAcomodacao`/`contarLugares` (functions/index.js)
+  e `resumoAcomodacaoAoVivo` (functions/pastoral.js) — os quatro têm
+  de bater certo. **Já não há gesto para bloquear** um lugar num
+  domingo: os bloqueios vêm só da planta (`bloqueiosPermanentes`), e um
+  lugar bloqueado não reage a toques.
 - **O mapa não preenche a Contagem.** Pode mostrar-se o nº de lugares
   ocupados como referência ao lado, em texto, nunca copiar para um
   campo da Contagem.
@@ -187,6 +199,28 @@ Comunicação (`eventos/{e}.feedback`, Cloud Function `definirFeedback`
 já existente em `lib/culto.js`) — quem escreve é o líder de escala
 DESSE culto (ou a líder da base), a mesma regra de `podeDistribuir`.
 Nada de específico da Pessoal aqui.
+
+### Contagem manual — de onde já vem cada número (levantamento 2026-09)
+
+Objetivo do dono do produto: acabar com a Contagem manual, deixando
+cada base contar o que é dela e a Pessoal só o auditório (mensagem,
+visitantes, apelo) — pelo MAPA. Estado de cada categoria:
+
+| Categoria | Fonte sem a Contagem manual | Estado |
+|---|---|---|
+| Visitantes | Mapa (`visitante` + `apeloVisitante`) | já usado pelo Painel Pastoral desde 27/9 |
+| Voluntários | escalas publicadas das dez bases (`historicoPastoral`) | já usado |
+| Mensagem | Mapa: todos os lugares marcados (+ reservados/bloqueados) | já usado desde 27/9 |
+| Apelo | Mapa (manter o dedo) | a partir deste PR |
+| New / Shift / Júnior / Fun / Baby | contador no Início de cada sala | já (`origem: "automatica"`) |
+
+O documento `eventos/{e}/contagem/geral` **não pode desaparecer**: é
+onde os contadores das salas gravam. O que pode sair é o ecrã manual
+(`ContagemCulto.jsx`, `HistoricoContagem.jsx`). Ainda leem os campos
+manuais: o Painel Pastoral para os domingos até 20/9 (histórico) e a
+frase "A contagem deste culto está/não está fechada" do Domingo
+(`finalizadoEm`). O Mapa conta lugares marcados, por isso tem de estar
+atualizado até à mensagem para "Mensagem" valer o mesmo que valia à mão.
 
 ### Contagem — subaba de Culto — categorias que não somam entre si
 

@@ -66,11 +66,43 @@ export const cMapaAcomodacao = (ev) => doc(db, `eventos/${ev}/acomodacao/mapa`);
 export const cResumosAcomodacao = () => collection(db, `bases/${BASE_ID}/acomodacaoResumos`);
 export const cResumoAcomodacao = (ev) => doc(db, `bases/${BASE_ID}/acomodacaoResumos/${ev}`);
 
-export const ESTADOS_LUGAR = ["livre", "ocupado", "visitante", "reservado", "bloqueado"];
+/** "apelo"/"apeloVisitante" (2026-09): quem respondeu ao apelo —
+ *  manter o dedo num lugar, o gesto que antes bloqueava a cadeira.
+ *  Continua a ser uma pessoa sentada (conta em ocupados/visitantes) e
+ *  conta à parte como apelo; `apeloVisitante` guarda que era visitante,
+ *  para o nº de visitantes não baixar quando um deles responde. As
+ *  contas vivem em `contarEstados`, aqui, e do lado do servidor em
+ *  `resumoAcomodacao`/`contarLugares` (functions/index.js) e
+ *  `resumoAcomodacaoAoVivo` (functions/pastoral.js). "bloqueado"
+ *  continua a existir, mas só vem da planta (bloqueios permanentes). */
+export const ESTADOS_LUGAR = ["livre", "ocupado", "visitante", "apelo", "apeloVisitante", "reservado", "bloqueado"];
 export const CORES_LUGAR = {
   livre: "#8E2028", ocupado: "#C8F02E", visitante: "#F5C518",
+  apelo: "#A259FF", apeloVisitante: "#A259FF",
   reservado: "#3B82F6", bloqueado: "#5A6072",
 };
+
+/** Quantos lugares em cada estado, e as somas que o ecrã mostra. */
+export function contarEstados(lugares) {
+  const c = Object.fromEntries(ESTADOS_LUGAR.map((e) => [e, 0]));
+  Object.values(lugares).forEach((s) => { if (c[s] != null) c[s]++; });
+  const visitantes = c.visitante + c.apeloVisitante;
+  const apelo = c.apelo + c.apeloVisitante;
+  const ocupados = c.ocupado + c.apelo + visitantes; // todas as pessoas sentadas
+  const capacidadeUtil = Object.keys(lugares).length - c.reservado - c.bloqueado;
+  return { ...c, visitantes, apelo, ocupados, capacidadeUtil };
+}
+
+/** Manter o dedo: marca/desmarca apelo, sem perder se era visitante.
+ *  Num lugar livre, senta a pessoa já como apelo. `null` = não mexe
+ *  (reservado/bloqueado). */
+export function alternarApelo(atual) {
+  if (atual === "livre" || atual === "ocupado") return "apelo";
+  if (atual === "apelo") return "ocupado";
+  if (atual === "visitante") return "apeloVisitante";
+  if (atual === "apeloVisitante") return "visitante";
+  return null;
+}
 
 export const FASES = [
   ["pre",     "Pré-culto",      "Antes de abrir as portas"],
