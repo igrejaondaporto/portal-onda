@@ -79,6 +79,20 @@ entradas. O quadro do mês continua por papel (a pessoa aparece nas
 duas linhas). `pessoas[]` no documento da escala continua sem
 repetidos — notificações, confirmação e Painel Pastoral não mudam.
 
+### Servir aqui não impede servir noutra base
+
+Pedido 2026-09: quem toca no Louvor Kinder pode, no mesmo culto,
+servir em qualquer outra base — o louvor das crianças não choca com
+nada. O resto do produto tem a regra contrária (quem serve em duas
+bases não fica escalado nas duas no mesmo culto, ver
+`garantirSemConflitoCrossBase` em `functions/index.js`); esta base
+está em `BASES_SEM_CONFLITO_CROSS_BASE`, nos dois sentidos: a escala
+daqui não verifica as outras bases, e não grava a marca
+`eventos/{e}/indisponibilidades/{uid}` que as outras leem para
+acinzentar pessoas (por isso nenhuma outra app precisou de mudar). As
+duas marcas antigas que já existiam foram limpas por
+`scripts/limparIndisponibilidadesLouvorKinder.mjs`.
+
 ### Sem paleta de cores nem ensaio
 
 O box de cada culto na Escala (`DetalhesCulto`, `Escala.jsx`) mostra
