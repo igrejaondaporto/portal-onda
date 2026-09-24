@@ -52,9 +52,15 @@ export const registarContagemSala = onCall(async (req) => {
   // escreve por cima do que outro já contou.
   const souLiderGeral = papel === "lider_base";
   const souLider = souLiderGeral || papel === "auxiliar";
+  // Kinder: quem tem sala só marca a sua; quem ainda não tem sala
+  // definida pode marcar qualquer uma (pedido 2026-09: o contador é
+  // "PRA TODOS OS VOLUNTÁRIOS" — sem isto, um voluntário sem sala não
+  // tinha nenhuma sala para marcar). Em ambos os casos, só enquanto a
+  // sala estiver vazia (ver abaixo) — corrigir continua a ser da líder.
   if (baseId === "kinder" && !souLiderGeral) {
     const pessoaSnap = await db().doc(`bases/kinder/pessoas/${req.auth.uid}`).get();
-    if (!pessoaSnap.exists || pessoaSnap.data().categoria !== categoria) {
+    const minhaSala = pessoaSnap.exists ? pessoaSnap.data().categoria ?? null : null;
+    if (!pessoaSnap.exists || (minhaSala && minhaSala !== categoria)) {
       throw new HttpsError("permission-denied", "Só podes marcar a contagem da tua sala.");
     }
   }
