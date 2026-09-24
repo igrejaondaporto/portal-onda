@@ -34,7 +34,7 @@ import SheetEditarMapa from "./SheetEditarMapa";
  * uma leitura por linha, e o servidor já confirma a permissão a
  * sério de qualquer forma.
  */
-export default function MapasPorFechar({ souLiderBase, uid, papel }) {
+export default function MapasPorFechar({ souLiderBase, uid, papel, versao = 0 }) {
   const torrada = useTorrada();
   const [cultos, setCultos] = useState(null);
   const [aAgir, setAAgir] = useState(null);
@@ -47,7 +47,10 @@ export default function MapasPorFechar({ souLiderBase, uid, papel }) {
       .then((r) => { if (vivo) setCultos(r.data.cultos); })
       .catch(() => { if (vivo) setCultos([]); });
     return () => { vivo = false; };
-  }, []);
+    // `versao` sobe quando um culto é reaberto em "Cultos fechados" —
+    // a lista não é ao vivo (é uma função), e sem isto o domingo
+    // reaberto só aparecia aqui depois de atualizar a página
+  }, [versao]);
 
   async function fechar(eventoId) {
     setAAgir(eventoId);

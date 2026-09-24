@@ -155,6 +155,12 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   isso `pages/Acomodacao.jsx` também mostra "Reabrir para marcar de
   novo" direto no aviso de culto fechado, para quem tem acesso
   (`souDrive`) — sem depender de estar naquela lista.
+  **Reabrir pelo lápis de "Cultos fechados" abre logo o desenho do
+  mapa** (pedido 2026-09 — antes só mudava o estado, e o mapa só
+  aparecia depois de atualizar a página): um domingo passado abre no
+  `SheetEditarMapa`, o de hoje sobe até ao editor no topo. E a lista
+  "Mapas por fechar" recarrega sozinha (`versao`), porque não é ao
+  vivo.
 - Estados possíveis de um lugar: `livre | ocupado | visitante | apelo
   | apeloVisitante | reservado | bloqueado`. Cores fixas (não mexer sem
   avisar a líder): livre `#8E2028`, ocupado `#C8F02E`, visitante
