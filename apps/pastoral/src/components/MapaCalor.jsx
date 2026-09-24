@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { corAtraso, textoAtraso } from "./Atraso";
+import { presencaDoCulto } from "../lib/presenca";
 
 /**
  * Ocupação do auditório, domingo a domingo.
@@ -94,9 +95,8 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // manual da Contagem (categorias, tela própria da Pessoal) e o
         // mapa lugar a lugar são DOIS sistemas diferentes que podem
         // discordar (a manual conta por categoria digitada; o mapa é
-        // lugar a lugar) — por isso "Presença na igreja" passa a somar
-        // só a partir do mapa + voluntários + Kinder, nunca da
-        // contagem manual, que saiu deste cartão de propósito.
+        // lugar a lugar). A fonte de "Presença na igreja" é por data
+        // (ver `lib/presenca.js` e o comentário mais abaixo).
         const marcados = a.ocupados + a.visitantes; // lugares úteis ocupados, visitante incluído
         // "bloqueados" aqui é a soma de reservados (A1-A4, fixos) e
         // bloqueados a sério (cadeira partida) — o que sai da conta ao
@@ -106,37 +106,35 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // "quantos não contam".
         const bloqueados = a.reservados + a.bloqueados;
         const totalLugares = a.capacidadeUtil + bloqueados;
-        // "Crianças no Kinder" vinha do check-in a sério da Kinder
-        // (mostrado.kinder), desligado por pedido da líder desde que
-        // essa base nasceu (CHECKIN_ATIVO=false) — ficava sempre 0,
-        // zerando este pedaço de "Presença na igreja" sem ninguém
-        // reparar. Passa a somar a Contagem da Base Pessoal
-        // (baby+fun+junior), a mesma que o popup "Quantas crianças
-        // estão presentes?" de cada sala já preenche (pedido 2026-09).
-        const kinderTotal = (mostrado.contagem?.baby ?? 0) + (mostrado.contagem?.fun ?? 0) + (mostrado.contagem?.junior ?? 0);
-        // pedido 2026-09: a Presença na igreja soma TAMBÉM os lugares
-        // bloqueados/reservados — quem está sentado num lugar
-        // reservado ou numa cadeira que não conta para a lotação
-        // continua lá, é gente na igreja na mesma.
-        const presenca = marcados + bloqueados + mostrado.voluntarios + kinderTotal;
+        // "Presença na igreja" é a MESMA conta do gráfico de colunas
+        // em Números (`lib/presenca.js`) — duas versões dela no mesmo
+        // painel já foi um bug reportado (2026-09). Por isso, nos
+        // domingos até 20/9, o auditório aqui vem da Contagem e não
+        // deste mapa (decisão do dono do produto: o mapa só passou a
+        // ser a fonte a partir de 27/9) — o cartão diz de onde veio.
+        const p = presencaDoCulto(mostrado);
         return (
           <div className="caixa" style={{ marginTop: 14 }}>
             <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
             <p className="pa-num">{pct}%</p>
             <p className="ds" style={{ marginTop: 2 }}>de ocupação do auditório</p>
 
-            <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
-            <p className="pa-num">{presenca}</p>
-            <p className="ds" style={{ marginTop: 2 }}>
-              {marcados} lugares úteis + {bloqueados} bloqueios + {mostrado.voluntarios} voluntários + {kinderTotal} na Kinder
-            </p>
+            {p.total !== null && (
+              <>
+                <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
+                <p className="pa-num">{p.total}</p>
+                <p className="ds" style={{ marginTop: 2 }}>
+                  {p.auditorio} no auditório{p.fonte === "contagem" ? " (pela Contagem)" : ""} + {p.voluntarios} voluntários + {p.criancas ?? 0} crianças
+                </p>
+              </>
+            )}
 
             <ul className="pa-lista" style={{ marginTop: 10 }}>
               <li>Lugares no auditório: {totalLugares} ({bloqueados} bloqueados)</li>
               <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
               <li>Visitantes: {a.visitantes}</li>
               <li>Voluntários: {mostrado.voluntarios}</li>
-              <li>Crianças no Kinder: {kinderTotal}</li>
+              <li>Crianças nas salas: {p.criancas ?? "—"}</li>
             </ul>
 
             {mostrado.culto?.atrasoFinal != null && (

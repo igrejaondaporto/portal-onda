@@ -19,7 +19,9 @@ const cru = (v) => String(v);
  *  vira um botão a sério, com o mesmo `cabtoque` de resto do painel. */
 export default function Barras({ linhas, vazio = "Ainda não há nada para mostrar.", formatar = cru, aoClicar, selecionada }) {
   if (!linhas.length) return <div className="vaz">{vazio}</div>;
-  const maior = Math.max(...linhas.map((l) => l.valor), 1);
+  // `valor: null` é "ainda sem número" (≠ zero): mostra "—" e a barra
+  // vazia, em vez de esconder a linha — ex.: Fun/Júnior em Números
+  const maior = Math.max(...linhas.map((l) => l.valor ?? 0), 1);
   return (
     <>
       {linhas.map((l) => (
@@ -42,11 +44,11 @@ export default function Barras({ linhas, vazio = "Ainda não há nada para mostr
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.rotulo}</span>
             </span>
             <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", flex: "none" }}>
-              {formatar(l.valor)}
+              {l.valor === null ? "—" : formatar(l.valor)}
             </span>
           </div>
           <div className="barra" style={{ marginTop: 7 }}>
-            <i style={{ width: `${(l.valor / maior) * 100}%`, background: l.cor ?? "var(--azul)" }} />
+            <i style={{ width: `${((l.valor ?? 0) / maior) * 100}%`, background: l.cor ?? "var(--azul)" }} />
           </div>
         </div>
       ))}
