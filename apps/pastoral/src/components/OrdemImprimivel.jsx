@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 
 /**
  * A ordem do culto em papel.
@@ -46,13 +47,14 @@ import { nomeTipoCulto } from "@portal/shared/lib/tipoCulto.js";
  * `.app`, nunca filho.
  */
 export default function OrdemImprimivel({ evento, momentos, avisos, horas }) {
+  const tiposCulto = useTiposCulto();
   if (!evento) return null;
 
   return createPortal(
     <div className="pa-print" aria-hidden="true">
       <h1>{nomeEvento(evento)}</h1>
       <p className="pa-print-sub">
-        {evento.tipoCulto ? `${nomeTipoCulto(evento.tipoCulto)} · ` : ""}
+        {evento.tipoCulto ? `${nomeTipoCulto(tiposCulto, evento.tipoCulto)} · ` : ""}
         Portas {horas.portasAbertas ?? "—"} · começa {horas.inicio ?? "—"} · acaba {horas.fim ?? "—"}
       </p>
 

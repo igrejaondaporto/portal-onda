@@ -255,6 +255,32 @@ produto). A Backstage continua com a mesma claim, continua a poder
 editar por cima, e continua dona das `notas` dela — que aparecem por
 cima da ordem e nunca se confundem com o que o pastor escreveu.
 
+### Tipo de culto — catálogo global, editado só aqui
+
+`eventos/{e}.tipoCulto` (Ceia/Contribua/Culto da Família…) é global,
+lido por qualquer base (`packages/shared/src/lib/tipoCulto.js`), mas
+a LISTA de tipos possíveis (`config/tiposCulto`, também global) só
+esta app edita — pedido do dono do produto, 2026-09: "adicionei uma
+etiqueta nova no Painel Pastoral, quero que apareça em todas as
+bases". `firestore.rules`: leitura para qualquer sessão autenticada,
+escrita só `vejoTudoPastoral()` — é a mesma "decisão de quem publica
+a ordem, não de cada base por si" que já valia para o tipo em si.
+
+"+ Outro" (`Ordem.jsx`, `usarOutroTipo`) deixou de só valer para o
+culto aberto: gera um id a partir do nome (`gerarIdTipoCulto`, sufixo
+`-2`/`-3`… só em colisão — mesmo mecanismo de `SecaoPapeisEscala.jsx`
+na Louvor) e grava a lista inteira em `config/tiposCulto`
+(`guardarTiposCulto`). Um tipo com o mesmo nome já existente (sem
+distinguir acentos/maiúsculas) é reaproveitado, nunca duplicado. A
+Backstage (`SheetRevisaoOrdem.jsx`) e as bases que mostram a etiqueta
+(Louvor, Louvor Kinder) leem a mesma lista ao vivo
+(`useTiposCulto()`, `TiposCultoContext.jsx` em `packages/shared`) —
+um tipo adicionado aqui aparece lá sem deploy nenhum.
+
+Sem catálogo próprio de tipos aqui: `TIPOS_CULTO_PADRAO`
+(`packages/shared`) é só o valor de arranque, gravado uma vez por
+`scripts/seedTiposCulto.mjs`.
+
 ### Modelos
 
 `bases/pastoral/modelosOrdem/{id}`, escrita direta (regra nova, no
