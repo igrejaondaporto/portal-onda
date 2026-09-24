@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { cPlanta } from "../../lib/modelo";
+import { cPlanta, contarEstados, alternarApelo } from "../../lib/modelo";
 import { maiorBlocoLivre, estadoInicialLugares } from "../../lib/geometriaAuditorio";
 import { useMapaAcomodacao } from "../../hooks/useMapaAcomodacao";
 import { useSelecaoGrupo } from "../../hooks/useSelecaoGrupo";
@@ -16,7 +16,7 @@ function dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar) 
   const pct = capacidadeUtil ? Math.round((ocupados / capacidadeUtil) * 100) : 0;
   if (pct >= 95) return { texto: `Quase lotado — avise a recepção.`, alerta: true };
   if (pct >= 80) return { texto: `${pct}% cheio. Encaminhe para as fileiras da frente.`, alerta: true };
-  if (ocupados === 0) return { texto: "Toque num lugar para ocupar. Dois toques marcam visitante.", alerta: false };
+  if (ocupados === 0) return { texto: "Toque num lugar para ocupar. Dois toques marcam visitante; manter o dedo, apelo.", alerta: false };
   const maior = maiorBlocoLivre(planta, lugares);
   if (maior && maior.n >= 4) return { texto: `Fileira ${maior.fileira} tem ${maior.n} lugares seguidos livres.`, alerta: false };
   return { texto: "Lugares livres, mas espalhados. Junte grupos nas fileiras do fundo.", alerta: false };
@@ -77,18 +77,25 @@ export default function EditorMapaAuditorio({ eventoId, uid, papel, onFechar, on
     }
     if (tipo === "simples") {
       if (atual === "reservado") { torrada("Reservado — ative \"Reservar\" para libertar"); return; }
+      if (atual === "bloqueado") { torrada("Lugar bloqueado"); return; }
       const novo = atual === "livre" ? "ocupado" : "livre";
       empilhar({ id, estadoAnterior: atual });
       marcar(id, novo);
       return;
     }
     if (tipo === "duplo") {
+      if (atual === "bloqueado") return;
       empilhar({ id, estadoAnterior: atual });
-      marcar(id, "visitante");
+      // um apelo que afinal era visitante continua apelo
+      marcar(id, atual === "apelo" ? "apeloVisitante" : "visitante");
       return;
     }
     if (tipo === "longo") {
-      const novo = atual === "bloqueado" ? "livre" : "bloqueado";
+      // manter o dedo = APELO (pedido 2026-09 — antes bloqueava a
+      // cadeira; os bloqueios agora só vêm da planta). Outra vez no
+      // mesmo lugar desfaz, e a pessoa continua sentada.
+      const novo = alternarApelo(atual);
+      if (!novo) { torrada(atual === "reservado" ? "Reservado — ative \"Reservar\" para libertar" : "Lugar bloqueado"); return; }
       empilhar({ id, estadoAnterior: atual });
       marcar(id, novo);
     }
@@ -116,10 +123,7 @@ export default function EditorMapaAuditorio({ eventoId, uid, papel, onFechar, on
 
   if (!planta) return null;
 
-  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
-  Object.values(lugares).forEach((s) => { if (contagem[s] != null) contagem[s]++; });
-  const ocupados = contagem.ocupado + contagem.visitante;
-  const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
+  const { ocupados, capacidadeUtil } = contarEstados(lugares);
   const dica = dicaViva(planta, lugares, sel, capacidadeUtil, ocupados, modoReservar);
 
   return (

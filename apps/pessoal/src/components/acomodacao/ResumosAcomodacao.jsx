@@ -123,7 +123,7 @@ export default function ResumosAcomodacao({ souLiderBase }) {
                   <div style={{ flex: 1 }}>
                     <p className="nmt">{dataPorExtenso(r.eventoId)}</p>
                     <p className="ds">
-                      {r.ocupados} ocupados · {r.visitantes} visitantes · {Math.round((r.percentagem ?? 0) * 100)}% de lotação
+                      {r.ocupados} ocupados · {r.visitantes} visitantes{r.apelo ? ` · ${r.apelo} no apelo` : ""} · {Math.round((r.percentagem ?? 0) * 100)}% de lotação
                     </p>
                   </div>
                   {souLiderBase && (
@@ -149,7 +149,7 @@ export default function ResumosAcomodacao({ souLiderBase }) {
                 {expandido && (
                   <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,.06)", paddingTop: 10 }}>
                     {[
-                      ["Ocupados", r.ocupados], ["Visitantes", r.visitantes], ["Livres", r.livres ?? "—"],
+                      ["Ocupados", r.ocupados], ["Visitantes", r.visitantes], ["Apelo", r.apelo ?? "—"], ["Livres", r.livres ?? "—"],
                       ["Reservados", r.reservados], ["Bloqueados", r.bloqueados], ["Lotação", `${Math.round((r.percentagem ?? 0) * 100)}%`],
                     ].map(([rotulo, valor]) => (
                       <div key={rotulo} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 13.5 }}>

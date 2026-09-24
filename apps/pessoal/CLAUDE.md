@@ -155,11 +155,23 @@ não conseguia. Foi por isto que a aba passou a chamar-se **"Mapa"**.
   isso `pages/Acomodacao.jsx` também mostra "Reabrir para marcar de
   novo" direto no aviso de culto fechado, para quem tem acesso
   (`souDrive`) — sem depender de estar naquela lista.
-- Estados possíveis de um lugar: `livre | ocupado | visitante |
-  reservado | bloqueado`. Cores fixas (não mexer sem avisar a líder):
-  livre `#8E2028`, ocupado `#C8F02E`, visitante `#F5C518` (+ ponto
-  escuro), reservado `#3B82F6` (+ ponto branco), bloqueado `#5A6072`
-  (+ X branco).
+- Estados possíveis de um lugar: `livre | ocupado | visitante | apelo
+  | apeloVisitante | reservado | bloqueado`. Cores fixas (não mexer sem
+  avisar a líder): livre `#8E2028`, ocupado `#C8F02E`, visitante
+  `#F5C518` (+ ponto escuro), apelo `#A259FF` (+ anel branco; se era
+  visitante, também o ponto), reservado `#3B82F6` (+ ponto branco),
+  bloqueado `#5A6072` (+ X branco).
+- **Manter o dedo = APELO** (pedido 2026-09 — antes bloqueava a
+  cadeira). Quem respondeu ao apelo continua sentado: `apelo` conta em
+  `ocupados`, `apeloVisitante` em `visitantes` (para o nº de visitantes
+  não baixar quando um deles responde), e os dois à parte em `apelo`
+  no resumo. Manter outra vez desfaz. As contas estão em
+  `contarEstados`/`alternarApelo` (`lib/modelo.js`) e, do lado do
+  servidor, em `resumoAcomodacao`/`contarLugares` (functions/index.js)
+  e `resumoAcomodacaoAoVivo` (functions/pastoral.js) — os quatro têm
+  de bater certo. **Já não há gesto para bloquear** um lugar num
+  domingo: os bloqueios vêm só da planta (`bloqueiosPermanentes`), e um
+  lugar bloqueado não reage a toques.
 - **O mapa não preenche a Contagem.** Pode mostrar-se o nº de lugares
   ocupados como referência ao lado, em texto, nunca copiar para um
   campo da Contagem.

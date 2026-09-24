@@ -94,7 +94,7 @@ export default function MapasPorFechar({ souLiderBase, uid, papel }) {
           <div key={c.eventoId} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(0,0,0,.06)" }}>
             <p className="nmt" style={{ fontSize: 14.5 }}>{dataPorExtenso(c.eventoId)}</p>
             <p className="ds" style={{ marginTop: 2 }}>
-              {c.ocupados} ocupados · {c.visitantes} visitantes · {Math.round((c.percentagem ?? 0) * 100)}% de lotação
+              {c.ocupados} ocupados · {c.visitantes} visitantes{c.apelo ? ` · ${c.apelo} no apelo` : ""} · {Math.round((c.percentagem ?? 0) * 100)}% de lotação
             </p>
             {souLiderBase && (
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
