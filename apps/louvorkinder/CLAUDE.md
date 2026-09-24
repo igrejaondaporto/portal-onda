@@ -61,6 +61,29 @@ base. `PAPEL_LEAD`/`PAPEIS_VOCAL` (também em `modelo.js`) substituem
 os `"lead"`/`["lead","colead","back"]` que a app da Louvor tinha
 escritos à mão em `Repertorio.jsx`, `Biblioteca.jsx` e `SheetVersao.jsx`.
 
+### Biblioteca infantil
+
+Importada do export do LouveApp do louvor infantil (2026-09) com o
+mesmo script da Louvor, por base:
+
+```
+node scripts/importarLouveAppLouvor.mjs export.xlsx --base=louvorkinder --dry-run
+```
+
+(`NODE_USE_ENV_PROXY=1` à frente, num ambiente com proxy — o `fetch`
+do Node não lê `HTTPS_PROXY` sozinho e o Deezer "não encontra" nada.)
+Repetir não duplica. Das 19, 16 ficaram com capa do Deezer; "A Cristo
+dai Louvor", "Aperte a mão do amigo" e "A alegria está no coração"
+ficaram com placeholder (sem correspondência) — o líder escolhe na
+Biblioteca.
+
+**Classificações próprias**: além das seis da Louvor, `CLASSIFICACOES`
+(`src/lib/biblioteca.js`) tem `infantil`, `animada`, `calma`,
+`biblica` e `antiga` — as que o LouveApp infantil usava. O script tem
+a mesma lista em `POR_BASE.louvorkinder` — **mudar uma obriga a mudar
+a outra**, senão a importação deixa cair a classificação em silêncio
+(avisa, mas não grava).
+
 ## O que é partilhado com a Louvor (e não se copia)
 
 As Cloud Functions com "Louvor" no nome (`guardarEscalaLouvor`,
@@ -79,9 +102,9 @@ Listas fixas no servidor que incluem esta base: `BASES_COM_AUXILIAR`
 
 ## Por fazer
 
-- **Popular a biblioteca infantil** (as músicas vêm do líder). Mesmo
-  esquema da Louvor: busca por nome (`pesquisarMusicaLouvor`), tom,
-  letra, cifra.
+- ~~Popular a biblioteca infantil~~ — feito (2026-09): 19 músicas do
+  LouveApp do louvor infantil, ver "Biblioteca infantil" abaixo. As
+  próximas entram pela Biblioteca, como na Louvor.
 - ~~Ligação ao Kinder~~ — feito (2026-09): o repertório deste painel
   aparece no bloco da Lição do Início da Kinder, o mesmo para as três
   salas (`apps/kinder/src/components/licao/RepertorioLouvorKinder.jsx`).

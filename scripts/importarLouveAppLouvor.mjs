@@ -1,10 +1,18 @@
 /**
  * Importa o export do LouveApp (.xlsx) para a biblioteca da Base
  * Louvor — ver apps/louvor/CLAUDE.md, "Importação do LouveApp".
+ * Serve também a biblioteca infantil do Louvor Kinder com
+ * --base=louvorkinder (ver apps/louvorkinder/CLAUDE.md) — cada base
+ * tem a sua coleção `bases/{base}/musicas`, nunca se misturam.
  *
  *   1. Firebase → Definições → Contas de serviço → Gerar chave privada
  *   2. guardar como service-account.json na raiz (está no .gitignore)
- *   3. node scripts/importarLouveAppLouvor.mjs caminho/para/export.xlsx
+ *   3. node scripts/importarLouveAppLouvor.mjs caminho/para/export.xlsx [--base=louvorkinder]
+ *
+ * Aceita os dois cabeçalhos que o LouveApp já exportou: o técnico
+ * (nomeMusica | nomeArtista | …) e o legível ("Nome da música" |
+ * "Artista" | "Álbum" | …). "Álbum" e "Referências" são ignorados.
+ * Duração em segundos ou "m:ss"; BPM/duração a 0 contam como vazio.
  *
  * Usa --dry-run para conferir tudo primeiro sem escrever nada no
  * Firestore/Storage — imprime o resumo (músicas, versões, capas,
@@ -22,24 +30,69 @@ import admin from "firebase-admin";
 
 const CAMINHO = process.argv.slice(2).find((a) => !a.startsWith("--"));
 const DRY_RUN = process.argv.includes("--dry-run");
+const BASE = process.argv.find((a) => a.startsWith("--base="))?.slice("--base=".length) || "louvor";
 if (!CAMINHO) {
-  console.error("Uso: node scripts/importarLouveAppLouvor.mjs caminho/export.xlsx [--dry-run]");
+  console.error("Uso: node scripts/importarLouveAppLouvor.mjs caminho/export.xlsx [--base=louvorkinder] [--dry-run]");
+  process.exit(1);
+}
+
+/** Por base: quem fica como `criadoPor` e as classificações que a app
+ *  dessa base conhece (o mesmo `CLASSIFICACOES` de
+ *  apps/<base>/src/lib/biblioteca.js — um id fora daqui nem aparece). */
+const LOUVOR = ["adoracao", "alegria", "consagracao", "contemplacao", "especiais", "louvor"];
+const POR_BASE = {
+  louvor: { importadoPor: "adriel-louvor", classificacoes: LOUVOR },
+  louvorkinder: { importadoPor: "adriel-louvor", classificacoes: [...LOUVOR, "infantil", "animada", "calma", "biblica", "antiga"] },
+};
+if (!POR_BASE[BASE]) {
+  console.error(`Base "${BASE}" desconhecida — acrescenta-a a POR_BASE primeiro.`);
   process.exit(1);
 }
 
 const chave = JSON.parse(readFileSync("./service-account.json", "utf8"));
 admin.initializeApp({ credential: admin.credential.cert(chave), storageBucket: "painel-onda.firebasestorage.app" });
 const db = admin.firestore();
-const BASE = "louvor";
-const IMPORTADO_POR = "adriel-louvor";
+const IMPORTADO_POR = POR_BASE[BASE].importadoPor;
 
-const CABECALHO = [
-  "nomeMusica", "nomeArtista", "observacaoMusica", "nomeVersao", "observacaoVersao",
-  "tom", "bpm", "duracao", "classificacoes", "letra", "cifra", "audio", "video", "referencias",
-];
+/** Campo → nomes de coluna aceites (comparados sem acentos, maiúsculas,
+ *  espaços nem pontuação). */
+const CABECALHO = {
+  nomeMusica: ["nomeMusica", "Nome da música"],
+  nomeArtista: ["nomeArtista", "Artista"],
+  observacaoMusica: ["observacaoMusica", "Observação da música"],
+  nomeVersao: ["nomeVersao", "Nome da versão"],
+  observacaoVersao: ["observacaoVersao", "Observação da versão"],
+  tom: ["tom"], bpm: ["bpm"], duracao: ["duracao"],
+  classificacoes: ["classificacoes"],
+  letra: ["letra"], cifra: ["cifra"], audio: ["audio"], video: ["video"],
+};
 
-const CLASSIFICACOES = ["adoracao", "alegria", "consagracao", "contemplacao", "especiais", "louvor"];
+const CLASSIFICACOES = POR_BASE[BASE].classificacoes;
 const norm = (s) => (s || "").toString().normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const normColuna = (s) => norm(s).replace(/[^a-z0-9]/g, "");
+
+/** O ExcelJS devolve um link como {text, hyperlink} e texto formatado
+ *  como {richText: [...]} — nunca deixar isso virar "[object Object]". */
+function textoCelula(v) {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "object") {
+    if (v.hyperlink) return String(v.hyperlink);
+    if (v.richText) return v.richText.map((p) => p.text).join("");
+    if (v.text != null) return textoCelula(v.text);
+    if (v.result != null) return String(v.result);
+  }
+  return String(v).trim();
+}
+
+/** Segundos, a partir de "310", "3:22" ou "1:03:22". 0 = sem duração. */
+function segundos(v) {
+  if (!v) return null;
+  const partes = v.split(":").map(Number);
+  if (partes.some((n) => !Number.isFinite(n))) return null;
+  const s = partes.reduce((acc, n) => acc * 60 + n, 0);
+  return s > 0 ? Math.round(s) : null;
+}
 const chaveIdentidade = (titulo, artista) => `${norm(artista)}__${norm(titulo)}`;
 const slugMusica = (titulo, artista) => {
   const s = (v) => norm(v).replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -53,10 +106,11 @@ async function lerPlanilha(caminho) {
   const folha = wb.worksheets[0];
   if (!folha) throw new Error("A planilha não tem nenhuma folha.");
 
-  const cabecalhoLinha = folha.getRow(1).values.slice(1).map((v) => (v || "").toString().trim());
+  const cabecalhoLinha = folha.getRow(1).values.slice(1).map(textoCelula);
   const indice = {};
-  CABECALHO.forEach((campo) => {
-    const i = cabecalhoLinha.findIndex((c) => norm(c) === norm(campo));
+  Object.entries(CABECALHO).forEach(([campo, nomes]) => {
+    const aceites = nomes.map(normColuna);
+    const i = cabecalhoLinha.findIndex((c) => aceites.includes(normColuna(c)));
     if (i === -1) console.warn(`⚠ coluna "${campo}" não encontrada no cabeçalho — a ignorar.`);
     indice[campo] = i;
   });
@@ -65,7 +119,7 @@ async function lerPlanilha(caminho) {
   folha.eachRow((row, n) => {
     if (n === 1) return;
     const valores = row.values.slice(1);
-    const get = (campo) => (indice[campo] >= 0 ? (valores[indice[campo]] ?? "").toString().trim() : "");
+    const get = (campo) => (indice[campo] >= 0 ? textoCelula(valores[indice[campo]]) : "");
     const nomeMusica = get("nomeMusica");
     if (!nomeMusica) return; // linha vazia
     linhas.push({
@@ -86,15 +140,33 @@ async function lerPlanilha(caminho) {
  *  pelas Cloud Functions onCall. Só aceita o resultado se título e
  *  artista batem (normalizados); senão fica placeholder. */
 async function resolverCapa(titulo, artista) {
-  const q = `track:"${titulo}" artist:"${artista}"`;
-  const resp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=3`);
-  if (!resp.ok) return null;
-  const json = await resp.json();
-  const candidato = (json.data || []).find(
-    (t) => norm(t.title).includes(norm(titulo).slice(0, 8)) && norm(t.artist?.name).includes(norm(artista).slice(0, 4))
-  ) ?? (json.data || [])[0];
-  if (!candidato?.album?.cover_medium) return null;
-  return { deezerId: String(candidato.id), capaUrl: candidato.album.cover_medium, duracao: candidato.duration || null, preview: candidato.preview || null };
+  // A busca avançada (track:/artist:) passou a vir vazia para muitas
+  // músicas (2026-09, importação do Louvor Kinder: 0 de 19) — cai na
+  // busca simples, a mesma que `pesquisarMusicaPorNome` usa na app.
+  // Nas duas, só aceita um resultado com título E artista a bater:
+  // nunca o primeiro da lista às cegas (dava a capa de outra música).
+  // Faixas de ruído/instrumental/playback nunca são "a" música (têm
+  // outra capa e outra duração), a não ser que o título as peça.
+  const variante = /ruido|instrumental|playback|karaoke/;
+  const bate = (t) => norm(t.title).includes(norm(titulo).slice(0, 8))
+    && norm(t.artist?.name).includes(norm(artista).slice(0, 4))
+    && (!variante.test(norm(t.title)) || variante.test(norm(titulo)));
+  let candidato = null;
+  for (const q of [`track:"${titulo}" artist:"${artista}"`, `${titulo} ${artista}`]) {
+    const resp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=10`);
+    if (!resp.ok) continue;
+    const json = await resp.json();
+    const validos = (json.data || []).filter((t) => bate(t) && t.album?.cover_medium);
+    // título exatamente igual primeiro — "Eu preciso de você" apanhava
+    // "Eu Preciso De Você (Ruído Marrom)", com outra duração.
+    candidato = validos.find((t) => norm(t.title) === norm(titulo)) ?? validos[0];
+    if (candidato) break;
+  }
+  if (!candidato) return null;
+  return {
+    deezerId: String(candidato.id), capaUrl: candidato.album.cover_medium, duracao: candidato.duration || null, preview: candidato.preview || null,
+    encontrado: `${candidato.title} · ${candidato.artist?.name ?? "?"}`,
+  };
 }
 
 async function processarCapa(musicaId, deezerCapaUrl) {
@@ -170,7 +242,7 @@ async function main() {
       }
       musica = { id: musicaId, chaveIdentidade: chave, versoesExistentes: new Set() };
       resumo.musicasCriadas++;
-      console.log(`+ música  ${primeira.nomeMusica} · ${primeira.nomeArtista}${capa ? " (capa resolvida)" : " (sem capa)"}`);
+      console.log(`+ música  ${primeira.nomeMusica} · ${primeira.nomeArtista}${capa ? ` (capa: ${capa.encontrado})` : " (sem capa)"}`);
     }
 
     // versões — buscar as já existentes só quando a música já existia
@@ -184,8 +256,8 @@ async function main() {
       if (nomesVersoesExistentes.has(norm(l.nomeVersao))) { resumo.versoesJaExistiam++; continue; }
       const versaoId = db.collection(`bases/${BASE}/musicas/${musicaId}/versoes`).doc().id;
       const dadosVersao = {
-        nome: l.nomeVersao, tom: l.tom || "", bpm: l.bpm ? Number(l.bpm) || null : null,
-        duracao: l.duracao ? Number(l.duracao) || null : null,
+        nome: l.nomeVersao, tom: l.tom || "", bpm: Number(l.bpm) > 0 ? Math.round(Number(l.bpm)) : null,
+        duracao: segundos(l.duracao),
         observacao: [l.observacaoMusica, l.observacaoVersao].filter(Boolean).join(" — "),
         fonteTom: "louveapp", fonteBpm: "louveapp", criadoPor: IMPORTADO_POR,
       };
@@ -194,7 +266,7 @@ async function main() {
       }
       nomesVersoesExistentes.add(norm(l.nomeVersao));
       resumo.versoesCriadas++;
-      console.log(`  + versão "${l.nomeVersao}"${l.tom ? ` · tom ${l.tom}` : ""}${l.bpm ? ` · ${l.bpm} BPM` : ""}`);
+      console.log(`  + versão "${l.nomeVersao}"${dadosVersao.tom ? ` · tom ${dadosVersao.tom}` : ""}${dadosVersao.bpm ? ` · ${dadosVersao.bpm} BPM` : ""}${dadosVersao.duracao ? ` · ${dadosVersao.duracao}s` : ""}`);
     }
   }
 
