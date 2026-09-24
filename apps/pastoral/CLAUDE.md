@@ -29,6 +29,7 @@ inventário. O que escreve, e porquê:
 | O quê | Onde | Porquê é escrita e não leitura |
 |---|---|---|
 | A ordem do culto | `eventos/{e}.ordem` | É produzida aqui, não noutro lado — é o que substitui o PDF |
+| A etiqueta do culto (tipo) | `eventos/{e}.tipoCulto` | Muda-se aqui sem publicar a ordem, que continua a vir da Backstage (pedido 2026-09) — ver "Tipo de culto" abaixo |
 | A etapa de um visitante | `contactos/{id}.etapa` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
 | Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
@@ -276,6 +277,20 @@ Backstage (`SheetRevisaoOrdem.jsx`) e as bases que mostram a etiqueta
 (Louvor, Louvor Kinder) leem a mesma lista ao vivo
 (`useTiposCulto()`, `TiposCultoContext.jsx` em `packages/shared`) —
 um tipo adicionado aqui aparece lá sem deploy nenhum.
+
+**Mudar a etiqueta de UM culto não depende de publicar** (pedido do
+dono do produto, 2026-09: "só a parte da etiqueta dá para alterar
+ali; a ordem continua pela Backstage, subindo o arquivo"). Tocar num
+tipo em `Ordem.jsx` (`escolherTipo`) chama logo `definirTipoCulto`
+(`functions/pastoral.js`), que grava SÓ `eventos/{e}.tipoCulto` —
+protegida por `ve_tudo_pastoral`, não por `pode_publicar_culto`, e
+validada contra `config/tiposCulto`. Antes disto, o tipo só era gravado
+por `publicarOrdemCulto`, que está desligado aqui de propósito (ver
+acima) — escolher um tipo mudava o ecrã e mais nada, e a Louvor
+continuava a mostrar a etiqueta antiga (reportado 2026-09). A
+Backstage abre o seletor dela (`SheetRevisaoOrdem.jsx`) a partir do
+mesmo campo, por isso publicar o PDF depois mantém a etiqueta escolhida
+aqui, a não ser que alguém a mude lá.
 
 Sem catálogo próprio de tipos aqui: `TIPOS_CULTO_PADRAO`
 (`packages/shared`) é só o valor de arranque, gravado uma vez por

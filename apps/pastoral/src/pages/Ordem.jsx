@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirEventos, proximoCulto } from "../lib/culto";
-import { limparOrdemCulto, publicarOrdemCulto } from "../lib/pastoral";
+import { definirTipoCulto, limparOrdemCulto, publicarOrdemCulto } from "../lib/pastoral";
 import {
   apagarModelo, avisoVazio, duracaoTotal, encadearHoras, guardarModelo, horasDaOrdem,
   limparAvisos, limparMomentos, modeloParaFormulario, momentoVazio, ordemParaFormulario, ouvirModelos,
@@ -96,6 +96,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
   const [aAdicionarTipo, setAAdicionarTipo] = useState(false);
   const [outroTipo, setOutroTipo] = useState("");
   const [aGuardarTipo, setAGuardarTipo] = useState(false);
+  const [aGuardarEtiqueta, setAGuardarEtiqueta] = useState(false);
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
@@ -137,7 +138,7 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
     const padrao = modelos.find((m) => m.padrao);
     setMomentos(padrao ? modeloParaFormulario(padrao).momentos : [momentoVazio()]);
     setAvisos([]);
-    setTipoCulto(tipoCultoDefault(evento.data));
+    setTipoCulto(evento.tipoCulto || tipoCultoDefault(evento.data));
     setCarregadoDe(evento.id);
   }, [evento, carregadoDe, modelos, modelosProntos]);
 
@@ -246,24 +247,42 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
    *  não é mais um texto que só vale para este culto. Se já existir
    *  um tipo com o mesmo nome (comparação sem acentos/maiúsculas),
    *  reutiliza-o em vez de duplicar. */
+  /** Tocar num tipo grava logo a etiqueta DESTE culto
+   *  (`definirTipoCulto`), sem publicar a ordem — pedido do dono do
+   *  produto (2026-09): a etiqueta muda-se aqui, a ordem continua a
+   *  subir pela Backstage em PDF. Publicar (quando estiver ligado)
+   *  continua a mandar o tipo junto, como sempre. */
+  async function escolherTipo(id, nome) {
+    setAAdicionarTipo(false);
+    if (!eventoId || id === evento?.tipoCulto) return setTipoCulto(id);
+    const anterior = tipoCulto;
+    setTipoCulto(id);
+    setAGuardarEtiqueta(true);
+    try {
+      await definirTipoCulto(eventoId, id);
+      torrada(`"${nome}" guardado — já aparece em todas as bases`);
+    } catch (e) {
+      setTipoCulto(anterior);
+      torrada(e.message || "Não foi possível mudar o tipo de culto.");
+    } finally {
+      setAGuardarEtiqueta(false);
+    }
+  }
+
   async function usarOutroTipo() {
     const nome = outroTipo.trim();
     if (!nome) return;
     const existente = tiposCulto.find((t) => norm(t.nome) === norm(nome));
     if (existente) {
-      setTipoCulto(existente.id);
       setOutroTipo("");
-      setAAdicionarTipo(false);
-      return;
+      return escolherTipo(existente.id, existente.nome);
     }
     setAGuardarTipo(true);
     try {
       const id = gerarIdTipoCulto(nome, new Set(tiposCulto.map((t) => t.id)));
       await guardarTiposCulto([...tiposCulto, { id, nome }]);
-      setTipoCulto(id);
       setOutroTipo("");
-      setAAdicionarTipo(false);
-      torrada(`"${nome}" adicionado — já aparece em todas as bases`);
+      await escolherTipo(id, nome);
     } catch (e) {
       torrada(e.message || "Não foi possível adicionar o tipo de culto.");
     } finally {
@@ -460,12 +479,17 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
       <div className="sect">
         <div className="cabecalho"><h3>Tipo de culto</h3></div>
         <p className="ds" style={{ marginTop: 0 }}>
-          Obrigatório. É por aqui que a Louvor sabe o que preparar, e é uma decisão de quem publica a ordem —
-          não de cada base por si.
+          É por aqui que a Louvor sabe o que preparar. Tocar num tipo muda logo a etiqueta deste culto em todas
+          as bases — não precisa de publicar a ordem, que continua a vir da Backstage.
         </p>
         <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
           {tiposCulto.map((t) => (
-            <button key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} onClick={() => { setTipoCulto(t.id); setAAdicionarTipo(false); }}>{t.nome}</button>
+            <button
+              key={t.id} data-on={tipoCulto === t.id ? "1" : "0"} disabled={aGuardarEtiqueta}
+              onClick={() => escolherTipo(t.id, t.nome)}
+            >
+              {t.nome}
+            </button>
           ))}
           {/* Rede de segurança para um culto ANTIGO cujo tipoCulto é
               texto solto, de antes de "+ Outro" gravar no catálogo
