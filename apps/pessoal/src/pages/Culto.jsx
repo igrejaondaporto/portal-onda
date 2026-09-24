@@ -117,6 +117,15 @@ export default function Culto({
   const verAnterioresOrdem = filtroCulto === "anteriores" || (filtroCulto === null && !proximosOrdem.length && anterioresOrdem.length > 0);
   const listaOrdem = verAnterioresOrdem ? anterioresOrdem : proximosOrdem;
 
+
+  // Feedbacks: só os cultos que já aconteceram (hoje incluído), do mais
+  // recente para trás — os 3 últimos, e "Ver mais" para o resto do mês
+  // (pedido 2026-09: os domingos que ainda não aconteceram apareciam
+  // todos, sempre vazios).
+  const [verTodosFeedbacks, setVerTodosFeedbacks] = useState(false);
+  useEffect(() => setVerTodosFeedbacks(false), [mes, ano]);
+  const cultosFeitos = eventosMes.filter((e) => e.data <= hoje).slice().reverse();
+  const feedbacksVisiveis = verTodosFeedbacks ? cultosFeitos : cultosFeitos.slice(0, 3);
   return (
     <>
       <div className="cabecalho" style={{ paddingTop: 14 }}>
@@ -172,7 +181,7 @@ export default function Culto({
           <p className="nota" style={{ marginTop: 16 }}>
             Depois do culto, o responsável escreve o que correu bem e o que faltou. Fica aqui para toda a base ler.
           </p>
-          {eventosMes.map((ev) => {
+          {feedbacksVisiveis.map((ev) => {
             const pode = podeDistribuir(papel, uid, ev.escala);
             const autorPessoa = ev.escala.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.escala.feedback.autorUid) : null;
             return (
@@ -213,6 +222,14 @@ export default function Culto({
               </div>
             );
           })}
+          {cultosFeitos.length === 0 && (
+            <div className="vaz" style={{ marginTop: 12 }}>Ainda não houve culto este mês.</div>
+          )}
+          {cultosFeitos.length > 3 && (
+            <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setVerTodosFeedbacks((v) => !v)}>
+              {verTodosFeedbacks ? "Ver menos" : `Ver mais (${cultosFeitos.length - 3})`}
+            </button>
+          )}
         </>
       )}
 

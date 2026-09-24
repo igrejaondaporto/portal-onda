@@ -71,6 +71,15 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
   const verAnteriores = filtroCulto === "anteriores" || (filtroCulto === null && !proximos.length && anteriores.length > 0);
   const listaOrdem = verAnteriores ? anteriores : proximos;
 
+
+  // Feedbacks: só os cultos que já aconteceram (hoje incluído), do mais
+  // recente para trás — os 3 últimos, e "Ver mais" para o resto do mês
+  // (pedido 2026-09: os domingos que ainda não aconteceram apareciam
+  // todos, sempre vazios).
+  const [verTodosFeedbacks, setVerTodosFeedbacks] = useState(false);
+  useEffect(() => setVerTodosFeedbacks(false), [mes, ano]);
+  const cultosFeitos = eventosMes.filter((e) => e.data <= hoje).slice().reverse();
+  const feedbacksVisiveis = verTodosFeedbacks ? cultosFeitos : cultosFeitos.slice(0, 3);
   return (
     <>
       <div className="subtabs">
@@ -131,7 +140,7 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
               ? "Depois do culto, qualquer voluntário escreve o que correu bem e o que faltou. Fica aqui para toda a base ler."
               : "Depois do culto, o líder de escala escreve o que correu bem e o que faltou. Fica aqui para toda a base ler."}
           </p>
-          {eventosMes.map((ev) => {
+          {feedbacksVisiveis.map((ev) => {
             const pode = feedbackAberto || podeDistribuir(papel, uid, ev.escala);
             const autorPessoa = ev.escala.feedback?.autorUid ? voluntarios.find((p) => p.id === ev.escala.feedback.autorUid) : null;
             return (
@@ -172,6 +181,14 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaInicial, ativ
               </div>
             );
           })}
+          {cultosFeitos.length === 0 && (
+            <div className="vaz" style={{ marginTop: 12 }}>Ainda não houve culto este mês.</div>
+          )}
+          {cultosFeitos.length > 3 && (
+            <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setVerTodosFeedbacks((v) => !v)}>
+              {verTodosFeedbacks ? "Ver menos" : `Ver mais (${cultosFeitos.length - 3})`}
+            </button>
+          )}
         </>
       )}
 
