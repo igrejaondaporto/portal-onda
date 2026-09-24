@@ -12,6 +12,7 @@ import SheetRecado from "../components/SheetRecado";
 import NavCulto from "../components/NavCulto";
 import CalendarioAgenda from "../components/agenda/CalendarioAgenda";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import { MAPA_DESDE } from "../lib/presenca";
 
 /** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
  *  lá, ver `apps/kinder/src/lib/modelo.js`). Cores iguais às de lá,
@@ -211,6 +212,20 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
     return Object.values(mapa.lugares).filter((estado) => estado !== "livre").length;
   }, [mapa]);
 
+  // visitantes e apelo: do MAPA a partir de MAPA_DESDE (mesma regra de
+  // Números, `lib/presenca.js`), da Contagem manual antes disso.
+  // "apeloVisitante" é um visitante que respondeu ao apelo — conta nos
+  // dois (ver apps/pessoal/CLAUDE.md, "Manter o dedo = APELO").
+  const usaMapa = (evento?.data ?? eventoId ?? "") >= MAPA_DESDE;
+  const doMapa = useMemo(() => {
+    const est = Object.values(mapa?.lugares ?? {});
+    const n = (...e) => est.filter((s) => e.includes(s)).length;
+    const marcados = n("ocupado", "visitante", "apelo", "apeloVisitante");
+    return marcados ? { visitantes: n("visitante", "apeloVisitante"), apelo: n("apelo", "apeloVisitante") } : null;
+  }, [mapa]);
+  const visitantesCulto = usaMapa ? (doMapa?.visitantes ?? null) : presentes.visitantes;
+  const apeloCulto = usaMapa ? (doMapa?.apelo ?? null) : null;
+
   return (
     <>
       {/* a agenda do pastor em cima (pedido 2026-09): eventos da igreja
@@ -264,11 +279,12 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
         </div>
       </div>
 
-      {presentes.visitantes !== null && presentes.visitantes > 0 && (
+      {((visitantesCulto ?? 0) > 0 || (apeloCulto ?? 0) > 0) && (
         <div className="caixa" style={{ marginTop: 10 }}>
           <p className="ds" style={{ marginTop: 0 }}>
-            <b>{presentes.visitantes} visitante{presentes.visitantes === 1 ? "" : "s"}</b> neste culto
-            {presentes.finalizada ? "." : " — contagem ainda a decorrer."}
+            <b>{visitantesCulto ?? 0} visitante{visitantesCulto === 1 ? "" : "s"}</b> neste culto
+            {apeloCulto > 0 && <> · <b>{apeloCulto} no apelo</b></>}
+            {usaMapa ? " — pelo Mapa do auditório." : presentes.finalizada ? "." : " — contagem ainda a decorrer."}
           </p>
         </div>
       )}

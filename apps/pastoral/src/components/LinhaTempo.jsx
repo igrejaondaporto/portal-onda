@@ -81,6 +81,19 @@ export default function LinhaTempo({
     : new Set([iPrimeiro, iMax, iUltimo]);
   const mostrado = foco ?? { i: iUltimo, ponto: validos[iUltimo] };
 
+  // que datas cabem na linha de baixo sem se pisarem (~11% da
+  // largura é o que ocupa "27 set" num telemóvel) — por prioridade
+  // (vale também com `todosRotulados`: dez datas lado a lado
+  // pisavam-se — "02 ago09 ago16 ago" — e aí fica uma sim, uma não,
+  // a contar do fim; o número de cada ponto continua todo à vista)
+  const DIST_MIN = 12;
+  const datasVisiveis = [];
+  for (const i of [mostrado.i, iUltimo, iPrimeiro, iMax, ...[...rotulados].sort((a, b) => b - a)]) {
+    if (datasVisiveis.includes(i)) continue;
+    if (datasVisiveis.some((j) => Math.abs(x(i) - x(j)) < DIST_MIN)) continue;
+    datasVisiveis.push(i);
+  }
+
   // grelha com o valor que cada fio representa, em números fechados —
   // sem isto ("falta legenda", mesmo relato) os fios não diziam nada,
   // só cortavam o gráfico ao meio. Os valores já saíram calculados
@@ -88,7 +101,16 @@ export default function LinhaTempo({
   const grelha = linhasGrelha.map((v) => ({ chave: v, y: 100 - (v / topo) * 100, valor: v }));
 
   return (
-    <div className="pa-graf" style={{ height: altura }}>
+    <div className="pa-graf">
+      {/* a área do gráfico numa caixa própria, SEM padding: o SVG e
+          tudo o que se posiciona em % por cima dele (bolinhas,
+          rótulos, datas) medem-se contra a MESMA caixa. Antes o
+          padding de baixo (para as datas) estava na mesma caixa com
+          altura fixa — o SVG desenhava-se na área de conteúdo e as
+          bolinhas na caixa com o padding, ~30px mais alta, por isso
+          nenhuma bolinha ficava em cima da linha nem a data debaixo
+          do sítio certo (bug reportado 2026-09). */}
+      <div className="pa-graf-area" style={{ height: altura }}>
       <svg
         className="pa-graf-svg" viewBox="0 0 100 100" preserveAspectRatio="none"
         aria-hidden="true" focusable="false"
@@ -110,6 +132,11 @@ export default function LinhaTempo({
       {grelha.map((g) => (
         <span key={`g${g.chave}`} className="pa-graf-grelha" style={{ top: `${g.y}%` }}>{formatar(g.valor)}</span>
       ))}
+
+      {/* guia vertical do ponto mostrado até ao eixo — liga a bolinha
+          à data dela lá em baixo sem ambiguidade (antes das bolinhas, para
+          ficar por baixo delas) */}
+      <i className="pa-graf-guia" style={{ left: `${x(mostrado.i)}%`, top: `${y(mostrado.ponto.valor)}%` }} />
 
       {/* os pontos e os rótulos vivem fora do SVG esticado, senão
           esticavam com ele (um círculo viraria uma elipse) */}
@@ -133,31 +160,25 @@ export default function LinhaTempo({
         {formatar(mostrado.ponto.valor)}
       </span>
 
-      {/* a data de cada domingo com informação à vista. Com poucos
-          rótulos (o normal, 3-4) fica sempre por baixo da própria
-          bolinha — não numa faixa fixa lá em baixo, que só dava para
-          mostrar três datas de cada vez e confundia qual pertencia a
-          qual (mesmo relato: "a data devia estar abaixo da bolinha
-          com a informação"). Com `todosRotulados` (10 pontos, todos
-          rotulados) isso já não serve: um ponto baixo (perto de
-          y:100%) empurrava a própria data para fora do cartão —
-          "o 14 ago fica pra baixo do gráfico" (relato 2026-09). Nesse
-          caso a data desce sempre para a MESMA linha fixa no fundo —
-          sem ambiguidade nenhuma, porque o X de cada uma já a liga à
-          bolinha certa; só o Y deixa de seguir o valor. */}
-      {validos.map((p, i) => (rotulados.has(i) || i === mostrado.i ? (
+      {/* as datas moram SEMPRE numa linha fixa por baixo do gráfico,
+          cada uma no X da sua bolinha. Já estiveram coladas por baixo
+          de cada bolinha, a subir e descer com o valor — e isso é que
+          era o "a data não fica no sítio certo" (reportado duas vezes,
+          2026-09): um ponto alto levava a data para o meio do
+          gráfico, por cima da linha, e um ponto baixo empurrava-a para
+          fora do cartão. Duas datas perto demais uma da outra não
+          aparecem as duas: fica a do ponto tocado, depois a do
+          último, do primeiro e do recorde, por esta ordem. */}
+      {datasVisiveis.map((i) => (
         <span
-          key={`d${p.chave ?? i}`}
-          className={`pa-graf-data${todosRotulados ? " pa-graf-data-denso" : ""}`}
-          style={
-            todosRotulados
-              ? { left: `${x(i)}%`, top: "100%", transform: "translate(-50%, 4px)" }
-              : { left: `${x(i)}%`, top: `${y(p.valor)}%` }
-          }
+          key={`d${validos[i].chave ?? i}`}
+          className={`pa-graf-data${todosRotulados ? " pa-graf-data-denso" : ""}${i === mostrado.i ? " on" : ""}`}
+          style={{ left: `${x(i)}%` }}
         >
-          {p.rotulo}
+          {validos[i].rotulo}
         </span>
-      ) : null))}
+      ))}
+      </div>
     </div>
   );
 }
