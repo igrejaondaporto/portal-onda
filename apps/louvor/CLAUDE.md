@@ -68,16 +68,15 @@ eventos/{e}/escalas/louvor
   observacaoLider: "texto livre" | null
 ```
 
-Os sete papéis são uma lista fixa em código (`src/lib/modelo.js`,
-`PAPEIS`, cada um com emoji — 🎤 para os três de vocal, 🎹/🎸/🎸/🥁
-para os instrumentos) — sem catálogo no Firestore, sem CRUD. Mudar a
-lista é editar ali (e a cópia server-side em `functions/index.js`,
-`PAPEIS_LOUVOR`, usada por `guardarEscalaLouvor` para validar). Uma
-pessoa não pode ocupar dois papéis no mesmo culto. Sem níveis:
-qualquer voluntário serve em qualquer papel que o líder lhe atribuir.
-"Vocal" virou três papéis em 2026-09 (Lead/Co-lead/Back, pedido do
-líder) — escalados antigos com `papel:"vocal"` continuam gravados,
-só perdem o nome bonito.
+Os papéis são editáveis pelo líder, em Definições da base → Papéis
+da escala (pedido do líder, 2026-09 — ver "Papéis da escala,
+editáveis" abaixo). Uma pessoa não pode ocupar dois papéis no mesmo
+culto (ao contrário do Louvor Kinder, que tem `variosPapeisPorPessoa`
+— ver `apps/louvorkinder/CLAUDE.md`). Sem níveis: qualquer voluntário
+serve em qualquer papel que o líder lhe atribuir. "Vocal" virou três
+papéis em 2026-09 (Lead/Co-lead/Back, pedido do líder) — escalados
+antigos com `papel:"vocal"` continuam gravados, só perdem o nome
+bonito.
 
 `enfase`/`coresRoupa`/`dataEnsaio`/`observacaoLider` são gravados
 pela Cloud Function `definirDetalhesCultoLouvor` (`lib/culto.js`),
@@ -95,17 +94,77 @@ mesmo cartão grande do culto (`packages/shared/CartaoCulto.jsx`, que
 só é a casca; o conteúdo é todo desta base, via `children`).
 
 Cada pessoa tem também `instrumentos: string[]` no perfil (os mesmos
-ids de `PAPEIS`, pode ter mais do que um — ver `SheetPessoa.jsx`),
-opcional e só informativo: ao montar a escala (`SheetEscala.jsx`), os
-voluntários aparecem agrupados por instrumento, um bloco por papel,
-"como se fosse um ministério". **Decisão confirmada com o líder,
-2026-09**: quem ainda não tem instrumento definido simplesmente não
-aparece em nenhum bloco (fica "apenas voluntário", sem entrar na
-escala por este ecrã) — não é bug nem falta um fallback "Sem
-instrumento definido", é o comportamento pretendido. Campo aceite por
-`criarVoluntario`/`editarVoluntario` (genéricas, `functions/index.js`)
-sem validação de enum — mesmo tratamento que `ministerios`/`nivel`/
-`cargo` já têm nas outras bases.
+ids de `PAPEIS_PADRAO`/`usePapeisEscala()`, pode ter mais do que um —
+ver `SheetPessoa.jsx`), opcional e só informativo: ao montar a escala
+(`SheetEscala.jsx`), os voluntários aparecem agrupados por
+instrumento, um bloco por papel, "como se fosse um ministério".
+**Decisão confirmada com o líder, 2026-09**: quem ainda não tem
+instrumento definido simplesmente não aparece em nenhum bloco (fica
+"apenas voluntário", sem entrar na escala por este ecrã) — não é bug
+nem falta um fallback "Sem instrumento definido", é o comportamento
+pretendido. Campo aceite por `criarVoluntario`/`editarVoluntario`
+(genéricas, `functions/index.js`) sem validação de enum — mesmo
+tratamento que `ministerios`/`nivel`/`cargo` já têm nas outras bases.
+
+### Papéis da escala, editáveis (2026-09)
+
+Pedido do líder: "preciso que em Definições da base lá embaixo tenha
+a opção de adicionar, remover ou editar as categorias (guitarra,
+back, violão, etc)". Deixou de ser lista fixa em código — vive em
+`bases/louvor/definicoes/papeisEscala` (`{ lista: [{id, nome, emoji,
+cor, ativo}, ...] }`), editável em **Definições da base → Papéis da
+escala** (a secção no fim do sheet, `SecaoPapeisEscala.jsx`), sem
+Cloud Function — escrita direta, o mesmo caminho `definicoes/{doc}`
+que a Kinder já usa para faixas etárias/consentimento
+(`firestore.rules`, `souLiderBase`).
+
+- **`PAPEIS_PADRAO`** (`lib/modelo.js`) é só o valor de arranque: o
+  que `scripts/seedPapeisEscalaLouvor.mjs` gravou uma vez (os sete de
+  sempre — Lead/Co-lead/Back/Teclado/Guitarra/Baixo/Bateria) e o que
+  qualquer ecrã mostra por instantes até o primeiro snapshot chegar.
+  Nunca uma fonte de verdade paralela.
+- **`PapeisEscalaContext.jsx`** (`PapeisEscalaProvider`, montado uma
+  vez em `Sessao.jsx`) mantém a lista ao vivo (`ouvirPapeisEscala`)
+  disponível em toda a app via `usePapeisEscala()` — evita passar
+  `papeis` por prop até cada ecrã que formata um papel (Escala,
+  Início, Perfil, SheetEscala, SheetPessoa, Equipamentos,
+  SheetConfirmarPresenca…). `nomePapel(papeis, id)`/`emojiPapel(papeis,
+  id)` (`lib/modelo.js`) passaram a receber a lista como primeiro
+  argumento — já não são um `.find` num array fixo.
+- **O `id` nasce do nome, na criação, e nunca muda** (slug sem
+  acentos, com sufixo -2/-3… só em colisão) — é o que fica gravado em
+  `escalados[].papel` e `pessoas.instrumentos[]`; editar nome/emoji/
+  cor de um papel não mexe em nada já gravado com esse id.
+- **"Remover" nunca apaga** (regra 5 do CLAUDE.md raiz): marca
+  `ativo:false`. `papeisAtivos(papeis)` (`lib/modelo.js`) é quem
+  filtra — usada por `SheetPessoa.jsx` (que instrumentos oferecer) e
+  por `SheetEscala.jsx`/`Escala.jsx` (que blocos/linhas do quadro
+  mostrar POR OMISSÃO). As duas telas de escala reincluem um papel
+  desativado se alguém já estiver escalado nele (neste culto, ou em
+  qualquer culto do mês no quadro) — nunca esconder quem já lá está
+  sem dar como tirar. `Equipamentos.jsx` nem filtra: um papel
+  desativado continua a agrupar o equipamento já catalogado nele
+  (`ministerios = usePapeisEscala()`, sem `papeisAtivos`), senão esse
+  equipamento ficava invisível. `nomePapel`/`emojiPapel` procuram em
+  todos, ativos ou não — uma escala antiga nunca cai no id cru só por
+  o papel ter sido removido depois.
+- **Servidor**: `ESCALA_LOUVOR_POR_BASE.louvor.papeisEditaveis`
+  (`functions/index.js`) liga a validação dinâmica —
+  `papeisValidosDaBase(baseId)` lê o mesmo doc (só os `ativo !==
+  false`); sem doc ainda, ou lista vazia (o líder desativou tudo), cai
+  no Set fixo de sete — nunca fica sem papel nenhum válido. Uma
+  leitura só por pedido (`guardarEscalaLouvor`,
+  `guardarRascunhoEscala`, `publicarRascunhoEscala`) — os dois
+  últimos cobrem vários domingos de uma vez e reusam o mesmo Set, não
+  releem o doc por item. `limparEscaladosLouvor` (a validação "sem
+  duplicar pessoa/papel") passa a receber esse Set já resolvido. O
+  cliente nunca é a única barreira: um papel só existe de verdade
+  quando aceite aqui.
+- **Louvor Kinder não tem isto** — `ESCALA_LOUVOR_POR_BASE.
+  louvorkinder` continua sem `papeisEditaveis`, Set fixo
+  (voz/violão/cajón) como sempre. Se um dia pedirem o mesmo lá, é pôr
+  a flag e copiar `SecaoPapeisEscala.jsx`/`PapeisEscalaContext.jsx`
+  (ver `MELHORIAS-ENTRE-BASES.md`).
 
 ## Auxiliar — papel na base, não papel de escala
 

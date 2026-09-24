@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar } from "../lib/modelo";
+import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
@@ -25,6 +26,7 @@ import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
+  const papeis = usePapeisEscala();
   const souLider = souLiderOuAuxiliar(papel);
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
@@ -148,7 +150,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   }, [enquetesAbertas]);
 
   const meusPapeis = meuEvento
-    ? meusPapeisNoCulto(meuEvento.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`)
+    ? meusPapeisNoCulto(meuEvento.escala, uid).map((id) => `${emojiPapel(papeis, id)} ${nomePapel(papeis, id)}`)
     : [];
   const liderNome = meuEvento?.escala.liderEscala
     ? voluntarios.find((p) => p.id === meuEvento.escala.liderEscala)?.nome
@@ -401,7 +403,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               return (
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
-                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
+                  resumo={`${emojiPapel(papeis, e.papel)} ${nomePapel(papeis, e.papel)}`}
                   tagExtra={meuEvento.escala.liderEscala === e.pessoaId ? <span className="tag lim">Líder de escala</span> : null}
                   aberta={contactoAberto === e.pessoaId}
                   onToggle={() => setContactoAberto((a) => (a === e.pessoaId ? null : e.pessoaId))}

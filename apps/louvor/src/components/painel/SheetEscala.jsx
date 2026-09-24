@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { publicarEscala } from "../../lib/rascunho";
-import { PAPEIS, nomePapel } from "../../lib/modelo";
+import { nomePapel, papeisAtivos } from "../../lib/modelo";
+import { usePapeisEscala } from "../../lib/PapeisEscalaContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -29,6 +30,7 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  */
 export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir, aoMudar }) {
   const torrada = useTorrada();
+  const papeis = usePapeisEscala();
   const [escalados, setEscalados] = useState(evento?.escala?.escalados ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [estatisticas, setEstatisticas] = useState({});
@@ -154,7 +156,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
           <span style={{ flex: 1 }}>
             <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
             <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
-              {entrada && !aquiEscalado ? `já escalado como ${nomePapel(entrada.papel)}` : aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
+              {entrada && !aquiEscalado ? `já escalado como ${nomePapel(papeis, entrada.papel)}` : aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
             </span>
             <span style={{ display: "block", fontSize: 12, marginTop: 2, color: semServico ? "var(--magenta)" : "var(--cinza)", fontWeight: semServico ? 600 : 400 }}>
               {texto}
@@ -187,10 +189,16 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
           <button data-on={ordem === "nome" ? 1 : 0} onClick={() => setOrdem("nome")}>Nome</button>
         </div>
 
-        {PAPEIS.map((papel) => {
+        {/* Papéis desativados (Definições da base → Papéis da escala)
+          * só reaparecem aqui se alguém já estiver escalado nesse
+          * papel neste culto — para nunca esconder quem já lá está
+          * sem dar como tirar; senão o bloco nem monta (ninguém tem
+          * esse instrumento no perfil de qualquer forma, já que
+          * SheetPessoa.jsx só oferece papéis ativos). */}
+        {[...papeisAtivos(papeis), ...papeis.filter((p) => p.ativo === false && escalados.some((e) => e.papel === p.id))].map((papel) => {
           const pessoasDoPapel = voluntariosOrdenados.filter((p) => (p.instrumentos || []).includes(papel.id));
-          if (!pessoasDoPapel.length) return null;
           const nEscalados = escalados.filter((e) => e.papel === papel.id).length;
+          if (!pessoasDoPapel.length && !nEscalados) return null;
           return (
             <div key={papel.id} style={{ marginTop: 18 }}>
               <div className="cabecalho" style={{ paddingTop: 0, marginBottom: 2 }}>

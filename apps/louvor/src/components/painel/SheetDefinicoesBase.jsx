@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { definirBase } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import SecaoPapeisEscala from "./SecaoPapeisEscala";
 
 export default function SheetDefinicoesBase({ base, onFechar, onGuardado }) {
   const torrada = useTorrada();
@@ -37,7 +38,12 @@ export default function SheetDefinicoesBase({ base, onFechar, onGuardado }) {
           Um culto especial pode ter horas próprias — isto só define o padrão dos domingos.
         </p>
         <button className="btn full" style={{ marginTop: 16 }} disabled={aEnviar} onClick={guardar}>Guardar</button>
-        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Cancelar</button>
+
+        <div style={{ marginTop: 22, borderTop: "1px solid var(--fio)", paddingTop: 4 }}>
+          <SecaoPapeisEscala />
+        </div>
+
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
       </div>
     </>
   );

@@ -4,6 +4,7 @@ import { db } from "@portal/shared/lib/firebase.js";
 import { nomePapelBase } from "../lib/modelo";
 import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
+import { PapeisEscalaProvider } from "../lib/PapeisEscalaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
@@ -122,6 +123,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
 
   return (
     <TorradaProvider>
+    <PapeisEscalaProvider>
     <TourProvider>
       <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
       <EnqueteAutoStart uid={uid} />
@@ -240,6 +242,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         />
       )}
     </TourProvider>
+    </PapeisEscalaProvider>
     </TorradaProvider>
   );
 }
