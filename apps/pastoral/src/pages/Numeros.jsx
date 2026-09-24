@@ -461,8 +461,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
               {temDadosAcomodacao && <span className="cap">toca num domingo</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
-              Pessoas no auditório sobre a capacidade do auditório (todos os lugares). A escala é fixa de 0 a
-              100%, para os mapas de meses diferentes serem comparáveis entre si.
+              Pessoas no auditório (ocupados + visitantes, pelo Mapa) sobre a capacidade do auditório (os
+              lugares, sem os reservados e os bloqueados). A escala é fixa de 0 a 100%, para os mapas de meses
+              diferentes serem comparáveis entre si.
             </p>
             <MapaCalor
               cultos={dados.cultos}

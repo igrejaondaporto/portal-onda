@@ -100,7 +100,6 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // discordar (a manual conta por categoria digitada; o mapa é
         // lugar a lugar). A fonte de "Presença na igreja" é por data
         // (ver `lib/presenca.js` e o comentário mais abaixo).
-        const marcados = a.ocupados + a.visitantes; // lugares úteis ocupados, visitante incluído
         // "bloqueados" aqui é a soma de reservados (A1-A4, fixos) e
         // bloqueados a sério (cadeira partida) — o que sai da conta ao
         // ir de "lugares no auditório" para "lugares úteis". Rótulo
@@ -108,7 +107,6 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         // Pessoal já vê os dois separados no Mapa; aqui só interessa
         // "quantos não contam".
         const bloqueados = a.reservados + a.bloqueados;
-        const totalLugares = a.capacidadeUtil + bloqueados;
         // "Presença na igreja" é a MESMA conta do gráfico de colunas
         // em Números (`lib/presenca.js`) — duas versões dela no mesmo
         // painel já foi um bug reportado (2026-09). Por isso, nos
@@ -135,10 +133,9 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
             )}
 
             <ul className="pa-lista" style={{ marginTop: 10 }}>
-              <li>Capacidade do auditório: {totalLugares} lugares ({bloqueados} bloqueados)</li>
-              <li>Pessoas no auditório: {oc.pessoas}</li>
-              <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
-              <li>Visitantes: {p.visitantes ?? a.visitantes}</li>
+              <li>Pessoas no auditório: {oc.pessoas} de {oc.lugares}</li>
+              <li>Capacidade do auditório: {oc.lugares} lugares{bloqueados ? ` (+${bloqueados} reservados/bloqueados)` : ""}</li>
+              <li>Visitantes: {a.visitantes}</li>
               <li>Voluntários: {mostrado.voluntarios}</li>
               <li>Crianças nas salas: {p.criancas ?? "—"}</li>
             </ul>
