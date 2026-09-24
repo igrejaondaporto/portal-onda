@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PAPEIS, nomePapel, emojiPapel, podeDistribuir, souLiderOuAuxiliar, pessoasEscaladas } from "../lib/modelo";
 import { ouvirConfirmacoesPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
 import { ouvirRepertorio, agruparItensMedley } from "../lib/repertorio";
@@ -164,6 +165,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
 }
 
 export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+  const tiposCulto = useTiposCulto();
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [musicas, setMusicas] = useState([]);
@@ -226,7 +228,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
           {diaSemanaAbrev(ev.data)}
         </span>
         <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 6 }}>
-          {nomeTipoCulto(id)}
+          {nomeTipoCulto(tiposCulto, id)}
         </span>
         {mostrarConfirmados && ev.escala?.publicado && (
           <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 6 }}>

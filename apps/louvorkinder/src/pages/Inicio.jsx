@@ -11,6 +11,7 @@ import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRest
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { ouvirMinhasSolicitacoes } from "@portal/shared/lib/solicitacoes.js";
 import Calendario from "../components/Calendario";
@@ -25,6 +26,7 @@ import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
+  const tiposCulto = useTiposCulto();
   const souLider = souLiderOuAuxiliar(papel);
   const [base, setBase] = useState(null);
   const [meuEvento, setMeuEvento] = useState(null);
@@ -180,7 +182,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
       definirCabecalho({ titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>, subtitulo: "", chips: [] });
       return;
     }
-    const tipoCulto = nomeTipoCulto(meuEvento.tipoCulto || tipoCultoDefault(meuEvento.data));
+    const tipoCulto = nomeTipoCulto(tiposCulto, meuEvento.tipoCulto || tipoCultoDefault(meuEvento.data));
     definirCabecalho({
       titulo: <>Olá, <em>{nomeCurto(pessoa?.nome) ?? "…"}</em></>,
       subtitulo: sirvo
