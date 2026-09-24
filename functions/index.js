@@ -2070,13 +2070,19 @@ export const atribuirFuncao = onCall(async (req) => {
  * corrigir. */
 
 function resumoAcomodacao(eventoId, lugares, uid) {
-  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  // "apelo"/"apeloVisitante" (2026-09): quem respondeu ao apelo — o
+  // gesto de manter o dedo no Mapa, que antes bloqueava a cadeira.
+  // Continua a ser uma pessoa sentada: conta em ocupados/visitantes
+  // como antes, e À PARTE em `apelo`.
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0, apelo: 0, apeloVisitante: 0 };
   Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
-  const ocupados = contagem.ocupado + contagem.visitante;
+  const soOcupados = contagem.ocupado + contagem.apelo;
+  const soVisitantes = contagem.visitante + contagem.apeloVisitante;
+  const ocupados = soOcupados + soVisitantes;
   const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
   return {
     eventoId,
-    ocupados: contagem.ocupado, visitantes: contagem.visitante,
+    ocupados: soOcupados, visitantes: soVisitantes, apelo: contagem.apelo + contagem.apeloVisitante,
     livres: contagem.livre, reservados: contagem.reservado, bloqueados: contagem.bloqueado,
     capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
     fechadoEm: admin.firestore.FieldValue.serverTimestamp(), fechadoPor: uid,
@@ -2192,12 +2198,18 @@ export const arquivarResumoAcomodacao = onCall(async (req) => {
  *  — mesma conta de `resumoAcomodacao`, mas para um mapa que ainda
  *  não fechou (nada para gravar, só para mostrar). */
 function contarLugares(lugares) {
-  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  // "apelo"/"apeloVisitante" (2026-09): quem respondeu ao apelo — o
+  // gesto de manter o dedo no Mapa, que antes bloqueava a cadeira.
+  // Continua a ser uma pessoa sentada: conta em ocupados/visitantes
+  // como antes, e À PARTE em `apelo`.
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0, apelo: 0, apeloVisitante: 0 };
   Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
-  const ocupados = contagem.ocupado + contagem.visitante;
+  const soOcupados = contagem.ocupado + contagem.apelo;
+  const soVisitantes = contagem.visitante + contagem.apeloVisitante;
+  const ocupados = soOcupados + soVisitantes;
   const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
   return {
-    ocupados: contagem.ocupado, visitantes: contagem.visitante, livres: contagem.livre,
+    ocupados: soOcupados, visitantes: soVisitantes, apelo: contagem.apelo + contagem.apeloVisitante, livres: contagem.livre,
     reservados: contagem.reservado, bloqueados: contagem.bloqueado,
     capacidadeUtil, percentagem: capacidadeUtil ? ocupados / capacidadeUtil : 0,
   };
