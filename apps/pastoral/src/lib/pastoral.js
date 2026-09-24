@@ -87,3 +87,8 @@ export const publicarOrdemCulto = (dados) => chamar("publicarOrdemCulto")(dados)
 export const limparOrdemCulto = (eventoId) => chamar("limparOrdemCulto")({ eventoId }).then((r) => r.data);
 export const criarCultoEspecial = (dados) => chamar("criarCultoEspecial")(dados).then((r) => r.data);
 export const gerarDomingos = (ano) => chamar("gerarDomingos")({ ano }).then((r) => r.data);
+
+/** Só a etiqueta do culto (`eventos/{e}.tipoCulto`) — não toca na
+ *  ordem, que continua a subir pela Backstage em PDF. */
+export const definirTipoCulto = (eventoId, tipoCulto) =>
+  chamar("definirTipoCulto")({ eventoId, tipoCulto }).then((r) => r.data);
