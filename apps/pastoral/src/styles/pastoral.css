@@ -503,6 +503,29 @@
   place-items: center;
   cursor: pointer;
 }
+/* Mês/Semana — mês por omissão (pedido 2026-09); mesmo padrão visual
+ * do .menu button[data-on], só que num par de botões que preenche a
+ * largura, não numa barra a rolar. */
+.ag-toggle {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ag-toggle button {
+  flex: 1;
+  border: 0;
+  border-radius: 100px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cinza);
+  background: var(--agua);
+  cursor: pointer;
+}
+.ag-toggle button[data-on="1"] {
+  background: var(--azul);
+  color: #fff;
+}
 .ag-cal {
   padding: 12px 10px 10px;
   margin-top: 8px;
@@ -559,6 +582,21 @@
 }
 .ag-dia[data-on="1"] {
   background: var(--agua);
+}
+/* A vista Semana usa a mesma .ag-grelha (7 colunas), só mais alta —
+ * cabe o nome do dia por cima do número, sem o mês inteiro à volta. */
+.ag-dia-semana {
+  height: 58px;
+}
+.ag-dia-nome {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cinza);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ag-dia[data-on="1"] .ag-dia-nome {
+  color: var(--azul);
 }
 .ag-pontos {
   display: flex;

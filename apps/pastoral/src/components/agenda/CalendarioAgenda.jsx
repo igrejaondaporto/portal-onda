@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
-import { MESES, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, hojeISO } from "@portal/shared/lib/data.js";
 import { ouvirEventos } from "../../lib/culto";
 import { ouvirAgendaPrivada, ouvirBasesQueServem, ouvirEquipa } from "../../lib/agenda";
 import SheetEventoIgreja from "./SheetEventoIgreja";
 import SheetEventoPrivado from "./SheetEventoPrivado";
 
 const DIAS = ["S", "T", "Q", "Q", "S", "S", "D"];
+const DIAS_LONGOS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (a, m, d) => `${a}-${pad(m + 1)}-${pad(d)}`;
+const paraData = (diaIso) => new Date(Number(diaIso.slice(0, 4)), Number(diaIso.slice(5, 7)) - 1, Number(diaIso.slice(8, 10)));
+const somarDias = (diaIso, n) => { const d = paraData(diaIso); d.setDate(d.getDate() + n); return iso(d.getFullYear(), d.getMonth(), d.getDate()); };
+/** Segunda-feira da semana que contém este dia — mesmo critério da
+ *  grelha do mês (semana começa à segunda, como no calendário português). */
+const segundaDaSemana = (diaIso) => somarDias(diaIso, -((paraData(diaIso).getDay() + 6) % 7));
 
 /** Um evento da igreja é editável daqui se for um culto especial
  *  global — os domingos são de `gerarDomingos`, e um `escopo:"base"`
@@ -18,18 +24,23 @@ const editavel = (ev) => !!ev.tipo && ev.escopo !== "base";
 /**
  * A agenda do pastor, no topo da aba Domingo (pedido 2026-09).
  *
- * Duas camadas no mesmo mês: os eventos da IGREJA (azul — os mesmos
- * `eventos/{data}` das dez bases) e os PRIVADOS (violeta + cadeado —
- * `bases/pastoral/agenda`, só de quem participa). Nunca só a cor: o
- * privado leva sempre o cadeado, e cada linha diz de que tipo é.
+ * Duas camadas no mesmo período: os eventos da IGREJA (azul — os
+ * mesmos `eventos/{data}` das dez bases) e os PRIVADOS (violeta +
+ * cadeado — `bases/pastoral/agenda`, só de quem participa). Nunca só
+ * a cor: o privado leva sempre o cadeado, e cada linha diz de que
+ * tipo é.
  *
- * Mês em grelha + a lista do dia tocado por baixo — no telemóvel é o
- * que cabe: a grelha diz ONDE há coisas, a lista diz O QUÊ.
+ * Duas vistas (pedido 2026-09) — mês por omissão, semana para quem
+ * quiser mais espaço num dia cheio. `dia` (o selecionado) é a única
+ * fonte de verdade; o mês/semana mostrados derivam dele, para trocar
+ * de vista nunca perder o dia que se estava a ver. Grelha + a lista do
+ * dia tocado por baixo — no telemóvel é o que cabe: a grelha diz ONDE
+ * há coisas, a lista diz O QUÊ.
  */
 export default function CalendarioAgenda({ uid }) {
   const hoje = useMemo(hojeISO, []);
-  const [ref, setRef] = useState(() => ({ a: Number(hoje.slice(0, 4)), m: Number(hoje.slice(5, 7)) - 1 }));
   const [dia, setDia] = useState(hoje);
+  const [vista, setVista] = useState("mes"); // "mes" | "semana" — mês por omissão
   const [eventos, setEventos] = useState([]);
   const [privados, setPrivados] = useState([]);
   const [bases, setBases] = useState([]);
@@ -37,9 +48,14 @@ export default function CalendarioAgenda({ uid }) {
   const [escolher, setEscolher] = useState(false);
   const [sheet, setSheet] = useState(null); // { tipo:"igreja"|"privado", evento?|null, data }
 
-  const ultimo = new Date(ref.a, ref.m + 1, 0).getDate();
-  const de = iso(ref.a, ref.m, 1);
-  const ate = iso(ref.a, ref.m, ultimo);
+  const ano = Number(dia.slice(0, 4)), mes = Number(dia.slice(5, 7)) - 1;
+  const ultimo = new Date(ano, mes + 1, 0).getDate();
+  const segunda = useMemo(() => segundaDaSemana(dia), [dia]);
+  // a janela pedida ao Firestore acompanha a vista: a semana pode
+  // pisar o mês seguinte/anterior, por isso não chega usar sempre os
+  // limites do mês.
+  const de = vista === "semana" ? segunda : iso(ano, mes, 1);
+  const ate = vista === "semana" ? somarDias(segunda, 6) : iso(ano, mes, ultimo);
 
   useEffect(() => ouvirEventos(de, ate, setEventos), [de, ate]);
   useEffect(() => (uid ? ouvirAgendaPrivada(uid, setPrivados) : undefined), [uid]);
@@ -64,15 +80,16 @@ export default function CalendarioAgenda({ uid }) {
   const nomePessoa = Object.fromEntries(equipa.map((p) => [p.id, p.nome]));
 
   function mudarMes(delta) {
-    const d = new Date(ref.a, ref.m + delta, 1);
+    const d = new Date(ano, mes + delta, 1);
     const a = d.getFullYear(), m = d.getMonth();
-    setRef({ a, m });
     setDia(hoje.startsWith(`${a}-${pad(m + 1)}`) ? hoje : iso(a, m, 1));
   }
+  const mudarSemana = (delta) => setDia(somarDias(segunda, delta * 7));
 
   // segunda-feira primeiro, como no calendário português
-  const vazios = (new Date(ref.a, ref.m, 1).getDay() + 6) % 7;
+  const vazios = (new Date(ano, mes, 1).getDay() + 6) % 7;
   const celulas = [...Array(vazios).fill(null), ...Array.from({ length: ultimo }, (_, i) => i + 1)];
+  const diasDaSemana = Array.from({ length: 7 }, (_, i) => somarDias(segunda, i));
   const doDia = porDia[dia] ?? { igreja: [], privados: [] };
 
   return (
@@ -82,32 +99,67 @@ export default function CalendarioAgenda({ uid }) {
         <button className="ag-mais" onClick={() => setEscolher(true)} aria-label="Novo evento"><Plus size={18} /></button>
       </div>
 
+      <div className="ag-toggle">
+        <button data-on={vista === "mes" ? "1" : "0"} onClick={() => setVista("mes")}>Mês</button>
+        <button data-on={vista === "semana" ? "1" : "0"} onClick={() => setVista("semana")}>Semana</button>
+      </div>
+
       <div className="caixa ag-cal">
-        <div className="ag-mes">
-          <button onClick={() => mudarMes(-1)} aria-label="Mês anterior"><ChevronLeft size={18} /></button>
-          <span>{MESES[ref.m]} {ref.a}</span>
-          <button onClick={() => mudarMes(1)} aria-label="Mês seguinte"><ChevronRight size={18} /></button>
-        </div>
-        <div className="ag-grelha">
-          {DIAS.map((d, i) => <span key={i} className="ag-sem">{d}</span>)}
-          {celulas.map((n, i) => {
-            if (!n) return <span key={`v${i}`} />;
-            const id = iso(ref.a, ref.m, n);
-            const c = porDia[id];
-            return (
-              <button
-                key={id} className="ag-dia" data-hoje={id === hoje ? "1" : "0"} data-on={id === dia ? "1" : "0"}
-                onClick={() => setDia(id)}
-              >
-                {n}
-                <span className="ag-pontos">
-                  {c?.igreja.length ? <i className="ag-p-igreja" /> : null}
-                  {c?.privados.length ? <i className="ag-p-privado" /> : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {vista === "mes" ? (
+          <>
+            <div className="ag-mes">
+              <button onClick={() => mudarMes(-1)} aria-label="Mês anterior"><ChevronLeft size={18} /></button>
+              <span>{MESES[mes]} {ano}</span>
+              <button onClick={() => mudarMes(1)} aria-label="Mês seguinte"><ChevronRight size={18} /></button>
+            </div>
+            <div className="ag-grelha">
+              {DIAS.map((d, i) => <span key={i} className="ag-sem">{d}</span>)}
+              {celulas.map((n, i) => {
+                if (!n) return <span key={`v${i}`} />;
+                const id = iso(ano, mes, n);
+                const c = porDia[id];
+                return (
+                  <button
+                    key={id} className="ag-dia" data-hoje={id === hoje ? "1" : "0"} data-on={id === dia ? "1" : "0"}
+                    onClick={() => setDia(id)}
+                  >
+                    {n}
+                    <span className="ag-pontos">
+                      {c?.igreja.length ? <i className="ag-p-igreja" /> : null}
+                      {c?.privados.length ? <i className="ag-p-privado" /> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="ag-mes">
+              <button onClick={() => mudarSemana(-1)} aria-label="Semana anterior"><ChevronLeft size={18} /></button>
+              <span>{dataCurta(segunda)} – {dataCurta(somarDias(segunda, 6))}</span>
+              <button onClick={() => mudarSemana(1)} aria-label="Semana seguinte"><ChevronRight size={18} /></button>
+            </div>
+            <div className="ag-grelha ag-grelha-semana">
+              {diasDaSemana.map((id, i) => {
+                const c = porDia[id];
+                return (
+                  <button
+                    key={id} className="ag-dia ag-dia-semana" data-hoje={id === hoje ? "1" : "0"} data-on={id === dia ? "1" : "0"}
+                    onClick={() => setDia(id)}
+                  >
+                    <span className="ag-dia-nome">{DIAS_LONGOS[i]}</span>
+                    {Number(id.slice(8))}
+                    <span className="ag-pontos">
+                      {c?.igreja.length ? <i className="ag-p-igreja" /> : null}
+                      {c?.privados.length ? <i className="ag-p-privado" /> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <div className="ag-legenda">
           <span><i className="ag-p-igreja" /> Da igreja</span>
           <span><i className="ag-p-privado" /> <Lock size={11} /> Privado</span>

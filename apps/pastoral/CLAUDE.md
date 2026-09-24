@@ -381,6 +381,16 @@ nunca escrita direta do painel.
 
 ## A agenda (topo da aba Domingo)
 
+**Duas vistas — Mês (omissão) e Semana** (pedido 2026-09), um par de
+botões (`.ag-toggle`) em cima do calendário. `dia` (a data selecionada)
+é a única fonte de verdade em `CalendarioAgenda.jsx`; o mês e a semana
+mostrados derivam dele, nunca há um segundo estado a dessincronizar —
+trocar de vista mantém sempre o dia que se estava a ver. Na vista
+Semana a janela pedida ao Firestore é a própria semana (segunda a
+domingo, que pode pisar o mês seguinte/anterior), não o mês inteiro —
+por isso `de`/`ate` também derivam de `vista`, não só do mês.
+
+
 Pedido 2026-09: "um calendário onde o pastor se possa organizar, com
 os eventos da igreja e os privados dele". `components/agenda/`:
 `CalendarioAgenda.jsx` (mês em grelha + a lista do dia tocado),
