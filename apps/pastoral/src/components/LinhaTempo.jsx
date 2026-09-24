@@ -44,6 +44,11 @@ export default function LinhaTempo({
   const [foco, setFoco] = useState(null);
   const validos = pontos.filter((p) => typeof p.valor === "number");
   if (validos.length < 2) return <div className="vaz">{vazio}</div>;
+  // até 10 pontos, TODOS ficam com valor e data à vista — pedido
+  // 2026-09 ("falta a legenda fixa no gráfico de Cadastrados, no dia
+  // 13/09 não mostra embaixo qual dia é"). Só as séries longas ficam
+  // seletivas.
+  const rotularTodos = todosRotulados || validos.length <= 10;
 
   const valores = validos.map((p) => p.valor);
   const max = Math.max(...valores);
@@ -76,17 +81,17 @@ export default function LinhaTempo({
   // precisar de tocar — o primeiro tinha ficado de fora (bug real,
   // reportado 2026-09: "não aparece o número certo do primeiro
   // valor" era isto, o ponto nunca tinha rótulo nenhum ao lado)
-  const rotulados = todosRotulados
+  const rotulados = rotularTodos
     ? new Set(validos.map((_, i) => i))
     : new Set([iPrimeiro, iMax, iUltimo]);
   const mostrado = foco ?? { i: iUltimo, ponto: validos[iUltimo] };
 
   // que datas cabem na linha de baixo sem se pisarem (~11% da
   // largura é o que ocupa "27 set" num telemóvel) — por prioridade
-  // (vale também com `todosRotulados`: dez datas lado a lado
+  // (vale também com `rotularTodos`: dez datas lado a lado
   // pisavam-se — "02 ago09 ago16 ago" — e aí fica uma sim, uma não,
   // a contar do fim; o número de cada ponto continua todo à vista)
-  const DIST_MIN = 12;
+  const DIST_MIN = rotularTodos ? 9 : 12;
   const datasVisiveis = [];
   for (const i of [mostrado.i, iUltimo, iPrimeiro, iMax, ...[...rotulados].sort((a, b) => b - a)]) {
     if (datasVisiveis.includes(i)) continue;
@@ -172,7 +177,7 @@ export default function LinhaTempo({
       {datasVisiveis.map((i) => (
         <span
           key={`d${validos[i].chave ?? i}`}
-          className={`pa-graf-data${todosRotulados ? " pa-graf-data-denso" : ""}${i === mostrado.i ? " on" : ""}`}
+          className={`pa-graf-data${rotularTodos ? " pa-graf-data-denso" : ""}${i === mostrado.i ? " on" : ""}`}
           style={{ left: `${x(i)}%` }}
         >
           {validos[i].rotulo}

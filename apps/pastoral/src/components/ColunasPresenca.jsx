@@ -138,7 +138,7 @@ export default function ColunasPresenca({ pontos, vazio }) {
             <p className="ds" style={{ margin: 0 }}>{sel.rotuloLongo ?? sel.rotulo}</p>
             <p className="pa-num" style={{ marginTop: 2 }}>{sel.total}</p>
           </div>
-          <span className="pc-fonte">fonte: {sel.fonte === "mapa" ? "Mapa" : "Contagem"}</span>
+          <span className="pc-fonte">fonte: Mapa (Base Pessoal)</span>
         </div>
         <ul className="pc-partes">
           {SERIES.map((s) => (
