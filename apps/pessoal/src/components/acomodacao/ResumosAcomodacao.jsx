@@ -4,6 +4,7 @@ import { chamar } from "@portal/shared/lib/firebase.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { cResumosAcomodacao } from "../../lib/modelo";
 import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
+import SheetEditarMapa from "./SheetEditarMapa";
 
 const SETA = '<path d="M6 9l6 6 6-6"/>';
 
@@ -25,13 +26,17 @@ const SETA = '<path d="M6 9l6 6 6-6"/>';
  * tem permissão no servidor, mas a UI não sabe, sem mais uma leitura
  * por linha, quem teve Mapa em cada culto passado.
  */
-export default function ResumosAcomodacao({ souLiderBase }) {
+export default function ResumosAcomodacao({ souLiderBase, uid, papel, hojeId, onReaberto }) {
   const torrada = useTorrada();
   const [resumos, setResumos] = useState(null);
   const [aberto, setAberto] = useState(false);
   const [abertoId, setAbertoId] = useState(null);
   const [aAgir, setAAgir] = useState(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState(null);
+  // o domingo reaberto, já com o desenho do mapa aberto por cima —
+  // antes reabrir só mudava o estado, e o mapa só aparecia depois de
+  // atualizar a página (em "Mapas por fechar", que não é ao vivo)
+  const [aEditar, setAEditar] = useState(null);
   const hoje = new Date();
   const [mes, setMes] = useState(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`);
 
@@ -52,7 +57,12 @@ export default function ResumosAcomodacao({ souLiderBase }) {
     setAAgir(eventoId);
     try {
       await chamar("reabrirAcomodacao")({ eventoId });
-      torrada("Culto reaberto — o mapa volta a aceitar marcações");
+      torrada("Culto reaberto — já podes marcar no mapa");
+      onReaberto?.(eventoId);
+      // o de hoje já está desenhado no topo da página, ao vivo — é só
+      // subir até lá; um domingo passado abre no mesmo editor, por cima
+      if (eventoId === hojeId) window.scrollTo({ top: 0, behavior: "smooth" });
+      else setAEditar(eventoId);
     } catch (e) {
       torrada(e.message || "Não foi possível reabrir.");
     } finally {
@@ -192,6 +202,9 @@ export default function ResumosAcomodacao({ souLiderBase }) {
             </p>
           )}
         </div>
+      )}
+      {aEditar && (
+        <SheetEditarMapa eventoId={aEditar} uid={uid} papel={papel} onFechar={() => setAEditar(null)} />
       )}
     </div>
   );

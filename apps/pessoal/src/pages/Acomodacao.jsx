@@ -62,6 +62,7 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
   }
 
   const onSouDriveChange = useCallback((v) => setSouDrive(v), []);
+  const [versaoMapas, setVersaoMapas] = useState(0);
 
   return (
     <>
@@ -71,8 +72,11 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
         onSouDriveChange={onSouDriveChange}
       />
 
-      <ResumosAcomodacao souLiderBase={papel === "lider_base"} />
-      <MapasPorFechar souLiderBase={papel === "lider_base"} uid={uid} papel={papel} />
+      <ResumosAcomodacao
+        souLiderBase={papel === "lider_base"} uid={uid} papel={papel} hojeId={eventoId}
+        onReaberto={() => setVersaoMapas((n) => n + 1)}
+      />
+      <MapasPorFechar souLiderBase={papel === "lider_base"} uid={uid} papel={papel} versao={versaoMapas} />
     </>
   );
 }
