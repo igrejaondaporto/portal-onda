@@ -17,6 +17,13 @@ const PERIODOS = [
   ["ano", "Este ano"],
 ];
 
+/** Domingos de antes do Formulário da Base Pessoal, contados na
+ *  planilha antiga (pedido 2026-09: "só para ter algo ali"). Um número
+ *  fixo aqui, e não contactos inventados em `contactos` — esses
+ *  entrariam no funil de visitantes como pessoas que não existem.
+ *  Prevalece sobre o que o Formulário tiver para esse domingo. */
+const CADASTRADOS_PLANILHA = { "2026-09-06": 9 };
+
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function janelaDe(periodo) {
@@ -141,8 +148,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
   const visitantesCadastrados = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
-      .filter((c) => c.visitantesCadastrados > 0)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.visitantesCadastrados }));
+      .map((c) => ({ c, n: CADASTRADOS_PLANILHA[c.data] ?? c.visitantesCadastrados }))
+      .filter(({ n }) => n > 0)
+      .map(({ c, n }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: n }));
   }, [dados]);
 
   /** Quantos foram escalados em cada culto, somando as dez bases —

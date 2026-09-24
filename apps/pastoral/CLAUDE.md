@@ -545,6 +545,10 @@ antigo (pedido 2026-09: "desconsidera o valor antigo").
 
 Números abre em **3 meses** por omissão (pedido 2026-09).
 
+"Visitantes cadastrados" de 6/9 (9) vem da planilha antiga
+(`CADASTRADOS_PLANILHA`, `Numeros.jsx`), não do Formulário — de
+propósito um número fixo e não contactos inventados.
+
 `components/Barras.jsx` é o do Financeiro com uma diferença — o
 `formatar` entra por prop, porque aqui o valor nem sempre é dinheiro.
 
