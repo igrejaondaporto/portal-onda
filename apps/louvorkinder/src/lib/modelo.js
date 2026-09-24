@@ -82,6 +82,21 @@ export const podeDistribuir = (papel, uid, escala) =>
 export const meusPapeisNoCulto = (escala, uid) =>
   (escala?.escalados || []).filter((e) => e.pessoaId === uid).map((e) => e.papel);
 
+/** `escalados` agrupado por pessoa, pela ordem em que aparecem — no
+ *  Louvor Kinder a mesma pessoa pode estar em dois papéis no mesmo
+ *  culto (Voz + Violão, pedido do líder 2026-09; o servidor aceita,
+ *  ver `variosPapeisPorPessoa` em functions/index.js). As listas de
+ *  "quem serve" mostram uma linha por pessoa, com os papéis juntos,
+ *  e as contagens são de pessoas, nunca de entradas. */
+export function pessoasEscaladas(escalados) {
+  const porPessoa = new Map();
+  for (const e of escalados || []) {
+    if (!porPessoa.has(e.pessoaId)) porPessoa.set(e.pessoaId, { pessoaId: e.pessoaId, papeis: [] });
+    porPessoa.get(e.pessoaId).papeis.push(e.papel);
+  }
+  return [...porPessoa.values()];
+}
+
 /** Nome genérico da cor mais próxima (distância euclidiana em RGB) —
  *  "escolheu um azul forte" mostra só "Azul", não o hex exato (pedido
  *  do líder para a caixinha de roupa em Escala.jsx). Paleta curta de

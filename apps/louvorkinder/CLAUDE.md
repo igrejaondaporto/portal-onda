@@ -61,6 +61,46 @@ base. `PAPEL_LEAD`/`PAPEIS_VOCAL` (também em `modelo.js`) substituem
 os `"lead"`/`["lead","colead","back"]` que a app da Louvor tinha
 escritos à mão em `Repertorio.jsx`, `Biblioteca.jsx` e `SheetVersao.jsx`.
 
+### A mesma pessoa em dois papéis
+
+Ao contrário da Louvor, aqui a mesma pessoa pode servir em mais de um
+papel no mesmo culto (ex.: canta e toca violão) — pedido do líder,
+2026-09. No servidor é `variosPapeisPorPessoa` em
+`ESCALA_LOUVOR_POR_BASE.louvorkinder` (`functions/index.js`,
+`limparEscaladosLouvor`): só recusa a mesma pessoa duas vezes no
+MESMO papel. No cliente, `SheetEscala.jsx` trata cada toque como o par
+pessoa+papel daquele bloco (escalar soma, tirar só tira daquele
+papel; o líder de escala só cai se a pessoa sair de todos), e as
+listas de "quem serve" (`Escala.jsx`, `Inicio.jsx`,
+`SheetConfirmarPresenca.jsx`, `SheetRascunho.jsx`) usam
+`pessoasEscaladas` (`lib/modelo.js`) — uma linha por pessoa, com os
+papéis juntos ("🎤 Voz · 🎸 Violão"), e contagens de pessoas, nunca de
+entradas. O quadro do mês continua por papel (a pessoa aparece nas
+duas linhas). `pessoas[]` no documento da escala continua sem
+repetidos — notificações, confirmação e Painel Pastoral não mudam.
+
+### Sem paleta de cores nem ensaio
+
+O box de cada culto na Escala (`DetalhesCulto`, `Escala.jsx`) mostra
+só quem serve, o repertório e a observação — a "Paleta de Cores" e o
+"Ensaio" da Louvor saíram, porque o louvor infantil não os usa
+(pedido do líder, 2026-09). "Editar observação" grava só
+`observacao`; o servidor (`definirDetalhesCultoLouvor`) deixa
+intactos os campos que não recebe. Os ecrãs que dependem de
+`dataEnsaio` (lembrete e confirmação de ensaio no Início, o dia
+pintado no Calendário) ficaram, mas nunca aparecem sem data marcada.
+
+### Tirar do repertório pela Biblioteca
+
+Cada música da Biblioteca tem o atalho "+" para o repertório do
+próximo culto; quando já lá está, o botão fica verde com ✓ e tocar
+pede confirmação e tira (`removerMusicaDoRepertorio`,
+`lib/repertorio.js` — todas as entradas dessa música, e desfaz o uso
+de cada versão, igual ao ✕ do Repertório). O detalhe da música tem
+também "Tirar do repertório". Pedido do líder, 2026-09. Nada sai da
+biblioteca — "excluir a música" da biblioteca continua a não existir
+(regra 5: nada é apagado).
+
 ### Biblioteca infantil
 
 Importada do export do LouveApp do louvor infantil (2026-09) com o
