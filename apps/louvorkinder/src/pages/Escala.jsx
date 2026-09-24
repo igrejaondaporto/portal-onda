@@ -1,30 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, pessoasEscaladas } from "../lib/modelo";
-import { ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
+import { PAPEIS, nomePapel, emojiPapel, podeDistribuir, souLiderOuAuxiliar, pessoasEscaladas } from "../lib/modelo";
+import { ouvirConfirmacoesPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
 import { definirDetalhesCultoLouvor } from "../lib/culto";
 import { ouvirRepertorio, agruparItensMedley } from "../lib/repertorio";
 import { ouvirMusicas, obterTonsDosItens } from "../lib/biblioteca";
-import { MESES, dataCurta, dataPorExtenso, diaSemanaAbrev, hojeISO } from "@portal/shared/lib/data.js";
+import { MESES, dataCurta, diaSemanaAbrev, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
-import Avatar from "@portal/shared/components/Avatar.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
-import CalendarioSemanal from "../components/CalendarioSemanal";
-
-/** Cabide — não existe emoji universal para isto, por isso é um ícone
- *  próprio (mesmo padrão de IconeLinkExterno em SheetMusicaDetalhe.jsx). */
-function IconeCabide() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3a1.5 1.5 0 1 0-1.5 1.5" />
-      <path d="M12 4.5V7" />
-      <path d="M12 7 3.5 13.5A2 2 0 0 0 3 15a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1 2 2 0 0 0-.5-1.5L12 7Z" />
-      <path d="M6 15h12" />
-    </svg>
-  );
-}
 
 // Referência estável para "sem itens" — mesmo cuidado documentado em
 // Repertorio.jsx/Inicio.jsx: um `?? []` novo a cada render quebraria
@@ -32,21 +17,20 @@ function IconeCabide() {
 // dado novo nenhum).
 const ITENS_VAZIOS_REP = [];
 
-/** Quem serve + repertório resumido + roupa/ensaio/observação de um
- *  culto, cada assunto na sua caixinha — só monta quando o cartão
+/** Quem serve + repertório resumido + observação de um culto, cada
+ *  assunto na sua caixinha. Sem paleta de cores nem ensaio, ao
+ *  contrário da Louvor — o louvor infantil não usa (pedido do líder,
+ *  2026-09); os campos continuam no servidor, só não se mostram nem
+ *  se editam aqui — só monta quando o cartão
  *  está aberto (é `children` do CartaoCulto). `podeEditar` já vem
  *  calculado (líder da base, auxiliar, ou líder de escala deste
  *  culto, ver podeDistribuir). */
-function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, confirmadosEnsaio, contactoAberto, onToggleContacto }) {
+function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, contactoAberto, onToggleContacto }) {
   const torrada = useTorrada();
   const [repertorio, setRepertorio] = useState(null);
   const [tons, setTons] = useState({});
   const [escalaAberta, setEscalaAberta] = useState(false);
   const [aEditar, setAEditar] = useState(false);
-  const [cores, setCores] = useState([]);
-  const [dataEnsaio, setDataEnsaio] = useState("");
-  const [horaEnsaio, setHoraEnsaio] = useState("");
-  const [localEnsaio, setLocalEnsaio] = useState("");
   const [observacao, setObservacao] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
 
@@ -65,36 +49,19 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
     return () => { cancelado = true; };
   }, [itensRep]);
 
-  const coresAtuais = evento.escala.coresRoupa || [];
-  const temDetalhes = coresAtuais.length > 0 || !!evento.escala.dataEnsaio || !!evento.escala.horaEnsaio
-    || !!evento.escala.localEnsaio || !!evento.escala.observacaoLider;
+  const temDetalhes = !!evento.escala.observacaoLider;
 
   function abrirEdicao() {
-    setCores(coresAtuais);
-    setDataEnsaio(evento.escala.dataEnsaio || "");
-    setHoraEnsaio(evento.escala.horaEnsaio || "");
-    setLocalEnsaio(evento.escala.localEnsaio || "");
     setObservacao(evento.escala.observacaoLider || "");
     setAEditar(true);
-  }
-
-  function adicionarCor() {
-    setCores((v) => (v.length >= 3 ? v : [...v, "#0092D4"]));
-  }
-  function mudarCor(i, valor) {
-    setCores((v) => v.map((c, idx) => (idx === i ? valor : c)));
-  }
-  function removerCor(i) {
-    setCores((v) => v.filter((_, idx) => idx !== i));
   }
 
   async function guardar() {
     setAGuardar(true);
     try {
-      await definirDetalhesCultoLouvor(evento.id, {
-        coresRoupa: cores, dataEnsaio: dataEnsaio || null,
-        horaEnsaio: horaEnsaio || null, localEnsaio, observacao,
-      });
+      // Só a observação: o servidor deixa intactos os campos que não
+      // vêm (cores/ensaio de antes, se os houver).
+      await definirDetalhesCultoLouvor(evento.id, { observacao });
       setAEditar(false);
       torrada("Detalhes do culto atualizados");
     } catch (e) {
@@ -166,53 +133,6 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
         </div>
       )}
 
-      {(coresAtuais.length > 0 || podeEditar) && (
-        <div className="caixinha roupa">
-          <p className="caixinha-titulo"><IconeCabide /> Paleta de Cores:</p>
-          {coresAtuais.length > 0 ? (
-            <p style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {coresAtuais.map((c, i) => (
-                <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: c, display: "inline-block", border: "1px solid rgba(10,15,46,.12)" }} />
-                  <span className="ds" style={{ fontWeight: 600 }}>{nomeCor(c)}</span>
-                </span>
-              ))}
-            </p>
-          ) : (
-            <p className="ds">Ainda não definida</p>
-          )}
-        </div>
-      )}
-
-      {(evento.escala.dataEnsaio || podeEditar) && (
-        <div className="caixinha ensaio">
-          <p className="caixinha-titulo">
-            🎙️ <b>Ensaio</b>
-            {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
-            {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
-          </p>
-          {/* Quem já confirmou o ensaio — mini-fotos numa linha própria,
-              abaixo do título (ao lado cortava e não cabia todo mundo),
-              nunca uma lista (pedido do líder, "não fica uma lista
-              grande"). Ver ouvirConfirmacoesEnsaioPorCulto. */}
-          {confirmadosEnsaio?.size > 0 && (
-            <div style={{ display: "flex", marginTop: 6 }} title="Já confirmaram o ensaio">
-              {[...confirmadosEnsaio].slice(0, 10).map((pessoaId, i) => {
-                const p = pessoaPorId(pessoaId);
-                return p ? (
-                  <span key={pessoaId} style={{ marginLeft: i === 0 ? 0 : -6, border: "2px solid #fff", borderRadius: "50%" }}>
-                    <Avatar pessoa={p} tamanho={18} fonte={8} />
-                  </span>
-                ) : null;
-              })}
-            </div>
-          )}
-          {evento.escala.localEnsaio && <p className="ds">📍 {evento.escala.localEnsaio}</p>}
-          {!evento.escala.dataEnsaio && <p className="ds">Ainda não marcado</p>}
-          <CalendarioSemanal domingoISO={evento.data} ensaioISO={evento.escala.dataEnsaio} />
-        </div>
-      )}
-
       {(evento.escala.observacaoLider || podeEditar) && (
         <div className="caixinha obs">
           <p className="caixinha-titulo">💬 Observação</p>
@@ -222,45 +142,19 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
 
       {podeEditar && !aEditar && (
         <button className="btn sec full" style={{ marginTop: 8 }} onClick={abrirEdicao}>
-          {temDetalhes ? "Editar detalhes" : "+ Cores, ensaio e observação"}
+          {temDetalhes ? "Editar observação" : "+ Observação"}
         </button>
       )}
 
       {aEditar && (
         <div className="caixa" style={{ marginTop: 10 }}>
-          <label className="rot"><IconeCabide /> Cores da roupa</label>
-          {cores.map((c, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-              <input
-                type="color" value={c} onChange={(e) => mudarCor(i, e.target.value)}
-                style={{ width: 40, height: 40, border: 0, borderRadius: 8, padding: 0 }}
-              />
-              <input className="campo" style={{ flex: 1 }} value={c} onChange={(e) => mudarCor(i, e.target.value)} />
-              <button className="btn sec" onClick={() => removerCor(i)}>✕</button>
-            </div>
-          ))}
-          {cores.length < 3 && (
-            <button className="btn sec full" style={{ marginTop: 8 }} onClick={adicionarCor}>Adicionar cor</button>
-          )}
-          <label className="rot" style={{ marginTop: 12 }}>🎙️ Data do ensaio — semana de {dataPorExtenso(evento.data)}</label>
-          <CalendarioSemanal
-            domingoISO={evento.data} ensaioISO={dataEnsaio}
-            onSelecionar={(iso) => setDataEnsaio((atual) => (atual === iso ? "" : iso))}
-          />
-          <label className="rot" style={{ marginTop: 12 }}>⏰ Hora do ensaio</label>
-          <input className="campo" type="time" value={horaEnsaio} onChange={(e) => setHoraEnsaio(e.target.value)} />
-          <label className="rot" style={{ marginTop: 12 }}>📍 Local do ensaio</label>
-          <input
-            className="campo" value={localEnsaio} onChange={(e) => setLocalEnsaio(e.target.value)}
-            placeholder="Casa do Povo, sala de ensaio…"
-          />
-          <label className="rot" style={{ marginTop: 12 }}>Observação</label>
+          <label className="rot">Observação</label>
           <textarea
             className="campo" rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)}
             placeholder="Algum recado para a equipa deste culto"
           />
           <button className="btn full" style={{ marginTop: 14 }} disabled={aGuardar} onClick={guardar}>
-            {aGuardar ? "A guardar…" : "Guardar detalhes"}
+            {aGuardar ? "A guardar…" : "Guardar observação"}
           </button>
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setAEditar(false)}>Cancelar</button>
         </div>
@@ -279,7 +173,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const [contactoAberto, setContactoAberto] = useState(null);
   const [aba, setAba] = useState("minhas");
   const [confirmados, setConfirmados] = useState(() => new Map());
-  const [confirmadosEnsaio, setConfirmadosEnsaio] = useState(() => new Map());
   const refsEventos = useRef({});
   const souLider = souLiderOuAuxiliar(papel);
 
@@ -293,10 +186,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   useEffect(() => {
     if (!souLider) { setConfirmados(new Map()); return; }
     return ouvirConfirmacoesPorCulto(eventosMes, setConfirmados);
-  }, [souLider, eventosMes]);
-  useEffect(() => {
-    if (!souLider) { setConfirmadosEnsaio(new Map()); return; }
-    return ouvirConfirmacoesEnsaioPorCulto(eventosMes, setConfirmadosEnsaio);
   }, [souLider, eventosMes]);
 
   useEffect(() => {
@@ -369,7 +258,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
           evento={ev} musicas={musicas} podeEditar={podeDistribuir(papel, uid, ev.escala)}
           pessoaPorId={pessoaPorId}
           confirmados={mostrarConfirmados ? confirmados.get(ev.id) : null}
-          confirmadosEnsaio={mostrarConfirmados ? confirmadosEnsaio.get(ev.id) : null}
           contactoAberto={contactoAberto?.eventoId === ev.id ? contactoAberto.pessoaId : null}
           onToggleContacto={(pessoaId) => setContactoAberto((a) =>
             a?.eventoId === ev.id && a?.pessoaId === pessoaId ? null : { eventoId: ev.id, pessoaId })}

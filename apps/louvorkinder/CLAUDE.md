@@ -79,6 +79,17 @@ entradas. O quadro do mês continua por papel (a pessoa aparece nas
 duas linhas). `pessoas[]` no documento da escala continua sem
 repetidos — notificações, confirmação e Painel Pastoral não mudam.
 
+### Sem paleta de cores nem ensaio
+
+O box de cada culto na Escala (`DetalhesCulto`, `Escala.jsx`) mostra
+só quem serve, o repertório e a observação — a "Paleta de Cores" e o
+"Ensaio" da Louvor saíram, porque o louvor infantil não os usa
+(pedido do líder, 2026-09). "Editar observação" grava só
+`observacao`; o servidor (`definirDetalhesCultoLouvor`) deixa
+intactos os campos que não recebe. Os ecrãs que dependem de
+`dataEnsaio` (lembrete e confirmação de ensaio no Início, o dia
+pintado no Calendário) ficaram, mas nunca aparecem sem data marcada.
+
 ### Tirar do repertório pela Biblioteca
 
 Cada música da Biblioteca tem o atalho "+" para o repertório do
