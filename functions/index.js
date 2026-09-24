@@ -1089,9 +1089,35 @@ const ESCALA_LOUVOR_POR_BASE = {
   louvorkinder: {
     papeis: new Set(["voz", "violao", "cajon"]),
     papelLead: "voz",
+    // Pedido do líder (2026-09): no louvor infantil a mesma pessoa
+    // canta e toca no mesmo culto (Voz + Violão). Continua a recusar
+    // a mesma pessoa duas vezes no MESMO papel.
+    variosPapeisPorPessoa: true,
   },
 };
 const papelEscalaValido = (baseId, papel) => !!ESCALA_LOUVOR_POR_BASE[baseId]?.papeis.has(papel);
+
+/** Recusa escalados repetidos: por pessoa (uma pessoa, um papel — a
+ *  Louvor) ou, com `variosPapeisPorPessoa`, só o par pessoa+papel.
+ *  Devolve os escalados limpos. Usado pela escala ao vivo e pelo
+ *  rascunho — as duas têm de aceitar exatamente o mesmo. */
+function limparEscaladosLouvor(baseId, escalados) {
+  const variosPapeis = !!ESCALA_LOUVOR_POR_BASE[baseId]?.variosPapeisPorPessoa;
+  const usados = new Set();
+  return (escalados || []).map((e) => {
+    if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
+      throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
+    }
+    const chave = variosPapeis ? `${e.pessoaId}|${e.papel}` : e.pessoaId;
+    if (usados.has(chave)) {
+      throw new HttpsError("invalid-argument", variosPapeis
+        ? "Esta pessoa já está nesse papel neste culto."
+        : "Uma pessoa não pode estar em dois papéis no mesmo culto.");
+    }
+    usados.add(chave);
+    return { pessoaId: e.pessoaId, papel: e.papel };
+  });
+}
 
 export const guardarEscalaLouvor = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
@@ -1117,23 +1143,13 @@ export const guardarEscalaLouvor = onCall(async (req) => {
 /** O corpo de guardarEscalaLouvor, sem a checagem de permissão — é a
  *  parte que publicarRascunhoEscala também precisa (já validado no
  *  seu próprio exigeLider, um domingo de cada vez). Faz sempre a
- *  validação completa (papel válido, sem duplicar pessoa, conflito
+ *  validação completa (papel válido, sem duplicar pessoa — ou pessoa+papel, ver limparEscaladosLouvor —, conflito
  *  entre bases) — nunca a versão leve de guardarRascunhoEscala. */
 async function escreverEscalaLouvor(eventoId, baseId, escalados, liderEscala) {
   const ref = db.doc(`eventos/${eventoId}/escalas/${baseId}`);
   const snap = await ref.get();
 
-  const usados = new Set();
-  const escaladosLimpos = escalados.map((e) => {
-    if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
-      throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
-    }
-    if (usados.has(e.pessoaId)) {
-      throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois papéis no mesmo culto.");
-    }
-    usados.add(e.pessoaId);
-    return { pessoaId: e.pessoaId, papel: e.papel };
-  });
+  const escaladosLimpos = limparEscaladosLouvor(baseId, escalados);
   const pessoas = new Set(escaladosLimpos.map((e) => e.pessoaId));
 
   const pessoasAntigas = new Set(snap.exists ? snap.data().pessoas || [] : []);
@@ -1192,7 +1208,7 @@ export const publicarEscalaLouvor = onCall(async (req) => {
  * Só líder/auxiliar mexe em rascunhos (exigeLider) — ao contrário da
  * escala ao vivo, um rascunho cobre vários domingos de uma vez, não
  * faz sentido o líder de escala de um culto só editar isto. Guardar
- * valida pouco (papel válido, sem duplicar pessoa no mesmo culto) —
+ * valida pouco (papel válido, sem duplicar pessoa no mesmo culto — limparEscaladosLouvor) —
  * sem checar conflito entre bases: um rascunho pode estar "errado"
  * enquanto é trabalhado, sem gente presa por causa disso. A
  * validação completa (a mesma de guardarEscalaLouvor) só corre ao
@@ -1207,17 +1223,7 @@ export const guardarRascunhoEscala = onCall(async (req) => {
 
   const itensLimpos = itens.map((it) => {
     if (!it?.eventoId) throw new HttpsError("invalid-argument", "Item do rascunho sem culto.");
-    const usados = new Set();
-    const escalados = (it.escalados || []).map((e) => {
-      if (!e?.pessoaId || !papelEscalaValido(baseId, e.papel)) {
-        throw new HttpsError("invalid-argument", "Escalado sem pessoa ou papel válido.");
-      }
-      if (usados.has(e.pessoaId)) {
-        throw new HttpsError("invalid-argument", "Uma pessoa não pode estar em dois papéis no mesmo culto.");
-      }
-      usados.add(e.pessoaId);
-      return { pessoaId: e.pessoaId, papel: e.papel };
-    });
+    const escalados = limparEscaladosLouvor(baseId, it.escalados);
     return { eventoId: it.eventoId, liderEscala: it.liderEscala || null, escalados };
   });
 
