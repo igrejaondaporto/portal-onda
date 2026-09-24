@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
+import { TiposCultoProvider } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { concordar } from "@portal/shared/lib/data.js";
 import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
@@ -167,6 +168,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
 
   return (
     <TorradaProvider>
+    <TiposCultoProvider>
     <TourProvider>
       <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
       <Tour />
@@ -294,6 +296,7 @@ export default function Sessao({ uid, papel, baseId, veTodasEscalas, podePublica
         />
       )}
     </TourProvider>
+    </TiposCultoProvider>
     </TorradaProvider>
   );
 }

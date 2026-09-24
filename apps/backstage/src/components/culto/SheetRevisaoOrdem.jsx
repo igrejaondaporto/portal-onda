@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { publicarOrdemCulto } from "../../lib/culto";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import { TIPOS_CULTO, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
+import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 
 let contador = 0;
 const chave = () => `l${Date.now()}_${contador++}`;
@@ -14,6 +15,7 @@ const avisoVazio = () => ({ _k: chave(), nome: "", data: "", info: "", criarCult
  *  apaga, reordena e só grava quando carregar em Publicar. */
 export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublicado }) {
   const torrada = useTorrada();
+  const tiposCulto = useTiposCulto();
   const [momentos, setMomentos] = useState(
     () => (inicial.momentos.length ? inicial.momentos : [linhaVazia()])
       .map((m) => ({ _k: chave(), projecao: "", detalhe: "", responsavel: "", ...m, minutos: m.minutos ?? 5 }))
@@ -136,7 +138,7 @@ export default function SheetRevisaoOrdem({ evento, inicial, onFechar, onPublica
 
         <label className="rot" style={{ marginTop: 12 }}>Tipo de culto</label>
         <div className="subtabs">
-          {TIPOS_CULTO.map((t) => (
+          {tiposCulto.map((t) => (
             <button key={t.id} data-on={tipoCulto === t.id ? 1 : 0} onClick={() => setTipoCulto(t.id)}>{t.nome}</button>
           ))}
         </div>
