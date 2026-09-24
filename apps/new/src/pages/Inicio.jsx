@@ -211,7 +211,10 @@ export default function Inicio({
     onAlertaLicao?.(licaoPorEnviar);
   }, [licaoPorEnviar, onAlertaLicao]);
 
-  if (!meuEvento) return null;
+  // Sem escala próxima, o Início fica vazio — MAS o contador de
+  // crianças aparece na mesma: é para TODA a gente da base, escalada
+  // ou não (pedido 2026-09: "PRA TODOS OS VOLUNTÁRIOS").
+  if (!meuEvento) return <ContagemCriancas podeCorrigir={papel === "lider_base" || papel === "auxiliar"} />;
 
   // fica visível até ao prazo, mesmo depois de responder — para quem
   // quiser alterar o voto ainda dentro do prazo do líder. Se o líder

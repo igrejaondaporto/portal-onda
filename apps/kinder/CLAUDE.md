@@ -458,6 +458,9 @@ semana até alguém marcar — com um `.destaque` "A precisar de ti" por
 cima. O popup só abre sozinho no próprio domingo. É daqui que o Painel
 Pastoral tira as crianças da "Presença na igreja".
 
+Quem ainda não tem sala definida vê as três salas (e marca qualquer
+uma vazia) — o contador é para todos os voluntários, com ou sem sala.
+
 ## Checklist da sala — Pré-culto/Durante/Pós-culto
 
 Mesmo padrão de fases das outras bases (Apoio, Backstage,
