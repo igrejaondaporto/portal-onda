@@ -103,6 +103,31 @@ export default function Numeros({ ativo, definirCabecalho }) {
       .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.contagem.auditorio }));
   }, [dados]);
 
+  /** "Presença na igreja", domingo a domingo — voluntários (escalados
+   *  nas dez bases) + auditório (o mapa lugar a lugar, ocupados +
+   *  visitantes + bloqueados/reservados) + crianças (Kinder/SHIFT/New,
+   *  pelas categorias automáticas da Contagem). MESMA conta do cartão
+   *  do Mapa de Calor logo abaixo (ver o comentário em
+   *  `MapaCalor.jsx`) — reportado 2026-09: este gráfico ainda somava
+   *  `contagem.auditorio` (visitantes+voluntários DIGITADOS à mão na
+   *  Contagem da Pessoal), que é outra coisa; as duas contas podem
+   *  discordar, e mostrar duas "Presença na igreja" diferentes no
+   *  mesmo painel era o problema. Só entra o domingo com pelo menos um
+   *  mapa começado (`c.acomodacao`) — sem mapa nenhum não há "auditório"
+   *  para somar, e mostrar um zero enganava como "domingo fraco". */
+  const presencaIgreja = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .filter((c) => c.acomodacao)
+      .map((c) => {
+        const a = c.acomodacao;
+        const marcados = a.ocupados + a.visitantes;
+        const bloqueados = a.reservados + a.bloqueados;
+        const criancas = (c.contagem?.baby ?? 0) + (c.contagem?.fun ?? 0) + (c.contagem?.junior ?? 0);
+        return { chave: c.eventoId, rotulo: dataCurta(c.data), valor: marcados + bloqueados + c.voluntarios + criancas };
+      });
+  }, [dados]);
+
   const visitantes = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
@@ -330,11 +355,11 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho">
               <h3>Presença na igreja</h3>
-              <span className="cap">visitantes + equipa</span>
+              <span className="cap">voluntários + auditório + crianças</span>
             </div>
             <LinhaTempo
-              pontos={presencas}
-              vazio="Ainda não há contagens fechadas neste período. A Base Pessoal fecha cada contagem no fim do culto."
+              pontos={presencaIgreja}
+              vazio="Ainda não há nenhum mapa do auditório começado neste período."
             />
           </div>
 
