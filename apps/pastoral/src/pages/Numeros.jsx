@@ -4,7 +4,7 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto } from "../lib/presenca";
+import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto, usaJuniorFunAntigo } from "../lib/presenca";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -46,7 +46,8 @@ function janelaDe(periodo) {
  */
 export default function Numeros({ ativo, definirCabecalho }) {
   const torrada = useTorrada();
-  const [periodo, setPeriodo] = useState("12m");
+  // 3 meses por omissão (pedido 2026-09) — é o que se olha no dia a dia
+  const [periodo, setPeriodo] = useState("3m");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   // qual momento (categoria) do "O culto começa a horas?" está
@@ -302,7 +303,10 @@ export default function Numeros({ ativo, definirCabecalho }) {
       { chave: "baby", rotulo: "Baby", valor: mediaDe("baby") },
       { chave: "fun", rotulo: "Fun", valor: mediaDe("fun"), sempre: true },
       { chave: "junior", rotulo: "Júnior", valor: mediaDe("junior"), sempre: true },
-      { chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 13/9)", valor: mediaDe("juniorFun") },
+      {
+        chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 6/9)",
+        valor: media(cultosComContagem.filter((c) => usaJuniorFunAntigo(c.contagem)).map((c) => c.contagem.juniorFun)),
+      },
       { chave: "new", rotulo: "New", valor: mediaDe("new") },
       { chave: "shift", rotulo: "Shift", valor: mediaDe("shift") },
     ].filter((s) => s.sempre || s.valor !== null);
