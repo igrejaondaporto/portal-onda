@@ -73,6 +73,24 @@ export function presencaDoCulto(c) {
   return { auditorio, visitantes, voluntarios, criancas, total, fonte };
 }
 
+/** Ocupação do auditório: PESSOAS no auditório / CAPACIDADE do
+ *  auditório (todos os lugares, reservados incluídos). Pedido 2026-09:
+ *  "tem de ser o número de pessoas no auditório / lugares no auditório"
+ *  — antes era `percentagem` do resumo do mapa (lugares marcados sobre
+ *  a capacidade ÚTIL, sem reservados), que em 6/9 dava 64% com 130
+ *  pessoas em 144 lugares. As pessoas são o MESMO número do auditório
+ *  da "Presença na igreja" (`presencaDoCulto`), para os dois ecrãs
+ *  nunca discordarem; sem esse número, as do mapa. Pode passar de 100%
+ *  (gente de pé) — é informação, não erro. */
+export function ocupacaoDoCulto(c) {
+  const a = c.acomodacao;
+  if (!a) return null;
+  const lugares = a.capacidadeUtil + a.reservados + a.bloqueados;
+  const doMapa = a.ocupados + a.visitantes + a.reservados + a.bloqueados;
+  const pessoas = presencaDoCulto(c).auditorio ?? doMapa;
+  return { pessoas, lugares, pct: lugares ? pessoas / lugares : 0 };
+}
+
 export const media = (vals) => {
   const v = vals.filter((n) => typeof n === "number");
   return v.length ? Math.round(v.reduce((t, n) => t + n, 0) / v.length) : null;

@@ -528,6 +528,31 @@ O Domingo segue a mesma regra na linha "X visitantes neste culto":
 do Mapa a partir de `MAPA_DESDE` (com "Y no apelo" — manter o dedo
 no Mapa da Pessoal), da Contagem manual antes.
 
+**No ecrã, a fonte do auditório e dos visitantes diz sempre "Mapa (Base
+Pessoal)"** (pedido 2026-09). No código continua a regra por data de
+`presencaDoCulto`: até 20/9 o número vem do campo "Mensagem" da Base
+Pessoal (a equipa trata-o como a contagem do auditório), a partir de
+27/9 do Mapa.
+
+**Ocupação do auditório = pessoas no auditório / capacidade do
+auditório** (todos os lugares, reservados incluídos) —
+`ocupacaoDoCulto` (`lib/presenca.js`), pedido 2026-09. Já foi a
+`percentagem` do resumo do mapa (lugares marcados / capacidade útil),
+que em 6/9 dava 64% com 130 pessoas em 144 lugares. As pessoas são o
+mesmo número do auditório da "Presença na igreja", para os dois
+ecrãs nunca discordarem. Pode passar de 100%.
+
+**"O culto começa a horas?" mostra seis blocos fixos** (`BLOCOS`,
+`Numeros.jsx`): Louvor, Contribua, Vídeos, Visitantes, Mensagem e
+Apelo, cada momento da ordem apanhado pelo nome (regex). Vários
+momentos do mesmo bloco no mesmo culto somam-se. Ceia, Contagem, Oração
+final e outros extra ficam de fora (pedido 2026-09). Antes comparava o
+nome exato e exigia 2 cultos — com "Louvor #1"/"Louvor #2"/"OD News"
+ficavam só 2 blocos.
+
+**Gráficos de linha com até 10 pontos mostram todos os valores e
+datas** (`LinhaTempo.jsx`) — "no 13/09 não mostra embaixo qual dia é".
+
 **As datas dos gráficos de linha moram numa linha fixa por baixo**
 (`LinhaTempo.jsx`), nunca coladas à bolinha. E a área do gráfico é uma
 caixa sem padding (`.pa-graf-area`): com o padding das datas na mesma

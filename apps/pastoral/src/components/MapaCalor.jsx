@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { dataCurta } from "@portal/shared/lib/data.js";
 import { corAtraso, textoAtraso } from "./Atraso";
-import { presencaDoCulto } from "../lib/presenca";
+import { ocupacaoDoCulto, presencaDoCulto } from "../lib/presenca";
 
 /**
  * Ocupação do auditório, domingo a domingo.
@@ -52,7 +53,8 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
   const comMapa = visiveis.filter((c) => c.acomodacao);
   const mostrado = foco ?? comMapa.at(-1) ?? null;
   const a = mostrado?.acomodacao ?? null;
-  const pct = a ? Math.round(a.percentagem * 100) : null;
+  const oc = mostrado ? ocupacaoDoCulto(mostrado) : null;
+  const pct = oc ? Math.round(oc.pct * 100) : null;
 
   return (
     <>
@@ -73,7 +75,8 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
               />
             );
           }
-          const cor = passo(c.acomodacao.percentagem);
+          const ocQ = ocupacaoDoCulto(c);
+          const cor = passo(Math.min(ocQ.pct, 0.999));
           const ativo = mostrado && c.eventoId === mostrado.eventoId;
           return (
             <button
@@ -81,7 +84,7 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
               className={`pa-calor-q${ativo ? " on" : ""}${cor ? "" : " vazio"}`}
               style={cor ? { background: cor } : undefined}
               onClick={() => setFoco(c)}
-              aria-label={`${c.data}: ${Math.round(c.acomodacao.percentagem * 100)}% de ocupação`}
+              aria-label={`${c.data}: ${Math.round(ocQ.pct * 100)}% de ocupação`}
             />
           );
         })}
@@ -115,24 +118,27 @@ export default function MapaCalor({ cultos, vazio = "Ainda não há mapas de aud
         const p = presencaDoCulto(mostrado);
         return (
           <div className="caixa" style={{ marginTop: 14 }}>
-            <p className="ds" style={{ marginTop: 0 }}>{mostrado.data}</p>
+            <p className="ds" style={{ marginTop: 0 }}>{dataCurta(mostrado.data)}</p>
             <p className="pa-num">{pct}%</p>
-            <p className="ds" style={{ marginTop: 2 }}>de ocupação do auditório</p>
+            <p className="ds" style={{ marginTop: 2 }}>
+              de ocupação do auditório — {oc.pessoas} pessoas em {oc.lugares} lugares
+            </p>
 
             {p.total !== null && (
               <>
                 <p className="ds" style={{ marginTop: 14 }}>Presença na igreja</p>
                 <p className="pa-num">{p.total}</p>
                 <p className="ds" style={{ marginTop: 2 }}>
-                  {p.auditorio} no auditório{p.fonte === "contagem" ? " (pela Contagem)" : ""} + {p.voluntarios} voluntários + {p.criancas ?? 0} crianças
+                  {p.auditorio} no auditório + {p.voluntarios} voluntários + {p.criancas ?? 0} crianças
                 </p>
               </>
             )}
 
             <ul className="pa-lista" style={{ marginTop: 10 }}>
-              <li>Lugares no auditório: {totalLugares} ({bloqueados} bloqueados)</li>
+              <li>Capacidade do auditório: {totalLugares} lugares ({bloqueados} bloqueados)</li>
+              <li>Pessoas no auditório: {oc.pessoas}</li>
               <li>Lugares úteis marcados: {marcados} de {a.capacidadeUtil}</li>
-              <li>Visitantes: {a.visitantes}</li>
+              <li>Visitantes: {p.visitantes ?? a.visitantes}</li>
               <li>Voluntários: {mostrado.voluntarios}</li>
               <li>Crianças nas salas: {p.criancas ?? "—"}</li>
             </ul>

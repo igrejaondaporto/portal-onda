@@ -4,7 +4,7 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { CONTAGEM_ATE, MAPA_DESDE, criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
+import { criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -34,6 +34,24 @@ const DOMINGOS_IGNORADOS = new Set(["2026-08-30"]);
  *  entrariam no funil de visitantes como pessoas que não existem.
  *  Prevalece sobre o que o Formulário tiver para esse domingo. */
 const CADASTRADOS_PLANILHA = { "2026-09-06": 9 };
+
+/** Os blocos principais do culto (pedido 2026-09: "quero Louvor,
+ *  Contribua, Vídeos — todos num bloco só —, Visitantes, Mensagem e
+ *  Apelo; nem precisa de Ceia nem de blocos extra"). Cada momento da
+ *  ordem entra no primeiro bloco cujo padrão bate com o nome — os
+ *  nomes mudam de domingo para domingo ("Louvor #1", "Louvor #2",
+ *  "OD News", "Avisos + Visitantes"), e comparar o nome exato (como
+ *  antes) deixava só 2 blocos à vista. O resto (Contagem, Ceia,
+ *  Oração final, apresentações…) fica de fora. */
+const BLOCOS = [
+  ["louvor", "Louvor", /louvor|adora[çc]/i],
+  ["contribua", "Contribua", /contribu|oferta|d[íi]zimo/i],
+  ["videos", "Vídeos", /v[íi]deo|news|clip/i],
+  ["visitantes", "Visitantes", /visitante/i],
+  ["mensagem", "Mensagem", /mensagem|prega[çc]|palavra/i],
+  ["apelo", "Apelo", /apelo/i],
+];
+const blocoDe = (momento) => BLOCOS.find(([, , re]) => re.test(momento))?.[0] ?? null;
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -243,72 +261,49 @@ export default function Numeros({ ativo, definirCabecalho }) {
     [dados],
   );
 
-  /** A média do atraso de TODOS os blocos, de todos os cultos do
-   *  período — não a média do `atrasoFinal` (a hora de relógio a que
-   *  o culto acabou, um número por domingo). Pedido 2026-09: "a média
-   *  devia ser a média de atrasos que teve dos blocos todos". Mesmo
-   *  critério de `atrasoPorMomento` logo abaixo ("Contagem" fica de
-   *  fora — não é um momento do culto, é a hora das portas), só que
-   *  achatado: aqui entra cada ocorrência de cada momento, em vez de
-   *  agrupar por nome. */
-  const atrasoMedioBlocos = useMemo(() => {
-    const valores = [];
-    for (const c of cultosComRegisto) {
-      for (const a of c.culto.atrasos) {
-        if (a.momento.trim().toLowerCase() === "contagem" || a.atraso === null) continue;
-        valores.push(a.atraso);
-      }
-    }
-    return valores.length ? Math.round(valores.reduce((t, n) => t + n, 0) / valores.length) : null;
-  }, [cultosComRegisto]);
-
-  /** Em que momento é que o culto se atrasa, em média — a pergunta que
-   *  transforma "o culto acaba tarde" em algo acionável. Só entram os
-   *  momentos que apareceram em pelo menos dois cultos: um atraso
-   *  medido uma vez é uma anedota, não um padrão.
-   *
-   *  Ordenado pela ordem em que os momentos acontecem no culto (pela
-   *  hora prevista média), não pelo atraso — é assim que se lê "onde
-   *  começa a acumular", momento a seguir a momento, e não uma lista
-   *  saltada que obriga a procurar cada nome na ordem a sério.
-   *
-   *  "Contagem" fica de fora: não é um momento do culto em si, é a
-   *  hora das portas — já aparece à parte, no resumo "Portas …" da
-   *  aba Ordem, e listá-la aqui ao lado de Louvor/Mensagem confundia
-   *  as duas coisas.
-   *
-   *  `atraso` já vem do servidor como a diferença entre quanto o
-   *  bloco DUROU a sério e quanto devia durar — não a hora a que
-   *  começou (ver o comentário de `resumirCulto`, functions/pastoral.js).
-   *  O último bloco de cada culto nunca tem duração real (não há hora
-   *  de fim gravada), por isso vem com `atraso: null` e fica de fora
-   *  daqui — não é que não atrasou, é que não se sabe. */
+  /** Por bloco: o atraso de cada culto é a SOMA dos momentos desse
+   *  bloco nesse culto (dois louvores, três vídeos… contam como um
+   *  bloco só), e a média é sobre os cultos. `atraso` já vem do
+   *  servidor como quanto o bloco DUROU a mais do previsto (ver
+   *  `resumirCulto`); o último momento de cada culto não tem duração
+   *  real (`atraso: null`) e fica de fora — não se sabe, não é zero.
+   *  Os seis aparecem sempre, pela ordem do culto; um sem registo
+   *  mostra "—". */
   const atrasoPorMomento = useMemo(() => {
-    const mapa = new Map();
+    const porBloco = new Map(BLOCOS.map(([chave, rotulo]) => [chave, { rotulo, porCulto: new Map(), ocorrencias: [] }]));
     for (const c of cultosComRegisto) {
       for (const a of c.culto.atrasos) {
-        const chave = a.momento.trim().toLowerCase();
-        if (chave === "contagem" || a.atraso === null) continue;
-        if (!mapa.has(chave)) mapa.set(chave, { rotulo: a.momento.trim(), valores: [], previstos: [], ocorrencias: [] });
-        const registo = mapa.get(chave);
-        registo.valores.push(a.atraso);
-        registo.ocorrencias.push({
+        const chave = blocoDe(a.momento);
+        if (!chave || a.atraso === null) continue;
+        const reg = porBloco.get(chave);
+        reg.porCulto.set(c.eventoId, (reg.porCulto.get(c.eventoId) ?? 0) + a.atraso);
+        reg.ocorrencias.push({
           eventoId: c.eventoId, data: c.data, atraso: a.atraso, nome: a.momento,
           duracaoPrevista: a.duracaoPrevista, duracaoReal: a.duracaoReal,
         });
-        const [h, m] = String(a.previsto || "").split(":").map(Number);
-        if (Number.isFinite(h) && Number.isFinite(m)) registo.previstos.push(h * 60 + m);
       }
     }
-    return [...mapa.entries()]
-      .filter(([, v]) => v.valores.length >= 2)
-      .map(([chave, v]) => ({
-        chave, rotulo: v.rotulo, vezes: v.valores.length,
-        media: Math.round(v.valores.reduce((t, n) => t + n, 0) / v.valores.length),
-        ordem: v.previstos.length ? v.previstos.reduce((t, n) => t + n, 0) / v.previstos.length : Infinity,
-        ocorrencias: v.ocorrencias.sort((a, b) => a.data.localeCompare(b.data)),
-      }))
-      .sort((a, b) => a.ordem - b.ordem);
+    return [...porBloco.entries()].map(([chave, v]) => ({
+      chave, rotulo: v.rotulo, vezes: v.porCulto.size,
+      media: media([...v.porCulto.values()]),
+      ocorrencias: v.ocorrencias.sort((x, y) => x.data.localeCompare(y.data)),
+    }));
+  }, [cultosComRegisto]);
+
+  /** "Em média, cada bloco atrasa" — a média dos seis blocos acima,
+   *  bloco a bloco em cada culto (mesmo critério: só os principais). */
+  const atrasoMedioBlocos = useMemo(() => {
+    const valores = [];
+    for (const c of cultosComRegisto) {
+      const soma = new Map();
+      for (const a of c.culto.atrasos) {
+        const chave = blocoDe(a.momento);
+        if (!chave || a.atraso === null) continue;
+        soma.set(chave, (soma.get(chave) ?? 0) + a.atraso);
+      }
+      valores.push(...soma.values());
+    }
+    return media(valores);
   }, [cultosComRegisto]);
 
   /* ── crianças ─────────────────────────────────────────────── */
@@ -451,8 +446,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
               {presencaIgreja.length > 0 && <span className="cap">toca numa coluna</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
-              Auditório e visitantes pelo relatório de Contagem até {dataCurta(CONTAGEM_ATE)}; pelo Mapa a partir
-              de {dataCurta(MAPA_DESDE)}. Voluntários pelas escalas das bases; crianças pelo contador de cada sala.
+              Auditório e visitantes: Mapa (Base Pessoal). Voluntários: escalas das bases. Crianças: contador
+              de cada sala.
             </p>
             <ColunasPresenca
               pontos={presencaIgreja}
@@ -466,8 +461,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
               {temDadosAcomodacao && <span className="cap">toca num domingo</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
-              Sobre a capacidade útil — lugares totais menos os reservados e os bloqueados. A escala é fixa
-              de 0 a 100%, para os mapas de meses diferentes serem comparáveis entre si.
+              Pessoas no auditório sobre a capacidade do auditório (todos os lugares). A escala é fixa de 0 a
+              100%, para os mapas de meses diferentes serem comparáveis entre si.
             </p>
             <MapaCalor
               cultos={dados.cultos}
@@ -564,8 +559,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
                 {atrasoPorMomento.length > 0 && (
                   <>
                     <p className="ds" style={{ marginTop: 14 }}>
-                      Onde o atraso aparece — na ordem do culto, quanto cada bloco durou a mais (ou a menos) do
-                      previsto, só os que aconteceram em dois ou mais cultos. Toca num para ver os horários.
+                      Onde o atraso aparece — os blocos principais, na ordem do culto: quanto cada um durou a mais
+                      (ou a menos) do previsto, em média. Vários momentos do mesmo bloco no mesmo culto (dois
+                      louvores, vários vídeos) somam-se. Toca num para ver os horários.
                     </p>
                     {atrasoPorMomento.map((m) => {
                       const aberto = momentoAberto === m.chave;
@@ -573,13 +569,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
                         <div key={m.chave}>
                           <div
                             className="linha cabtoque"
-                            onClick={() => setMomentoAberto(aberto ? null : m.chave)}
+                            onClick={() => m.vezes && setMomentoAberto(aberto ? null : m.chave)}
                             role="button" tabIndex={0}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setMomentoAberto(aberto ? null : m.chave); }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p className="nmt" style={{ fontSize: 14 }}>{m.rotulo}</p>
-                              <p className="ds">{m.vezes} cultos</p>
+                              <p className="ds">{m.vezes ? `${m.vezes} culto${m.vezes === 1 ? "" : "s"}` : "sem registo"}</p>
                             </div>
                             <Atraso minutos={m.media} />
                           </div>
