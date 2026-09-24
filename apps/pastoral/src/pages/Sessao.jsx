@@ -137,7 +137,7 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
               Financeiro, que tem a mesma casca). */}
           <div style={{ display: pagina === "domingo" ? "" : "none" }}>
             <Domingo
-              ativo={pagina === "domingo"} definirCabecalho={setCab} onAoVivo={setAoVivo} irPara={irPara}
+              uid={uid} ativo={pagina === "domingo"} definirCabecalho={setCab} onAoVivo={setAoVivo} irPara={irPara}
               podePublicarCulto={podePublicarCulto}
             />
           </div>

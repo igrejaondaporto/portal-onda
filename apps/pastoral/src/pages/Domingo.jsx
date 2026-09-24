@@ -10,6 +10,7 @@ import { cruzarComReal } from "@portal/shared/lib/ordemAoVivo.js";
 import Atraso from "../components/Atraso";
 import SheetRecado from "../components/SheetRecado";
 import NavCulto from "../components/NavCulto";
+import CalendarioAgenda from "../components/agenda/CalendarioAgenda";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 
 /** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
@@ -49,7 +50,7 @@ function janela() {
  * dispensa. Marcar uma checklist continua a ser de quem está na escala
  * dessa base, e as regras já o garantem.
  */
-export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, podePublicarCulto }) {
+export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara, podePublicarCulto }) {
   const tiposCulto = useTiposCulto();
   const [eventos, setEventos] = useState([]);
   const [eventoId, setEventoId] = useState(null);
@@ -212,6 +213,10 @@ export default function Domingo({ ativo, definirCabecalho, onAoVivo, irPara, pod
 
   return (
     <>
+      {/* a agenda do pastor em cima (pedido 2026-09): eventos da igreja
+          e os privados de cada um — ver components/agenda */}
+      <CalendarioAgenda uid={uid} />
+
       {/* o culto por omissão já vem certo (ao vivo, ou hoje, ou o
           próximo) — a seta só é para andar para os lados a partir
           dele, nunca se sobrepõe ao culto ao vivo */}

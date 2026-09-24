@@ -92,3 +92,10 @@ export const gerarDomingos = (ano) => chamar("gerarDomingos")({ ano }).then((r) 
  *  ordem, que continua a subir pela Backstage em PDF. */
 export const definirTipoCulto = (eventoId, tipoCulto) =>
   chamar("definirTipoCulto")({ eventoId, tipoCulto }).then((r) => r.data);
+
+/** Evento da igreja (`eventos/{data}`) — criar ou editar, com as bases
+ *  que servem. As outras ficam em `dispensadaPor`. */
+export const guardarEventoIgreja = (dados) => chamar("guardarEventoIgreja")(dados).then((r) => r.data);
+
+/** Só eventos futuros; leva as escalas de todas as bases. */
+export const apagarEventoIgreja = (eventoId) => chamar("apagarEventoIgreja")({ eventoId }).then((r) => r.data);

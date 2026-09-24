@@ -30,6 +30,7 @@ inventário. O que escreve, e porquê:
 |---|---|---|
 | A ordem do culto | `eventos/{e}.ordem` | É produzida aqui, não noutro lado — é o que substitui o PDF |
 | A etiqueta do culto (tipo) | `eventos/{e}.tipoCulto` | Muda-se aqui sem publicar a ordem, que continua a vir da Backstage (pedido 2026-09) — ver "Tipo de culto" abaixo |
+| Eventos da igreja (agenda) | `eventos/{data}` (só cultos especiais) | O pastor marca eventos e escolhe que bases servem (pedido 2026-09) — ver "A agenda" abaixo |
 | A etapa de um visitante | `contactos/{id}.etapa` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
 | Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
@@ -105,7 +106,7 @@ Cloud Function nova.
 
 | Aba | Ficheiro | A pergunta a que responde |
 |---|---|---|
-| **Domingo** | `pages/Domingo.jsx` | O que está a acontecer (ou vai acontecer) neste culto? |
+| **Domingo** | `pages/Domingo.jsx` | O que está a acontecer (ou vai acontecer) neste culto? — com a agenda do pastor em cima |
 | **Bases** | `pages/Bases.jsx` | Alguma base precisa de mim? |
 | **Pessoas** | `pages/Pessoas.jsx` | Quem é a igreja, e quem está a ficar pelo caminho? |
 | **Números** | `pages/Numeros.jsx` | Está a melhorar ou a piorar? |
@@ -377,6 +378,52 @@ que a escrita chega — nenhum estado extra a sincronizar. As
 `contactos/{id}` (mesmo comentário de sempre: "o painel NÃO escreve
 por esta via"), por isso é Cloud Function, como mover de etapa —
 nunca escrita direta do painel.
+
+## A agenda (topo da aba Domingo)
+
+Pedido 2026-09: "um calendário onde o pastor se possa organizar, com
+os eventos da igreja e os privados dele". `components/agenda/`:
+`CalendarioAgenda.jsx` (mês em grelha + a lista do dia tocado),
+`SheetEventoIgreja.jsx`, `SheetEventoPrivado.jsx`, e `lib/agenda.js`.
+
+**Duas camadas, dois sítios — de propósito:**
+
+| | Onde mora | Quem vê | Como se escreve |
+|---|---|---|---|
+| **Da igreja** (azul) | `eventos/{data}` — o mesmo documento que as dez bases leem (calendário, escala, enquete) | As bases escolhidas | `guardarEventoIgreja`/`apagarEventoIgreja` (`functions/pastoral.js`) — `eventos` é write:false |
+| **Privado** (violeta + 🔒) | `bases/pastoral/agenda/{id}` | Só quem está em `participantes` | Escrita direta (`firestore.rules`) |
+
+**"Só algumas bases servem" não é um campo novo.** Grava-se
+`escopo:"global"` com as bases NÃO escolhidas em `dispensadaPor` — é o
+que cada base já usa para esconder um evento ("não servimos",
+`visivelParaBase` em cada `lib/painel.js`). Por isso nenhuma das dez
+apps mudou, e o líder de uma base não escolhida continua a poder
+desmarcar o "não servimos" e servir. As bases que se podem escolher
+são as ativas, sem a Pastoral e sem as `semEscalaDeCulto` (Financeiro).
+
+**Um evento da igreja por dia.** O id do documento é a data (é assim
+desde o início, e as escalas vivem debaixo dele) — a folha avisa antes
+de gravar, e o servidor recusa. Pela mesma razão, **o dia não se muda
+ao editar**: é apagar e criar outro. Os privados não têm este limite.
+
+**O que o painel NÃO edita:** os domingos (`tipo:null`, de
+`gerarDomingos`) e os eventos `escopo:"base"` (de uma base só —
+aparecem na agenda, mas geridos lá). **Apagar** só eventos futuros (um
+que passou tem contagem/checklist — é histórico) e leva as escalas de
+TODAS as bases (`recursiveDelete`); antes, a folha diz que bases já
+tinham gente escalada (`basesComEscala`, pela capacidade
+`ve_todas_escalas`).
+
+**Privados — cada pastor tem os seus.** "Discipulado com líder" é só
+de um; "Sala de oração" é dos dois. As regras só deixam ler/editar a
+quem está em `participantes`, e recusam a query inteira se ela não
+for `where("participantes","array-contains",uid)` — as regras não
+filtram. Quem cria está sempre incluído (senão o evento sumia ao
+gravar). Apagar é `ativo:false`, nunca delete (regra 5).
+
+**Local e nota** ficam gravados em `eventos/{data}` e aparecem aqui;
+as dez bases ainda não os mostram (cada uma tem o seu calendário, sem
+componente partilhado) — é o próximo passo, base a base.
 
 ## Trocar o líder de uma base
 
