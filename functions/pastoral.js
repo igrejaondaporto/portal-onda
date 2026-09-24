@@ -1054,6 +1054,7 @@ export const definirTipoCulto = onCall(async (req) => {
  * `gerarDomingos` e não se editam nem apagam daqui. Um evento
  * `escopo:"base"` é de uma base só e continua a ser dela. */
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+const ID_EVENTO = /^\d{4}-\d{2}-\d{2}(-[0-9]{4}(-\d+)?)?$/;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function hojeEmLisboa() {
@@ -1079,9 +1080,49 @@ function exigeEventoDaIgrejaEditavel(snap) {
   return d;
 }
 
+/** Vários eventos no mesmo dia (pedido 2026-09), desde que a horas
+ *  diferentes. O primeiro de cada dia continua com o id = data (é o
+ *  que o check-in, a contagem e o "culto de hoje" das bases procuram);
+ *  os seguintes ganham `data-HHMM` (e `-2`, `-3`… se ainda colidir).
+ *  Tudo o resto nas bases lê os eventos pelo campo `data`, e
+ *  `dataPorExtenso` só usa os três primeiros pedaços do id. */
+function idParaNovoEvento(data, horaCulto, docsDoDia) {
+  const livre = (id) => {
+    const d = docsDoDia.find((x) => x.id === id);
+    return !d || d.data().ativo === false;
+  };
+  if (livre(data)) return data;
+  const base = `${data}-${horaCulto.replace(":", "")}`;
+  let id = base, n = 2;
+  while (!livre(id)) id = `${base}-${n++}`;
+  return id;
+}
+
+const MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const porExtenso = (iso) => `${Number(iso.slice(8, 10))} de ${MESES_PT[Number(iso.slice(5, 7)) - 1]}`;
+
+/** Somar semanas sem fuso: meio-dia UTC nunca muda de dia. */
+function mais7(data, semanas) {
+  const d = new Date(`${data}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 7 * semanas);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Outro evento ativo no mesmo dia e à mesma hora bloqueia SEMPRE
+ *  (pedido 2026-09) — seja de que base for, domingo incluído. */
+function conflitoDeHora(docsDoDia, horaCulto, ignorarId) {
+  return docsDoDia.find((d) => d.id !== ignorarId && d.data().ativo !== false && d.data().horaCulto === horaCulto) ?? null;
+}
+
+const docsDoDia = async (data) => (await db().collection("eventos").where("data", "==", data).get()).docs;
+
 export const guardarEventoIgreja = onCall(async (req) => {
   const uid = exigeVisaoPastoral(req);
   const { data, nome, horaCulto, horaChegada, local, nota, bases, editar } = req.data || {};
+  // `editar:true` sem eventoId é o formato de antes de haver vários
+  // eventos por dia (o id era sempre a data)
+  const eventoId = req.data?.eventoId || (editar ? data : null);
+  const semanas = eventoId ? 1 : Number(req.data?.semanas ?? 1);
   if (!DATA_ISO.test(String(data || ""))) throw new HttpsError("invalid-argument", "Data inválida.");
   if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 60) {
     throw new HttpsError("invalid-argument", "Falta o nome do evento.");
@@ -1092,6 +1133,9 @@ export const guardarEventoIgreja = onCall(async (req) => {
   if ((local && (typeof local !== "string" || local.length > 80)) || (nota && (typeof nota !== "string" || nota.length > 300))) {
     throw new HttpsError("invalid-argument", "Local ou nota demasiado longos.");
   }
+  if (!Number.isInteger(semanas) || semanas < 1 || semanas > 52) {
+    throw new HttpsError("invalid-argument", "Repetir: entre 1 e 52 semanas.");
+  }
   const servem = await basesQueServem();
   if (!Array.isArray(bases) || !bases.length) throw new HttpsError("invalid-argument", "Escolhe pelo menos uma base.");
   if (bases.some((b) => !servem.includes(b))) throw new HttpsError("invalid-argument", "Base desconhecida.");
@@ -1101,29 +1145,51 @@ export const guardarEventoIgreja = onCall(async (req) => {
     local: local?.trim() || null, nota: nota?.trim() || null,
     dispensadaPor: servem.filter((b) => !bases.includes(b)),
   };
-  const ref = db().doc(`eventos/${data}`);
-  const snap = await ref.get();
-  if (editar) {
-    exigeEventoDaIgrejaEditavel(snap);
+
+  if (eventoId) {
+    if (!ID_EVENTO.test(eventoId)) throw new HttpsError("invalid-argument", "Evento inválido.");
+    const ref = db().doc(`eventos/${eventoId}`);
+    const atual = exigeEventoDaIgrejaEditavel(await ref.get());
+    const outro = conflitoDeHora(await docsDoDia(atual.data), horaCulto, eventoId);
+    if (outro) {
+      throw new HttpsError("already-exists",
+        `Já há "${outro.data().tipo || "Culto de domingo"}" às ${horaCulto} nesse dia — escolhe outra hora.`);
+    }
     await ref.set({
       ...campos, atualizadoPor: uid, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    return { eventoId: data };
+    return { eventoIds: [eventoId] };
   }
-  if (snap.exists && snap.data().ativo !== false) {
-    throw new HttpsError("already-exists", "Já há um evento nesse dia — só cabe um evento da igreja por dia.");
+
+  // repetir = o mesmo evento em N semanas seguidas. Tudo ou nada: se
+  // alguma dessas datas já tem um evento àquela hora, não cria nenhum
+  // e diz quais — criar metade em silêncio era pior.
+  const datas = Array.from({ length: semanas }, (_, k) => mais7(data, k));
+  const dias = await Promise.all(datas.map(docsDoDia));
+  const ocupadas = datas
+    .map((d, k) => [d, conflitoDeHora(dias[k], horaCulto, null)])
+    .filter(([, c]) => c)
+    .map(([d, c]) => `${porExtenso(d)} (${c.data().tipo || "Culto de domingo"})`);
+  if (ocupadas.length) {
+    throw new HttpsError("already-exists", `Já há um evento às ${horaCulto} em: ${ocupadas.join(", ")}. Nada foi criado.`);
   }
-  // .set() sem merge, como criarCultoEspecial: um `ativo:false` antigo
-  // na mesma data é substituído por inteiro
-  await ref.set({
-    data, ...campos, escopo: "global", baseId: null, origem: "pastoral",
-    criadoPor: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  const lote = db().batch();
+  const ids = datas.map((d, k) => {
+    const id = idParaNovoEvento(d, horaCulto, dias[k]);
+    // .set() sem merge, como criarCultoEspecial: um `ativo:false`
+    // antigo com o mesmo id é substituído por inteiro
+    lote.set(db().doc(`eventos/${id}`), {
+      data: d, ...campos, escopo: "global", baseId: null, origem: "pastoral",
+      criadoPor: uid, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return id;
   });
-  return { eventoId: data };
+  await lote.commit();
+  return { eventoIds: ids };
 });
 
-/** Apagar a sério, como `excluirCultoEspecial` (o id é a data — um
- *  `ativo:false` prendia o dia para sempre), mas com as escalas de
+/** Apagar a sério, como `excluirCultoEspecial` (o id é a data, ou
+ *  `data-HHMM` — um `ativo:false` prendia esse id para sempre), mas com as escalas de
  *  TODAS as bases, não só a de quem apaga. Só eventos futuros: um que
  *  já passou tem contagem/checklist/registo, e isso é histórico
  *  (regra 5 do CLAUDE.md raiz). O cliente avisa antes quais bases já
@@ -1131,7 +1197,7 @@ export const guardarEventoIgreja = onCall(async (req) => {
 export const apagarEventoIgreja = onCall(async (req) => {
   exigeVisaoPastoral(req);
   const { eventoId } = req.data || {};
-  if (!DATA_ISO.test(String(eventoId || ""))) throw new HttpsError("invalid-argument", "Falta o evento.");
+  if (!ID_EVENTO.test(String(eventoId || ""))) throw new HttpsError("invalid-argument", "Falta o evento.");
   const ref = db().doc(`eventos/${eventoId}`);
   const d = exigeEventoDaIgrejaEditavel(await ref.get());
   if (d.data < hojeEmLisboa()) {
