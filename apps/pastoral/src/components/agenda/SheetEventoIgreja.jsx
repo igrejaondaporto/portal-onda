@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { getDoc } from "firebase/firestore";
-import { cEvento } from "../../lib/modelo";
 import { basesComEscala } from "../../lib/agenda";
+import { AvisoConflitos, CampoRepetir, useConflitos, useRepetir } from "./Repetir";
 import { apagarEventoIgreja, guardarEventoIgreja } from "../../lib/pastoral";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
@@ -13,10 +12,15 @@ const MENU = { position: "static", border: 0, padding: "10px 0 0", background: "
  * escolhem ficam em `dispensadaPor`, que é como cada base já esconde
  * um evento; por isso nenhuma precisou de mudar.
  *
- * O dia não se muda ao editar: o id do documento É a data, e as
- * escalas vivem debaixo dele. Mudar de dia é apagar e criar outro.
+ * Pode haver vários no mesmo dia, a horas diferentes (o servidor dá
+ * ao segundo o id `data-HHMM`); à MESMA hora bloqueia sempre — contra
+ * outro evento da igreja e contra os privados de quem está a criar.
+ * "Repetir" cria o mesmo evento em N semanas seguidas, tudo ou nada.
+ *
+ * O dia não se muda ao editar: as escalas vivem debaixo do documento
+ * desse dia. Mudar de dia é apagar e criar outro.
  */
-export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, onFechar }) {
+export default function SheetEventoIgreja({ evento, dataInicial, bases, privados, hoje, onFechar }) {
   const torrada = useTorrada();
   const editar = !!evento;
   const [data, setData] = useState(evento?.data ?? dataInicial);
@@ -35,20 +39,11 @@ export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, on
     iniciado.current = true;
     setEscolhidas(servemDe(bases));
   }, [bases]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [ocupado, setOcupado] = useState(null);
   const [aGuardar, setAGuardar] = useState(false);
   const [confirmarApagar, setConfirmarApagar] = useState(null); // null | [bases com escala]
-
-  // um evento da igreja por dia (o id é a data) — avisar antes de
-  // carregar em Guardar, em vez de só depois pelo erro do servidor
-  useEffect(() => {
-    if (editar || !data) return;
-    let vivo = true;
-    getDoc(cEvento(data)).then((s) => {
-      if (vivo) setOcupado(s.exists() && s.data().ativo !== false ? (s.data().tipo || "Culto de domingo") : null);
-    });
-    return () => { vivo = false; };
-  }, [data, editar]);
+  const repetir = useRepetir();
+  const semanas = editar ? 1 : repetir.semanas;
+  const { conflitos, aVerificar } = useConflitos({ data, semanas, hora: horaCulto, privados, ignorar: evento?.id });
 
   const todas = escolhidas.length === bases.length;
   const alternar = (id) => setEscolhidas((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
@@ -58,8 +53,14 @@ export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, on
     if (!escolhidas.length) return torrada("Escolhe pelo menos uma base.");
     setAGuardar(true);
     try {
-      await guardarEventoIgreja({ data, nome, horaCulto, horaChegada, local, nota, bases: escolhidas, editar });
-      torrada(editar ? "Evento atualizado nas bases." : "Evento criado — já aparece nas bases escolhidas.");
+      const { eventoIds } = await guardarEventoIgreja({
+        eventoId: evento?.id, data, nome, horaCulto, horaChegada, local, nota, bases: escolhidas, semanas,
+      });
+      torrada(editar
+        ? "Evento atualizado nas bases."
+        : eventoIds.length > 1
+          ? `${eventoIds.length} eventos criados — já aparecem nas bases escolhidas.`
+          : "Evento criado — já aparece nas bases escolhidas.");
       onFechar();
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -104,11 +105,6 @@ export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, on
         <label className="rot" style={{ marginTop: 16 }}>Dia</label>
         <input className="campo" type="date" value={data} disabled={editar} onChange={(e) => setData(e.target.value)} />
         {editar && <p className="cap" style={{ marginTop: 4 }}>Para mudar o dia, apaga e cria de novo — as escalas ficam presas ao dia.</p>}
-        {ocupado && (
-          <p className="ds" style={{ marginTop: 6, color: "var(--magenta)" }}>
-            Já há "{ocupado}" neste dia — só cabe um evento da igreja por dia.
-          </p>
-        )}
 
         <label className="rot" style={{ marginTop: 12 }}>Nome</label>
         <input className="campo" value={nome} maxLength={60} placeholder="Ex.: Culto de Mulheres" onChange={(e) => setNome(e.target.value)} />
@@ -123,6 +119,9 @@ export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, on
             <input className="campo" type="time" value={horaChegada} onChange={(e) => setHoraChegada(e.target.value)} />
           </div>
         </div>
+
+        <AvisoConflitos conflitos={conflitos} hora={horaCulto} />
+        {!editar && <CampoRepetir repetir={repetir} data={data} />}
 
         <label className="rot" style={{ marginTop: 12 }}>Local (opcional)</label>
         <input className="campo" value={local} maxLength={80} placeholder="Ex.: Casa do Povo de Vermoim" onChange={(e) => setLocal(e.target.value)} />
@@ -157,7 +156,7 @@ export default function SheetEventoIgreja({ evento, dataInicial, bases, hoje, on
           </div>
         ) : (
           <>
-            <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar || !!ocupado} onClick={guardar}>
+            <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar || aVerificar || conflitos.length > 0} onClick={guardar}>
               {aGuardar ? "A guardar…" : editar ? "Guardar" : "Criar evento"}
             </button>
             {editar && evento.data >= hoje && (

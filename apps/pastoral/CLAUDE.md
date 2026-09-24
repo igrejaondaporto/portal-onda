@@ -401,10 +401,27 @@ apps mudou, e o líder de uma base não escolhida continua a poder
 desmarcar o "não servimos" e servir. As bases que se podem escolher
 são as ativas, sem a Pastoral e sem as `semEscalaDeCulto` (Financeiro).
 
-**Um evento da igreja por dia.** O id do documento é a data (é assim
-desde o início, e as escalas vivem debaixo dele) — a folha avisa antes
-de gravar, e o servidor recusa. Pela mesma razão, **o dia não se muda
-ao editar**: é apagar e criar outro. Os privados não têm este limite.
+**Vários eventos no mesmo dia, nunca dois à mesma hora** (pedido
+2026-09, substituiu o "um por dia" da primeira versão). O primeiro
+evento de cada dia continua com o id = data (é o que o check-in, a
+contagem e o "culto de hoje" das bases procuram); os seguintes ficam
+`AAAA-MM-DD-HHMM` (`idParaNovoEvento`, `functions/pastoral.js`) — as
+bases leem os eventos pelo campo `data`, por isso nenhuma mudou (ver a
+nota na regra 7 do `CLAUDE.md` raiz). À **mesma hora** bloqueia
+sempre, ao criar e ao editar: contra outro evento da igreja (no
+servidor, e avisado antes na folha) e contra os privados de quem cria
+(só no cliente — o servidor não vê a agenda de ninguém).
+`conflitosDeHora` (`lib/agenda.js`) / `useConflitos` (`Repetir.jsx`).
+**O dia não se muda ao editar** (as escalas vivem debaixo do documento
+desse dia): é apagar e criar outro.
+
+**Repetir por N semanas** (1–52), só ao criar, nos dois tipos: o
+mesmo evento no mesmo dia da semana das N semanas seguintes. **Tudo ou
+nada** — se alguma dessas datas já tem um evento àquela hora, não se
+cria nenhum e a folha diz quais (criar metade em silêncio era pior).
+Os da igreja num `batch` no servidor (`semanas`), os privados num
+`writeBatch` no cliente (`criarPrivado`). Cada semana fica um evento
+independente: editar ou apagar uma não mexe nas outras.
 
 **O que o painel NÃO edita:** os domingos (`tipo:null`, de
 `gerarDomingos`) e os eventos `escopo:"base"` (de uma base só —

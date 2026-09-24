@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { criarPrivado, desativarPrivado, editarPrivado } from "../../lib/agenda";
+import { AvisoConflitos, CampoRepetir, useConflitos, useRepetir } from "./Repetir";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 const MENU = { position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none", flexWrap: "wrap", whiteSpace: "normal" };
@@ -13,8 +14,12 @@ const MENU = { position: "static", border: 0, padding: "10px 0 0", background: "
  *
  * Quem cria está sempre incluído — as regras recusam criar um evento
  * de que não se faz parte (senão desaparecia no momento de gravar).
+ *
+ * Com hora marcada, outro evento à mesma hora (da igreja ou privado
+ * que esta pessoa vê) bloqueia — sem hora não há conflito possível.
+ * "Repetir" cria N semanas seguidas numa escrita só.
  */
-export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, onFechar }) {
+export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, privados, onFechar }) {
   const torrada = useTorrada();
   const editar = !!evento;
   const [titulo, setTitulo] = useState(evento?.titulo ?? "");
@@ -26,6 +31,9 @@ export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, o
   const [participantes, setParticipantes] = useState(evento?.participantes ?? [uid]);
   const [aGuardar, setAGuardar] = useState(false);
   const [confirmarApagar, setConfirmarApagar] = useState(false);
+  const repetir = useRepetir();
+  const semanas = editar ? 1 : repetir.semanas;
+  const { conflitos, aVerificar } = useConflitos({ data, semanas, hora, privados, ignorar: evento?.id });
 
   const alternar = (id) => {
     if (id === uid) return;
@@ -39,8 +47,8 @@ export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, o
     setAGuardar(true);
     try {
       if (editar) await editarPrivado(evento.id, dados);
-      else await criarPrivado(uid, dados);
-      torrada(editar ? "Evento atualizado." : "Evento privado criado.");
+      else await criarPrivado(uid, dados, semanas);
+      torrada(editar ? "Evento atualizado." : semanas > 1 ? `${semanas} eventos privados criados.` : "Evento privado criado.");
       onFechar();
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -85,6 +93,9 @@ export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, o
           </div>
         </div>
 
+        <AvisoConflitos conflitos={conflitos} hora={hora} />
+        {!editar && <CampoRepetir repetir={repetir} data={data} />}
+
         <label className="rot" style={{ marginTop: 12 }}>Local (opcional)</label>
         <input className="campo" value={local} maxLength={80} onChange={(e) => setLocal(e.target.value)} />
 
@@ -111,7 +122,7 @@ export default function SheetEventoPrivado({ uid, evento, dataInicial, equipa, o
           </div>
         ) : (
           <>
-            <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar} onClick={guardar}>
+            <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar || aVerificar || conflitos.length > 0} onClick={guardar}>
               {aGuardar ? "A guardar…" : editar ? "Guardar" : "Criar evento"}
             </button>
             {editar && (
