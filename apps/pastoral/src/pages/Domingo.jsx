@@ -12,7 +12,6 @@ import SheetRecado from "../components/SheetRecado";
 import NavCulto from "../components/NavCulto";
 import CalendarioAgenda from "../components/agenda/CalendarioAgenda";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
-import { MAPA_DESDE } from "../lib/presenca";
 
 /** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
  *  lá, ver `apps/kinder/src/lib/modelo.js`). Cores iguais às de lá,
@@ -192,39 +191,30 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
     };
   }, [aoVivoId, eventoId, registoAoVivo, evento]);
 
-  /* ── contagem do culto (Base Pessoal) ────────────────────── */
-  const presentes = useMemo(() => {
-    const cats = contagem?.categorias ?? {};
-    const v = (id) => (typeof cats[id]?.valor === "number" ? cats[id].valor : null);
-    return {
-      visitantes: v("visitantes"),
-      finalizada: !!contagem?.finalizadoEm,
-    };
-  }, [contagem]);
-
-  // pessoas no auditório: toda marcação feita no mapa, reservados e
-  // bloqueados incluídos — só "livre" fica de fora. Sistema diferente
+  // pessoas no auditório, pelo mapa. Sistema diferente
   // da Contagem manual acima (mapa é lugar a lugar, marcado por quem
   // tem a função Mapa na Base Pessoal; ver o mesmo raciocínio em
   // MapaCalor.jsx, Números).
   const noAuditorio = useMemo(() => {
     if (!mapa?.lugares) return null;
-    return Object.values(mapa.lugares).filter((estado) => estado !== "livre").length;
+    // só pessoas: ocupados + visitantes (e quem respondeu ao apelo) —
+    // os reservados/bloqueados não contam (pedido 2026-09: "são 85
+    // ocupados + 5 visitantes, e só"). Mesma conta de `lib/presenca.js`.
+    return Object.values(mapa.lugares).filter((e) => ["ocupado", "visitante", "apelo", "apeloVisitante"].includes(e)).length;
   }, [mapa]);
 
-  // visitantes e apelo: do MAPA a partir de MAPA_DESDE (mesma regra de
-  // Números, `lib/presenca.js`), da Contagem manual antes disso.
-  // "apeloVisitante" é um visitante que respondeu ao apelo — conta nos
-  // dois (ver apps/pessoal/CLAUDE.md, "Manter o dedo = APELO").
-  const usaMapa = (evento?.data ?? eventoId ?? "") >= MAPA_DESDE;
+  // visitantes e apelo: do MAPA, em todos os domingos (mesma regra de
+  // Números, `lib/presenca.js`). "apeloVisitante" é um visitante que
+  // respondeu ao apelo — conta nos dois (ver apps/pessoal/CLAUDE.md,
+  // "Manter o dedo = APELO").
   const doMapa = useMemo(() => {
     const est = Object.values(mapa?.lugares ?? {});
     const n = (...e) => est.filter((s) => e.includes(s)).length;
     const marcados = n("ocupado", "visitante", "apelo", "apeloVisitante");
     return marcados ? { visitantes: n("visitante", "apeloVisitante"), apelo: n("apelo", "apeloVisitante") } : null;
   }, [mapa]);
-  const visitantesCulto = usaMapa ? (doMapa?.visitantes ?? null) : presentes.visitantes;
-  const apeloCulto = usaMapa ? (doMapa?.apelo ?? null) : null;
+  const visitantesCulto = doMapa?.visitantes ?? null;
+  const apeloCulto = doMapa?.apelo ?? null;
 
   return (
     <>
@@ -284,7 +274,7 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
           <p className="ds" style={{ marginTop: 0 }}>
             <b>{visitantesCulto ?? 0} visitante{visitantesCulto === 1 ? "" : "s"}</b> neste culto
             {apeloCulto > 0 && <> · <b>{apeloCulto} no apelo</b></>}
-            {usaMapa ? " — pelo Mapa do auditório." : presentes.finalizada ? "." : " — contagem ainda a decorrer."}
+            {" — pelo Mapa do auditório."}
           </p>
         </div>
       )}

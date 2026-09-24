@@ -506,18 +506,15 @@ de Números e pelo cartão do Mapa de Calor. Auditório + voluntários +
 crianças, com os visitantes à parte. De onde vem cada parte (decisão
 do dono do produto, 2026-09):
 
-| Parte | Até 20/9 | A partir de 27/9 (`MAPA_DESDE`) |
-|---|---|---|
-| Auditório | Contagem, categoria `mensagem` | Mapa: ocupados + visitantes + reservados + bloqueados |
-| Visitantes | Contagem, `visitantes` | Mapa, `visitantes` |
-| Voluntários | escalas publicadas das dez bases (`c.voluntarios`) | igual |
-| Crianças | Contagem: baby/fun/junior/juniorFun/shift/new | igual (o contador no Início de cada sala) |
+| Parte | Fonte |
+|---|---|
+| Auditório | Mapa: ocupados + visitantes |
+| Visitantes | Mapa, `visitantes` |
+| Voluntários | escalas publicadas das dez bases (`c.voluntarios`) |
+| Crianças | Contagem: baby/fun/junior/shift/new (o contador no Início de cada sala) |
 
-Sem recurso à outra fonte: um domingo sem a fonte do seu período fica
-fora do gráfico (20/9 não teve Contagem — não aparece), em vez de
-aparecer com um número de outro sistema a parecer comparável. O mapa
-dos domingos antigos ficava bem abaixo da contagem à mão (13/9: 112
-contra 129) — trocá-los para trás fazia-os parecer fracos.
+Um domingo sem nenhum lugar marcado no mapa fica fora do gráfico
+(nunca aparece como zero).
 
 Colunas empilhadas e não linha: é parte de um todo ao longo do tempo.
 Cores validadas (`#2640c5`/`#0092d4`/`#ff2e88` — o `--azul` #0019be
@@ -528,19 +525,14 @@ O Domingo segue a mesma regra na linha "X visitantes neste culto":
 do Mapa a partir de `MAPA_DESDE` (com "Y no apelo" — manter o dedo
 no Mapa da Pessoal), da Contagem manual antes.
 
-**No ecrã, a fonte do auditório e dos visitantes diz sempre "Mapa (Base
-Pessoal)"** (pedido 2026-09). No código continua a regra por data de
-`presencaDoCulto`: até 20/9 o número vem do campo "Mensagem" da Base
-Pessoal (a equipa trata-o como a contagem do auditório), a partir de
-27/9 do Mapa.
-
-**Ocupação do auditório = pessoas no auditório / capacidade do
-auditório** (todos os lugares, reservados incluídos) —
-`ocupacaoDoCulto` (`lib/presenca.js`), pedido 2026-09. Já foi a
-`percentagem` do resumo do mapa (lugares marcados / capacidade útil),
-que em 6/9 dava 64% com 130 pessoas em 144 lugares. As pessoas são o
-mesmo número do auditório da "Presença na igreja", para os dois
-ecrãs nunca discordarem. Pode passar de 100%.
+**Auditório e visitantes vêm do Mapa da Base Pessoal, em todos os
+domingos** (pedido 2026-09 — já foi a Contagem manual até 20/9).
+**Pessoas no auditório = ocupados + visitantes** ("são 85 ocupados + 5
+visitantes, e só" — reservados e bloqueados não contam), e a
+**ocupação = pessoas / capacidade útil** (os lugares sem reservados e
+bloqueados): "Pessoas no auditório: 90 de 144". `presencaDoCulto` e
+`ocupacaoDoCulto` (`lib/presenca.js`) usam o mesmo número; o Domingo
+também ("No auditório", visitantes e apelo).
 
 **"O culto começa a horas?" mostra seis blocos fixos** (`BLOCOS`,
 `Numeros.jsx`): Louvor, Contribua, Vídeos, Visitantes, Mensagem e
