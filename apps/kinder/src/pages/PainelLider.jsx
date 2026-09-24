@@ -10,7 +10,6 @@ import SheetLigarPessoa from "@portal/shared/components/SheetLigarPessoa.jsx";
 import SheetPerguntaLigacao from "@portal/shared/components/SheetPerguntaLigacao.jsx";
 import SheetExcluirCulto from "@portal/shared/components/SheetExcluirCulto.jsx";
 import SheetEscala from "../components/painel/SheetEscala";
-import SheetNovoCulto from "../components/painel/SheetNovoCulto";
 import SheetPessoa from "../components/painel/SheetPessoa";
 import SheetRemoverPessoa from "../components/painel/SheetRemoverPessoa";
 import SheetDefinicoesBase from "../components/painel/SheetDefinicoesBase";
@@ -115,7 +114,7 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
               return (
                 <div className="linha" style={{ cursor: "pointer" }} key={ev.id} onClick={() => setSheet({ tipo: "escala", eventoId: ev.id })}>
                   <div style={{ flex: 1 }}>
-                    <p className="nmt">{nomeEvento(ev)}{ev.tipo && <span className="tag esp">especial</span>}</p>
+                    <p className="nmt">{nomeEvento(ev)}</p>
                     <p className="ds">{pessoas.length ? `${porSala} · ${mestrasDefinidas}/${salasRelevantes.length} mestras definidas` : "Ninguém escalado"}</p>
                   </div>
                   {pessoas.length ? <Avatares pessoas={pessoas.slice(0, 4)} /> : <span className="tag cinz">definir</span>}
@@ -123,7 +122,6 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
                 </div>
               );
             })}
-            <button className="btn sec full" style={{ marginTop: 14 }} onClick={() => setSheet({ tipo: "novoCulto" })}>Adicionar culto especial</button>
           </div>
 
           <div className="sect">
@@ -225,9 +223,6 @@ export default function PainelLider({ papel, pessoa, definirCabecalho, aoVoltar 
           onVoltar={(eventoId) => setSheet({ tipo: "escala", eventoId })}
           onExcluido={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }}
         />
-      )}
-      {sheet?.tipo === "novoCulto" && (
-        <SheetNovoCulto ano={ano} mes={mes} onFechar={() => setSheet(null)} onGuardado={(msg) => { setSheet(null); recarregarMes(); torrada(msg); }} />
       )}
       {sheet?.tipo === "perguntaLigacao" && (
         <SheetPerguntaLigacao onFechar={() => setSheet(null)} onNao={() => setSheet({ tipo: "pessoa" })} onSim={() => setSheet({ tipo: "ligarPessoa" })} />

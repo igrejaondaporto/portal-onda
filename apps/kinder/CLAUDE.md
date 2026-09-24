@@ -45,6 +45,16 @@ reconfigurar nada. `App.jsx` trata sessão anónima como "sem sessão"
 (`!utilizador.isAnonymous`), para o kiosk nunca ser confundido com
 login do Portal.
 
+## Só domingos normais — sem cultos especiais
+
+Pedido da líder (2026-09): a Kinder só serve nos domingos. Os cultos
+especiais (`eventos/{e}.tipo` preenchido — os domingos de
+`gerarDomingos` têm `tipo:null`) não aparecem em lado nenhum desta app:
+saem em `visivelParaBase` (`lib/painel.js`), por onde passam a Escala,
+o Painel, as Lições, a Checklist, o Início e os Relatórios. Saiu também
+o "Adicionar culto especial" do Painel (um culto criado ali sumia logo
+a seguir). O check-in não depende disto — usa o dia de hoje.
+
 ## Vocabulário
 
 | Termo | O que é |
@@ -127,6 +137,15 @@ mostra os três blocos (Baby/Fun/Júnior) sempre coloridos na cor cheia
 da sala, um divisor por bloco (`salasQuadro` em `Escala.jsx`) — e o
 nome de quem serve fica sempre em branco, nunca tingido pela sala
 (a cor já está no fundo do bloco; só quem és tu fica sublinhado).
+
+**Inventário aberto a qualquer voluntário (2026-09).** Criar, editar
+e remover itens deixou de ser só das líderes — `exigeGestorInventario`
+(`functions/index.js`, `BASES_INVENTARIO_ABERTO`) deixa passar
+qualquer pessoa da Kinder, e `Inventario.jsx` mostra "Adicionar item"
+e "Editar" a todos. A **lista de compras** (o ➕🛒 em cada item, a
+lista aberta e as salvas) continua só das líderes (`podeGerirCompras`
+= `souLider`), e a foto do item também (`podeFoto`; `storage.rules`
+só deixa o líder subir).
 
 A aba "Compras" (`Inventario.jsx` — o nome do ficheiro ficou, só o
 rótulo mudou) é a única exceção a "sem sala não vê nada": a lista de
@@ -324,6 +343,10 @@ A aba "Lições" mostra um bloco por culto do mês (estilo Escala —
 omissão, com as lições desse dia lá dentro; quem não tiver
 `eventoId` (ou for de um culto fora do mês visível) cai numa secção
 "Sem culto marcado" à parte, sempre visível, para nunca desaparecer.
+**Corrigido 2026-09:** "fora do mês visível" já não conta como sem
+culto — as lições do mês seguinte caíam todas ali. Agora a secção só
+leva a lição sem `eventoId`, ou marcada num dia do mês visível que já
+não tem culto; uma lição de outro mês aparece no mês dela.
 `Licao.jsx` recebe `mes`/`ano`/`mudarMes` de `Sessao.jsx` — o mesmo
 "mês atual" partilhado com Início/Escala/Culto, não um estado à
 parte.

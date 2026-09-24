@@ -45,10 +45,15 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
   const novas = visiveis.filter((l) => !vistas.has(l.id)).length;
   const licaoAberta = licoes.find((l) => l.id === aberta) ?? null;
   // um bloco por culto do mês (estilo Escala) — dentro de cada um, as
-  // lições desse dia; quem não tiver eventoId (ou for de outro mês)
-  // cai na secção "sem culto marcado" abaixo, para nunca desaparecer.
+  // lições desse dia. "Sem culto marcado" é só para a lição sem
+  // eventoId, ou marcada num dia DESTE mês que já não tem culto (culto
+  // apagado/especial) — nunca desaparece. Uma lição de outro mês
+  // aparece no mês dela, não aqui (reportado 2026-09: as do mês
+  // seguinte caíam todas nesta secção).
   const idsEventosMes = new Set(eventosMes.map((e) => e.id));
-  const semCultoMarcado = visiveis.filter((l) => !l.eventoId || !idsEventosMes.has(l.eventoId));
+  const prefixoMes = `${ano}-${String(mes + 1).padStart(2, "0")}`;
+  const semCultoMarcado = visiveis.filter((l) =>
+    !l.eventoId || (l.eventoId.startsWith(prefixoMes) && !idsEventosMes.has(l.eventoId)));
   // Mestra da própria sala ganha a mesma permissão da líder para
   // publicar/editar a lição do dia — mas só nesse culto específico
   // (o servidor, guardarLicaoKinder, confirma contra a Escala de
