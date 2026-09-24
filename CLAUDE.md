@@ -188,6 +188,12 @@ NÍVEL DE DOCUMENTO (fora de arrays) podem continuar a usar
 7. **O culto pertence à igreja, não à base.** `eventos/{AAAA-MM-DD}` é
    global; `eventos/{e}/escalas/{baseId}` é da base. O PDF da ordem do
    culto sobe uma vez para todas.
+   Desde 2026-09 pode haver **mais de um evento no mesmo dia** (a horas
+   diferentes, criados pela agenda do Painel Pastoral): o primeiro
+   continua com o id `AAAA-MM-DD`, os seguintes ficam `AAAA-MM-DD-HHMM`.
+   Ler sempre os eventos pelo campo `data`, nunca montar o id a partir
+   da data (a não ser para "o culto principal de hoje", que é o de id
+   = data).
 8. Português de Portugal, tratamento por tu, em todas as bases.
 9. **`pessoas/{id}` nunca leva um id "nome cru"** (`"camila"`, `"alan"`,
    `"joao"`...) num seed. Já aconteceu colidir com uma pessoa real de
