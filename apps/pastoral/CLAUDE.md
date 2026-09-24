@@ -500,6 +500,45 @@ Três regras, e nenhuma é de gosto:
   atraso verde num ecrã e laranja no outro seria pior do que não
   mostrar nada. E nunca só cor: leva sempre os minutos por extenso.
 
+**"Presença na igreja" tem UMA conta, em `lib/presenca.js`** — usada
+pelo gráfico de colunas (`ColunasPresenca.jsx`), pelos cartões do topo
+de Números e pelo cartão do Mapa de Calor. Auditório + voluntários +
+crianças, com os visitantes à parte. De onde vem cada parte (decisão
+do dono do produto, 2026-09):
+
+| Parte | Até 20/9 | A partir de 27/9 (`MAPA_DESDE`) |
+|---|---|---|
+| Auditório | Contagem, categoria `mensagem` | Mapa: ocupados + visitantes + reservados + bloqueados |
+| Visitantes | Contagem, `visitantes` | Mapa, `visitantes` |
+| Voluntários | escalas publicadas das dez bases (`c.voluntarios`) | igual |
+| Crianças | Contagem: baby/fun/junior/juniorFun/shift/new | igual (o contador no Início de cada sala) |
+
+Sem recurso à outra fonte: um domingo sem a fonte do seu período fica
+fora do gráfico (20/9 não teve Contagem — não aparece), em vez de
+aparecer com um número de outro sistema a parecer comparável. O mapa
+dos domingos antigos ficava bem abaixo da contagem à mão (13/9: 112
+contra 129) — trocá-los para trás fazia-os parecer fracos.
+
+Colunas empilhadas e não linha: é parte de um todo ao longo do tempo.
+Cores validadas (`#2640c5`/`#0092d4`/`#ff2e88` — o `--azul` #0019be
+é escuro demais ao lado de outras duas). Com mais de ~10 domingos o
+gráfico desliza dentro do cartão e abre no mais recente.
+
+O Domingo segue a mesma regra na linha "X visitantes neste culto":
+do Mapa a partir de `MAPA_DESDE` (com "Y no apelo" — manter o dedo
+no Mapa da Pessoal), da Contagem manual antes.
+
+**As datas dos gráficos de linha moram numa linha fixa por baixo**
+(`LinhaTempo.jsx`), nunca coladas à bolinha. E a área do gráfico é uma
+caixa sem padding (`.pa-graf-area`): com o padding das datas na mesma
+caixa de altura fixa, o SVG desenhava-se numa caixa e as bolinhas
+noutra ~30px mais alta — nenhuma bolinha ficava em cima da linha (o
+bug "a data não fica no sítio certo", 2026-09).
+
+**Crianças mostra sempre Fun e Júnior**, com "—" enquanto não houver
+número; até 13/9 as duas salas contavam-se juntas (`juniorFun`), que
+aparece numa linha à parte com esse nome — nunca dividida às duas.
+
 `components/Barras.jsx` é o do Financeiro com uma diferença — o
 `formatar` entra por prop, porque aqui o valor nem sempre é dinheiro.
 
@@ -509,7 +548,10 @@ Três regras, e nenhuma é de gosto:
   checklist mostra `null`, não 0% — aparecer a vermelho todas as
   semanas ensina a ignorar a cor, e aí a cor deixa de servir para o
   resto.
-- **Só contagens fechadas entram nas tendências — EXCETO a acomodação.**
+- **Só contagens fechadas entram nas tendências — EXCETO a acomodação
+  e a presença por domingo** (esta lê uma categoria só da Contagem,
+  `mensagem`/`visitantes`, que ou está preenchida ou não — não há
+  "a meio"; ver "Presença na igreja" acima).
   Uma contagem a meio apareceria no gráfico como um domingo fraco, e
   não é isso que aconteceu — é só que ninguém acabou de contar ainda.
   O mapa do auditório é a exceção deliberada (pedido 2026-09): entra

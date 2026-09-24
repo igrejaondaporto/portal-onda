@@ -69,9 +69,11 @@
 .pa-graf {
   position: relative;
   margin-top: 14px;
-  /* espaço para a data por baixo de um ponto no fundo do gráfico
-     (valor 0 → y:100%) não ficar cortada */
-  padding-bottom: 30px;
+  /* espaço para a linha das datas, por baixo da área */
+  padding-bottom: 26px;
+}
+.pa-graf-area {
+  position: relative;
 }
 .pa-graf-svg {
   width: 100%;
@@ -134,15 +136,27 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-/* a data de cada ponto rotulado, sempre por baixo da própria bolinha
-   — em px fixos a partir do centro, não em %, para não depender da
-   altura do gráfico */
+/* a data de cada ponto rotulado, numa linha FIXA por baixo do
+   gráfico (ver LinhaTempo.jsx) — nunca a seguir a altura do ponto */
 .pa-graf-data {
   position: absolute;
-  transform: translate(-50%, 11px);
+  top: 100%;
+  transform: translate(-50%, 7px);
   font-size: 10.5px;
   color: var(--cinza);
   white-space: nowrap;
+  pointer-events: none;
+}
+.pa-graf-data.on {
+  color: var(--tinta);
+  font-weight: 700;
+}
+/* do ponto mostrado até ao eixo */
+.pa-graf-guia {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid rgba(10, 15, 46, 0.18);
   pointer-events: none;
 }
 /* série curta com TODOS os pontos rotulados (`todosRotulados` em
@@ -666,4 +680,291 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 2px;
+}
+
+/* ── Presença na igreja: colunas empilhadas ──────────────────
+ * Ver ColunasPresenca.jsx. As colunas medem-se em px, não esticam:
+ * com poucos domingos centram-se no espaço; com muitos, o trilho
+ * desliza dentro do cartão (a página nunca). */
+.pc {
+  margin-top: 12px;
+}
+.pc-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+.pc-legenda span,
+.pc-partes li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.pc-legenda i,
+.pc-partes i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.pc-corpo {
+  display: flex;
+  margin-top: 30px;
+}
+/* os valores da grelha numa calha própria à esquerda, fora do trilho
+   que desliza — senão sumiam ao deslizar para trás */
+.pc-eixo {
+  position: relative;
+  width: 30px;
+  flex: none;
+}
+.pc-eixo span {
+  position: absolute;
+  right: 6px;
+  transform: translateY(50%);
+  font-size: 10px;
+  color: var(--cinza);
+  font-variant-numeric: tabular-nums;
+}
+.pc-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* espaço para o número em cima da coluna mais alta */
+  padding-top: 20px;
+  margin-top: -20px;
+  scrollbar-width: none;
+}
+.pc-scroll::-webkit-scrollbar {
+  display: none;
+}
+/* a borda do lado que desliza desvanece — diz "há mais para trás"
+   sem precisar de ler a legenda */
+.pc-scroll.desliza {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22px);
+  mask-image: linear-gradient(90deg, transparent 0, #000 22px);
+}
+.pc-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid rgba(10, 15, 46, 0.28);
+}
+/* grelha: fios sólidos e finos, um tom acima do fundo */
+.pc-fio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--fio);
+  pointer-events: none;
+}
+.pc-col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.pc-pilha {
+  position: relative;
+  width: 60%;
+  max-width: 24px;
+  display: flex;
+  flex-direction: column-reverse;
+  /* o espaço de 2px entre partes é da cor da superfície — separa as
+     cores sem desenhar contornos */
+  gap: 2px;
+  transition: opacity 0.15s;
+}
+.pc-seg {
+  flex-basis: 0;
+  min-height: 3px;
+}
+/* só a ponta de cima é redonda; o chão fica reto, assente no eixo */
+.pc-seg:last-child {
+  border-radius: 4px 4px 0 0;
+}
+.pc-col:not(.on) .pc-pilha {
+  opacity: 0.62;
+}
+.pc-total {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -4px);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cinza);
+  white-space: nowrap;
+}
+.pc-col.on .pc-total {
+  color: var(--tinta);
+  font-size: 12.5px;
+}
+/* as datas numa linha FIXA por baixo das colunas — cada uma
+   centrada debaixo da sua, sempre à mesma altura */
+.pc-datas {
+  display: flex;
+  padding-top: 7px;
+}
+.pc-datas span {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 9.5px;
+  letter-spacing: -0.02em;
+  color: var(--cinza);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pc-datas span.on {
+  color: var(--tinta);
+  font-weight: 700;
+}
+.pc-dica {
+  margin-top: 6px;
+  text-align: right;
+}
+.pc-detalhe {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--agua);
+}
+.pc-detalhe-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pc-fonte {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cinza);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+.pc-partes {
+  list-style: none;
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pc-partes li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--cinza);
+}
+.pc-partes li i {
+  margin-bottom: 3px;
+}
+.pc-partes li b {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Números: o cartão de cima e os quatro números por baixo ── */
+.nm-heroi {
+  margin-top: 12px;
+  border-radius: 22px;
+  padding: 20px 20px 18px;
+  background: var(--grad);
+  color: #fff;
+}
+.nm-heroi .rotulo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.nm-heroi .valor {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.nm-heroi .sub {
+  font-size: 13px;
+  opacity: 0.82;
+  margin-top: 6px;
+}
+.nm-heroi .sub b {
+  color: var(--lima);
+}
+.nm-quatro {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.nm-quatro > div {
+  background: var(--agua);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.nm-quatro p {
+  font-size: 12px;
+  color: var(--cinza);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nm-quatro i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.nm-quatro b {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.nm-quatro small {
+  font-size: 11px;
+  color: var(--cinza);
+}
+/* um título de grupo acima de cada bloco de secções (Presença,
+   Visitantes, Equipa…) — dá para ler a aba por partes em vez de uma
+   lista de dez gráficos iguais */
+.nm-grupo {
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--fio);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--azul);
 }

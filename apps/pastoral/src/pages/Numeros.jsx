@@ -3,6 +3,8 @@ import { corrigirDuracaoSecaoCulto, historicoPastoral } from "../lib/pastoral";
 import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
+import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
+import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto } from "../lib/presenca";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -92,53 +94,41 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
   /* ── presença domingo a domingo ──────────────────────────── */
 
-  /** Só as contagens FECHADAS entram. Uma contagem a meio (metade das
-   *  categorias ainda por preencher) apareceria no gráfico como um
-   *  domingo fraco, e não é isso que aconteceu — é só que ninguém
-   *  acabou de contar ainda. */
-  const presencas = useMemo(() => {
-    if (!dados) return [];
-    return dados.cultos
-      .filter((c) => c.contagem?.finalizada && c.contagem.auditorio !== null)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.contagem.auditorio }));
-  }, [dados]);
-
-  /** "Presença na igreja", domingo a domingo — voluntários (escalados
-   *  nas dez bases) + auditório (o mapa lugar a lugar, ocupados +
-   *  visitantes + bloqueados/reservados) + crianças (Kinder/SHIFT/New,
-   *  pelas categorias automáticas da Contagem). MESMA conta do cartão
-   *  do Mapa de Calor logo abaixo (ver o comentário em
-   *  `MapaCalor.jsx`) — reportado 2026-09: este gráfico ainda somava
-   *  `contagem.auditorio` (visitantes+voluntários DIGITADOS à mão na
-   *  Contagem da Pessoal), que é outra coisa; as duas contas podem
-   *  discordar, e mostrar duas "Presença na igreja" diferentes no
-   *  mesmo painel era o problema. Só entra o domingo com pelo menos um
-   *  mapa começado (`c.acomodacao`) — sem mapa nenhum não há "auditório"
-   *  para somar, e mostrar um zero enganava como "domingo fraco". */
+  /** A presença de cada culto, já partida em auditório/voluntários/
+   *  crianças — a conta (e DE ONDE vem cada parte: a Contagem até
+   *  20/9, o Mapa a partir de 27/9, pedido 2026-09) vive em
+   *  `lib/presenca.js`, a mesma que o cartão do Mapa de Calor usa.
+   *  Só entram os domingos em que se sabe o auditório — é a maior
+   *  parte, e um total sem ela seria um "domingo fraco" que não foi.
+   *
+   *  Já foi `contagem.auditorio` (visitantes+voluntários digitados na
+   *  Contagem, só contagens fechadas) e depois o mapa para todos os
+   *  domingos — nenhum dos dois era o que a equipa queria ver. */
   const presencaIgreja = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
-      .filter((c) => c.acomodacao)
-      .map((c) => {
-        const a = c.acomodacao;
-        const marcados = a.ocupados + a.visitantes;
-        const bloqueados = a.reservados + a.bloqueados;
-        const criancas = (c.contagem?.baby ?? 0) + (c.contagem?.fun ?? 0) + (c.contagem?.junior ?? 0);
-        return { chave: c.eventoId, rotulo: dataCurta(c.data), valor: marcados + bloqueados + c.voluntarios + criancas };
-      });
+      .map((c) => ({ c, p: presencaDoCulto(c) }))
+      .filter(({ p }) => p.total !== null)
+      .map(({ c, p }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), data: c.data, ...p }));
   }, [dados]);
 
+  /** Visitantes por domingo — da mesma fonte que o auditório desse
+   *  domingo (Contagem até 20/9, Mapa depois), nunca misturado. */
   const visitantes = useMemo(() => {
     if (!dados) return [];
     return dados.cultos
-      .filter((c) => c.contagem?.finalizada && c.contagem.visitantes !== null)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.contagem.visitantes }));
+      .map((c) => ({ c, p: presencaDoCulto(c) }))
+      .filter(({ p }) => p.visitantes !== null)
+      .map(({ c, p }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: p.visitantes }));
   }, [dados]);
 
-  const mediaPresenca = presencas.length
-    ? Math.round(presencas.reduce((t, p) => t + p.valor, 0) / presencas.length)
-    : null;
-
+  const mediaPresenca = media(presencaIgreja.map((p) => p.total));
+  const ultimaPresenca = presencaIgreja.at(-1) ?? null;
+  const medias = {
+    auditorio: media(presencaIgreja.map((p) => p.auditorio)),
+    voluntarios: media(presencaIgreja.map((p) => p.voluntarios)),
+    criancas: media(presencaIgreja.map((p) => p.criancas)),
+  };
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
 
   /** Quantos visitantes ficaram CADASTRADOS no Formulário da Base
@@ -300,18 +290,22 @@ export default function Numeros({ ativo, definirCabecalho }) {
   const criancasPorSala = useMemo(() => {
     if (!dados) return [];
     const cultosComContagem = dados.cultos.filter((c) => c.contagem);
-    if (!cultosComContagem.length) return [];
-    const media = (chave) => {
-      const vals = cultosComContagem.map((c) => c.contagem[chave]).filter((n) => n !== null && n !== undefined);
-      return vals.length ? Math.round(vals.reduce((t, n) => t + n, 0) / vals.length) : null;
-    };
+    const mediaDe = (chave) => media(cultosComContagem.map((c) => c.contagem[chave]));
+    // Fun e Júnior aparecem SEMPRE, mesmo sem número ainda ("falta o
+    // Júnior e o Fun", reportado 2026-09): até 13/9 as duas salas
+    // contavam-se juntas (`juniorFun`, categoria antiga), por isso num
+    // período só com domingos antigos não havia nenhum `fun`/`junior`
+    // e as duas linhas desapareciam. A antiga fica numa linha à parte,
+    // com o nome a dizer o que é — somá-la a uma das duas inventava
+    // uma divisão que ninguém fez.
     return [
-      { chave: "baby", rotulo: "Baby", valor: media("baby") },
-      { chave: "fun", rotulo: "Fun", valor: media("fun") },
-      { chave: "junior", rotulo: "Júnior", valor: media("junior") },
-      { chave: "new", rotulo: "New", valor: media("new") },
-      { chave: "shift", rotulo: "Shift", valor: media("shift") },
-    ].filter((s) => s.valor !== null);
+      { chave: "baby", rotulo: "Baby", valor: mediaDe("baby") },
+      { chave: "fun", rotulo: "Fun", valor: mediaDe("fun"), sempre: true },
+      { chave: "junior", rotulo: "Júnior", valor: mediaDe("junior"), sempre: true },
+      { chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 13/9)", valor: mediaDe("juniorFun") },
+      { chave: "new", rotulo: "New", valor: mediaDe("new") },
+      { chave: "shift", rotulo: "Shift", valor: mediaDe("shift") },
+    ].filter((s) => s.sempre || s.valor !== null);
   }, [dados]);
 
   useEffect(() => {
@@ -321,7 +315,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
       subtitulo: "O que os domingos dizem, ao longo do tempo",
       chips: dados ? [
         `${dados.cultos.length} cultos`,
-        mediaPresenca ? `${mediaPresenca} de média` : "sem contagens fechadas",
+        mediaPresenca ? `${mediaPresenca} de média` : "sem presenças contadas",
       ] : [],
     });
   }, [ativo, definirCabecalho, dados, mediaPresenca]);
@@ -339,43 +333,46 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
       {dados && (
         <>
-          <div className="dupla" style={{ marginTop: 12 }}>
-            <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
-              <p className="ds" style={{ marginTop: 0 }}>Presença média</p>
-              <p className="pa-num">{mediaPresenca ?? "—"}</p>
-              <p className="ds" style={{ marginTop: 2 }}>em {presencas.length} domingo{presencas.length === 1 ? "" : "s"} contado{presencas.length === 1 ? "" : "s"}</p>
-            </div>
-            <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
-              <p className="ds" style={{ marginTop: 0 }}>Visitantes</p>
-              <p className="pa-num">{totalVisitantes || "—"}</p>
-              <p className="ds" style={{ marginTop: 2 }}>no período</p>
+          {/* o número que se procura primeiro, e as três partes dele
+              com a mesma cor do gráfico logo abaixo */}
+          <div className="nm-heroi">
+            <p className="rotulo">Presença na igreja</p>
+            <p className="valor">{mediaPresenca ?? "—"}</p>
+            <p className="sub">
+              {mediaPresenca === null
+                ? "Ainda nenhum domingo contado neste período."
+                : <>em média por domingo · <b>{ultimaPresenca.total}</b> no último <span style={{ whiteSpace: "nowrap" }}>({ultimaPresenca.rotulo})</span></>}
+            </p>
+          </div>
+          <div className="nm-quatro">
+            {SERIES.map((s) => (
+              <div key={s.chave}>
+                <p><i style={{ background: s.cor }} />{s.rotulo}</p>
+                <b>{medias[s.chave] ?? "—"}</b>
+                <small>média por domingo</small>
+              </div>
+            ))}
+            <div>
+              <p>Visitantes</p>
+              <b>{visitantes.length ? totalVisitantes : "—"}</b>
+              <small>no período</small>
             </div>
           </div>
 
-          <div className="sect">
+          <p className="nm-grupo">Presença</p>
+          <div className="sect" style={{ paddingTop: 10 }}>
             <div className="cabecalho">
-              <h3>Presença na igreja</h3>
-              <span className="cap">voluntários + auditório + crianças</span>
+              <h3>Por domingo</h3>
+              {presencaIgreja.length > 0 && <span className="cap">toca numa coluna</span>}
             </div>
-            <LinhaTempo
+            <p className="ds" style={{ marginTop: 0 }}>
+              Auditório e visitantes pelo relatório de Contagem até {dataCurta(CONTAGEM_ATE)}; pelo Mapa a partir
+              de {dataCurta(MAPA_DESDE)}. Voluntários pelas escalas das bases; crianças pelo contador de cada sala.
+            </p>
+            <ColunasPresenca
               pontos={presencaIgreja}
-              vazio="Ainda não há nenhum mapa do auditório começado neste período."
+              vazio="Ainda não há nenhum domingo com o auditório contado neste período."
             />
-          </div>
-
-          <div className="sect">
-            <div className="cabecalho"><h3>Visitantes por domingo</h3><span className="cap">(Contados pela base pessoal)</span></div>
-            <LinhaTempo pontos={visitantes} vazio="Sem visitantes registados neste período." />
-          </div>
-
-          <div className="sect">
-            <div className="cabecalho"><h3>Visitantes cadastrados</h3><span className="cap">(foram na salinha)</span></div>
-            <LinhaTempo pontos={visitantesCadastrados} vazio="Ainda não há contactos registados neste período." />
-          </div>
-
-          <div className="sect">
-            <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">nas dez bases</span></div>
-            <LinhaTempo pontos={voluntariosPorCulto} todosRotulados vazio="Ainda não há escalas publicadas neste período." />
           </div>
 
           <div className="sect">
@@ -393,12 +390,30 @@ export default function Numeros({ ativo, definirCabecalho }) {
             />
           </div>
 
+          <p className="nm-grupo">Visitantes</p>
+          <div className="sect" style={{ paddingTop: 10 }}>
+            <div className="cabecalho"><h3>Por domingo</h3><span className="cap">no auditório</span></div>
+            <LinhaTempo pontos={visitantes} vazio="Sem visitantes registados neste período." />
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho"><h3>Cadastrados</h3><span className="cap">foram à salinha</span></div>
+            <LinhaTempo pontos={visitantesCadastrados} vazio="Ainda não há contactos registados neste período." />
+          </div>
+
+          <p className="nm-grupo">Equipa e crianças</p>
+          <div className="sect" style={{ paddingTop: 10 }}>
+            <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">nas dez bases</span></div>
+            <LinhaTempo pontos={voluntariosPorCulto} todosRotulados vazio="Ainda não há escalas publicadas neste período." />
+          </div>
+
           <div className="sect">
             <div className="cabecalho"><h3>Crianças</h3><span className="cap">média por domingo</span></div>
             <Barras linhas={criancasPorSala} vazio="Ainda não há contagem de crianças neste período." />
           </div>
 
-          <div className="sect">
+          <p className="nm-grupo">Ofertas</p>
+          <div className="sect" style={{ paddingTop: 10 }}>
             <div className="cabecalho"><h3>Ofertas</h3><span className="cap">{eur(totalOferta)} no período</span></div>
             <p className="ds" style={{ marginTop: 0 }}>Evolução por domingo</p>
             <LinhaTempo pontos={ofertaPorDomingo} formatar={eur} vazio="Ainda não há contagens de oferta." />
@@ -406,7 +421,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
             <Barras linhas={ofertaPorMes} formatar={eur} vazio="Ainda não há contagens de oferta." />
           </div>
 
-          <div className="sect">
+          <p className="nm-grupo">O culto</p>
+          <div className="sect" style={{ paddingTop: 10 }}>
             <div className="cabecalho">
               <h3>O culto começa a horas?</h3>
               <span className="cap">{cultosComRegisto.length} cultos registados</span>

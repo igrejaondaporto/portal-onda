@@ -578,6 +578,9 @@ function resumirAcomodacao(a) {
   return {
     ocupados: a.ocupados ?? 0,
     visitantes: a.visitantes ?? 0,
+    // null num resumo fechado antes de 2026-09 (ainda não existia) —
+    // "não se sabe", não zero
+    apelo: typeof a.apelo === "number" ? a.apelo : null,
     livres: a.livres ?? 0,
     reservados: a.reservados ?? 0,
     bloqueados: a.bloqueados ?? 0,
@@ -595,13 +598,20 @@ function resumirAcomodacao(a) {
  *  isto. Pedido explícito (2026-09): "azar dela" — quem preencheu o
  *  mapa mas não fechou não deve sumir das estatísticas por isso. */
 function resumoAcomodacaoAoVivo(lugares) {
-  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0 };
+  // "apelo"/"apeloVisitante" (2026-09): quem respondeu ao apelo — o
+  // gesto de manter o dedo no Mapa, que antes bloqueava a cadeira.
+  // Continua a ser uma pessoa sentada: conta em ocupados/visitantes
+  // como antes, e À PARTE em `apelo`.
+  const contagem = { livre: 0, ocupado: 0, visitante: 0, reservado: 0, bloqueado: 0, apelo: 0, apeloVisitante: 0 };
   Object.values(lugares).forEach((estado) => { if (estado in contagem) contagem[estado]++; });
-  const ocupados = contagem.ocupado + contagem.visitante;
+  const soOcupados = contagem.ocupado + contagem.apelo;
+  const soVisitantes = contagem.visitante + contagem.apeloVisitante;
+  const ocupados = soOcupados + soVisitantes;
   const capacidadeUtil = Object.keys(lugares).length - contagem.reservado - contagem.bloqueado;
   return {
-    ocupados: contagem.ocupado,
-    visitantes: contagem.visitante,
+    ocupados: soOcupados,
+    visitantes: soVisitantes,
+    apelo: contagem.apelo + contagem.apeloVisitante,
     livres: contagem.livre,
     reservados: contagem.reservado,
     bloqueados: contagem.bloqueado,
