@@ -524,6 +524,10 @@ Cores validadas (`#2640c5`/`#0092d4`/`#ff2e88` — o `--azul` #0019be
 é escuro demais ao lado de outras duas). Com mais de ~10 domingos o
 gráfico desliza dentro do cartão e abre no mais recente.
 
+O Domingo segue a mesma regra na linha "X visitantes neste culto":
+do Mapa a partir de `MAPA_DESDE` (com "Y no apelo" — manter o dedo
+no Mapa da Pessoal), da Contagem manual antes.
+
 **As datas dos gráficos de linha moram numa linha fixa por baixo**
 (`LinhaTempo.jsx`), nunca coladas à bolinha. E a área do gráfico é uma
 caixa sem padding (`.pa-graf-area`): com o padding das datas na mesma
