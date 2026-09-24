@@ -109,6 +109,14 @@ para corrigir. Escreve direto em `eventos/{e}/contagem/geral`
 (`functions/contagemSalas.js`, partilhada com Kinder e SHIFT) — a
 Contagem da Base Pessoal, que o Painel Pastoral também lê.
 
+**Quem e quando (mudou 2026-09):** aparece a QUALQUER pessoa da base,
+não só a quem lidera; marca quem chegar primeiro, se ainda estiver
+vazio, e depois só o líder (ou auxiliar) corrige — o servidor recusa o
+resto (`functions/contagemSalas.js`). A pergunta é sobre o domingo mais
+recente até hoje (`domingoDaContagem`, `lib/contagemCriancas.js`), por
+isso fica pendente no Início durante a semana até alguém marcar; o
+popup só abre sozinho no próprio domingo.
+
 ## Detalhes ainda por fechar com o líder
 
 - Chegada, cor, nome bonito das funções, se há ministérios (hoje

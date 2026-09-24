@@ -445,6 +445,19 @@ cheia (`.kin-num.porfazer`) para continuar a chamar a atenção mesmo
 que o popup tenha sido fechado sem preencher. Tocar reabre o mesmo
 popup para corrigir.
 
+
+**Quem e quando (mudou 2026-09, "se ninguém da base marcar, deixar a
+pergunta pendente até alguém marcar"):** aparece a QUALQUER
+voluntário, não só às líderes — cada um vê e marca a sua sala (a líder
+geral, as três), mas só se ainda estiver vazia; depois de marcada, só
+a líder (geral ou de sala, `souLider`) corrige — o servidor recusa o
+resto. A pergunta é sobre o domingo mais recente até hoje
+(`domingoDaContagem`, `lib/contagemCriancas.js`: o id do culto de
+domingo é a própria data), por isso fica pendente no Início durante a
+semana até alguém marcar — com um `.destaque` "A precisar de ti" por
+cima. O popup só abre sozinho no próprio domingo. É daqui que o Painel
+Pastoral tira as crianças da "Presença na igreja".
+
 ## Checklist da sala — Pré-culto/Durante/Pós-culto
 
 Mesmo padrão de fases das outras bases (Apoio, Backstage,

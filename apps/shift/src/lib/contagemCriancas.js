@@ -21,3 +21,14 @@ export const ouvirContagemPessoal = (eventoId, cb) => {
 
 export const registarContagemSala = (eventoId, categoria, valor) =>
   chamar("registarContagemSala")({ eventoId, categoria, valor }).then((r) => r.data);
+
+/** O domingo cuja contagem se pergunta: o mais recente até hoje (hoje,
+ *  se for domingo). O id do culto de domingo é a própria data
+ *  (`gerarDomingos`) — o primeiro evento de cada dia fica sempre com
+ *  id = data, por isso não é preciso procurar nos eventos do mês (que
+ *  na segunda-feira dia 1 já nem teriam o domingo anterior). */
+export function domingoDaContagem(agora = new Date()) {
+  const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - agora.getDay());
+  const eventoId = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { eventoId, hoje: agora.getDay() === 0 };
+}

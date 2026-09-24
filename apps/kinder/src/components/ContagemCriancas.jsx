@@ -1,23 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { dataCurta } from "@portal/shared/lib/data.js";
 import { CATEGORIAS, nomeCategoria } from "../lib/modelo";
-import { ouvirContagemPessoal, registarContagemSala } from "../lib/contagemCriancas";
+import { domingoDaContagem, ouvirContagemPessoal, registarContagemSala } from "../lib/contagemCriancas";
 
 /**
- * "Quantas crianças estão presentes?" — pedido 2026-09: um popup
- * grande logo no Início do domingo, por sala (Baby/Fun/Júnior); a
- * líder geral vê e preenche as três, uma líder de sala só a própria
- * (mesmo isolamento por sala de sempre, `minhaSalaRestrita`). Depois
- * de preenchido, fica um cartão à vista (cor suave da própria sala,
- * `.kin-num` — já é a versão "menos vibrante" da paleta, ver
- * `varsCategoria`), tocar reabre o mesmo popup para corrigir.
+ * "Quantas crianças estão presentes?" — pedido 2026-09: logo no
+ * Início, por sala (Baby/Fun/Júnior). Escreve na Contagem da BASE
+ * PESSOAL (`registarContagemSala`, `functions/contagemSalas.js`) —
+ * é daí que o Painel Pastoral tira as crianças da "Presença na
+ * igreja". Não é `contagemKinder` (essa é a correção do check-in AO
+ * VIVO, hoje sem uso — `CHECKIN_ATIVO=false`).
  *
- * Escreve na Contagem da BASE PESSOAL (`registarContagemSala`,
- * `functions/contagemSalas.js`), não em `contagemKinder` (essa é a
- * correção do check-in AO VIVO, hoje sem uso — `CHECKIN_ATIVO=false`
- * — e é uma pergunta totalmente diferente).
+ * QUEM (pedido 2026-09, "se ninguém da base marcar, deixar a pergunta
+ * pendente até alguém marcar"):
+ * - QUALQUER voluntário marca a SUA sala, se ainda estiver vazia; a
+ *   líder geral vê e marca as três. Mesmo isolamento por sala de
+ *   sempre (`minhaSalaRestrita`), e o servidor confirma a sala.
+ * - Depois de marcada, SÓ a líder (geral ou de sala) corrige — o
+ *   servidor recusa a um voluntário escrever por cima.
+ *
+ * QUANDO: o domingo mais recente até hoje (`domingoDaContagem`), não
+ * só "hoje". Se ninguém marcou no domingo, a pergunta continua no
+ * Início na segunda, na terça… até alguém marcar ou chegar o domingo
+ * seguinte. O popup grande só abre sozinho NO PRÓPRIO domingo; nos
+ * outros dias fica o cartão "a precisar de ti" à vista, sem saltar
+ * para a cara de ninguém a meio da semana.
  */
-export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita }) {
+export default function ContagemCriancas({ lider, liderGeral, restrita }) {
+  const { eventoId, hoje: eDomingo } = domingoDaContagem();
   const torrada = useTorrada();
   const [contagem, setContagem] = useState(null);
   const [carregado, setCarregado] = useState(false);
@@ -36,6 +47,9 @@ export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita
 
   const valorDe = (id) => contagem?.categorias?.[id]?.valor ?? null;
   const todasPreenchidas = salas.length > 0 && salas.every((s) => valorDe(s.id) != null);
+  // um voluntário só mexe numa sala vazia; a líder mexe sempre
+  const editaveis = lider ? salas : salas.filter((s) => valorDe(s.id) == null);
+  const quando = eDomingo ? "hoje" : dataCurta(eventoId);
 
   // o popup GRANDE aparece sozinho, uma vez, assim que a contagem de
   // hoje carrega e ainda falta preencher alguma sala — pedido
@@ -43,19 +57,20 @@ export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita
   useEffect(() => {
     if (abriuSozinho.current || !carregado || !salas.length) return;
     abriuSozinho.current = true;
-    if (!todasPreenchidas) abrir();
+    if (!todasPreenchidas && eDomingo) abrir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregado, todasPreenchidas, salas.length]);
 
   function abrir() {
-    setRascunhos(Object.fromEntries(salas.map((s) => [s.id, valorDe(s.id) == null ? "" : String(valorDe(s.id))])));
+    if (!editaveis.length) return;
+    setRascunhos(Object.fromEntries(editaveis.map((s) => [s.id, valorDe(s.id) == null ? "" : String(valorDe(s.id))])));
     setAberto(true);
   }
 
   async function guardar() {
     setAGuardar(true);
     try {
-      await Promise.all(salas.map((s) => {
+      await Promise.all(editaveis.map((s) => {
         const texto = String(rascunhos[s.id] ?? "").trim();
         const valorAtual = valorDe(s.id);
         const novoValor = texto === "" ? null : Number(texto);
@@ -71,14 +86,31 @@ export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita
     }
   }
 
-  if (!lider || !eventoId || !salas.length) return null;
+  if (!salas.length || !carregado) return null;
+
+  const faltam = salas.filter((s) => valorDe(s.id) == null);
 
   return (
     <>
+      {faltam.length > 0 && (
+        <div className="destaque" onClick={abrir} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") abrir(); }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>A precisar de ti</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+              Quantas crianças {eDomingo ? "estão" : "estavam"} {faltam.length === 1 ? `na sala ${faltam[0].nome}` : "nas salas"}?
+            </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
+              {eDomingo ? "Hoje" : `Domingo, ${dataCurta(eventoId)}`} · ainda ninguém marcou
+            </p>
+          </div>
+          <span style={{ fontSize: 24 }}>›</span>
+        </div>
+      )}
+
       <div className="sect" data-tour="contagem-criancas-bloco">
-        <div className="cabecalho"><h3>Crianças presentes</h3></div>
+        <div className="cabecalho"><h3>Crianças presentes</h3><span className="cap">{quando}</span></div>
         <div
-          className="kin-grelha" style={{ gridTemplateColumns: `repeat(${salas.length}, 1fr)`, cursor: "pointer" }}
+          className="kin-grelha" style={{ gridTemplateColumns: `repeat(${salas.length}, 1fr)`, cursor: editaveis.length ? "pointer" : "default" }}
           role="button" tabIndex={0} onClick={abrir}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") abrir(); }}
         >
@@ -91,7 +123,9 @@ export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita
             );
           })}
         </div>
-        <p className="ds" style={{ marginTop: 8 }}>Toca para {todasPreenchidas ? "corrigir" : "preencher"}.</p>
+        <p className="ds" style={{ marginTop: 8 }}>
+          {!todasPreenchidas ? "Toca para preencher." : lider ? "Toca para corrigir." : "Já marcado — só a líder pode corrigir."}
+        </p>
       </div>
 
       {aberto && (
@@ -99,9 +133,12 @@ export default function ContagemCriancas({ eventoId, lider, liderGeral, restrita
           <div className="veu on" onClick={() => setAberto(false)} />
           <div className="pin on" role="dialog" aria-modal="true" aria-label="Quantas crianças estão presentes">
             <div className="pux" />
-            <h2>Quantas crianças estão presentes?</h2>
-            <p className="ds" style={{ marginTop: 6 }}>Vai direto para a Contagem da Base Pessoal — não é preciso repetir lá.</p>
-            {salas.map((s) => (
+            <h2>Quantas crianças {eDomingo ? "estão" : "estavam"} presentes?</h2>
+            <p className="ds" style={{ marginTop: 6 }}>
+              {eDomingo ? "Hoje" : `Domingo, ${dataCurta(eventoId)}`}. Vai direto para a Contagem da Base Pessoal — não é
+              preciso repetir lá.{!lider && " Depois de guardado, só a líder pode corrigir."}
+            </p>
+            {editaveis.map((s) => (
               <div key={s.id}>
                 <label className="rot" style={{ marginTop: 14 }}>{nomeCategoria(s.id)}</label>
                 <input
