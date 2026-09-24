@@ -56,7 +56,7 @@ export {
   panoramaPastoral, pessoasPastoral, patrimonioPastoral, historicoPastoral,
   desgastePastoral, moverEtapaContacto, enviarRecadoPastoral, recadosPastoral,
   definirLiderBase, corrigirDuracaoSecaoCulto, arquivarContactoPastoral,
-  criarPessoaPastoral, reporPinPastoral,
+  criarPessoaPastoral, reporPinPastoral, definirTipoCulto,
 } from "./pastoral.js";
 
 // Contagem de crianças por sala (Kinder/SHIFT/New) — escreve direto

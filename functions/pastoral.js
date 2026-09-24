@@ -1003,6 +1003,36 @@ export const arquivarContactoPastoral = onCall(async (req) => {
   }
 });
 
+/** Só a ETIQUETA do culto (`eventos/{e}.tipoCulto`), sem tocar na
+ *  ordem — pedido do dono do produto (2026-09): o Painel Pastoral muda
+ *  a etiqueta, a ordem continua a subir pela Backstage em PDF.
+ *  `publicarOrdemCulto` também grava `tipoCulto`, mas substitui a
+ *  `ordem` inteira e exige `pode_publicar_culto`, que a pastoral não
+ *  tem de propósito (ver apps/pastoral/CLAUDE.md). A Backstage abre o
+ *  seletor dela a partir deste mesmo campo, por isso publicar o PDF
+ *  depois mantém a etiqueta escolhida aqui, a não ser que a mudem lá.
+ *  Só aceita ids do catálogo `config/tiposCulto` — o texto solto de
+ *  "+ Outro" já não existe desde que passou a gravar no catálogo. */
+const TIPOS_CULTO_ARRANQUE = ["ceia", "contribua", "familia"];
+export const definirTipoCulto = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { eventoId, tipoCulto } = req.data || {};
+  if (!eventoId || typeof tipoCulto !== "string") {
+    throw new HttpsError("invalid-argument", "Dados inválidos.");
+  }
+  const cat = await db().doc("config/tiposCulto").get();
+  const lista = cat.exists && Array.isArray(cat.data().lista) && cat.data().lista.length
+    ? cat.data().lista.map((t) => t.id)
+    : TIPOS_CULTO_ARRANQUE;
+  if (!lista.includes(tipoCulto)) {
+    throw new HttpsError("invalid-argument", "Esse tipo de culto não está na lista.");
+  }
+  const ref = db().doc(`eventos/${eventoId}`);
+  if (!(await ref.get()).exists) throw new HttpsError("not-found", "Culto não encontrado.");
+  await ref.set({ tipoCulto }, { merge: true });
+  return { ok: true };
+});
+
 /* ══════════════════════════════════════════════════════════════
  *  RECADO DO PASTOR — de ida, sem resposta
  * ══════════════════════════════════════════════════════════════
