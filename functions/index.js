@@ -168,6 +168,15 @@ async function claimsExtraDaBase(baseId) {
  * sem mexer em mais nada aqui. */
 const refIndisponibilidade = (eventoId, uid) => db.doc(`eventos/${eventoId}/indisponibilidades/${uid}`);
 
+/** Bases fora desta regra, nos dois sentidos: servir nelas não impede
+ *  servir noutra no mesmo culto, nem o contrário. O Louvor Kinder toca
+ *  no culto das crianças, que não choca com servir noutra base
+ *  (pedido 2026-09). Não gravam indisponibilidade (as outras bases leem
+ *  essa marca para acinzentar pessoas — ficam sem mudar) e a checagem
+ *  ignora-as. Entradas antigas foram limpas por
+ *  scripts/limparIndisponibilidadesLouvorKinder.mjs. */
+const BASES_SEM_CONFLITO_CROSS_BASE = new Set(["louvorkinder"]);
+
 async function basesDaPessoa(uid) {
   const g = await refGlobal(uid).get();
   const bases = g.exists ? g.data().bases || {} : {};
@@ -201,10 +210,11 @@ async function nomesDePessoas(baseId, ids) {
  *  raro; `bases/{id}.nome` já existe para todas, nunca precisa de
  *  manutenção quando uma base nova aparecer. */
 async function garantirSemConflitoCrossBase(eventoId, baseId, uid) {
+  if (BASES_SEM_CONFLITO_CROSS_BASE.has(baseId)) return;
   const snap = await refIndisponibilidade(eventoId, uid).get();
   if (!snap.exists) return;
   const origens = snap.data().origens || {};
-  const outraBase = Object.keys(origens).find((b) => b !== baseId);
+  const outraBase = Object.keys(origens).find((b) => b !== baseId && !BASES_SEM_CONFLITO_CROSS_BASE.has(b));
   if (outraBase) {
     const [g, b] = await Promise.all([refGlobal(uid).get(), db.doc(`bases/${outraBase}`).get()]);
     const nome = g.exists ? g.data().nome : "Esta pessoa";
@@ -219,6 +229,7 @@ async function garantirSemConflitoCrossBase(eventoId, baseId, uid) {
  *  "origens.tecnica", não o mapa aninhado (mesmo bug já corrigido em
  *  pessoas/{uid}.bases) — por isso o objeto vem sempre aninhado. */
 async function marcarIndisponivel(eventoId, baseId, uid, motivo) {
+  if (BASES_SEM_CONFLITO_CROSS_BASE.has(baseId)) return;
   await refIndisponibilidade(eventoId, uid).set({
     origens: { [baseId]: { motivo, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() } },
   }, { merge: true });
@@ -2421,10 +2432,16 @@ export const definirBase = onCall(async (req) => {
  * Criar, editar e desativar itens passa sempre por aqui — só assim é que
  * o líder de escala pode ajudar sem abrir a porta a qualquer voluntário.
  * A quantidade em si continua a mexer-se direto do cliente (ver regras). */
+/** Na Kinder qualquer voluntário cria, edita e remove itens (pedido
+ *  da líder, 2026-09) — a lista de compras continua só das líderes,
+ *  e isso é o cliente (Inventario.jsx) e as regras de listasCompras. */
+const BASES_INVENTARIO_ABERTO = new Set(["kinder"]);
+
 async function exigeGestorInventario(req) {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   if (PAPEIS_LIDER.has(req.auth.token.papel)) return baseId;
+  if (BASES_INVENTARIO_ABERTO.has(baseId)) return baseId;
 
   const hoje = new Date().toISOString().slice(0, 10);
   const escala = await db.doc(`eventos/${hoje}/escalas/${baseId}`).get();
