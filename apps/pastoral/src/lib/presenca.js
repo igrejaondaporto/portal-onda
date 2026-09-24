@@ -37,23 +37,15 @@ export const MAPA_DESDE = "2026-09-27";
 /** O último domingo contado pela Contagem — só para o texto do ecrã. */
 export const CONTAGEM_ATE = "2026-09-20";
 
-export const SALAS_CRIANCAS = ["baby", "fun", "junior", "juniorFun", "shift", "new"];
+/** As cinco salas. O `juniorFun` antigo (Júnior e Fun contados juntos,
+ *  até 13/9) já não entra em conta nenhuma — pedido 2026-09: "pode
+ *  tirar o campo junto, na Contagem já coloquei os dados separados". */
+export const SALAS_CRIANCAS = ["baby", "fun", "junior", "shift", "new"];
 
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-/** `juniorFun` (a categoria antiga, de antes de Júnior e Fun se
- *  separarem) só conta num domingo SEM `junior`/`fun`. Pedido 2026-09:
- *  em 13/9 a líder preencheu depois Júnior (8) e Fun (5) na Contagem e
- *  o painel somava-os AO 14 antigo — a mesma sala contada duas vezes.
- *  Quando há os números novos, o antigo é ignorado; quando só há o
- *  antigo (6/9), é a única informação que existe dessas salas. */
-export function usaJuniorFunAntigo(contagem) {
-  return num(contagem?.juniorFun) !== null && num(contagem?.junior) === null && num(contagem?.fun) === null;
-}
-
 export function criancasDoCulto(c) {
-  const salas = usaJuniorFunAntigo(c.contagem) ? SALAS_CRIANCAS : SALAS_CRIANCAS.filter((s) => s !== "juniorFun");
-  const vals = salas.map((s) => num(c.contagem?.[s])).filter((v) => v !== null);
+  const vals = SALAS_CRIANCAS.map((s) => num(c.contagem?.[s])).filter((v) => v !== null);
   return vals.length ? vals.reduce((t, n) => t + n, 0) : null;
 }
 

@@ -4,7 +4,7 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { CONTAGEM_ATE, MAPA_DESDE, media, presencaDoCulto, usaJuniorFunAntigo } from "../lib/presenca";
+import { CONTAGEM_ATE, MAPA_DESDE, criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -14,8 +14,19 @@ const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set",
 const PERIODOS = [
   ["3m", "3 meses"],
   ["12m", "12 meses"],
-  ["ano", "Este ano"],
+  ["tudo", "Tempo todo"],
 ];
+
+/** O primeiro ano com dados neste sistema — "Tempo todo" pede ano a
+ *  ano daqui até hoje (`historicoPastoral` aceita no máximo 3 anos
+ *  por chamada, e um ano por chamada é também o que o resumo "Por
+ *  ano" precisa). */
+const PRIMEIRO_ANO = 2026;
+
+/** Domingos que ficam de fora de Números — testes, não cultos (pedido
+ *  2026-09: "30 ago era só um teste"). Os dados continuam no
+ *  Firestore; só não entram nas contas nem nos gráficos daqui. */
+const DOMINGOS_IGNORADOS = new Set(["2026-08-30"]);
 
 /** Domingos de antes do Formulário da Base Pessoal, contados na
  *  planilha antiga (pedido 2026-09: "só para ter algo ali"). Um número
@@ -26,12 +37,28 @@ const CADASTRADOS_PLANILHA = { "2026-09-06": 9 };
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-function janelaDe(periodo) {
+/** Uma ou mais janelas [desde, ate] — "Tempo todo" é uma por ano. */
+function janelasDe(periodo) {
   const hoje = new Date();
   const ate = iso(hoje);
-  if (periodo === "ano") return [`${hoje.getFullYear()}-01-01`, ate];
+  if (periodo === "tudo") {
+    const janelas = [];
+    for (let a = PRIMEIRO_ANO; a <= hoje.getFullYear(); a++) {
+      janelas.push([`${a}-01-01`, a === hoje.getFullYear() ? ate : `${a}-12-31`]);
+    }
+    return janelas;
+  }
   const meses = periodo === "3m" ? 3 : 12;
-  return [iso(new Date(hoje.getFullYear(), hoje.getMonth() - meses, hoje.getDate())), ate];
+  return [[iso(new Date(hoje.getFullYear(), hoje.getMonth() - meses, hoje.getDate())), ate]];
+}
+
+async function carregarHistorico(periodo) {
+  const partes = await Promise.all(janelasDe(periodo).map(([d, a]) => historicoPastoral(d, a)));
+  const ok = (data) => !DOMINGOS_IGNORADOS.has(data);
+  return {
+    cultos: partes.flatMap((p) => p.cultos).filter((c) => ok(c.data)),
+    oferta: partes.flatMap((p) => p.oferta).filter((o) => ok(o.data)),
+  };
 }
 
 /**
@@ -74,12 +101,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
   // recentes — pedido 2026-09, mesmo critério de Desgaste (ver
   // Pessoas.jsx)
   const [verTodaTabela, setVerTodaTabela] = useState(false);
+  // "Crianças por domingo" também começa nos 5 mais recentes
+  const [verTodasCriancas, setVerTodasCriancas] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     setDados(null); setErro(null);
-    const [desde, ate] = janelaDe(periodo);
-    historicoPastoral(desde, ate)
+    carregarHistorico(periodo)
       .then((d) => { if (vivo) setDados(d); })
       .catch((e) => { if (vivo) setErro(e.message || "Não foi possível carregar o histórico."); });
     return () => { vivo = false; };
@@ -301,24 +329,51 @@ export default function Numeros({ ativo, definirCabecalho }) {
     const cultosComContagem = dados.cultos.filter((c) => c.contagem);
     const mediaDe = (chave) => media(cultosComContagem.map((c) => c.contagem[chave]));
     // Fun e Júnior aparecem SEMPRE, mesmo sem número ainda ("falta o
-    // Júnior e o Fun", reportado 2026-09): até 13/9 as duas salas
-    // contavam-se juntas (`juniorFun`, categoria antiga), por isso num
-    // período só com domingos antigos não havia nenhum `fun`/`junior`
-    // e as duas linhas desapareciam. A antiga fica numa linha à parte,
-    // com o nome a dizer o que é — somá-la a uma das duas inventava
-    // uma divisão que ninguém fez.
+    // Júnior e o Fun", reportado 2026-09)
     return [
       { chave: "baby", rotulo: "Baby", valor: mediaDe("baby") },
       { chave: "fun", rotulo: "Fun", valor: mediaDe("fun"), sempre: true },
       { chave: "junior", rotulo: "Júnior", valor: mediaDe("junior"), sempre: true },
-      {
-        chave: "juniorFun", rotulo: "Júnior + Fun (juntos, até 6/9)",
-        valor: media(cultosComContagem.filter((c) => usaJuniorFunAntigo(c.contagem)).map((c) => c.contagem.juniorFun)),
-      },
       { chave: "new", rotulo: "New", valor: mediaDe("new") },
       { chave: "shift", rotulo: "Shift", valor: mediaDe("shift") },
     ].filter((s) => s.sempre || s.valor !== null);
   }, [dados]);
+
+  /** Os números REAIS de cada domingo, sala a sala (pedido 2026-09:
+   *  "a média não chega, preciso de ver quantas crianças teve por base
+   *  em cada domingo"). Só os domingos com pelo menos uma sala contada;
+   *  "—" é "ninguém marcou", nunca zero. Do mais recente para trás. */
+  const criancasPorDomingo = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .map((c) => ({ c, total: criancasDoCulto(c) }))
+      .filter(({ total }) => total !== null)
+      .map(({ c, total }) => ({ chave: c.eventoId, data: c.data, contagem: c.contagem, total }))
+      .reverse();
+  }, [dados]);
+
+  /** "Tempo todo", ano a ano — para quando o ano fechar ficar lado a
+   *  lado com os seguintes. As mesmas contas dos cartões do topo. */
+  const porAno = useMemo(() => {
+    if (!dados || periodo !== "tudo") return [];
+    const anos = new Map();
+    const doAno = (a) => {
+      if (!anos.has(a)) anos.set(a, { presencas: [], visitantes: 0, criancas: [], oferta: 0 });
+      return anos.get(a);
+    };
+    for (const p of presencaIgreja) doAno(p.data.slice(0, 4)).presencas.push(p.total);
+    for (const c of dados.cultos) {
+      const pr = presencaDoCulto(c);
+      if (pr.visitantes) doAno(c.data.slice(0, 4)).visitantes += pr.visitantes;
+      const k = criancasDoCulto(c);
+      if (k !== null) doAno(c.data.slice(0, 4)).criancas.push(k);
+    }
+    for (const o of dados.oferta) doAno(o.data.slice(0, 4)).oferta += o.total / 100;
+    return [...anos.entries()].sort((x, y) => y[0].localeCompare(x[0])).map(([ano, v]) => ({
+      ano, domingos: v.presencas.length, presenca: media(v.presencas),
+      visitantes: v.visitantes, criancas: media(v.criancas), oferta: v.oferta,
+    }));
+  }, [dados, periodo, presencaIgreja]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -371,6 +426,24 @@ export default function Numeros({ ativo, definirCabecalho }) {
             </div>
           </div>
 
+          {periodo === "tudo" && porAno.length > 0 && (
+            <>
+              <p className="nm-grupo">Por ano</p>
+              {porAno.map((a) => (
+                <div className="nm-ano" key={a.ano}>
+                  <h4>{a.ano}</h4>
+                  <dl>
+                    <div><dt>Domingos contados</dt><dd>{a.domingos}</dd></div>
+                    <div><dt>Presença média</dt><dd>{a.presenca ?? "—"}</dd></div>
+                    <div><dt>Visitantes</dt><dd>{a.visitantes || "—"}</dd></div>
+                    <div><dt>Crianças (média)</dt><dd>{a.criancas ?? "—"}</dd></div>
+                    <div><dt>Ofertas</dt><dd>{a.oferta ? eur(a.oferta) : "—"}</dd></div>
+                  </dl>
+                </div>
+              ))}
+            </>
+          )}
+
           <p className="nm-grupo">Presença</p>
           <div className="sect" style={{ paddingTop: 10 }}>
             <div className="cabecalho">
@@ -422,6 +495,39 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho"><h3>Crianças</h3><span className="cap">média por domingo</span></div>
             <Barras linhas={criancasPorSala} vazio="Ainda não há contagem de crianças neste período." />
+
+            {criancasPorDomingo.length > 0 && (
+              <div style={{ borderTop: "1px solid var(--fio)", marginTop: 18, paddingTop: 14 }}>
+                <p className="cap" style={{ marginTop: 0 }}>Domingo a domingo</p>
+                <div className="tabwrap" style={{ marginTop: 8 }}>
+                  <table className="tab nm-criancas">
+                    <thead>
+                      <tr>
+                        <th>Culto</th>
+                        <th>Baby</th><th>Fun</th><th>Jún.</th><th>New</th><th>Shift</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(verTodasCriancas ? criancasPorDomingo : criancasPorDomingo.slice(0, 5)).map((d) => (
+                        <tr key={d.chave}>
+                          <td>{dataCurta(d.data)}</td>
+                          {["baby", "fun", "junior", "new", "shift"].map((s) => (
+                            <td key={s}>{d.contagem?.[s] ?? "—"}</td>
+                          ))}
+                          <td><b>{d.total}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {criancasPorDomingo.length > 5 && (
+                  <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodasCriancas((v) => !v)}>
+                    {verTodasCriancas ? "Ver menos" : `Ver mais (${criancasPorDomingo.length - 5})`}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <p className="nm-grupo">Ofertas</p>

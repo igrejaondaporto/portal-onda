@@ -535,15 +535,23 @@ caixa de altura fixa, o SVG desenhava-se numa caixa e as bolinhas
 noutra ~30px mais alta — nenhuma bolinha ficava em cima da linha (o
 bug "a data não fica no sítio certo", 2026-09).
 
-**Crianças mostra sempre Fun e Júnior**, com "—" enquanto não houver
-número; até 13/9 as duas salas contavam-se juntas (`juniorFun`), que
-aparece numa linha à parte com esse nome — nunca dividida às duas.
-**O `juniorFun` só conta num domingo sem `junior`/`fun`**
-(`usaJuniorFunAntigo`, `lib/presenca.js`): em 13/9 a líder preencheu
-depois Júnior e Fun na Contagem, e o painel somava os dois ao 14
-antigo (pedido 2026-09: "desconsidera o valor antigo").
+**Crianças mostra sempre Fun e Júnior** (média por domingo), e por
+baixo a tabela "Domingo a domingo" com os números REAIS de cada sala
+em cada culto (5 mais recentes + "Ver mais"). O `juniorFun` antigo
+(Júnior e Fun juntos, até 13/9) **já não entra em conta nenhuma**
+(pedido 2026-09: "tira o campo junto, na Contagem já coloquei
+separados") — um domingo que só o tenha fica sem Júnior/Fun até
+alguém os preencher na Contagem da Pessoal.
 
-Números abre em **3 meses** por omissão (pedido 2026-09).
+Números abre em **3 meses** por omissão (pedido 2026-09). O terceiro
+período é **"Tempo todo"** (substituiu "Este ano"): pede
+`historicoPastoral` ano a ano desde `PRIMEIRO_ANO` (a função aceita no
+máximo 3 anos por chamada) e mostra por cima um cartão **por ano** —
+para, quando um ano fechar, ficarem lado a lado.
+
+**Domingos ignorados em Números** (`DOMINGOS_IGNORADOS`, hoje só
+30/8 — um teste): os dados ficam no Firestore, só não entram nas contas
+nem nos gráficos.
 
 "Visitantes cadastrados" de 6/9 (9) vem da planilha antiga
 (`CADASTRADOS_PLANILHA`, `Numeros.jsx`), não do Formulário — de
