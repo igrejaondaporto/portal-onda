@@ -488,3 +488,144 @@
     color: #777;
   }
 }
+
+/* ── Agenda (topo da aba Domingo) ─────────────────────────────
+ * Igreja = azul (a cor de sempre dos cultos); privado = violeta e
+ * SEMPRE com cadeado — nunca só a cor a distinguir as duas. */
+.ag-mais {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--azul);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.ag-cal {
+  padding: 12px 10px 10px;
+  margin-top: 8px;
+}
+.ag-mes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 0 4px 8px;
+}
+.ag-mes button {
+  border: 0;
+  background: var(--agua);
+  color: var(--azul);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.ag-grelha {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.ag-sem {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cinza);
+  padding: 2px 0 4px;
+}
+.ag-dia {
+  border: 0;
+  background: none;
+  border-radius: 12px;
+  height: 44px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.ag-dia[data-hoje="1"] {
+  box-shadow: inset 0 0 0 1.5px var(--azul);
+}
+.ag-dia[data-on="1"] {
+  background: var(--agua);
+}
+.ag-pontos {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+}
+.ag-p-igreja,
+.ag-p-privado {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--azul);
+}
+.ag-p-privado {
+  background: var(--violeta);
+}
+.ag-legenda {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cinza);
+  padding-top: 8px;
+}
+.ag-legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ag-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--tinta);
+  background: #fff;
+  border: 1px solid var(--fio);
+  border-left: 4px solid var(--azul);
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.ag-ev:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.ag-ev-privado {
+  border-left-color: var(--violeta);
+}
+.ag-ev-tit {
+  font-weight: 700;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ag-ev-sub {
+  font-size: 12.5px;
+  color: var(--cinza);
+}
+.ag-bases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
