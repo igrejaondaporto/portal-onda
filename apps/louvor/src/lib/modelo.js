@@ -10,10 +10,11 @@
  *   bases/{base}/musicas/{musicaId}                  ← biblioteca (ver lib/biblioteca.js)
  *   bases/{base}/musicas/{musicaId}/versoes/{versaoId}
  *   bases/{base}/repertorios/{repertorioId}          ← ver lib/repertorio.js
+ *   bases/{base}/definicoes/papeisEscala             ← { lista: [...PAPEIS] }, ver mais abaixo
  *   eventos/{AAAA-MM-DD}                             ← global, a igreja toda
  *   eventos/{e}/escalas/{base}                       ← pessoas[] + liderEscala + escalados[]
  */
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, BASE_ID } from "@portal/shared/lib/firebase.js";
 
 export const cBase          = () => doc(db, "bases", BASE_ID);
@@ -32,20 +33,38 @@ export const cRespostasEnquete = (mes) => collection(db, `bases/${BASE_ID}/enque
 export const cRascunhosEscala = () => collection(db, `bases/${BASE_ID}/rascunhosEscala`);
 export const cEventos       = () => collection(db, "eventos");
 export const cEscala        = (ev) => doc(db, `eventos/${ev}/escalas/${BASE_ID}`);
+export const cDefinicaoPapeis = () => doc(db, `bases/${BASE_ID}/definicoes/papeisEscala`);
 
-/** Os sete papéis da escala da Louvor. Lista fixa — sem catálogo no
- *  Firestore, sem CRUD: mudar a lista é editar aqui (ver CLAUDE.md
- *  desta base). Cada culto pode ter qualquer número de pessoas por
- *  papel (2 lead, 2 guitarras…), ao contrário do "titular +
- *  aprendiz" por ministério que a Técnica usa — aqui não há níveis,
- *  o líder de escala escolhe livremente quem entra em cada papel.
- *  As cores servem só para os cartões de Equipamentos (agrupamento
- *  por papel, mesmo componente que a Técnica usa para ministérios).
- *  "Vocal" virou três papéis (2026-09, pedido do líder): Lead,
- *  Co-lead e Back. Escalados antigos com `papel:"vocal"` continuam a
- *  existir (nada se apaga) e continuam a aparecer nos cultos
- *  passados — só perdem o nome bonito, `nomePapel` cai no id cru. */
-export const PAPEIS = [
+/** Os papéis da escala da Louvor — editáveis pelo líder em
+ *  Definições da base → Papéis da escala (pedido do líder, 2026-09;
+ *  ver `SecaoPapeisEscala.jsx`; antes era esta lista fixa, sem
+ *  catálogo no Firestore). PAPEIS_PADRAO é só o valor de arranque —
+ *  o que `scripts/seedPapeisEscalaLouvor.mjs` grava a primeira vez, e
+ *  o que qualquer ecrã mostra por instantes até o primeiro snapshot
+ *  de `ouvirPapeisEscala` chegar — nunca uma fonte de verdade
+ *  paralela ao Firestore. Cada culto pode ter qualquer número de
+ *  pessoas por papel (2 lead, 2 guitarras…), ao contrário do "titular
+ *  + aprendiz" por ministério que a Técnica usa — aqui não há
+ *  níveis, o líder de escala escolhe livremente quem entra em cada
+ *  papel. As cores servem só para os cartões de Equipamentos
+ *  (agrupamento por papel, mesmo componente que a Técnica usa para
+ *  ministérios).
+ *
+ *  O `id` de um papel nasce do nome, na criação, e nunca muda depois
+ *  (ver `SecaoPapeisEscala.jsx`) — é o que fica gravado em
+ *  `escalados[].papel` e `pessoas.instrumentos[]`; editar o nome ou a
+ *  cor de um papel não mexe em nada já gravado com esse id. "Remover"
+ *  nunca apaga (regra 5 do CLAUDE.md raiz): marca `ativo:false` —
+ *  some da escala e do perfil de instrumentos daqui para a frente
+ *  (ver `papeisAtivos`), mas escalas antigas com esse papel continuam
+ *  a mostrar o nome certo (`nomePapel` procura em todos, ativos ou
+ *  não) e dá para reativar. A validação a sério (quem pode entrar na
+ *  escala) é sempre o que está gravado no Firestore, replicada no
+ *  servidor em `functions/index.js` (`papeisValidosDaBase`) — o
+ *  cliente nunca é a única barreira. "Vocal" virou três papéis
+ *  (2026-09, pedido do líder): Lead, Co-lead e Back — mesmo
+ *  mecanismo de antes de existir este ecrã, gravado à mão. */
+export const PAPEIS_PADRAO = [
   { id: "lead",     nome: "Lead",     cor: "#D62069", emoji: "🎤" },
   { id: "colead",   nome: "Co-lead",  cor: "#E85D8F", emoji: "🎤" },
   { id: "back",     nome: "Back",     cor: "#B565D8", emoji: "🎤" },
@@ -54,8 +73,41 @@ export const PAPEIS = [
   { id: "baixo",    nome: "Baixo",    cor: "#F5A300", emoji: "🎸" },
   { id: "bateria",  nome: "Bateria",  cor: "#00A88F", emoji: "🥁" },
 ];
-export const nomePapel = (id) => PAPEIS.find((p) => p.id === id)?.nome ?? id;
-export const emojiPapel = (id) => PAPEIS.find((p) => p.id === id)?.emoji ?? "🎵";
+
+/** Ao vivo — quem edita os papéis (Definições da base) vê a mudança
+ *  refletida em toda a app sem sair e voltar a entrar. Sem doc ainda
+ *  (base nunca editada) ou lista vazia, cai em PAPEIS_PADRAO — nunca
+ *  um ecrã com "nenhum papel". Ver PapeisEscalaContext.jsx, que é
+ *  quem chama isto (montado uma vez em Sessao.jsx). */
+export function ouvirPapeisEscala(cb) {
+  return onSnapshot(cDefinicaoPapeis(), (s) => {
+    const lista = s.exists() ? s.data().lista : null;
+    cb(Array.isArray(lista) && lista.length ? lista : PAPEIS_PADRAO);
+  });
+}
+
+/** Substitui a lista inteira — o próprio SecaoPapeisEscala.jsx calcula
+ *  o array todo (com o papel novo/editado/desativado já dentro) antes
+ *  de chamar isto; nunca um `arrayUnion` de um papel só (editar um
+ *  campo de um item específico do array não dá para fazer assim).
+ *  Escrita direta do cliente — `bases/{base}/definicoes/{doc}` já é
+ *  `souLiderBase` em firestore.rules (o mesmo caminho que a Kinder
+ *  usa para faixas etárias/consentimento), sem regra nova. */
+export const guardarPapeisEscala = (lista) =>
+  setDoc(cDefinicaoPapeis(), { lista, atualizadoEm: serverTimestamp() }, { merge: true });
+
+/** Só os que ainda servem para uma escala nova — SheetEscala.jsx
+ *  (que blocos mostrar) e SheetPessoa.jsx (que instrumentos oferecer)
+ *  usam isto, nunca a lista `papeis` inteira. */
+export const papeisAtivos = (papeis) => papeis.filter((p) => p.ativo !== false);
+
+/** `nomePapel`/`emojiPapel` procuram em TODOS os papéis (ativos ou
+ *  não) — uma escala antiga com um papel entretanto removido continua
+ *  a mostrar o nome certo, só deixa de poder ser escolhido de novo
+ *  (ver papeisAtivos). `papeis` vem sempre de `usePapeisEscala()`
+ *  (PapeisEscalaContext.jsx). */
+export const nomePapel = (papeis, id) => papeis.find((p) => p.id === id)?.nome ?? id;
+export const emojiPapel = (papeis, id) => papeis.find((p) => p.id === id)?.emoji ?? "🎵";
 
 
 /** Papéis na BASE (não confundir com PAPEIS da escala acima) — quem

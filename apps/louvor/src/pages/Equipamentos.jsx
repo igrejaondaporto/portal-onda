@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { ouvirEquipamentos } from "../lib/equipamentos";
 import { ouvirMelhorias, desativarMelhoria, corPrevisao, GRAVIDADE_INFO, ESTADO_INFO } from "../lib/melhorias";
 import { ouvirVoluntarios } from "../lib/painel";
-import { PAPEIS, souLiderOuAuxiliar } from "../lib/modelo";
+import { souLiderOuAuxiliar } from "../lib/modelo";
+import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import FotoRedonda from "@portal/shared/components/FotoRedonda.jsx";
@@ -58,9 +59,13 @@ export default function Equipamentos({ uid, papel, ativo, definirCabecalho, abaC
   const souLiderBase = souLiderOuAuxiliar(papel);
   const [equipamentos, setEquipamentos] = useState([]);
   const [melhorias, setMelhorias] = useState([]);
-  // "ministérios" aqui são os sete papéis da escala (Lead, Teclado…)
-  // — lista fixa em código, sem catálogo no Firestore (ver lib/modelo.js).
-  const ministerios = PAPEIS;
+  // "ministérios" aqui são os papéis da escala (Lead, Teclado…),
+  // editáveis pelo líder em Definições da base (ver
+  // PapeisEscalaContext.jsx e CLAUDE.md desta base). De propósito,
+  // SEM filtrar por ativo — um papel desativado continua a agrupar o
+  // equipamento que já lá estava (senão ficava invisível, sem ninguém
+  // conseguir chegar lá para o mudar de sítio).
+  const ministerios = usePapeisEscala();
   const [voluntarios, setVoluntarios] = useState([]);
   const [sheet, setSheet] = useState(null);
   const [abaInterna, setAbaInterna] = useState("equipamentos"); // "equipamentos" | "melhorias"

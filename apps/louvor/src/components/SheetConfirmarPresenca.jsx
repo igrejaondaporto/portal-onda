@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { confirmarPresenca, confirmarPresencaEnsaio } from "../lib/confirmacao";
 import { emojiPapel, nomePapel } from "../lib/modelo";
+import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 
@@ -31,6 +32,7 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  */
 export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoaPorId, pessoaAlvo, bloqueante, tipo = "culto", onNaoSeiAinda, onFechar, onGuardado }) {
   const torrada = useTorrada();
+  const papeis = usePapeisEscala();
   const [passo, setPasso] = useState(0);
   const [resposta, setResposta] = useState(null); // "vai" | "nao_vai" | null
   const [justificativa, setJustificativa] = useState("");
@@ -105,7 +107,7 @@ export default function SheetConfirmarPresenca({ cultos, minhasRespostas, pessoa
               const p = pessoaPorId(e.pessoaId);
               return (
                 <p key={e.pessoaId} className="ds" style={{ margin: "3px 0" }}>
-                  {emojiPapel(e.papel)} {nomePapel(e.papel)} — {p?.nome ?? "…"}
+                  {emojiPapel(papeis, e.papel)} {nomePapel(papeis, e.papel)} — {p?.nome ?? "…"}
                 </p>
               );
             })}

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { criarVoluntario, editarVoluntario, enviarFotoVoluntario, reporPin } from "../../lib/painel";
-import { PAPEIS, PAPEIS_BASE } from "../../lib/modelo";
+import { PAPEIS_BASE, papeisAtivos } from "../../lib/modelo";
+import { usePapeisEscala } from "../../lib/PapeisEscalaContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 
@@ -15,6 +16,7 @@ export default function SheetPessoa({
   pessoaExistente, onDesligarPessoa,
 }) {
   const torrada = useTorrada();
+  const papeis = papeisAtivos(usePapeisEscala());
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? pessoaExistente?.nome ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? pessoaExistente?.telefone ?? "");
@@ -143,7 +145,7 @@ export default function SheetPessoa({
         </p>
         <label className="rot" style={{ marginTop: 14 }}>Instrumentos</label>
         <div className="subtabs">
-          {PAPEIS.map((p) => (
+          {papeis.map((p) => (
             <button key={p.id} data-on={instrumentos.includes(p.id) ? 1 : 0} onClick={() => alternarInstrumento(p.id)}>
               {p.emoji} {p.nome}
             </button>

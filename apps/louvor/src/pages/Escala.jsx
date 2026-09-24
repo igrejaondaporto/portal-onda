@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PAPEIS, nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar } from "../lib/modelo";
+import { nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, papeisAtivos } from "../lib/modelo";
+import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
 import { ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
@@ -39,6 +40,7 @@ const ITENS_VAZIOS_REP = [];
  *  culto, ver podeDistribuir). */
 function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, confirmadosEnsaio, contactoAberto, onToggleContacto }) {
   const torrada = useTorrada();
+  const papeis = usePapeisEscala();
   const [repertorio, setRepertorio] = useState(null);
   const [tons, setTons] = useState({});
   const [escalaAberta, setEscalaAberta] = useState(false);
@@ -126,7 +128,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
               return (
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
-                  resumo={`${emojiPapel(e.papel)} ${nomePapel(e.papel)}`}
+                  resumo={`${emojiPapel(papeis, e.papel)} ${nomePapel(papeis, e.papel)}`}
                   tagExtra={(
                     <>
                       {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
@@ -270,6 +272,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
 }
 
 export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, focoSeq, ativo, definirCabecalho }) {
+  const papeis = usePapeisEscala();
   const [eventosMes, setEventosMes] = useState([]);
   const [voluntarios, setVoluntarios] = useState([]);
   const [musicas, setMusicas] = useState([]);
@@ -328,6 +331,13 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   }, [ativo, eventosMes.length, temEscala, mes, base]);
 
   const escaladosDoPapel = (ev, papelId) => (ev.escala.escalados || []).filter((e) => e.papel === papelId);
+  // Papéis desativados (Definições da base → Papéis da escala) só
+  // ganham linha no quadro se algum culto do mês ainda tiver alguém
+  // escalado nesse papel — senão a linha some sozinha, o comum.
+  const linhasPapeis = [
+    ...papeisAtivos(papeis),
+    ...papeis.filter((p) => p.ativo === false && eventosMes.some((ev) => escaladosDoPapel(ev, p.id).length > 0)),
+  ];
 
   function etiquetaEnfase(ev, mostrarConfirmados) {
     const id = ev.tipoCulto || tipoCultoDefault(ev.data);
@@ -415,7 +425,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
             ) : (
               <>
                 {/* A tabela fica sempre pronta, com uma linha por papel
-                  * (ver PAPEIS) — antes só aparecia depois de alguém já
+                  * (ver linhasPapeis) — antes só aparecia depois de alguém já
                   * estar escalado, e até lá mostrava só um aviso. As
                   * células vêm direto de escalados, por isso já se
                   * atualizam sozinhas quando o líder junta ou tira
@@ -447,7 +457,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
                           return <td key={ev.id} className={p?.id === uid ? "mim" : ""}>{p ? p.nome : "por definir"}</td>;
                         })}
                       </tr>
-                      {PAPEIS.map((papelLinha) => (
+                      {linhasPapeis.map((papelLinha) => (
                         <tr key={papelLinha.id}>
                           <td className="papel"><span className="quadmin" style={{ background: papelLinha.cor }} />{papelLinha.emoji} {papelLinha.nome}</td>
                           {eventosMes.map((ev) => {

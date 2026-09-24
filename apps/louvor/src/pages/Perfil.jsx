@@ -5,6 +5,7 @@ import { guardarAniversario } from "../lib/perfil";
 import { obterMeusProximosDomingos } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar, nomePapelBase } from "../lib/modelo";
+import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
@@ -14,6 +15,7 @@ const TAMANHO_MAX = 6 * 1024 * 1024;
 
 export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualizarPessoa, onIrReembolsos, onIrPainel }) {
   const torrada = useTorrada();
+  const papeis = usePapeisEscala();
   const souLiderBase = souLiderOuAuxiliar(papel);
   const inputFotoRef = useRef(null);
   const [nome, setNome] = useState(pessoa?.nome ?? "");
@@ -169,7 +171,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
           <div className="cabecalho"><h3>Os teus domingos</h3></div>
           {domingos.length ? (
             domingos.map((ev) => {
-              const meusPapeis = meusPapeisNoCulto(ev.escala, uid).map((id) => `${emojiPapel(id)} ${nomePapel(id)}`);
+              const meusPapeis = meusPapeisNoCulto(ev.escala, uid).map((id) => `${emojiPapel(papeis, id)} ${nomePapel(papeis, id)}`);
               return (
                 <div className="linha" key={ev.id}>
                   <div style={{ flex: 1 }}>
