@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 import SheetEmail from "./SheetEmail.jsx";
+import { estadoDoEmail, ouvirMeuEmail } from "../lib/email.js";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
@@ -12,6 +13,9 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   const [expandida, setExpandida] = useState(false);
   // o e-mail dos avisos abre por cima deste menu, e fechá-lo volta aqui
   const [verEmail, setVerEmail] = useState(false);
+  // a bolinha no botão: laranja se o e-mail ainda está por confirmar
+  const [estadoEmail, setEstadoEmail] = useState(null);
+  useEffect(() => ouvirMeuEmail((m) => setEstadoEmail(estadoDoEmail(m))), []);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
 
   return (
@@ -59,6 +63,12 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
           * da pessoa, não da base (functions/email.js) */}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setVerEmail(true)}>
           E-mail para avisos
+          {estadoEmail === "porConfirmar" && (
+            <span
+              aria-label="por confirmar" title="Por confirmar"
+              style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "var(--laranja, #f5a300)", marginLeft: 8, verticalAlign: "middle" }}
+            />
+          )}
         </button>
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>

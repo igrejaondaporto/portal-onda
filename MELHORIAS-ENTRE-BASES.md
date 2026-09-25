@@ -342,7 +342,10 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   e "E-mail para avisos" no `MenuEu`. **Uma base nova** ganha o menu
   sozinha, mas precisa da linha `<PedirEmail />` logo a seguir a
   `<AvisoNotificacoes />` na sua `Sessao.jsx`. O Mural Onda não pede
-  (não é uma base; tem login próprio).
+  (não é uma base; tem login próprio). Desde 2026-09 o e-mail
+  **confirma-se com um código de 6 dígitos** (`components/
+  ConfirmarEmail.jsx`, o mesmo passo no pop-up e no menu, com a
+  bolinha verde "E-mail confirmado"); só os confirmados recebem.
 - **Os textos de WhatsApp da enquete são do líder**
   (`lib/mensagensEnquete.js`, `lib/useMensagensEnquete.js`,
   `components/SheetEditarMensagem.jsx`, `components/EditarMensagemEnquete.jsx`).
