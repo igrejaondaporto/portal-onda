@@ -966,30 +966,51 @@ const ETAPAS = ["visita", "contactado", "gd", "membro", "voluntario", "servindo"
 
 export const moverEtapaContacto = onCall(async (req) => {
   const uid = exigeVisaoPastoral(req);
-  const { contactoId, etapa, nota } = req.data || {};
+  const { contactoId, etapa, nota, gdId } = req.data || {};
   if (!contactoId) throw new HttpsError("invalid-argument", "Falta o contacto.");
   if (!ETAPAS.includes(etapa)) throw new HttpsError("invalid-argument", "Etapa desconhecida.");
+  // o GD só se escolhe ao passar para (ou já estar em) "No GD"
+  if (gdId && etapa !== "gd") throw new HttpsError("invalid-argument", "O GD só se escolhe na etapa \"No GD\".");
 
   const ref = db().doc(`contactos/${contactoId}`);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Contacto não encontrado.");
   const anterior = snap.data().etapa ?? "visita";
-  if (anterior === etapa) return { ok: true, semMudanca: true };
+
+  // Em que GD ficou (pedido 2026-09: "ao mover para GD, escolher qual,
+  // e mostrar em qual foi"). `gds/{gd}` é o catálogo global que a
+  // líder da Pessoal mantém — valida-se contra ele, e grava-se o nome
+  // junto para o painel não ter de o ir buscar a cada linha. Fica no
+  // contacto mesmo depois de avançar de etapa: um membro continua a
+  // ir ao mesmo GD.
+  let gd = null;
+  if (gdId) {
+    const gdSnap = await db().doc(`gds/${String(gdId)}`).get();
+    if (!gdSnap.exists) throw new HttpsError("not-found", "GD não encontrado.");
+    gd = { id: gdSnap.id, nome: gdSnap.data().nome ?? gdSnap.id };
+  }
+  const gdMudou = gd !== null && gd.id !== snap.data().gd?.id;
+  if (anterior === etapa && !gdMudou) return { ok: true, semMudanca: true };
 
   // Andar para trás é permitido de propósito: alguém que foi marcado
   // como "membro" por engano tem de poder voltar. O histórico regista
-  // as duas direções, por isso não se perde nada ao corrigir.
+  // as duas direções, por isso não se perde nada ao corrigir. Trocar
+  // só de GD (mesma etapa) também fica no histórico.
   await ref.set({
-    etapa,
-    etapaEm: admin.firestore.FieldValue.serverTimestamp(),
-    etapaPor: uid,
+    ...(anterior !== etapa ? {
+      etapa,
+      etapaEm: admin.firestore.FieldValue.serverTimestamp(),
+      etapaPor: uid,
+    } : {}),
+    ...(gd ? { gd } : {}),
     historicoEtapas: admin.firestore.FieldValue.arrayUnion({
       de: anterior, para: etapa, em: new Date().toISOString(), por: uid,
       nota: String(nota ?? "").trim() || null,
+      ...(gd ? { gd: gd.nome } : {}),
     }),
   }, { merge: true });
 
-  return { ok: true, de: anterior, para: etapa };
+  return { ok: true, de: anterior, para: etapa, gd };
 });
 
 /** "Excluir" um contacto do funil — pedido 2026-09. Nunca é um delete
