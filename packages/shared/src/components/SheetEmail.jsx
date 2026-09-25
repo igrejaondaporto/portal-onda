@@ -22,7 +22,8 @@ export default function SheetEmail({ onFechar }) {
             : "Ainda não deixaste um e-mail."}
         </p>
         <p className="ds" style={{ marginTop: 8 }}>
-          Escalas, recados do pastor e reembolsos. Ninguém da equipa vê o teu e-mail.
+          A tua escala do mês (um e-mail quando sai) e avisos só teus, como reembolsos. Ninguém da equipa vê o teu
+          e-mail.
         </p>
         {meu !== undefined && (
           <FormEmail
