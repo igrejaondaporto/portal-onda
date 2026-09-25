@@ -51,4 +51,7 @@ export const cMapaAcomodacao = (ev) => doc(db, `eventos/${ev}/acomodacao/mapa`);
 /* ── aberto à claim ve_tudo_pastoral ────────────────────────── */
 export const cContactos  = () => collection(db, "contactos");
 export const cContacto   = (id) => doc(db, `contactos/${id}`);
+// catálogo de GDs — GLOBAL, só a líder da Pessoal escreve; qualquer
+// sessão lê (firestore.rules). Aqui só para escolher o GD de um contacto.
+export const cGDs        = () => collection(db, "gds");
 export const cRecados    = () => collection(db, "recados");

@@ -12,6 +12,7 @@ import SheetRecado from "../components/SheetRecado";
 import NavCulto from "../components/NavCulto";
 import CalendarioAgenda from "../components/agenda/CalendarioAgenda";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
+import AvisoSemEscala from "../components/AvisoSemEscala";
 
 /** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
  *  lá, ver `apps/kinder/src/lib/modelo.js`). Cores iguais às de lá,
@@ -29,13 +30,30 @@ const SALAS_KINDER = {
  *  seguintes. Chega para "o próximo domingo" e para rever o anterior,
  *  sem puxar o histórico inteiro a cada abertura — isso é a aba
  *  Números, que pede uma janela de propósito. */
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 function janela() {
   const h = new Date();
   const de = new Date(h.getFullYear(), h.getMonth() - 1, 1);
   const ate = new Date(h.getFullYear(), h.getMonth() + 2, 0);
-  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return [iso(de), iso(ate)];
 }
+
+/** O domingo desta semana, de segunda a sábado — `null` ao domingo:
+ *  nesse dia o aviso "sem escala" desta página já está à vista, e o
+ *  pop-up (pedido 2026-09: "se já é segunda ou terça e o domingo ainda
+ *  não tem escala da base, mete o pop-up") chegaria tarde demais. */
+function domingoDaSemana() {
+  const d = new Date();
+  if (d.getDay() === 0) return null;
+  d.setDate(d.getDate() + (7 - d.getDay()));
+  return iso(d);
+}
+
+/** As cinco salas das crianças na Contagem (o contador no Início da
+ *  Kinder/SHIFT/New) — mesma lista de `SALAS_CRIANCAS` em
+ *  `lib/presenca.js`, pela mesma ordem do resumo. */
+const SALAS_RESUMO = [["baby", "Baby"], ["fun", "Fun"], ["junior", "Júnior"], ["new", "New"], ["shift", "Shift"]];
 
 /**
  * O domingo — o que está a acontecer, ou o que vai acontecer.
@@ -71,6 +89,10 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
 
   const [de, ate] = useMemo(janela, []);
   const hoje = useMemo(hojeISO, []);
+  const proxDomingo = useMemo(domingoDaSemana, []);
+  // escalas do domingo desta semana, só para o pop-up — quando é esse
+  // o culto aberto, reaproveitam-se as `escalas` que já vieram
+  const [escalasDomingoAviso, setEscalasDomingoAviso] = useState(null);
 
   useEffect(() => ouvirEventos(de, ate, setEventos), [de, ate]);
   useEffect(() => ouvirPonteiroAoVivo(setAoVivoId), []);
@@ -216,6 +238,61 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
   const visitantesCulto = doMapa?.visitantes ?? null;
   const apeloCulto = doMapa?.apelo ?? null;
 
+  /* ── o resumo, depois do culto ───────────────────────────── */
+
+  /** O culto já acabou? Dia passado, ou hoje depois da hora de fim da
+   *  ordem (12:30 sem ordem) e sem culto ao vivo. */
+  const passou = useMemo(() => {
+    if (!evento) return false;
+    if (evento.data < hoje) return true;
+    if (evento.data > hoje || aoVivoId === eventoId) return false;
+    const agora = new Date();
+    const hhmm = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+    return hhmm >= (evento.ordem?.fim || "12:30");
+  }, [evento, hoje, aoVivoId, eventoId]);
+
+  /** Pedido 2026-09: "um resumo do domingo, depois do culto — vê se não
+   *  fica repetitivo". Substitui os dois cartões de cima ("A servir",
+   *  "No auditório") e a linha dos visitantes, que diziam a mesma coisa
+   *  aos bocados — nunca aparecem os dois ao mesmo tempo. Mesma conta
+   *  de "Presença na igreja" em Números (`lib/presenca.js`): auditório
+   *  do Mapa (ocupados + visitantes) + voluntários das escalas +
+   *  crianças do contador de cada sala; sem mapa, não há total. */
+  const resumo = useMemo(() => {
+    if (!passou) return null;
+    const lugares = Object.values(mapa?.lugares ?? {});
+    const capacidade = lugares.length - lugares.filter((e) => e === "reservado" || e === "bloqueado").length;
+    const salas = SALAS_RESUMO
+      .map(([id, rotulo]) => ({ id, rotulo, valor: contagem?.categorias?.[id]?.valor }))
+      .filter((s) => typeof s.valor === "number");
+    const criancas = salas.length ? salas.reduce((t, s) => t + s.valor, 0) : null;
+    const auditorio = noAuditorio || null;
+    return {
+      auditorio, capacidade, salas, criancas,
+      total: auditorio === null ? null : auditorio + totalEscalados + (criancas ?? 0),
+    };
+  }, [passou, mapa, contagem, noAuditorio, totalEscalados]);
+
+  /* ── o pop-up "domingo sem escala" ───────────────────────── */
+
+  const eventoDomingo = proxDomingo ? eventos.find((e) => e.id === proxDomingo) ?? null : null;
+  useEffect(() => {
+    if (!eventoDomingo || !eventoId || eventoId === eventoDomingo.id || escalasDomingoAviso) return;
+    let vivo = true;
+    obterEscalasDeTodasAsBases(eventoDomingo.id)
+      .then((e) => { if (vivo) setEscalasDomingoAviso(e); })
+      .catch(() => {}); // é um aviso — se falhar, a página continua a dizer o mesmo por baixo
+    return () => { vivo = false; };
+  }, [eventoDomingo, eventoId, escalasDomingoAviso]);
+
+  const semEscalaDomingo = useMemo(() => {
+    if (!eventoDomingo) return [];
+    const lista = eventoId === eventoDomingo.id ? escalas : escalasDomingoAviso;
+    // uma base que o evento dispensou ("não servimos") não conta
+    const dispensadas = eventoDomingo.dispensadaPor ?? [];
+    return (lista ?? []).filter((b) => b.semEscalaDeCulto !== true && b.tipo === "vazio" && !dispensadas.includes(b.baseId));
+  }, [eventoDomingo, eventoId, escalas, escalasDomingoAviso]);
+
   return (
     <>
       {/* a agenda do pastor em cima (pedido 2026-09): eventos da igreja
@@ -255,7 +332,45 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
         </div>
       )}
 
+      {/* ── depois do culto: o resumo no lugar dos cartões ──── */}
+      {resumo && (
+        <div className="nm-heroi pa-resumo">
+          <p className="rotulo">Resumo do domingo</p>
+          <p className="valor">{resumo.total ?? "—"}</p>
+          <p className="sub">
+            {resumo.total === null
+              ? "Sem Mapa do auditório neste culto — sem ele não há total."
+              : "pessoas na igreja — auditório, voluntários e crianças"}
+          </p>
+          <ul className="pa-resumo-lista">
+            <li>
+              <span>Auditório</span>
+              <b>{resumo.auditorio ?? "—"}</b>
+              {resumo.auditorio !== null && resumo.capacidade > 0 && (
+                <small>de {resumo.capacidade} lugares · {Math.round((resumo.auditorio / resumo.capacidade) * 100)}%</small>
+              )}
+            </li>
+            <li>
+              <span>Voluntários</span>
+              <b>{totalEscalados || "—"}</b>
+              {totalEscalados > 0 && <small>em {porBase.filter((b) => b.tipo !== "vazio").length} bases</small>}
+            </li>
+            <li>
+              <span>Crianças</span>
+              <b>{resumo.criancas ?? "—"}</b>
+              {resumo.salas.length > 0 && <small>{resumo.salas.map((s) => `${s.rotulo} ${s.valor}`).join(" · ")}</small>}
+            </li>
+            <li><span>Visitantes</span><b>{visitantesCulto ?? "—"}</b></li>
+            <li><span>Apelo</span><b>{apeloCulto ?? "—"}</b></li>
+          </ul>
+          <p className="pa-resumo-rodape">
+            Auditório, visitantes e apelo: Mapa (Base Pessoal) · crianças: contador de cada sala · "—" é não contado
+          </p>
+        </div>
+      )}
+
       {/* ── os três números do domingo ──────────────────────── */}
+      {!resumo && (
       <div className="dupla" style={{ marginTop: 12 }}>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
           <p className="ds" style={{ marginTop: 0 }}>A servir</p>
@@ -268,8 +383,9 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
           <p className="ds" style={{ marginTop: 2 }}>pessoas no auditório</p>
         </div>
       </div>
+      )}
 
-      {((visitantesCulto ?? 0) > 0 || (apeloCulto ?? 0) > 0) && (
+      {!resumo && ((visitantesCulto ?? 0) > 0 || (apeloCulto ?? 0) > 0) && (
         <div className="caixa" style={{ marginTop: 10 }}>
           <p className="ds" style={{ marginTop: 0 }}>
             <b>{visitantesCulto ?? 0} visitante{visitantesCulto === 1 ? "" : "s"}</b> neste culto
@@ -418,16 +534,12 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
         )}
       </div>
 
-      {/* ── o que ficou registado do culto (feedbacks/frases) ── */}
-      {evento && evento.data < hoje && (
-        <div className="sect">
-          <div className="cabecalho"><h3>Depois do culto</h3></div>
-          <p className="ds" style={{ marginTop: 0 }}>
-            {contagem?.finalizadoEm
-              ? "A contagem deste culto está fechada."
-              : "A contagem deste culto ainda não foi fechada pela Base Pessoal."}
-          </p>
-        </div>
+      {ativo && eventoDomingo && semEscalaDomingo.length > 0 && (
+        <AvisoSemEscala
+          domingo={eventoDomingo} bases={semEscalaDomingo} hoje={hoje}
+          onRecado={setRecadoPara}
+          onVer={() => setEventoId(eventoDomingo.id)}
+        />
       )}
 
       {recadoPara && (

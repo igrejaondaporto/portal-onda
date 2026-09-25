@@ -21,7 +21,7 @@
  * mesma escrita, e uma regra não garante isso.
  */
 import { onSnapshot, orderBy, query } from "firebase/firestore";
-import { cContactos } from "./modelo";
+import { cContactos, cGDs } from "./modelo";
 
 /**
  * As seis etapas, pela ordem do caminho. É a mesma lista que
@@ -128,9 +128,45 @@ export function diasParado(c) {
   return Math.floor((Date.now() - ts.toDate().getTime()) / 86400000);
 }
 
+/** A partir de quantos dias na mesma etapa um contacto está "parado"
+ *  (pedido 2026-09: "destacar quem está na mesma etapa há mais de 7
+ *  dias"). Uma semana é um domingo inteiro sem ninguém lhe pegar. */
+export const DIAS_PARADO = 7;
+
+/** O GD em que o contacto ficou — `gd` desde 2026-09 (escolhido ao
+ *  mover para "No GD", `moverEtapaContacto`). */
+export const nomeGD = (c) => c.gd?.nome ?? null;
+
+/** O catálogo de GDs, ao vivo, por nome. */
+export function ouvirGDs(cb) {
+  return onSnapshot(query(cGDs(), orderBy("nome")), (snap) =>
+    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((g) => g.ativo !== false)));
+}
+
+/** A conversão do funil (pedido 2026-09: "quantos em cada etapa, e a
+ *  percentagem que passou de cada etapa até a servir"). Uma pessoa
+ *  numa etapa já passou por todas as anteriores — quem está em
+ *  "Membro" conta em Visita, Contactado e No GD como "chegou lá".
+ *  `passou` = dos que chegaram a esta etapa, quantos % chegaram à
+ *  seguinte; `chegou` = % de todos os contactos que chegaram até
+ *  aqui. */
+export function conversaoFunil(contactos) {
+  const idx = contactos.map((c) => indiceEtapa(c.etapa)).filter((i) => i >= 0);
+  const total = idx.length;
+  const chegaram = ETAPAS.map((_, i) => idx.filter((j) => j >= i).length);
+  return ETAPAS.map((e, i) => ({
+    ...e,
+    aqui: idx.filter((j) => j === i).length,
+    chegaram: chegaram[i],
+    chegou: total ? Math.round((chegaram[i] / total) * 100) : null,
+    passou: i < ETAPAS.length - 1 && chegaram[i] ? Math.round((chegaram[i + 1] / chegaram[i]) * 100) : null,
+    cor: CORES_ETAPA[e.id],
+  }));
+}
+
 /** Parados há muito tempo, primeiro — e só os que ainda não chegaram
  *  ao fim do funil. Quem já está a servir não está "parado", chegou. */
-export function esquecidos(contactos, dias = 30) {
+export function esquecidos(contactos, dias = DIAS_PARADO) {
   return contactos
     .filter((c) => c.etapa !== "servindo")
     .map((c) => ({ ...c, dias: diasParado(c) }))
