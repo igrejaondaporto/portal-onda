@@ -81,7 +81,7 @@ export {
 // reembolso decidido e o lembrete de confirmação da Louvor.
 export {
   notificarRecado, notificarReembolso, notificarEscala,
-  lembrarConfirmacaoPresenca,
+  lembrarConfirmacaoPresenca, enviarResumosEmail,
 } from "./notificacoes.js";
 // Configurar o e-mail pelo Painel Pastoral (a chave do Resend nunca
 // volta ao cliente — ver email.js).

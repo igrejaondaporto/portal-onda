@@ -38,7 +38,9 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
-import { enviarEmails } from "./email.js";
+import {
+  POR_LOTE, configEnvio, emailDe, enviarEmails, enviarLote, montarEmail, reservarEnvios,
+} from "./email.js";
 
 const db = () => admin.firestore();
 
@@ -64,7 +66,8 @@ const urlDaBase = (baseId, caminho = "/") => `https://${baseId}.igrejaonda.pt${c
  * @param tag       assunto, para notificações do mesmo tipo se
  *                  substituírem em vez de se empilharem (só push)
  * @param email     `false` para um gatilho que não deve ir por e-mail
- *                  (por omissão vai — hoje todos os gatilhos vão)
+ *                  na hora (o recado, que é da base inteira; as
+ *                  escalas, que vão no resumo das 20h — ver email.js)
  */
 export async function notificar(uids, { titulo, corpo, url, tag, email = true }) {
   const unicos = [...new Set((uids || []).filter(Boolean))];
@@ -176,6 +179,10 @@ export const notificarRecado = onDocumentWritten("recados/{id}", async (evento) 
     corpo: String(depois.texto ?? "").slice(0, 160),
     url: urlDaBase(depois.baseId),
     tag: "recado",
+    // só push (pedido 2026-09): o recado é para a base inteira — por
+    // e-mail, um recado às dez bases eram ~120 de uma vez, e o cartão
+    // no Início já é o caminho garantido
+    email: false,
   });
 });
 
@@ -247,6 +254,8 @@ function dataPorExtenso(iso) {
   return `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]}`;
 }
 
+const hojeLisboa = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Lisbon" }).format(new Date());
+
 function pessoasDaEscala(d) {
   if (!d) return new Set();
   if (Array.isArray(d.lugares) && d.lugares.length) {
@@ -277,13 +286,139 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
   const data = doc?.exists ? (doc.data().data ?? eventoId) : eventoId;
   const quando = doc?.exists && doc.data().tipo ? `${doc.data().tipo} (${dataPorExtenso(data)})` : dataPorExtenso(data);
 
+  // push na hora; o e-mail vai no resumo das 20h (ver abaixo)
   await notificar(novos, {
     titulo: `Estás escalado — ${nomeBase}`,
     corpo: `Foste escalado para ${quando}.`,
     url: urlDaBase(baseId),
     tag: `escala-${eventoId}`,
+    email: false,
   });
+
+  // um domingo que já passou não é notícia para ninguém
+  if (String(data).slice(0, 10) < hojeLisboa()) return;
+  const entrada = {
+    eventoId, baseId, nomeBase, data: String(data).slice(0, 10),
+    tipo: doc?.exists ? (doc.data().tipo ?? null) : null,
+    // Timestamp.now(), não serverTimestamp(): vai dentro de um array
+    em: admin.firestore.Timestamp.now(),
+  };
+  await Promise.all(novos.map((uid) => db().doc(`filaEmail/${uid}`).set({
+    escalas: admin.firestore.FieldValue.arrayUnion(entrada),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true })));
 });
+
+/* ══════════════════════════════════════════════════════════════
+ *  O RESUMO POR E-MAIL — todos os dias às 20h (2026-09)
+ * ══════════════════════════════════════════════════════════════
+ *
+ * Pedido: "quando sai a escala, ela já publica o mês todo — não é um
+ * aviso por semana; é 'já saiu a tua escala de outubro'". O gatilho
+ * das escalas acima só junta em `filaEmail/{uid}`; isto manda UM
+ * e-mail por pessoa, com os dias agrupados por mês. Leva também o que
+ * ficou de fora do teto diário noutro envio (`pendentes`, email.js).
+ *
+ * Antes de mandar, confirma cada domingo na escala a sério: quem foi
+ * posto e tirado no mesmo dia não recebe "estás escalado" às 20h.
+ *
+ * Quem não couber no teto de hoje (95) fica na fila para amanhã, pela
+ * ordem de chegada — o mais antigo sai primeiro. O documento da fila
+ * apaga-se depois de enviado: é trabalho por fazer, não histórico (o
+ * histórico é a própria escala).
+ */
+const MESES_NOME = MESES;
+
+function assuntoDoResumo(escalas, pendentes) {
+  const meses = [...new Set(escalas.map((e) => e.data.slice(0, 7)))].sort()
+    .map((m) => MESES_NOME[Number(m.slice(5)) - 1]);
+  if (meses.length && !pendentes.length) {
+    return `Saiu a tua escala de ${meses.length === 1 ? meses[0] : `${meses.slice(0, -1).join(", ")} e ${meses.at(-1)}`}`;
+  }
+  if (!escalas.length && pendentes.length === 1) return pendentes[0].titulo || "Portal do Voluntário";
+  return "Novidades no Portal do Voluntário";
+}
+
+function corpoDoResumo(escalas, pendentes) {
+  const linhas = [];
+  const porMes = new Map();
+  for (const e of [...escalas].sort((a, b) => a.data.localeCompare(b.data))) {
+    const m = e.data.slice(0, 7);
+    if (!porMes.has(m)) porMes.set(m, []);
+    porMes.get(m).push(e);
+  }
+  for (const [m, lista] of porMes) {
+    if (linhas.length) linhas.push("");
+    linhas.push(`Estás na escala de ${MESES_NOME[Number(m.slice(5)) - 1]}:`);
+    for (const e of lista) {
+      linhas.push(`• ${e.tipo ? `${e.tipo} — ` : ""}${dataPorExtenso(e.data)} · ${e.nomeBase}`);
+    }
+  }
+  for (const p of pendentes) {
+    if (linhas.length) linhas.push("");
+    linhas.push(`${p.titulo}${p.corpo ? ` — ${p.corpo}` : ""}`);
+  }
+  return linhas.join("\n");
+}
+
+export const enviarResumosEmail = onSchedule(
+  { schedule: "every day 20:00", timeZone: "Europe/Lisbon" },
+  async () => {
+    const cfg = await configEnvio();
+    if (!cfg) return;
+    const fila = await db().collection("filaEmail").get();
+    if (fila.empty) return;
+
+    // cada escala lida uma vez, mesmo que meia base esteja nela
+    const cacheEscalas = new Map();
+    const naEscala = async (eventoId, baseId, uid) => {
+      const k = `${eventoId}/${baseId}`;
+      if (!cacheEscalas.has(k)) {
+        const s = await db().doc(`eventos/${eventoId}/escalas/${baseId}`).get().catch(() => null);
+        cacheEscalas.set(k, pessoasDaEscala(s?.exists ? s.data() : null));
+      }
+      return cacheEscalas.get(k).has(uid);
+    };
+
+    const prontos = [];
+    for (const doc of fila.docs) {
+      const uid = doc.id;
+      const d = doc.data();
+      const email = await emailDe(uid);
+      if (!email) { await doc.ref.delete(); continue; }   // sem e-mail: nada a guardar
+      const escalas = [];
+      const vistos = new Set();
+      for (const e of d.escalas || []) {
+        const k = `${e.eventoId}/${e.baseId}`;
+        if (vistos.has(k)) continue;
+        vistos.add(k);
+        if (await naEscala(e.eventoId, e.baseId, uid)) escalas.push(e);
+      }
+      const pendentes = d.pendentes || [];
+      if (!escalas.length && !pendentes.length) { await doc.ref.delete(); continue; }
+      const desde = Math.min(...[...(d.escalas || []), ...pendentes].map((x) => x.em?.toMillis?.() ?? Date.now()));
+      prontos.push({ ref: doc.ref, email, escalas, pendentes, desde });
+    }
+    if (!prontos.length) return;
+
+    prontos.sort((a, b) => a.desde - b.desde);
+    const cabem = await reservarEnvios(prontos.length);
+    const agora = prontos.slice(0, cabem);
+
+    for (let i = 0; i < agora.length; i += POR_LOTE) {
+      const lote = agora.slice(i, i + POR_LOTE);
+      const mensagens = lote.map((p) => {
+        const titulo = assuntoDoResumo(p.escalas, p.pendentes);
+        const url = p.escalas[0] ? urlDaBase(p.escalas[0].baseId) : (p.pendentes[0]?.url || "https://igrejaonda.pt");
+        const { html, texto } = montarEmail({ titulo, corpo: corpoDoResumo(p.escalas, p.pendentes), url });
+        return { from: cfg.remetente, to: [p.email], subject: titulo.slice(0, 120), html, text: texto };
+      });
+      await enviarLote(cfg, mensagens);
+      await Promise.all(lote.map((p) => p.ref.delete()));
+    }
+    logger.info(`resumo email: ${agora.length} enviados, ${prontos.length - agora.length} ficam para amanhã (teto)`);
+  },
+);
 
 /* ══════════════════════════════════════════════════════════════
  *  GATILHO 4 — confirmar presença (Louvor)
