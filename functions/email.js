@@ -35,6 +35,24 @@
  * escreve (`firestore.rules`). Nenhum líder vê o e-mail de ninguém.
  * `semEmail: true` é "respondi que não tenho" — não recebe nada.
  *
+ * ── O que vai por e-mail, e o que não (pedido 2026-09) ──────────
+ *
+ * Só o que é PESSOAL: o reembolso (pago/devolvido/indeferido), o
+ * "confirma a tua presença" e as escalas. O recado do pastor não —
+ * é para a base inteira, fica no push e no cartão do Início. As
+ * escalas não saem na hora: juntam-se em `filaEmail/{uid}` e saem às
+ * 20h num e-mail só por pessoa, agrupado por mês ("Saiu a tua escala
+ * de outubro"), porque o líder publica o mês inteiro de uma vez e um
+ * e-mail por domingo era ruído (`enviarResumosEmail`, notificacoes.js).
+ *
+ * ── Teto de 95 por dia ────────────────────────────────────────────
+ *
+ * O plano grátis do Resend é de 100/dia. Cada envio reserva o seu
+ * lugar num contador por dia de Lisboa (`config/emailEnvio/uso/{dia}`,
+ * numa transação — dois envios ao mesmo tempo nunca passam o teto
+ * juntos). O que não cabe vai para a fila e sai no resumo do dia
+ * seguinte, nunca se perde. O push não conta: é sempre instantâneo.
+ *
  * ── Um e-mail por pessoa, nunca um "Para:" com todos ─────────────
  *
  * Um recado à equipa inteira são N e-mails separados (pelo endpoint
@@ -50,7 +68,7 @@ import { logger } from "firebase-functions";
 const db = () => admin.firestore();
 
 const URL_LOTE = "https://api.resend.com/emails/batch";
-const POR_LOTE = 100; // o máximo do endpoint de lote
+export const POR_LOTE = 100; // o máximo do endpoint de lote
 const REMETENTE_OMISSAO = "Igreja Onda <avisos@igrejaonda.pt>";
 
 /** Mesmo formato que a regra do Firestore aceita — o que chega aqui
@@ -65,9 +83,41 @@ const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
  *  `scripts/gerar-cabecalho-email.cjs`). */
 const CABECALHO = "https://pastoral.igrejaonda.pt/email/cabecalho.png";
 
+/** 95 e não 100: margem para o e-mail de teste e para um reenvio. */
+export const TETO_DIARIO = 95;
+
+/** "2026-09-25" em Lisboa — o dia do contador. O servidor corre em UTC,
+ *  e à meia-noite de verão o dia UTC ainda é o anterior. */
+const hojeLisboa = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Lisbon" }).format(new Date());
+
+const refUsoHoje = () => db().doc(`config/emailEnvio/uso/${hojeLisboa()}`);
+
+/** Reserva até `n` envios do teto de hoje; devolve quantos couberam.
+ *  Em transação: dois gatilhos ao mesmo tempo nunca passam o teto. Um
+ *  envio que falhe depois de reservado conta na mesma — é o lado
+ *  seguro (o Resend também o pode ter contado). */
+export async function reservarEnvios(n) {
+  if (n <= 0) return 0;
+  const ref = refUsoHoje();
+  return db().runTransaction(async (t) => {
+    const s = await t.get(ref);
+    const usados = s.exists ? s.data().enviados || 0 : 0;
+    const dar = Math.max(0, Math.min(n, TETO_DIARIO - usados));
+    if (dar > 0) {
+      t.set(ref, { enviados: usados + dar, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    }
+    return dar;
+  });
+}
+
+async function enviadosHoje() {
+  const s = await refUsoHoje().get().catch(() => null);
+  return s?.exists ? s.data().enviados || 0 : 0;
+}
+
 /** A configuração de envio, ou `null` se ainda não foi definida (ou
  *  foi desligada de propósito com `ativo:false`). */
-async function configEnvio() {
+export async function configEnvio() {
   const snap = await db().doc("config/emailEnvio").get().catch(() => null);
   if (!snap?.exists) return null;
   const c = snap.data();
@@ -75,18 +125,38 @@ async function configEnvio() {
   return { chave: c.chave, remetente: c.remetente || REMETENTE_OMISSAO };
 }
 
-/** Os endereços de quem os deixou, por uid. */
+/** O endereço de uma pessoa, ou `null` (nunca respondeu, ou disse
+ *  que não tem e-mail). */
+export async function emailDe(uid) {
+  const s = await db().doc(`pessoas/${uid}/privado/email`).get().catch(() => null);
+  const d = s?.exists ? s.data() : null;
+  return d && d.semEmail !== true && typeof d.email === "string" && EMAIL_VALIDO.test(d.email) ? d.email.trim() : null;
+}
+
+/** `[{ uid, email }]` de quem deixou endereço — um só por endereço. */
 async function enderecos(uids) {
-  const snaps = await Promise.all(uids.map((uid) =>
-    db().doc(`pessoas/${uid}/privado/email`).get().catch(() => null)));
+  const emails = await Promise.all(uids.map(emailDe));
+  const vistos = new Set();
   const lista = [];
-  snaps.forEach((s) => {
-    const d = s?.exists ? s.data() : null;
-    if (d && d.semEmail !== true && typeof d.email === "string" && EMAIL_VALIDO.test(d.email)) {
-      lista.push(d.email.trim());
-    }
+  uids.forEach((uid, i) => {
+    const email = emails[i];
+    if (!email || vistos.has(email)) return;
+    vistos.add(email);
+    lista.push({ uid, email });
   });
-  return [...new Set(lista)];
+  return lista;
+}
+
+/** Guarda para o resumo seguinte o que hoje já não coube no teto. */
+async function paraAFila(uid, { titulo, corpo, url }) {
+  await db().doc(`filaEmail/${uid}`).set({
+    // Timestamp.now() e não serverTimestamp(): vai DENTRO de um array
+    // (ver CLAUDE.md raiz — um sentinel num array rebenta a escrita)
+    pendentes: admin.firestore.FieldValue.arrayUnion({
+      titulo: String(titulo ?? ""), corpo: String(corpo ?? ""), url: String(url ?? ""), em: admin.firestore.Timestamp.now(),
+    }),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
 }
 
 const escapar = (t) => String(t ?? "")
@@ -127,7 +197,7 @@ Para mudar ou deixar de receber: na app, toca na tua foto → <b>E-mail para avi
 }
 
 /** Um pedido ao endpoint de lote. Devolve quantos seguiram. */
-async function enviarLote(cfg, mensagens) {
+export async function enviarLote(cfg, mensagens) {
   const resposta = await fetch(URL_LOTE, {
     method: "POST",
     headers: { Authorization: `Bearer ${cfg.chave}`, "Content-Type": "application/json" },
@@ -144,8 +214,9 @@ async function enviarLote(cfg, mensagens) {
 
 /**
  * Envia a mesma notificação por e-mail a quem destas pessoas deixou
- * um endereço. Nunca lança por falta de configuração — sem chave,
- * devolve `{ enviados: 0, motivo }` e o push segue sozinho.
+ * um endereço, dentro do teto de hoje; quem não couber fica na fila
+ * para o resumo seguinte. Nunca lança por falta de configuração — sem
+ * chave, devolve `{ enviados: 0, motivo }` e o push segue sozinho.
  */
 export async function enviarEmails(uids, { titulo, corpo, url }) {
   const cfg = await configEnvio();
@@ -154,9 +225,14 @@ export async function enviarEmails(uids, { titulo, corpo, url }) {
   const para = await enderecos(uids);
   if (!para.length) return { enviados: 0, motivo: "ninguem-com-email" };
 
+  const cabem = await reservarEnvios(para.length);
+  const agora = para.slice(0, cabem);
+  const depois = para.slice(cabem);
+  await Promise.all(depois.map(({ uid }) => paraAFila(uid, { titulo, corpo, url })));
+
   const { html, texto } = montarEmail({ titulo, corpo, url });
   const assunto = String(titulo ?? "Igreja Onda").slice(0, 120);
-  const mensagens = para.map((email) => ({
+  const mensagens = agora.map(({ email }) => ({
     from: cfg.remetente, to: [email], subject: assunto, html, text: texto,
   }));
 
@@ -164,8 +240,8 @@ export async function enviarEmails(uids, { titulo, corpo, url }) {
   for (let i = 0; i < mensagens.length; i += POR_LOTE) {
     enviados += await enviarLote(cfg, mensagens.slice(i, i + POR_LOTE));
   }
-  logger.info(`email: ${enviados} enviados — "${assunto}"`);
-  return { enviados };
+  logger.info(`email: ${enviados} enviados, ${depois.length} para a fila (teto) — "${assunto}"`);
+  return { enviados, naFila: depois.length };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -201,6 +277,8 @@ async function estadoAtual() {
     remetente: e.remetente || REMETENTE_OMISSAO,
     ativo: !!chave && e.ativo !== false,
     pedirNoLogin: publico?.exists ? publico.data().pedirNoLogin === true : false,
+    enviadosHoje: await enviadosHoje(),
+    tetoDiario: TETO_DIARIO,
   };
 }
 
@@ -251,6 +329,9 @@ export const enviarEmailTeste = onCall(async (req) => {
   const snap = await db().doc("config/emailEnvio").get();
   const c = snap.exists ? snap.data() : {};
   if (!c.chave) throw new HttpsError("failed-precondition", "Ainda não há chave gravada.");
+  if (!(await reservarEnvios(1))) {
+    throw new HttpsError("resource-exhausted", `Já saíram ${TETO_DIARIO} e-mails hoje — o teto diário. Tenta amanhã.`);
+  }
 
   const { html, texto } = montarEmail({
     titulo: "Teste — Portal do Voluntário",

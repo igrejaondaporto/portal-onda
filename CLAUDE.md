@@ -237,7 +237,11 @@ pelo tratamento, não do código: está isolada numa linha de
 líder o vê. Sai na mesma anonimização (`retencao.js`). Envio em
 `functions/email.js` (Resend), pelo mesmo `notificar()` do push; a
 chave em `config/emailEnvio`, que nenhuma regra abre
-(`scripts/definirEnvioEmail.mjs`).
+(`scripts/definirEnvioEmail.mjs`). Por e-mail só vai o que é
+**pessoal** (reembolso, confirmar presença, escalas — estas num resumo
+mensal às 20h, `enviarResumosEmail`), nunca o recado à base inteira; e
+nunca mais de **95 por dia** (plano grátis do Resend) — o resto espera
+na `filaEmail` pelo dia seguinte.
 
 Uma pessoa inativa numa base mas ativa noutra **nunca** é tocada:
 `pessoas/{uid}` e o PIN são globais (regra 2), e limpá-los por causa de
