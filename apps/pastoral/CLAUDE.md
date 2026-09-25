@@ -706,6 +706,11 @@ listas mostram 3 + "Ver mais".
   `scripts/definirEnvioEmail.mjs --ligar` (chave em
   `config/emailEnvio`), que liga também o pop-up "qual é o teu
   e-mail?" do primeiro login (`PedirEmail.jsx`, `packages/shared`).
+  **Liga-se pelo telemóvel:** Perfil → "E-mail dos avisos"
+  (`components/ConfigEmail.jsx`): colar a chave do Resend → enviar
+  teste → ligar o envio e o pop-up. A chave vai direta para o servidor
+  (`configurarEnvioEmail`) e nunca volta ao ecrã (só os últimos 4
+  caracteres).
 - **Os agregadores não têm cache.** `panoramaPastoral` são ~9 leituras
   × 10 bases a cada montagem da aba; `historicoPastoral` ganhou mais
   10 leituras por culto em 2026-09 (as escalas, para "Voluntários por

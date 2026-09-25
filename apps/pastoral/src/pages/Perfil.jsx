@@ -8,6 +8,7 @@ import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import SheetMembroPastoral from "../components/SheetMembroPastoral.jsx";
+import ConfigEmail from "../components/ConfigEmail.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -176,6 +177,7 @@ export default function Perfil({ uid, pessoa, definirCabecalho, onAtualizarPesso
             })}
           </div>
         </div>
+        <ConfigEmail />
       </div>
       <div>
         <button className="sair" onClick={sair}>Terminar sessão</button>
