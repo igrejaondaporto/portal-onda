@@ -101,3 +101,10 @@ export const guardarEventoIgreja = (dados) => chamar("guardarEventoIgreja")(dado
 
 /** Só eventos futuros; leva as escalas de todas as bases. */
 export const apagarEventoIgreja = (eventoId) => chamar("apagarEventoIgreja")({ eventoId }).then((r) => r.data);
+
+/* ── e-mail dos avisos (Resend) — functions/email.js ─────────── */
+// A chave vai só num sentido: daqui para o servidor. Nenhuma destas
+// devolve a chave — só `chaveFim` (os últimos 4 caracteres).
+export const estadoEnvioEmail = () => chamar("estadoEnvioEmail")({}).then((r) => r.data);
+export const configurarEnvioEmail = (dados) => chamar("configurarEnvioEmail")(dados).then((r) => r.data);
+export const enviarEmailTeste = (para) => chamar("enviarEmailTeste")({ para }).then((r) => r.data);

@@ -1255,3 +1255,29 @@
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Perfil: e-mail dos avisos (ConfigEmail.jsx) ─────────────── */
+.pa-cfg-email {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pa-cfg-email li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--fio);
+  font-size: 13.5px;
+}
+.pa-cfg-email li:last-child {
+  border-bottom: 0;
+}
+.pa-cfg-email span {
+  color: var(--cinza);
+}
+.pa-cfg-email b {
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
