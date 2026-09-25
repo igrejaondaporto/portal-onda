@@ -232,6 +232,13 @@ ninguém perceber porquê. Manter o `nome` é uma decisão do responsável
 pelo tratamento, não do código: está isolada numa linha de
 `purgarDadosDeVoluntariosInativos` para poder ser mudada.
 
+**O e-mail dos avisos** (2026-09) vive em `pessoas/{uid}/privado/email`
+— global e só da dona, como o IBAN (`privado/pagamento`); nenhum
+líder o vê. Sai na mesma anonimização (`retencao.js`). Envio em
+`functions/email.js` (Resend), pelo mesmo `notificar()` do push; a
+chave em `config/emailEnvio`, que nenhuma regra abre
+(`scripts/definirEnvioEmail.mjs`).
+
 Uma pessoa inativa numa base mas ativa noutra **nunca** é tocada:
 `pessoas/{uid}` e o PIN são globais (regra 2), e limpá-los por causa de
 uma base deixava-a sem entrar na outra.
