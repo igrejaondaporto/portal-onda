@@ -83,6 +83,9 @@ export {
   notificarRecado, notificarReembolso, notificarEscala,
   lembrarConfirmacaoPresenca,
 } from "./notificacoes.js";
+// Configurar o e-mail pelo Painel Pastoral (a chave do Resend nunca
+// volta ao cliente — ver email.js).
+export { estadoEnvioEmail, configurarEnvioEmail, enviarEmailTeste } from "./email.js";
 
 admin.initializeApp();
 const db = admin.firestore();
