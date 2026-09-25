@@ -710,7 +710,10 @@ listas mostram 3 + "Ver mais".
   (`components/ConfigEmail.jsx`): colar a chave do Resend → enviar
   teste → ligar o envio e o pop-up. A chave vai direta para o servidor
   (`configurarEnvioEmail`) e nunca volta ao ecrã (só os últimos 4
-  caracteres).
+  caracteres). Mostra também "E-mails hoje: X de 95" — o teto diário
+  (plano grátis do Resend); o que passa espera pelo dia seguinte. Por
+  e-mail só vai o que é pessoal: a escala do mês (resumo às 20h),
+  reembolsos, confirmar presença — **o recado não** (só push).
 - **Os agregadores não têm cache.** `panoramaPastoral` são ~9 leituras
   × 10 bases a cada montagem da aba; `historicoPastoral` ganhou mais
   10 leituras por culto em 2026-09 (as escalas, para "Voluntários por

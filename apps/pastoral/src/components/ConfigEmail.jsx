@@ -64,8 +64,9 @@ export default function ConfigEmail() {
     <div className="sect">
       <div className="cabecalho"><h3>E-mail dos avisos</h3></div>
       <p className="ds">
-        Escalas, recados e reembolsos também por e-mail, pelo Resend. A chave fica guardada no servidor — depois de
-        gravada, ninguém a volta a ver aqui.
+        Só o que é pessoal vai por e-mail, pelo Resend: a escala do mês (um e-mail por pessoa, às 20h do dia em que
+        sai), reembolsos e confirmar presença. Os recados ficam só no push. A chave fica guardada no servidor —
+        depois de gravada, ninguém a volta a ver aqui.
       </p>
 
       {erro && <p className="ds" style={{ color: "var(--magenta)" }}>{erro}</p>}
@@ -78,6 +79,12 @@ export default function ConfigEmail() {
             <li><span>Remetente</span><b>{estado.remetente}</b></li>
             <li><span>Envio</span><b>{estado.ativo ? "ligado" : "desligado"}</b></li>
             <li><span>Pedir e-mail no login</span><b>{estado.pedirNoLogin ? "ligado" : "desligado"}</b></li>
+            {typeof estado.tetoDiario === "number" && (
+              <li>
+                <span>E-mails hoje</span>
+                <b>{estado.enviadosHoje} de {estado.tetoDiario}{estado.enviadosHoje >= estado.tetoDiario ? " — o resto sai amanhã" : ""}</b>
+              </li>
+            )}
           </ul>
 
           <label className="rot" htmlFor="cfg-chave" style={{ marginTop: 14 }}>
