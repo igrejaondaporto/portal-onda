@@ -241,7 +241,11 @@ chave em `config/emailEnvio`, que nenhuma regra abre
 **pessoal** (reembolso, confirmar presença, escalas — estas num resumo
 mensal às 20h, `enviarResumosEmail`), nunca o recado à base inteira; e
 nunca mais de **95 por dia** (plano grátis do Resend) — o resto espera
-na `filaEmail` pelo dia seguinte.
+na `filaEmail` pelo dia seguinte. Só se manda a endereços
+**confirmados** (`verificado:true`, que só o Admin SDK escreve): o
+pop-up manda um código de 6 dígitos (`enviarCodigoEmail`/
+`confirmarCodigoEmail`) e qualquer mudança de endereço no cliente apaga
+o `verificado` sozinha.
 
 Uma pessoa inativa numa base mas ativa noutra **nunca** é tocada:
 `pessoas/{uid}` e o PIN são globais (regra 2), e limpá-los por causa de

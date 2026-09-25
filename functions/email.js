@@ -35,6 +35,23 @@
  * escreve (`firestore.rules`). Nenhum líder vê o e-mail de ninguém.
  * `semEmail: true` é "respondi que não tenho" — não recebe nada.
  *
+ * ── Só a endereços CONFIRMADOS (2026-09) ─────────────────────────
+ *
+ * Pedido: "assim que a pessoa colocar o e-mail, recebe um e-mail para
+ * o confirmar". Um código de 6 dígitos (`enviarCodigoEmail`), escrito
+ * no próprio pop-up (`confirmarCodigoEmail`) — não um link: o link
+ * abria no browser do e-mail, fora da app instalada, e às vezes noutro
+ * telemóvel; o código deixa a pessoa onde está.
+ *
+ * `verificado: true` em `privado/email` só o escreve esta função (o
+ * Admin SDK). As regras só deixam o cliente gravar `email`/`semEmail`/
+ * `atualizadoEm`, e o cliente grava sempre o documento inteiro — por
+ * isso qualquer mudança de endereço feita no cliente apaga o
+ * `verificado` sozinha, sem mudar uma linha das regras. `emailDe()`
+ * só devolve endereços confirmados: um erro de escrita
+ * ("gmial.com") nunca recebe nada, e um endereço que devolve e-mails
+ * estraga a reputação do domínio no Resend para toda a gente.
+ *
  * ── O que vai por e-mail, e o que não (pedido 2026-09) ──────────
  *
  * Só o que é PESSOAL: o reembolso (pago/devolvido/indeferido), o
@@ -64,6 +81,7 @@ import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
+import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
 const db = () => admin.firestore();
 
@@ -125,12 +143,20 @@ export async function configEnvio() {
   return { chave: c.chave, remetente: c.remetente || REMETENTE_OMISSAO };
 }
 
-/** O endereço de uma pessoa, ou `null` (nunca respondeu, ou disse
- *  que não tem e-mail). */
-export async function emailDe(uid) {
+/** `{ email, confirmado }` de uma pessoa, ou `null` (nunca respondeu,
+ *  ou disse que não tem e-mail). */
+export async function estadoEmailDe(uid) {
   const s = await db().doc(`pessoas/${uid}/privado/email`).get().catch(() => null);
   const d = s?.exists ? s.data() : null;
-  return d && d.semEmail !== true && typeof d.email === "string" && EMAIL_VALIDO.test(d.email) ? d.email.trim() : null;
+  if (!d || d.semEmail === true || typeof d.email !== "string" || !EMAIL_VALIDO.test(d.email)) return null;
+  return { email: d.email.trim(), confirmado: d.verificado === true };
+}
+
+/** O endereço CONFIRMADO de uma pessoa, ou `null` — o único a que se
+ *  manda um aviso (ver "Só a endereços CONFIRMADOS" no topo). */
+export async function emailDe(uid) {
+  const e = await estadoEmailDe(uid);
+  return e?.confirmado ? e.email : null;
 }
 
 /** `[{ uid, email }]` de quem deixou endereço — um só por endereço. */
@@ -165,10 +191,20 @@ const escapar = (t) => String(t ?? "")
 /** O corpo do e-mail. Tabelas e estilos inline, de propósito: é o que
  *  o Gmail/Outlook no telemóvel desenham igual — CSS em `<style>` e
  *  flexbox são ignorados por metade dos clientes de e-mail. */
-export function montarEmail({ titulo, corpo, url }) {
+const RODAPE_AVISOS = "Recebes este e-mail porque o deixaste no Portal do Voluntário da Igreja Onda. "
+  + "Para mudar ou deixar de receber: na app, toca na tua foto → E-mail para avisos.";
+
+/** `codigo` (opcional): o e-mail de confirmação — mostra o código em
+ *  grande no lugar do botão, e o rodapé diz o que fazer se não foi a
+ *  própria pessoa a pedi-lo. */
+export function montarEmail({ titulo, corpo, url, codigo, rodape = RODAPE_AVISOS }) {
   const t = escapar(titulo);
   const c = escapar(corpo).replace(/\n/g, "<br>");
   const u = escapar(url || "https://igrejaonda.pt");
+  const acao = codigo
+    ? `<div style="display:inline-block;background:#eef1fb;border-radius:16px;padding:14px 12px 14px 22px;font-size:34px;font-weight:800;letter-spacing:.3em;color:#0019be;font-family:Outfit,Arial,Helvetica,sans-serif">${escapar(codigo)}</div>`
+    : `<a href="${u}" style="display:inline-block;background:#0019be;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:100px">Abrir o Portal</a>`;
+  const r = escapar(rodape).replace("E-mail para avisos", "<b>E-mail para avisos</b>");
   const html = `<!doctype html>
 <html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${t}</title></head>
 <body style="margin:0;padding:0;background:#eef1fb;font-family:Outfit,Arial,Helvetica,sans-serif;color:#0b1033">
@@ -183,16 +219,17 @@ export function montarEmail({ titulo, corpo, url }) {
 <p style="margin:12px 0 0;font-size:16px;line-height:1.5;color:#2b3060">${c}</p>
 </td></tr>
 <tr><td style="padding:18px 24px 26px">
-<a href="${u}" style="display:inline-block;background:#0019be;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:100px">Abrir o Portal</a>
+${acao}
 </td></tr>
 <tr><td style="padding:16px 24px 22px;border-top:1px solid #e3e6f3;font-size:12px;line-height:1.5;color:#6b7194">
-Recebes este e-mail porque o deixaste no Portal do Voluntário da Igreja Onda.
-Para mudar ou deixar de receber: na app, toca na tua foto → <b>E-mail para avisos</b>.
+${r}
 </td></tr>
 </table>
 </td></tr></table>
 </body></html>`;
-  const texto = `${titulo}\n\n${corpo}\n\nAbrir o Portal: ${url || "https://igrejaonda.pt"}\n\n—\nRecebes este e-mail porque o deixaste no Portal do Voluntário da Igreja Onda. Para mudar ou deixar de receber: na app, toca na tua foto → E-mail para avisos.`;
+  const texto = codigo
+    ? `${titulo}\n\n${corpo}\n\n${codigo}\n\n—\n${rodape}`
+    : `${titulo}\n\n${corpo}\n\nAbrir o Portal: ${url || "https://igrejaonda.pt"}\n\n—\n${rodape}`;
   return { html, texto };
 }
 
@@ -346,4 +383,140 @@ export const enviarEmailTeste = onCall(async (req) => {
     throw new HttpsError("failed-precondition", String(e.message || e).slice(0, 300));
   }
   return { ok: true };
+});
+
+/* ══════════════════════════════════════════════════════════════
+ *  Confirmar o e-mail com um código (2026-09)
+ * ══════════════════════════════════════════════════════════════
+ *
+ * Qualquer pessoa com sessão, para o SEU e-mail (o uid vem do token,
+ * nunca do pedido). O código não fica em lado nenhum que o cliente
+ * leia: vive em `pessoas/{uid}/privado/emailCodigo` (o `privado`
+ * genérico das regras está fechado) e só como hash.
+ *
+ * Travões, porque cada código gasta um lugar do teto de 95 por dia
+ * que as escalas também usam: um código por minuto, 5 por pessoa por
+ * dia, 5 tentativas por código, 30 minutos de validade.
+ */
+const VALIDADE_CODIGO_MS = 30 * 60 * 1000;
+const ESPERA_REENVIO_MS = 60 * 1000;
+const CODIGOS_POR_DIA = 5;
+const TENTATIVAS_POR_CODIGO = 5;
+
+const refCodigo = (uid) => db().doc(`pessoas/${uid}/privado/emailCodigo`);
+const hashCodigo = (uid, codigo) => createHash("sha256").update(`${uid}:${codigo}`).digest();
+
+function exigeSessao(req) {
+  if (!req.auth?.uid) throw new HttpsError("unauthenticated", "Entra primeiro no Portal.");
+  return req.auth.uid;
+}
+
+/** Grava o e-mail (por confirmar) e manda-lhe um código de 6 dígitos.
+ *  O e-mail fica gravado mesmo que o envio não aconteça (teto, rede):
+ *  a pessoa não tem de o escrever outra vez, só de pedir outro código.
+ *  Devolve `{ enviado: true }`, ou `{ jaConfirmado: true }` se este
+ *  endereço já estava confirmado (não gasta nada). */
+export const enviarCodigoEmail = onCall(async (req) => {
+  const uid = exigeSessao(req);
+  const email = String(req.data?.email || "").trim().toLowerCase();
+  if (!EMAIL_VALIDO.test(email) || email.length > 254) {
+    throw new HttpsError("invalid-argument", "Esse e-mail não parece certo — confirma se falta alguma letra.");
+  }
+
+  const refEmail = db().doc(`pessoas/${uid}/privado/email`);
+  const [atualSnap, codSnap] = await Promise.all([refEmail.get(), refCodigo(uid).get()]);
+  const atual = atualSnap.exists ? atualSnap.data() : null;
+  if (atual?.email === email && atual.verificado === true && atual.semEmail !== true) return { jaConfirmado: true };
+
+  const agora = admin.firestore.FieldValue.serverTimestamp();
+  if (atual?.email !== email || atual?.semEmail === true || atual?.verificado !== false) {
+    await refEmail.set({ email, semEmail: false, verificado: false, atualizadoEm: agora });
+  }
+
+  const cod = codSnap.exists ? codSnap.data() : {};
+  const dia = hojeLisboa();
+  const enviosHoje = cod.dia === dia ? cod.enviosHoje || 0 : 0;
+  const ultimo = cod.enviadoEm?.toMillis?.() ?? 0;
+  if (Date.now() - ultimo < ESPERA_REENVIO_MS) {
+    throw new HttpsError("resource-exhausted", "Acabámos de te mandar um código — espera um minuto antes de pedir outro.", { motivo: "espera" });
+  }
+  if (enviosHoje >= CODIGOS_POR_DIA) {
+    throw new HttpsError("resource-exhausted", "Já pediste muitos códigos hoje. Tenta outra vez amanhã.", { motivo: "pessoa" });
+  }
+
+  const cfg = await configEnvio();
+  if (!cfg) {
+    throw new HttpsError("failed-precondition", "O envio de e-mails ainda não está ligado. Confirmas mais tarde.", { motivo: "desligado" });
+  }
+  if (!(await reservarEnvios(1))) {
+    throw new HttpsError("resource-exhausted", "Hoje já saíram todos os e-mails que podemos mandar. Pede o código amanhã.", { motivo: "teto" });
+  }
+
+  const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await refCodigo(uid).set({
+    hash: hashCodigo(uid, codigo).toString("hex"),
+    email,
+    expiraEm: admin.firestore.Timestamp.fromMillis(Date.now() + VALIDADE_CODIGO_MS),
+    tentativas: 0,
+    enviadoEm: admin.firestore.Timestamp.now(),
+    dia,
+    enviosHoje: enviosHoje + 1,
+  });
+
+  const { html, texto } = montarEmail({
+    titulo: "Confirma o teu e-mail",
+    corpo: "Escreve este código no Portal do Voluntário para confirmares o teu e-mail. Vale 30 minutos.",
+    codigo,
+    rodape: "Se não foste tu a pedir este código, ignora este e-mail — sem o código, nada muda.",
+  });
+  try {
+    await enviarLote(cfg, [{
+      from: cfg.remetente, to: [email], subject: `${codigo} é o teu código do Portal do Voluntário`, html, text: texto,
+    }]);
+  } catch (e) {
+    logger.error("email: código de confirmação não saiu", { uid, erro: String(e.message || e) });
+    throw new HttpsError("unavailable", "Não conseguimos mandar o e-mail agora. Tenta daqui a pouco.", { motivo: "envio" });
+  }
+  return { enviado: true };
+});
+
+/** Confere o código e marca o e-mail como confirmado. */
+export const confirmarCodigoEmail = onCall(async (req) => {
+  const uid = exigeSessao(req);
+  const codigo = String(req.data?.codigo || "").replace(/\D/g, "");
+  if (codigo.length !== 6) throw new HttpsError("invalid-argument", "O código tem 6 números.");
+
+  const snap = await refCodigo(uid).get();
+  if (!snap.exists) throw new HttpsError("failed-precondition", "Pede um código novo.");
+  const c = snap.data();
+  if ((c.expiraEm?.toMillis?.() ?? 0) < Date.now()) {
+    throw new HttpsError("deadline-exceeded", "Este código já expirou — pede outro.");
+  }
+  if ((c.tentativas || 0) >= TENTATIVAS_POR_CODIGO) {
+    throw new HttpsError("resource-exhausted", "Demasiadas tentativas com este código — pede outro.");
+  }
+
+  const guardado = Buffer.from(String(c.hash || ""), "hex");
+  const certo = guardado.length === 32 && timingSafeEqual(hashCodigo(uid, codigo), guardado);
+  if (!certo) {
+    const tentativas = (c.tentativas || 0) + 1;
+    await snap.ref.set({ tentativas }, { merge: true });
+    const faltam = TENTATIVAS_POR_CODIGO - tentativas;
+    throw new HttpsError("invalid-argument", faltam > 0
+      ? `Código errado. ${faltam === 1 ? "Resta 1 tentativa" : `Restam ${faltam} tentativas`}.`
+      : "Código errado. Pede um código novo.");
+  }
+
+  // o endereço pode ter mudado entre o pedido do código e agora
+  const refEmail = db().doc(`pessoas/${uid}/privado/email`);
+  const atual = await refEmail.get();
+  if (!atual.exists || atual.data().email !== c.email || atual.data().semEmail === true) {
+    throw new HttpsError("failed-precondition", "O teu e-mail mudou entretanto — pede um código novo.");
+  }
+  const agora = admin.firestore.FieldValue.serverTimestamp();
+  await refEmail.set({ verificado: true, verificadoEm: agora, atualizadoEm: agora }, { merge: true });
+  // trabalho feito, não histórico (como a filaEmail)
+  await snap.ref.delete();
+  logger.info("email: confirmado", { uid });
+  return { confirmado: true, email: c.email };
 });
