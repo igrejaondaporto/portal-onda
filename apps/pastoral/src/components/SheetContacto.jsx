@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, indiceEtapa, nomeEtapa } from "../lib/contactos";
+import { useEffect, useState } from "react";
+import { ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, indiceEtapa, nomeEtapa, nomeGD, ouvirGDs } from "../lib/contactos";
 import { arquivarContactoPastoral, moverEtapaContacto } from "../lib/pastoral";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
@@ -25,16 +25,25 @@ export default function SheetContacto({ contacto, onFechar }) {
   const torrada = useTorrada();
   const [aGuardar, setAGuardar] = useState(false);
   const [aArquivar, setAArquivar] = useState(false);
+  // passar para "No GD" pergunta primeiro qual (pedido 2026-09) — a
+  // lista só é pedida quando é precisa
+  const [escolherGD, setEscolherGD] = useState(false);
+  const [gds, setGds] = useState(null);
   const atual = contacto.etapa ?? "visita";
   const dias = diasParado(contacto);
   const wa = linkWhatsApp(contacto.telemovel);
+  const gdAtual = nomeGD(contacto);
 
-  async function mover(etapa) {
-    if (etapa === atual) return;
+  useEffect(() => (escolherGD ? ouvirGDs(setGds) : undefined), [escolherGD]);
+
+  async function mover(etapa, gdId) {
+    if (etapa === atual && !gdId) return;
     setAGuardar(true);
     try {
-      await moverEtapaContacto(contacto.id, etapa);
-      torrada(`${contacto.nome} → ${nomeEtapa(etapa)}`);
+      await moverEtapaContacto(contacto.id, etapa, null, gdId);
+      const gd = gdId ? gds?.find((g) => g.id === gdId)?.nome : null;
+      torrada(`${contacto.nome} → ${nomeEtapa(etapa)}${gd ? ` · ${gd}` : ""}`);
+      setEscolherGD(false);
     } catch (e) {
       torrada(e.message || "Não foi possível mover.");
     } finally {
@@ -80,7 +89,21 @@ export default function SheetContacto({ contacto, onFechar }) {
           </>
         )}
 
-        {contacto.gdSugerido && (
+        {gdAtual && (
+          <>
+            <label className="rot" style={{ marginTop: 12 }}>Vai ao GD</label>
+            <p className="ds" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <b style={{ color: "var(--tinta)" }}>{gdAtual}</b>
+              {atual === "gd" && (
+                <button className="btn sec" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => setEscolherGD(true)}>
+                  Trocar
+                </button>
+              )}
+            </p>
+          </>
+        )}
+
+        {contacto.gdSugerido && contacto.gdSugerido !== gdAtual && (
           <>
             <label className="rot" style={{ marginTop: 12 }}>GD mais próximo</label>
             <p className="ds">{contacto.gdSugerido}</p>
@@ -117,7 +140,7 @@ export default function SheetContacto({ contacto, onFechar }) {
                 className={`pa-etapa${e.id === atual ? " on" : ""}${i < iAtual ? " feita" : ""}`}
                 style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id], color: corTextoEtapa(e.id) } : undefined}
                 disabled={aGuardar || e.id === atual}
-                onClick={() => mover(e.id)}
+                onClick={() => (e.id === "gd" ? setEscolherGD(true) : mover(e.id))}
               >
                 {e.nome}
               </button>
@@ -125,12 +148,44 @@ export default function SheetContacto({ contacto, onFechar }) {
           })}
         </div>
 
+        {escolherGD && (
+          <div className="pa-escolher-gd">
+            <p className="nmt" style={{ fontSize: 14 }}>Em que GD ficou?</p>
+            {gds === null ? <p className="ds">A carregar os GDs…</p> : gds.length === 0 ? (
+              <p className="ds">Ainda não há GDs no catálogo — a líder da Base Pessoal é quem os cria.</p>
+            ) : (
+              <div className="pa-etapas" style={{ marginTop: 8 }}>
+                {gds.map((g) => (
+                  <button
+                    key={g.id}
+                    className={`pa-etapa${contacto.gd?.id === g.id ? " on" : ""}${g.nome === contacto.gdSugerido ? " sugerido" : ""}`}
+                    disabled={aGuardar || contacto.gd?.id === g.id}
+                    onClick={() => mover("gd", g.id)}
+                  >
+                    {g.nome}{g.regiao ? ` · ${g.regiao}` : ""}
+                  </button>
+                ))}
+              </div>
+            )}
+            {contacto.gdSugerido && <p className="cap" style={{ marginTop: 6 }}>Sugerido no Formulário: {contacto.gdSugerido}</p>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              {atual !== "gd" && (
+                <button className="btn sec" style={{ flex: 1 }} disabled={aGuardar} onClick={() => mover("gd")}>
+                  Sem escolher agora
+                </button>
+              )}
+              <button className="btn sec" style={{ flex: 1 }} onClick={() => setEscolherGD(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
         {historico.length > 0 && (
           <>
             <label className="rot" style={{ marginTop: 18 }}>O caminho até aqui</label>
             {historico.map((h, i) => (
               <p className="ds" key={i} style={{ marginTop: i === 0 ? 4 : 2 }}>
-                {nomeEtapa(h.de)} → {nomeEtapa(h.para)} · {String(h.em ?? "").slice(0, 10)}
+                {h.de === h.para ? `Trocou de GD` : `${nomeEtapa(h.de)} → ${nomeEtapa(h.para)}`}
+                {h.gd ? ` (${h.gd})` : ""} · {String(h.em ?? "").slice(0, 10)}
               </p>
             ))}
           </>

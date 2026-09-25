@@ -4,7 +4,9 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
+import { apeloDoCulto, criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
+import RelatorioNumeros, { exportarNumeros } from "../components/RelatorioNumeros";
+import { Download } from "lucide-react";
 import Barras from "../components/Barras";
 import MapaCalor from "../components/MapaCalor";
 import Atraso, { corAtraso, textoAtraso } from "../components/Atraso";
@@ -121,6 +123,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
   const [verTodaTabela, setVerTodaTabela] = useState(false);
   // "Crianças por domingo" também começa nos 5 mais recentes
   const [verTodasCriancas, setVerTodasCriancas] = useState(false);
+  // a tabela de presença começa nos 3 mais recentes (pedido 2026-09:
+  // "só os três últimos já está bom")
+  const [verTodaPresenca, setVerTodaPresenca] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -198,6 +203,22 @@ export default function Numeros({ ativo, definirCabecalho }) {
       .filter(({ n }) => n > 0)
       .map(({ c, n }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: n }));
   }, [dados]);
+
+  /** Quantos responderam ao apelo, domingo a domingo (pedido 2026-09:
+   *  "um cartão e um gráfico, para ver quando aumentou e quando teve
+   *  menos"). Do Mapa desde 27/9, da Contagem antes — `apeloDoCulto`.
+   *  Um domingo sem número fica de fora (não se sabe ≠ zero). */
+  const apeloPorDomingo = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .map((c) => ({ c, n: apeloDoCulto(c) }))
+      .filter(({ n }) => n !== null)
+      .map(({ c, n }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: n }));
+  }, [dados]);
+  const totalApelo = apeloPorDomingo.reduce((t, p) => t + p.valor, 0);
+  const mediaApelo = media(apeloPorDomingo.map((p) => p.valor));
+  const ultimoApelo = apeloPorDomingo.at(-1) ?? null;
+  const penultimoApelo = apeloPorDomingo.at(-2) ?? null;
 
   /** Quantos foram escalados em cada culto, somando as dez bases —
    *  pedido 2026-09. Só entram os cultos com pelo menos um escalado:
@@ -370,6 +391,24 @@ export default function Numeros({ ativo, definirCabecalho }) {
     }));
   }, [dados, periodo, presencaIgreja]);
 
+  /* ── exportar ─────────────────────────────────────────────── */
+
+  /** Todos os cultos do período, uma linha cada, com tudo o que se
+   *  sabe deles — a tabela principal do relatório. */
+  const relatorio = useMemo(() => {
+    if (!dados) return null;
+    const cadastradosDe = (c) => CADASTRADOS_PLANILHA[c.data] ?? c.visitantesCadastrados ?? 0;
+    const domingos = dados.cultos
+      .map((c) => ({ chave: c.eventoId, data: c.data, ...presencaDoCulto(c), apelo: apeloDoCulto(c), cadastrados: cadastradosDe(c) }))
+      .filter((d) => d.total !== null || d.voluntarios > 0 || d.criancas !== null || d.apelo !== null || d.cadastrados > 0);
+    const datas = dados.cultos.map((c) => c.data).sort();
+    return {
+      domingos,
+      intervalo: [datas[0], datas.at(-1)],
+      cadastrados: domingos.reduce((t, d) => t + d.cadastrados, 0),
+    };
+  }, [dados]);
+
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
@@ -389,6 +428,12 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <button key={id} data-on={periodo === id ? "1" : "0"} onClick={() => setPeriodo(id)}>{rotulo}</button>
         ))}
       </div>
+
+      {dados && (
+        <button className="btn sec full nm-exportar" onClick={exportarNumeros}>
+          <Download size={16} /> Exportar {PERIODOS.find(([id]) => id === periodo)[1].toLowerCase()} (PDF)
+        </button>
+      )}
 
       {erro && <div className="caixa destaque" style={{ marginTop: 12 }}><p className="ds" style={{ marginTop: 0 }}>{erro}</p></div>}
       {!dados && !erro && <div className="vaz" style={{ marginTop: 12 }}>A carregar o histórico…</div>}
@@ -453,6 +498,38 @@ export default function Numeros({ ativo, definirCabecalho }) {
               pontos={presencaIgreja}
               vazio="Ainda não há nenhum domingo com o auditório contado neste período."
             />
+
+            {presencaIgreja.length > 0 && (
+              <div style={{ borderTop: "1px solid var(--fio)", marginTop: 18, paddingTop: 14 }}>
+                <p className="cap" style={{ marginTop: 0 }}>Domingo a domingo</p>
+                <div className="tabwrap" style={{ marginTop: 8 }}>
+                  <table className="tab nm-criancas">
+                    <thead>
+                      <tr>
+                        <th>Culto</th><th>Audit.</th><th>Volunt.</th><th>Crianças</th><th>Total</th><th>Visit.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {presencaIgreja.slice().reverse().slice(0, verTodaPresenca ? undefined : 3).map((p) => (
+                        <tr key={p.chave}>
+                          <td>{p.rotulo}</td>
+                          <td>{p.auditorio}</td>
+                          <td>{p.voluntarios || "—"}</td>
+                          <td>{p.criancas ?? "—"}</td>
+                          <td><b>{p.total}</b></td>
+                          <td>{p.visitantes ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {presencaIgreja.length > 3 && (
+                  <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodaPresenca((v) => !v)}>
+                    {verTodaPresenca ? "Ver menos" : `Ver mais (${presencaIgreja.length - 3})`}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="sect">
@@ -480,6 +557,23 @@ export default function Numeros({ ativo, definirCabecalho }) {
           <div className="sect">
             <div className="cabecalho"><h3>Cadastrados</h3><span className="cap">foram à salinha</span></div>
             <LinhaTempo pontos={visitantesCadastrados} vazio="Ainda não há contactos registados neste período." />
+          </div>
+
+          <div className="sect">
+            <div className="cabecalho"><h3>Apelo</h3><span className="cap">responderam ao apelo</span></div>
+            <div className="nm-tres">
+              <div><p>No período</p><b>{apeloPorDomingo.length ? totalApelo : "—"}</b></div>
+              <div><p>Média</p><b>{mediaApelo ?? "—"}</b><small>por domingo</small></div>
+              <div>
+                <p>Último</p>
+                <b>{ultimoApelo ? ultimoApelo.valor : "—"}</b>
+                {ultimoApelo && <small>{ultimoApelo.rotulo}{penultimoApelo && (
+                  ultimoApelo.valor === penultimoApelo.valor ? " · igual" :
+                  ` · ${ultimoApelo.valor > penultimoApelo.valor ? "▲" : "▼"} ${Math.abs(ultimoApelo.valor - penultimoApelo.valor)}`
+                )}</small>}
+              </div>
+            </div>
+            <LinhaTempo pontos={apeloPorDomingo} vazio="Ainda não há apelo registado neste período — no Mapa da Base Pessoal, manter o dedo num lugar marca-o como apelo." />
           </div>
 
           <p className="nm-grupo">Equipa e crianças</p>
@@ -678,6 +772,28 @@ export default function Numeros({ ativo, definirCabecalho }) {
               </>
             )}
           </div>
+
+          <RelatorioNumeros
+            titulo={PERIODOS.find(([id]) => id === periodo)[1]}
+            intervalo={relatorio.intervalo}
+            resumo={[
+              ["Cultos com números", relatorio.domingos.length],
+              ["Presença média por domingo", mediaPresenca],
+              ["Auditório (média)", medias.auditorio],
+              ["Voluntários (média)", medias.voluntarios],
+              ["Crianças (média)", medias.criancas],
+              ["Visitantes no auditório (total)", visitantes.length ? totalVisitantes : null],
+              ["Visitantes cadastrados (total)", relatorio.cadastrados || null],
+              ["Apelo (total)", apeloPorDomingo.length ? totalApelo : null],
+              ["Ofertas (total)", ofertaPorMes.length ? eur(totalOferta) : null],
+              ["Atraso médio por bloco", cultosComRegisto.length ? textoAtraso(atrasoMedioBlocos) : null],
+            ]}
+            porAno={porAno}
+            domingos={relatorio.domingos}
+            criancas={criancasPorDomingo}
+            ofertaPorMes={ofertaPorMes}
+            blocos={atrasoPorMomento}
+          />
         </>
       )}
     </>

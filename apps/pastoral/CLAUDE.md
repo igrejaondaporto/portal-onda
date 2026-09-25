@@ -31,7 +31,7 @@ inventário. O que escreve, e porquê:
 | A ordem do culto | `eventos/{e}.ordem` | É produzida aqui, não noutro lado — é o que substitui o PDF |
 | A etiqueta do culto (tipo) | `eventos/{e}.tipoCulto` | Muda-se aqui sem publicar a ordem, que continua a vir da Backstage (pedido 2026-09) — ver "Tipo de culto" abaixo |
 | Eventos da igreja (agenda) | `eventos/{data}` (só cultos especiais) | O pastor marca eventos e escolhe que bases servem (pedido 2026-09) — ver "A agenda" abaixo |
-| A etapa de um visitante | `contactos/{id}.etapa` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
+| A etapa de um visitante (e o GD em que ficou) | `contactos/{id}.etapa`, `.gd` | O funil sempre foi desenhado para ser só daqui (ver abaixo) |
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
 | Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
 | Corrigir a DURAÇÃO de um momento | `eventos/{e}/estatisticasCulto/registo.secoesReais[].duracaoCorrigidaMin` | Depois de "Finalizar culto" copiar tudo para o arquivo, nada mais o edita — um erro ficava congelado para sempre (pedido 2026-09). Corrige a duração, não a hora de relógio — ninguém sabe de cor a que horas algo entrou |
@@ -379,6 +379,29 @@ que a escrita chega — nenhum estado extra a sincronizar. As
 por esta via"), por isso é Cloud Function, como mover de etapa —
 nunca escrita direta do painel.
 
+**O GD em que ficou** (pedido 2026-09). Tocar em "No GD" na folha do
+contacto não move logo: pergunta primeiro qual GD, a partir do
+catálogo global `gds/{gd}` (o da Base Pessoal — só a líder dela o
+edita; aqui só se lê). O sugerido pelo Formulário (`gdSugerido`) leva
+um contorno tracejado. `moverEtapaContacto` recebe `gdId`, valida-o
+contra o catálogo e grava `contactos/{id}.gd = {id, nome}` + o nome
+no histórico. O `gd` fica no contacto depois de avançar de etapa (um
+membro continua a ir ao mesmo GD) e aparece na linha do funil ("GD:
+…"). "Sem escolher agora" move como antes, sem GD.
+
+**Cartões de conversão por cima do funil** (`conversaoFunil`,
+`lib/contactos.js`): quantos estão em cada etapa AGORA e, dos que
+chegaram a ela, quantos % passaram à seguinte. Quem está numa etapa
+conta como tendo passado por todas as anteriores — é por isso que as
+barras do `Funil.jsx` deixaram de ter percentagem: contavam só quem
+está em cada etapa e dividiam pela Visita, o que dava mais de 100%.
+
+**Parados há mais de 7 dias** (`DIAS_PARADO`, antes 30) ficam com uma
+barra laranja à esquerda E o texto "à espera há N dias em …" — nunca
+só a cor. O aviso por cima tem "Ver só os parados". O relógio é
+`etapaEm` (ou `criadoEm` se nunca foi movido); quem já está "A
+servir" nunca está parado.
+
 ## A agenda (topo da aba Domingo)
 
 **Duas vistas — Mês (omissão) e Semana** (pedido 2026-09), um par de
@@ -521,9 +544,47 @@ Cores validadas (`#2640c5`/`#0092d4`/`#ff2e88` — o `--azul` #0019be
 é escuro demais ao lado de outras duas). Com mais de ~10 domingos o
 gráfico desliza dentro do cartão e abre no mais recente.
 
-O Domingo segue a mesma regra na linha "X visitantes neste culto":
-do Mapa a partir de `MAPA_DESDE` (com "Y no apelo" — manter o dedo
-no Mapa da Pessoal), da Contagem manual antes.
+O Domingo segue a mesma regra na linha "X visitantes neste culto"
+(com "Y no apelo" — manter o dedo no Mapa da Pessoal): do Mapa, em
+todos os domingos.
+
+**Apelo em Números** (pedido 2026-09: "um cartão e um gráfico para ver
+quando subiu e quando desceu"), no grupo Visitantes: total no
+período, média, o último com ▲/▼ face ao anterior, e a linha domingo
+a domingo. `apeloDoCulto` (`lib/presenca.js`): do Mapa a partir de
+`APELO_MAPA_DESDE` (27/9 — o estado "apelo" do Mapa nasceu a 24/9),
+da categoria `apelo` da Contagem antes. Nunca as duas no mesmo culto.
+
+**Tabela "Domingo a domingo" da presença** por baixo das colunas: os
+números exatos (auditório, voluntários, crianças, total, visitantes),
+só os 3 mais recentes + "Ver mais" (pedido 2026-09).
+
+**Exportar** (botão por baixo dos períodos): o período escolhido (3
+meses, 12 meses ou tempo todo) em papel/"Guardar como PDF" —
+`RelatorioNumeros.jsx`, mesmo caminho de `OrdemImprimivel.jsx` (folha
+de impressão, zero dependências, zero functions). Só números, nunca
+nomes. **As duas folhas vivem montadas ao mesmo tempo**: o relatório
+só sai com `body[data-imprimir="numeros"]` (posto por
+`exportarNumeros()` durante a impressão), e com essa marca a ordem do
+culto fica de fora. Uma terceira folha imprimível tem de seguir o
+mesmo esquema, senão sai tudo junto.
+
+**Resumo do domingo** (aba Domingo, depois do culto — dia passado, ou
+hoje depois da hora de fim da ordem, 12:30 sem ordem, e sem culto ao
+vivo): o cartão-herói com a presença total e as cinco partes
+(auditório com lugares e %, voluntários, crianças sala a sala,
+visitantes, apelo). **Substitui** os cartões "A servir"/"No auditório"
+e a linha dos visitantes — nunca aparecem os dois, que era a
+repetição a evitar — e o antigo "Depois do culto" (só dizia se a
+contagem estava fechada). Mesma conta de `presencaDoCulto`.
+
+**Pop-up "domingo sem escala"** (`AvisoSemEscala.jsx`): de segunda a
+sábado, se alguma base ainda não tem escala para o domingo desta
+semana (o evento com id = data), aparece um alerta grande ao abrir a
+aba Domingo, com "Recado" por base. "Lembrar amanhã"/fechar esconde
+até ao dia seguinte (`localStorage`, em try/catch — sem storage volta a
+aparecer, o lado seguro), nunca para sempre. Não conta as bases sem
+escala de culto nem as que o evento dispensou (`dispensadaPor`).
 
 **Auditório e visitantes vêm do Mapa da Base Pessoal, em todos os
 domingos** (pedido 2026-09 — já foi a Contagem manual até 20/9).
@@ -576,6 +637,18 @@ propósito um número fixo e não contactos inventados.
 
 `components/Barras.jsx` é o do Financeiro com uma diferença — o
 `formatar` entra por prop, porque aqui o valor nem sempre é dinheiro.
+
+## Desgaste: três listas
+
+"Mais domingos servidos", "Servem em mais de uma base" e, desde
+2026-09, **"Não servem há mais tempo"** — voluntários ativos pelo
+último domingo servido nos últimos `MESES_DESGASTE` meses, quem não
+serviu nenhum primeiro. Só entram as bases que escalaram alguém nessa
+janela: o Financeiro (e qualquer base sem escala de culto) nunca
+escala ninguém, e sem isto a equipa dele aparecia aqui para sempre.
+Uma base de culto que passe dois meses sem escala é um problema da
+base — aparece na aba Bases, não como dez pessoas aqui. As três
+listas mostram 3 + "Ver mais".
 
 ## Detalhes já decididos
 

@@ -63,6 +63,23 @@ export function ocupacaoDoCulto(c) {
   return { pessoas, lugares, pct: lugares ? pessoas / lugares : 0 };
 }
 
+/** O Mapa só passou a marcar o apelo (manter o dedo) a 24/9/2026 —
+ *  o primeiro domingo com ele é 27/9. Antes disso o número do apelo
+ *  só existe na Contagem manual (categoria `apelo`). */
+export const APELO_MAPA_DESDE = "2026-09-27";
+
+/** Quantas pessoas responderam ao apelo neste culto, ou `null` (não
+ *  se sabe — nunca zero inventado). Do Mapa a partir de
+ *  `APELO_MAPA_DESDE`; antes, da Contagem manual. Um culto nunca
+ *  mistura as duas. */
+export function apeloDoCulto(c) {
+  if (c.data >= APELO_MAPA_DESDE) {
+    const a = c.acomodacao;
+    return a && a.ocupados + a.visitantes > 0 ? num(a.apelo) : null;
+  }
+  return num(c.contagem?.apelo);
+}
+
 export const media = (vals) => {
   const v = vals.filter((n) => typeof n === "number");
   return v.length ? Math.round(v.reduce((t, n) => t + n, 0) / v.length) : null;

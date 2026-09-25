@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
-import { contarPorEtapa, corTextoEtapa, esquecidos, ouvirContactos } from "../lib/contactos";
+import {
+  DIAS_PARADO, contarPorEtapa, conversaoFunil, corTextoEtapa, diasParado, esquecidos, nomeGD, ouvirContactos,
+} from "../lib/contactos";
 import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
@@ -131,6 +133,9 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   // servir demais?") precisa à primeira vista (pedido 2026-09)
   const [verTodosDesgaste, setVerTodosDesgaste] = useState(false);
   const [verTodosMultiBase, setVerTodosMultiBase] = useState(false);
+  const [verTodosSemServir, setVerTodosSemServir] = useState(false);
+  // "Ver só os parados" no aviso do funil
+  const [soParados, setSoParados] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -200,17 +205,20 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   /* ── o funil ─────────────────────────────────────────────── */
 
   const etapas = useMemo(() => contarPorEtapa(contactos), [contactos]);
-  const parados = useMemo(() => esquecidos(contactos, 30), [contactos]);
+  const conversao = useMemo(() => conversaoFunil(contactos), [contactos]);
+  const parados = useMemo(() => esquecidos(contactos), [contactos]);
+  const idsParados = useMemo(() => new Set(parados.map((c) => c.id)), [parados]);
 
   const listaFunil = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const dias = periodoChegada === "30d" ? 30 : periodoChegada === "90d" ? 90 : null;
     const limite = dias ? Date.now() - dias * 86400000 : null;
     return contactos
+      .filter((c) => (soParados ? idsParados.has(c.id) : true))
       .filter((c) => (etapaFiltro ? c.etapa === etapaFiltro : true))
       .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true))
       .filter((c) => (limite ? (c.criadoEm?.toDate?.().getTime() ?? 0) >= limite : true));
-  }, [contactos, etapaFiltro, busca, periodoChegada]);
+  }, [contactos, etapaFiltro, busca, periodoChegada, soParados, idsParados]);
 
   /** Quem serviu em metade ou mais dos domingos do período. Metade não
    *  é um número mágico nem um limite de alarme — é onde "serve às
@@ -228,6 +236,32 @@ export default function Pessoas({ ativo, definirCabecalho }) {
     () => (desgaste?.pessoas ?? []).filter((p) => p.cultos > 2),
     [desgaste],
   );
+
+  /** "Voluntários a perder o ritmo" (pedido 2026-09: "uma terceira lista
+   *  em Desgaste — quem não serve há mais tempo, primeiro quem faz mais
+   *  tempo"). Os ativos das bases que escalaram alguém na janela, com o
+   *  último domingo em que serviram; quem não serviu nenhum vem primeiro.
+   *
+   *  "Bases que escalaram alguém na janela" e não uma lista fixa: o
+   *  Financeiro (e qualquer base sem escala de culto) nunca escala
+   *  ninguém, e sem isto a equipa inteira dele aparecia aqui para
+   *  sempre. Se uma base de culto passar dois meses sem publicar
+   *  escala, isso é um problema da BASE — aparece na aba Bases, não
+   *  como dez pessoas "paradas" aqui. */
+  const semServir = useMemo(() => {
+    if (!desgaste || !dados) return [];
+    const comEscala = new Set(desgaste.pessoas.flatMap((p) => p.bases.map((b) => b.baseId)));
+    const ultima = new Map(desgaste.pessoas.map((p) => [p.uid, (p.datas ?? []).slice().sort().at(-1) ?? null]));
+    return ativos
+      .map((p) => ({ ...p, basesCulto: p.bases.filter((b) => b.ativo && comEscala.has(b.baseId)), ultima: ultima.get(p.id) ?? null }))
+      .filter((p) => p.basesCulto.length)
+      .sort((a, b) => {
+        if (a.ultima === b.ultima) return (a.nome || "").localeCompare(b.nome || "", "pt");
+        if (a.ultima === null) return -1;
+        if (b.ultima === null) return 1;
+        return a.ultima.localeCompare(b.ultima);
+      });
+  }, [desgaste, dados, ativos]);
 
   useEffect(() => {
     if (!ativo) return;
@@ -391,24 +425,75 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                 </>
               ) : <div className="vaz">Ninguém serve em mais do que uma base.</div>}
             </div>
+
+            <div className="sect">
+              <div className="cabecalho">
+                <h3>Não servem há mais tempo</h3>
+                <span className="cap">{semServir.filter((p) => p.ultima === null).length} sem servir em {MESES_DESGASTE} meses</span>
+              </div>
+              <p className="ds" style={{ marginTop: 0 }}>
+                Voluntários ativos, do que serviu há mais tempo para o mais recente — quem está a perder o ritmo
+                costuma sair sem avisar.
+              </p>
+              {semServir.length ? (
+                <>
+                  {(verTodosSemServir ? semServir : semServir.slice(0, 3)).map((p) => (
+                    <LinhaPessoaContacto
+                      key={p.id} pessoa={p}
+                      resumo={p.ultima
+                        ? `Serviu pela última vez a ${dataCurta(p.ultima)} · toca para chamar no WhatsApp`
+                        : `Não serviu nos últimos ${MESES_DESGASTE} meses · toca para chamar no WhatsApp`}
+                      tagExtra={<TagsBase bases={p.basesCulto} />}
+                      aberta={linhaAberta === `semservir:${p.id}`}
+                      onToggle={() => alternarLinha(`semservir:${p.id}`)}
+                    />
+                  ))}
+                  {semServir.length > 3 && (
+                    <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodosSemServir((v) => !v)}>
+                      {verTodosSemServir ? "Ver menos" : `Ver mais (${semServir.length - 3})`}
+                    </button>
+                  )}
+                </>
+              ) : <div className="vaz">{dados ? "Nenhum voluntário ativo em bases com escala." : "A carregar os voluntários…"}</div>}
+            </div>
           </>
         )
       ) : (
         <>
+          {/* a conversão, etapa a etapa (pedido 2026-09) — ver
+              `conversaoFunil`: quantos estão em cada uma agora, e dos
+              que lá chegaram, quantos % passaram à seguinte */}
+          <div className="pa-conversao" style={{ marginTop: 12 }}>
+            {conversao.map((e, i) => (
+              <div key={e.id} style={{ borderTopColor: e.cor }}>
+                <p>{e.nome}</p>
+                <b>{e.aqui}</b>
+                <small>
+                  {i === conversao.length - 1
+                    ? (e.chegou !== null ? `${e.chegou}% de todos chegaram` : "—")
+                    : (e.passou !== null ? `${e.passou}% passaram` : "ninguém chegou")}
+                </small>
+              </div>
+            ))}
+          </div>
+
           <div className="sect" style={{ paddingTop: 14 }}>
             <div className="cabecalho" style={{ marginTop: 0 }}>
               <h3>O caminho</h3>
-              <span className="cap">% face às visitas</span>
+              <span className="cap">quantos estão em cada etapa</span>
             </div>
             <Funil etapas={etapas} selecionada={etapaFiltro} onSelecionar={setEtapaFiltro} />
           </div>
 
           {parados.length > 0 && (
-            <div className="caixa destaque" style={{ marginTop: 12 }}>
-              <p className="ds" style={{ marginTop: 0 }}>
+            <div className="caixa destaque" style={{ marginTop: 12, flexDirection: "column", alignItems: "stretch" }}>
+              <p className="ds" style={{ marginTop: 0, color: "#fff" }}>
                 <b>{parados.length} pessoa{parados.length === 1 ? "" : "s"} parada{parados.length === 1 ? "" : "s"}</b> há mais
-                de 30 dias na mesma etapa. A mais antiga há {parados[0].dias} dias.
+                de {DIAS_PARADO} dias na mesma etapa. A mais antiga há {parados[0].dias} dias.
               </p>
+              <button className="btn sec full" style={{ marginTop: 12 }} onClick={() => setSoParados((v) => !v)}>
+                {soParados ? "Ver todos" : "Ver só os parados"}
+              </button>
             </div>
           )}
 
@@ -425,14 +510,16 @@ export default function Pessoas({ ativo, definirCabecalho }) {
 
           <div className="sect">
             <div className="cabecalho">
-              <h3>{etapaFiltro ? etapas.find((e) => e.id === etapaFiltro)?.nome : "Todos"}</h3>
+              <h3>{etapaFiltro ? etapas.find((e) => e.id === etapaFiltro)?.nome : "Todos"}{soParados ? " · parados" : ""}</h3>
               <span className="cap">{listaFunil.length}</span>
             </div>
             {listaFunil.length ? listaFunil.slice(0, 60).map((c) => {
               const etapa = etapas.find((e) => e.id === c.etapa);
+              const parado = idsParados.has(c.id);
+              const gd = nomeGD(c);
               return (
                 <div
-                  className="linha cabtoque" key={c.id}
+                  className={`linha cabtoque${parado ? " pa-parado" : ""}`} key={c.id}
                   onClick={() => setContactoAberto(c)}
                   role="button" tabIndex={0}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setContactoAberto(c); }}
@@ -447,6 +534,12 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                         uma semana (mesma lógica de `haAtras` em toda
                         a app) */}
                     {c.criadoEm && <p className="cap" style={{ marginTop: 3 }}>chegou {haAtras(c.criadoEm)}</p>}
+                    {gd && <p className="cap" style={{ marginTop: 2 }}>GD: <b>{gd}</b></p>}
+                    {/* parado há mais de uma semana na mesma etapa —
+                        texto e não só a cor da linha (pedido 2026-09) */}
+                    {parado && (
+                      <p className="pa-parado-txt">à espera há {diasParado(c)} dias em {etapa?.nome ?? c.etapa}</p>
+                    )}
                   </div>
                   <span className="tag" style={{ flex: "none", background: etapa?.cor ?? "var(--cinza)", color: corTextoEtapa(c.etapa) }}>
                     {etapa?.nome ?? c.etapa}

@@ -267,6 +267,116 @@
   color: #fff;
 }
 
+/* ── Domingo: o resumo depois do culto ───────────────────────
+ * O mesmo cartão-herói de Números (`.nm-heroi`), com as cinco partes
+ * numa lista por baixo — é o "Presença na igreja" daquele domingo. */
+.pa-resumo-lista {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.pa-resumo-lista li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 14px;
+}
+.pa-resumo-lista b {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.pa-resumo-lista small {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  opacity: 0.78;
+}
+.pa-resumo-rodape {
+  margin-top: 10px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ── o pop-up "domingo sem escala" ───────────────────────────
+ * Centrado e grande de propósito (pedido: "um pop-upzão grandão") —
+ * não é uma folha de baixo como as outras, é um alerta. */
+.pa-alerta {
+  position: fixed;
+  z-index: 21;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 26px;
+  padding: 26px 22px 20px;
+  text-align: center;
+  animation: fd 0.22s;
+}
+.pa-alerta-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--agua);
+  color: var(--tinta);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.pa-alerta-icone {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fff1e0;
+  color: #c25a00;
+}
+.pa-alerta h2 {
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+.pa-alerta-sub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--cinza);
+}
+.pa-alerta-lista {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  text-align: left;
+}
+.pa-alerta-lista li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--fio);
+  font-size: 16px;
+}
+.pa-alerta-lista b {
+  flex: 1;
+  min-width: 0;
+}
+.pa-alerta-lista .btn {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
 /* ── lista de pendências de uma base ─────────────────────────
  * O que é grave não é só vermelho: leva também um ponto maior e o
  * texto a negrito, para continuar a destacar-se em daltonismo. */
@@ -337,6 +447,71 @@
 .pa-etapa:disabled:not(.on) {
   opacity: 0.55;
   cursor: default;
+}
+
+/* escolher o GD ao mover para "No GD" */
+.pa-escolher-gd {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--agua);
+}
+.pa-escolher-gd .pa-etapa.on {
+  background: var(--azul);
+  border-color: var(--azul);
+}
+/* o GD que o Formulário sugeriu — contorno, não cor de fundo */
+.pa-escolher-gd .pa-etapa.sugerido:not(.on) {
+  border: 1.5px dashed var(--azul);
+}
+
+/* ── o funil: conversão etapa a etapa ────────────────────────
+ * Seis cartões, 3×2 num telemóvel. A faixa de cima leva o passo da
+ * rampa da etapa (a mesma das barras), e o texto é sempre tinta. */
+.pa-conversao {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pa-conversao > div {
+  background: var(--agua);
+  border-radius: 14px;
+  border-top: 4px solid;
+  padding: 9px 10px 10px;
+  min-width: 0;
+}
+.pa-conversao p {
+  font-size: 11.5px;
+  color: var(--cinza);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pa-conversao b {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+.pa-conversao small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--tinta);
+}
+
+/* contacto parado há mais de 7 dias na mesma etapa — barra à esquerda
+   E texto a dizer há quanto tempo, nunca só a cor */
+.pa-parado {
+  box-shadow: inset 3px 0 0 var(--laranja);
+  padding-left: 10px;
+}
+.pa-parado-txt {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #955800;
 }
 
 /* ── mapa de calor da ocupação do auditório ──────────────────
@@ -500,6 +675,24 @@
     margin-top: 16pt;
     font-size: 8pt;
     color: #777;
+  }
+
+  /* duas folhas vivem montadas ao mesmo tempo (a ordem do culto e o
+     relatório de Números) — cada impressão mostra só uma. O relatório
+     só sai com body[data-imprimir="numeros"], que `exportarNumeros()`
+     põe durante a impressão; com essa marca a ordem fica de fora. */
+  body:not([data-imprimir="numeros"]) .pa-print-rel,
+  body[data-imprimir="numeros"] .pa-print:not(.pa-print-rel) {
+    display: none !important;
+  }
+  .pa-print-num td,
+  .pa-print-num th {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .pa-print-num td + td,
+  .pa-print-num th + th {
+    text-align: right;
   }
 }
 
@@ -955,6 +1148,47 @@
   font-size: 11px;
   color: var(--cinza);
 }
+/* Apelo: três números lado a lado, por cima do gráfico */
+.nm-tres {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+.nm-tres > div {
+  background: var(--agua);
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.nm-tres p {
+  font-size: 11.5px;
+  color: var(--cinza);
+}
+.nm-tres b {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.nm-tres small {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nm-exportar {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* um título de grupo acima de cada bloco de secções (Presença,
    Visitantes, Equipa…) — dá para ler a aba por partes em vez de uma
    lista de dez gráficos iguais */

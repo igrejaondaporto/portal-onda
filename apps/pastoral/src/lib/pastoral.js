@@ -34,8 +34,10 @@ export const desgastePastoral = (desde, ate) =>
 /** Move um visitante no funil. Andar para trás é permitido — quem foi
  *  marcado por engano tem de poder voltar (o histórico regista as
  *  duas direções). */
-export const moverEtapaContacto = (contactoId, etapa, nota) =>
-  chamar("moverEtapaContacto")({ contactoId, etapa, nota: nota ?? null }).then((r) => r.data);
+/** `gdId` só com `etapa: "gd"` — em que GD ficou (catálogo global
+ *  `gds/{gd}`, da Pessoal). Opcional: sem ele, move como sempre. */
+export const moverEtapaContacto = (contactoId, etapa, nota, gdId) =>
+  chamar("moverEtapaContacto")({ contactoId, etapa, nota: nota ?? null, ...(gdId ? { gdId } : {}) }).then((r) => r.data);
 
 /** "Excluir" um contacto — nunca um delete a sério, `arquivado:true`
  *  (regra 5 do CLAUDE.md raiz). */
