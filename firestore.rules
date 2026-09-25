@@ -65,6 +65,28 @@ service cloud.firestore {
                      && request.resource.data.destino.size() > 0;
       }
 
+      // ── o e-mail para os avisos (2026-09) — segunda exceção ao
+      // `privado` fechado, pelo mesmo motivo do pagamento: global (um
+      // e-mail por pessoa, sirva em quantas bases servir) e só da
+      // dona — nenhum líder vê o e-mail de ninguém; as Cloud
+      // Functions leem-no pelo Admin SDK para enviar (functions/
+      // email.js). Duas formas válidas, e só estas: um endereço, ou
+      // "não tenho e-mail" (semEmail:true, email:null) — as duas são
+      // uma resposta ao pop-up do primeiro login.
+      match /privado/email {
+        allow read:  if euSou(pessoa);
+        allow write: if euSou(pessoa)
+                     && request.resource.data.keys().hasOnly(['email', 'semEmail', 'atualizadoEm'])
+                     && (
+                       (request.resource.data.semEmail == false
+                         && request.resource.data.email is string
+                         && request.resource.data.email.size() <= 254
+                         && request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$'))
+                       || (request.resource.data.semEmail == true
+                         && request.resource.data.email == null)
+                     );
+      }
+
       // ── onde esta pessoa recebe notificações ──
       // Um documento por dispositivo (telemóvel, tablet, portátil) —
       // o id é o token do FCM, que já é único por dispositivo+app e
@@ -145,6 +167,15 @@ service cloud.firestore {
     // 2026-09: um tipo novo adicionado lá passa a aparecer em todas as
     // bases, sem precisar de deploy). Escrita direta do cliente, sem
     // Cloud Function — a mesma decisão de bases/{b}/definicoes/{doc}.
+    // ── e-mail: só o interruptor público do pop-up do primeiro login
+    // (`pedirNoLogin`). A chave do fornecedor vive noutro documento,
+    // `config/emailEnvio`, que nenhuma regra abre — só o Admin SDK
+    // (functions/email.js, scripts/definirEnvioEmail.mjs).
+    match /config/email {
+      allow read:  if autenticado();
+      allow write: if false;
+    }
+
     match /config/tiposCulto {
       allow read:  if autenticado();
       allow write: if vejoTudoPastoral();

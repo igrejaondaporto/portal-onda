@@ -215,10 +215,12 @@ export const purgarDadosDeVoluntariosInativos = onSchedule("every 24 hours", asy
       // ficaria lá para sempre, e é publicamente descarregável por
       // quem tenha o link
       apagarFicheiroSeExistir(`bases/${baseId}/pessoas/${uid}`),
-      // o PIN e os dados bancários. Só aqui, e só porque já se
+      // o PIN, os dados bancários e o e-mail. Só aqui, e só porque já se
       // confirmou que esta pessoa não serve em mais nenhuma base.
       db().doc(`pessoas/${uid}/privado/auth`).delete().catch(() => {}),
       db().doc(`pessoas/${uid}/privado/pagamento`).delete().catch(() => {}),
+      // o e-mail dos avisos (2026-09) — mesmo motivo
+      db().doc(`pessoas/${uid}/privado/email`).delete().catch(() => {}),
       db().doc(`pessoas/${uid}`).set({ foto: apagar }, { merge: true }),
     ]);
 

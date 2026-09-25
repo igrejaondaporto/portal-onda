@@ -38,6 +38,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
+import { enviarEmails } from "./email.js";
 
 const db = () => admin.firestore();
 
@@ -48,20 +49,38 @@ const db = () => admin.firestore();
 const urlDaBase = (baseId, caminho = "/") => `https://${baseId}.igrejaonda.pt${caminho}`;
 
 /**
- * Envia a uma lista de pessoas. O coração do ficheiro; tudo o resto
- * são gatilhos que lhe chamam.
+ * Envia a uma lista de pessoas, pelos dois canais: push (a quem o
+ * ligou) e e-mail (a quem deixou um endereço — `email.js`). O coração
+ * do ficheiro; tudo o resto são gatilhos que lhe chamam.
+ *
+ * Os dois canais são independentes: um falhar nunca impede o outro
+ * (o Resend em baixo não pode calar o push, nem o contrário).
  *
  * @param uids      quem recebe (duplicados são ignorados)
- * @param titulo    curto — no Android corta aos ~50 caracteres
+ * @param titulo    curto — no Android corta aos ~50 caracteres; é
+ *                  também o assunto do e-mail
  * @param corpo     a frase
- * @param url       para onde o toque leva
+ * @param url       para onde o toque (ou o botão do e-mail) leva
  * @param tag       assunto, para notificações do mesmo tipo se
- *                  substituírem em vez de se empilharem
+ *                  substituírem em vez de se empilharem (só push)
+ * @param email     `false` para um gatilho que não deve ir por e-mail
+ *                  (por omissão vai — hoje todos os gatilhos vão)
  */
-export async function notificar(uids, { titulo, corpo, url, tag }) {
+export async function notificar(uids, { titulo, corpo, url, tag, email = true }) {
   const unicos = [...new Set((uids || []).filter(Boolean))];
-  if (!unicos.length) return { enviadas: 0 };
+  if (!unicos.length) return { enviadas: 0, emails: 0 };
 
+  const [push, mail] = await Promise.allSettled([
+    enviarPush(unicos, { titulo, corpo, url, tag }),
+    email ? enviarEmails(unicos, { titulo, corpo, url }) : Promise.resolve({ enviados: 0 }),
+  ]);
+  if (mail.status === "rejected") logger.error("notificar: e-mail falhou", mail.reason);
+  if (push.status === "rejected") throw push.reason;
+  return { ...push.value, emails: mail.status === "fulfilled" ? mail.value.enviados : 0 };
+}
+
+/** O canal push (FCM) — o que `notificar` fazia sozinho até 2026-09. */
+async function enviarPush(unicos, { titulo, corpo, url, tag }) {
   // um documento por dispositivo; uma pessoa pode ter telemóvel e
   // portátil, e recebe nos dois
   const porPessoa = await Promise.all(unicos.map((uid) =>
@@ -215,6 +234,19 @@ export const notificarReembolso = onDocumentWritten("bases/{baseId}/reembolsos/{
  * Lê as duas formas de escala do repo, a mesma deteção de
  * `escalasCrossBase`.
  */
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+/** "2026-09-27" → "domingo, 27 de setembro". Um id que não seja data
+ *  (não devia acontecer) volta tal como veio. */
+function dataPorExtenso(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
+  if (!m) return String(iso);
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]}`;
+}
+
 function pessoasDaEscala(d) {
   if (!d) return new Set();
   if (Array.isArray(d.lugares) && d.lugares.length) {
@@ -240,7 +272,10 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
   // o nome do culto especial, ou a data — o mesmo critério do
   // `nomeEvento` partilhado, mas sem poder importá-lo (as Functions
   // não trazem packages/shared para o deploy)
-  const quando = doc?.exists ? (doc.data().tipo ?? eventoId) : eventoId;
+  // (2026-09: a data por extenso — "2026-09-27" cru ficava feio no
+  // assunto de um e-mail)
+  const data = doc?.exists ? (doc.data().data ?? eventoId) : eventoId;
+  const quando = doc?.exists && doc.data().tipo ? `${doc.data().tipo} (${dataPorExtenso(data)})` : dataPorExtenso(data);
 
   await notificar(novos, {
     titulo: `Estás escalado — ${nomeBase}`,
