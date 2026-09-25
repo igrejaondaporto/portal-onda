@@ -57,6 +57,14 @@ const REMETENTE_OMISSAO = "Igreja Onda <avisos@igrejaonda.pt>";
  *  já passou por ela, isto é só a última rede. */
 const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/** O cabeçalho (logo igrejaonda branco + "PORTAL DO VOLUNTÁRIO" em
+ *  verde água) é uma IMAGEM, não texto: o modo escuro do Gmail inverte
+ *  as cores do texto e deixava-o quase preto sobre o azul (reportado
+ *  2026-09); imagens nunca são invertidas. Servida pela app Pastoral
+ *  (`apps/pastoral/public/email/cabecalho.png`, gerada por
+ *  `scripts/gerar-cabecalho-email.cjs`). */
+const CABECALHO = "https://pastoral.igrejaonda.pt/email/cabecalho.png";
+
 /** A configuração de envio, ou `null` se ainda não foi definida (ou
  *  foi desligada de propósito com `ativo:false`). */
 async function configEnvio() {
@@ -97,9 +105,8 @@ export function montarEmail({ titulo, corpo, url }) {
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef1fb;padding:24px 12px">
 <tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background:#ffffff;border-radius:22px;overflow:hidden">
-<tr><td style="background:#0019be;background-image:linear-gradient(135deg,#001ed1,#0019be,#001594);padding:22px 24px;color:#ffffff">
-<span style="font-size:15px;opacity:.8">igreja</span><b style="font-size:19px;letter-spacing:-.02em">onda</b>
-<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#c3dc54;margin-top:4px">Portal do Voluntário</div>
+<tr><td bgcolor="#0019be" style="background:#0019be;padding:0;line-height:0;font-size:0">
+<img src="${CABECALHO}" width="480" alt="igrejaonda · Portal do Voluntário" style="display:block;width:100%;max-width:480px;height:auto;border:0;color:#ffffff;font-size:15px;line-height:1.4">
 </td></tr>
 <tr><td style="padding:26px 24px 8px">
 <h1 style="margin:0;font-size:22px;line-height:1.25;letter-spacing:-.02em">${t}</h1>
