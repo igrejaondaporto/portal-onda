@@ -2,6 +2,7 @@ import { useState } from "react";
 import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
+import SheetEmail from "./SheetEmail.jsx";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
@@ -9,6 +10,8 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   // consegue produzir esse papel no token, seguro tratar aqui.
   const lider = papel === "lider_base" || papel === "auxiliar";
   const [expandida, setExpandida] = useState(false);
+  // o e-mail dos avisos abre por cima deste menu, e fechá-lo volta aqui
+  const [verEmail, setVerEmail] = useState(false);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
 
   return (
@@ -52,6 +55,11 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPerfil}>
           Ver perfil
         </button>
+        {/* em todas as bases, sem cada app ter de o ligar — o e-mail é
+          * da pessoa, não da base (functions/email.js) */}
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setVerEmail(true)}>
+          E-mail para avisos
+        </button>
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
@@ -85,6 +93,7 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
           Fechar
         </button>
       </div>
+      {verEmail && <SheetEmail onFechar={() => setVerEmail(false)} />}
     </>
   );
 }

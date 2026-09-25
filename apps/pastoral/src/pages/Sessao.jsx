@@ -9,6 +9,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
+import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import Domingo from "./Domingo";
 import Bases from "./Bases";
 import Pessoas from "./Pessoas";
@@ -89,6 +90,8 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
         <AvisoOffline />
         <AvisoInstalarPWA />
         <AvisoNotificacoes />
+        {/* "qual é o teu e-mail?" — trava o ecrã até responder (packages/shared) */}
+        <PedirEmail />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">

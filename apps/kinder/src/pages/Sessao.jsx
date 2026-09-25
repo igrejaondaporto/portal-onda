@@ -12,6 +12,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
+import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import { rotuloPapel, souLider, CHECKIN_ATIVO } from "../lib/modelo";
 import { ouvirLicoes, licoesDaSala, licoesVistas } from "../lib/licoes";
 import PainelLider from "./PainelLider";
@@ -141,6 +142,8 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         <AvisoOffline />
         <AvisoInstalarPWA />
         <AvisoNotificacoes />
+        {/* "qual é o teu e-mail?" — trava o ecrã até responder (packages/shared) */}
+        <PedirEmail />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <button className="logo kin-logo-botao" onClick={() => irPara("inicio")} aria-label="Ir para o Início">
