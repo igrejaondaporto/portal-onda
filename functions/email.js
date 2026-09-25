@@ -24,7 +24,9 @@
  * todas as functions no CI (`firebase.yml`), e este código tem de
  * poder entrar na `main` antes de alguém ter criado a conta. Assim,
  * sem chave, o e-mail simplesmente não sai (fica no log) e o push
- * continua como sempre. Define-se com `scripts/definirEnvioEmail.mjs`.
+ * continua como sempre. Define-se no Painel Pastoral (Perfil → "E-mail
+ * dos avisos", `configurarEnvioEmail` abaixo) ou com
+ * `scripts/definirEnvioEmail.mjs`.
  *
  * ── Onde está o endereço de cada pessoa ─────────────────────────
  *
@@ -39,6 +41,9 @@
  * de lote, até 100 por pedido): pôr os endereços todos no mesmo
  * "Para:" mostrava o e-mail de cada voluntário a todos os outros.
  */
+// região e CORS antes de qualquer onCall deste ficheiro (ver opcoes.js)
+import "./opcoes.js";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
 
@@ -155,3 +160,102 @@ export async function enviarEmails(uids, { titulo, corpo, url }) {
   logger.info(`email: ${enviados} enviados — "${assunto}"`);
   return { enviados };
 }
+
+/* ══════════════════════════════════════════════════════════════
+ *  Configurar pelo Painel Pastoral (2026-09)
+ * ══════════════════════════════════════════════════════════════
+ *
+ * Pedido: "pelo telemóvel, sem computador". A chave vai do telemóvel
+ * para aqui por HTTPS e daqui para `config/emailEnvio` — nunca passa
+ * por uma conversa, um ficheiro ou um repositório. E NUNCA volta: estas
+ * funções devolvem só se há chave e os últimos 4 caracteres, para dar
+ * para reconhecer qual está lá sem a expor a quem tenha o painel
+ * aberto. Trocar a chave é gravar outra por cima.
+ *
+ * Só `ve_tudo_pastoral` (a equipa pastoral, e o acesso de dev ao
+ * painel): é uma configuração da igreja toda, não de uma base.
+ */
+function exigeVisaoPastoral(req) {
+  if (req.auth?.token?.ve_tudo_pastoral !== true) {
+    throw new HttpsError("permission-denied", "Só a equipa pastoral configura o e-mail.");
+  }
+}
+
+async function estadoAtual() {
+  const [envio, publico] = await Promise.all([
+    db().doc("config/emailEnvio").get().catch(() => null),
+    db().doc("config/email").get().catch(() => null),
+  ]);
+  const e = envio?.exists ? envio.data() : {};
+  const chave = typeof e.chave === "string" ? e.chave : "";
+  return {
+    temChave: !!chave,
+    chaveFim: chave ? chave.slice(-4) : null,
+    remetente: e.remetente || REMETENTE_OMISSAO,
+    ativo: !!chave && e.ativo !== false,
+    pedirNoLogin: publico?.exists ? publico.data().pedirNoLogin === true : false,
+  };
+}
+
+export const estadoEnvioEmail = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  return estadoAtual();
+});
+
+/** Grava o que vier (tudo opcional): `chave` nova, `remetente`,
+ *  `ativo` (envio ligado), `pedirNoLogin` (o pop-up nas bases). */
+export const configurarEnvioEmail = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const { chave, remetente, ativo, pedirNoLogin } = req.data || {};
+  const agora = admin.firestore.FieldValue.serverTimestamp();
+  const envio = { atualizadoEm: agora, atualizadoPor: req.auth.uid };
+
+  if (chave !== undefined && chave !== null && chave !== "") {
+    const limpa = String(chave).trim();
+    if (!/^re_[A-Za-z0-9_-]{8,}$/.test(limpa)) {
+      throw new HttpsError("invalid-argument", "Isso não parece uma chave do Resend (começa por re_).");
+    }
+    envio.chave = limpa;
+  }
+  if (remetente !== undefined) {
+    const r = String(remetente || "").trim();
+    if (r && !/^[^<>]*<[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+>$|^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r)) {
+      throw new HttpsError("invalid-argument", "Remetente inválido — ex.: Igreja Onda <avisos@igrejaonda.pt>");
+    }
+    envio.remetente = r || REMETENTE_OMISSAO;
+  }
+  if (typeof ativo === "boolean") envio.ativo = ativo;
+
+  await db().doc("config/emailEnvio").set(envio, { merge: true });
+  if (typeof pedirNoLogin === "boolean") {
+    await db().doc("config/email").set({ pedirNoLogin, atualizadoEm: agora }, { merge: true });
+  }
+  logger.info("email: configuração alterada", { por: req.auth.uid, chaveNova: !!envio.chave, ativo, pedirNoLogin });
+  return estadoAtual();
+});
+
+/** Um e-mail de teste com a chave gravada — para confirmar domínio e
+ *  chave antes de ligar tudo. Devolve o erro do Resend por extenso. */
+export const enviarEmailTeste = onCall(async (req) => {
+  exigeVisaoPastoral(req);
+  const para = String(req.data?.para || "").trim();
+  if (!EMAIL_VALIDO.test(para)) throw new HttpsError("invalid-argument", "E-mail de destino inválido.");
+
+  const snap = await db().doc("config/emailEnvio").get();
+  const c = snap.exists ? snap.data() : {};
+  if (!c.chave) throw new HttpsError("failed-precondition", "Ainda não há chave gravada.");
+
+  const { html, texto } = montarEmail({
+    titulo: "Teste — Portal do Voluntário",
+    corpo: "Se estás a ler isto, os e-mails do Portal do Voluntário estão a funcionar.",
+    url: "https://pastoral.igrejaonda.pt/",
+  });
+  try {
+    await enviarLote({ chave: c.chave, remetente: c.remetente || REMETENTE_OMISSAO }, [{
+      from: c.remetente || REMETENTE_OMISSAO, to: [para], subject: "Teste — Portal do Voluntário", html, text: texto,
+    }]);
+  } catch (e) {
+    throw new HttpsError("failed-precondition", String(e.message || e).slice(0, 300));
+  }
+  return { ok: true };
+});
