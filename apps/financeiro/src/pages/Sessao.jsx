@@ -8,6 +8,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
+import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import Inicio from "./Inicio";
 import Reembolsos from "./Reembolsos";
 import Oferta from "./Oferta";
@@ -63,6 +64,8 @@ export default function Sessao({ uid, baseId, papel, mostrarTourAoEntrar }) {
         <AvisoOffline />
         <AvisoInstalarPWA />
         <AvisoNotificacoes />
+        {/* "qual é o teu e-mail?" — trava o ecrã até responder (packages/shared) */}
+        <PedirEmail />
         <div className="crista topo" style={{ paddingBottom: 0 }}>
           <div className="lin">
             <span className="logo">

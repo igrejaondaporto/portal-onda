@@ -334,6 +334,15 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Já é partilhado (nada a portar — mora em `packages/shared` ou nas Cloud Functions)
 
+- **Notificações por e-mail** (2026-09): `functions/email.js` envia
+  pelo Resend o mesmo que o push, pelo mesmo `notificar()`. O e-mail de
+  cada pessoa vive em `pessoas/{uid}/privado/email` (só a dona lê e
+  escreve). Nas apps: o pop-up obrigatório do login
+  (`components/PedirEmail.jsx` — "Não tenho e-mail" também é resposta)
+  e "E-mail para avisos" no `MenuEu`. **Uma base nova** ganha o menu
+  sozinha, mas precisa da linha `<PedirEmail />` logo a seguir a
+  `<AvisoNotificacoes />` na sua `Sessao.jsx`. O Mural Onda não pede
+  (não é uma base; tem login próprio).
 - **Os textos de WhatsApp da enquete são do líder**
   (`lib/mensagensEnquete.js`, `lib/useMensagensEnquete.js`,
   `components/SheetEditarMensagem.jsx`, `components/EditarMensagemEnquete.jsx`).

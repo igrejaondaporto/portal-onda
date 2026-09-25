@@ -700,12 +700,12 @@ listas mostram 3 + "Ver mais".
 - ~~O mapa de calor da acomodação~~ — feito (`components/MapaCalor.jsx`,
   em Números). Era a quarta peça que estava no repo à espera deste
   painel, e a única que tinha ficado por usar.
-- ~~Sem push/email~~ — o push existe desde 2026-09
-  (`functions/notificacoes.js`). **Email continua a não existir**: o
-  push cobre quem tem a app instalada, e um canal de email precisa de
-  um fornecedor e de uma conta — decisão com custo, não uma linha de
-  código. Se vier, o sítio é o `notificar()`, que já é o único ponto
-  por onde tudo passa.
+- ~~Sem push/email~~ — os dois existem desde 2026-09, pelo mesmo
+  `notificar()` (`functions/notificacoes.js` → push; `functions/
+  email.js` → e-mail pelo Resend). O e-mail só sai depois de
+  `scripts/definirEnvioEmail.mjs --ligar` (chave em
+  `config/emailEnvio`), que liga também o pop-up "qual é o teu
+  e-mail?" do primeiro login (`PedirEmail.jsx`, `packages/shared`).
 - **Os agregadores não têm cache.** `panoramaPastoral` são ~9 leituras
   × 10 bases a cada montagem da aba; `historicoPastoral` ganhou mais
   10 leituras por culto em 2026-09 (as escalas, para "Voluntários por
