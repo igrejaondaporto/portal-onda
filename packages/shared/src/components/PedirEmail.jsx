@@ -40,8 +40,8 @@ export default function PedirEmail() {
         <div className="pux" />
         <h2 id="pedir-email-titulo">Qual é o teu e-mail?</h2>
         <p className="sb2">
-          Para te avisarmos quando fores escalado, quando o pastor mandar um recado à tua base, ou quando um
-          reembolso for pago.
+          Para te mandarmos a tua escala do mês quando sair, e avisos só teus — como um reembolso pago. Nada de
+          mensagens para a equipa toda.
         </p>
         <p className="ds" style={{ marginTop: 8 }}>
           Só para isto — ninguém da equipa o vê. Podes mudar quando quiseres: toca na tua foto → E-mail para avisos.
