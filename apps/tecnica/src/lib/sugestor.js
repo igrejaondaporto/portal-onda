@@ -175,6 +175,42 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
   return { resultado, contagemMes };
 }
 
+/** A mesma forma que `gerarSugestao` devolve ({resultado, contagemMes}),
+ *  só que a partir da escala JÁ PUBLICADA (lida do Firestore por
+ *  `obterEscalasDosEventos`) em vez de propor do zero — "Editar
+ *  escala" carrega isto para o líder poder trocar uma célula (alguém
+ *  avisou que afinal não pode) sem arriscar reescrever o mês inteiro
+ *  com uma sugestão nova e aleatória.
+ *
+ *  `travado`/`motivoTravado`/`semCandidato` ficam sempre neutros: não
+ *  há "só havia essa opção" a dizer sobre uma escolha que já foi
+ *  publicada, e um lugar sem titular aqui é "por definir", não "sem
+ *  candidato" — essa distinção só existe durante a geração automática.
+ *
+ *  `escalasPorDomingo`: {domingoId: {lugares: [{ministerioId,
+ *  titularId, aprendizId}]}} — a forma que `obterEscalasDosEventos`
+ *  devolve. */
+export function resultadoDaEscalaAtual(domingos, ministerios, escalasPorDomingo) {
+  const resultado = {};
+  const contagemMes = {};
+  const somar = (id) => { if (id) contagemMes[id] = (contagemMes[id] ?? 0) + 1; };
+
+  domingos.forEach((d) => {
+    const lugares = escalasPorDomingo[d.id]?.lugares || [];
+    ministerios.forEach((m) => {
+      const l = lugares.find((x) => x.ministerioId === m.id);
+      resultado[chaveSlot(d.id, m.id)] = {
+        titularId: l?.titularId ?? null, aprendizId: l?.aprendizId ?? null,
+        travado: false, motivoTravado: null, semCandidato: false,
+      };
+      somar(l?.titularId);
+      somar(l?.aprendizId);
+    });
+  });
+
+  return { resultado, contagemMes };
+}
+
 /** Quem pode aparecer no seletor de uma célula, ao editar à mão UMA
  *  sugestão já gerada (`SugestorEscala.jsx`) — as mesmas duas
  *  restrições duras do motor acima (`candidatosTitular`/
