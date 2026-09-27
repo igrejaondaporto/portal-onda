@@ -3812,15 +3812,33 @@ export const excluirEnquete = onCall(async (req) => {
  * aberta": o líder pode corrigir mesmo depois de fechada, é
  * precisamente para isso que serve — só a resposta da própria pessoa
  * exige a enquete ainda aberta. */
+/** "Quantas vezes posso servir este mês", opcional — diferente de
+ *  `indisponivelEm` (que dia a dia) porque uma pessoa pode estar
+ *  DISPONÍVEL em vários domingos e mesmo assim só poder servir uma
+ *  vez (o caso que o líder da Técnica descreveu: "o Kairan está
+ *  disponível em 2 domingos, mas só pode servir 1x"). `null`/ausente
+ *  = sem limite declarado, o comportamento de sempre. Não é
+ *  `quantidadeValida` (equipamentos) porque aqui a ausência É um
+ *  valor válido, não um "usa o padrão 1". */
+function limiteMesValido(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > 5) {
+    throw new HttpsError("invalid-argument", "Quantas vezes podes servir tem de ser um número inteiro entre 1 e 5.");
+  }
+  return n;
+}
+
 export const responderEnquete = onCall(async (req) => {
   const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
   if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { mes, pessoaId, indisponivelEm = [], semIndisponibilidade = false, nota = "" } = req.data || {};
+  const { mes, pessoaId, indisponivelEm = [], semIndisponibilidade = false, nota = "", maxVezesMes } = req.data || {};
   if (!MES_RE.test(String(mes || ""))) throw new HttpsError("invalid-argument", "Mês inválido.");
   if (!Array.isArray(indisponivelEm)) throw new HttpsError("invalid-argument", "Indisponibilidade inválida.");
   if (!semIndisponibilidade && !indisponivelEm.length) {
     throw new HttpsError("invalid-argument", "Marca as datas ou diz que não tens indisponibilidades.");
   }
+  const limite = limiteMesValido(maxVezesMes);
 
   let alvo = uid;
   if (pessoaId && pessoaId !== uid) {
@@ -3840,6 +3858,7 @@ export const responderEnquete = onCall(async (req) => {
     indisponivelEm: semIndisponibilidade ? [] : indisponivelEm,
     semIndisponibilidade: !!semIndisponibilidade,
     nota: nota.trim(),
+    maxVezesMes: limite,
     respondidoEm: admin.firestore.FieldValue.serverTimestamp(),
     ...(alvo !== uid ? { respondidoPeloLider: true, respondidoPor: uid } : {}),
   });
