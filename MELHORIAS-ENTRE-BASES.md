@@ -356,6 +356,22 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
   partilhado) mudar esses três componentes para receberem
   `entrarComPin` por prop em vez de o importarem.
 
+- **Limite de "quantas vezes posso servir este mês" na enquete**
+  (2026-09, relatado pelo líder da Técnica: alguém disponível em 2
+  domingos do mês só podia servir 1×). O campo em si já é
+  partilhado — `responderEnquete` (`functions/index.js`) aceita e
+  valida `maxVezesMes` para QUALQUER base, sem mudança nenhuma aí.
+  O que falta portar é só o lado do cliente: o campo no formulário
+  de resposta (`SheetResponderEnquete.jsx`), a leitura no Painel
+  (`Montar.jsx`, linha "· só Nx este mês") e o motor a respeitar o
+  teto — `construirLimitesMes`/`contagemMesDoResultado`
+  (`apps/tecnica/src/lib/sugestor.js`), usados em `gerarSugestao`,
+  `candidatosParaEditar` e `validarSugestao`. Serve qualquer base
+  com enquete de disponibilidade + sugestor automático — hoje só a
+  Apoio tem as duas peças; portar aí é replicar essas três funções
+  para a forma de dados da Apoio (mesmo princípio do item anterior,
+  "Editar escala").
+
 ## Já portado
 
 | Data | Nasceu em | O quê | Portado para | Nota |

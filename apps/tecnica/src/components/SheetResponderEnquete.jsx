@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { responderEnquete } from "../lib/enquetes";
+import { largarAoRodar } from "../lib/campos";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataPorExtenso, MESES } from "@portal/shared/lib/data.js";
 
@@ -23,6 +24,7 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
   const [semIndisponibilidade, setSemIndisponibilidade] = useState(false);
   const [indisponivel, setIndisponivel] = useState({});
   const [nota, setNota] = useState("");
+  const [maxVezesMes, setMaxVezesMes] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
 
   const enquete = enquetes[passo];
@@ -33,6 +35,7 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
     setSemIndisponibilidade(!!resposta?.semIndisponibilidade);
     setIndisponivel(Object.fromEntries((resposta?.indisponivelEm || []).map((id) => [id, true])));
     setNota(resposta?.nota || "");
+    setMaxVezesMes(resposta?.maxVezesMes != null ? String(resposta.maxVezesMes) : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enquete.id]);
 
@@ -59,6 +62,7 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
         indisponivelEm: semIndisponibilidade ? [] : Object.keys(indisponivel).filter((id) => indisponivel[id]),
         semIndisponibilidade,
         nota: nota.trim(),
+        maxVezesMes: maxVezesMes.trim() ? Number(maxVezesMes) : null,
       });
       if (ultimoPasso) {
         onGuardado("Resposta guardada");
@@ -118,6 +122,19 @@ export default function SheetResponderEnquete({ enquetes, eventosPorId, minhasRe
             </div>
           );
         })}
+
+        {/* Diferente de marcar um dia como indisponível: podes estar
+          * livre em vários domingos e mesmo assim só conseguir servir
+          * uma vez esse mês (trabalho, viagem, o que for). Sem isto,
+          * o líder só descobre ao perguntar diretamente. Opcional —
+          * em branco continua a significar "sem limite", como sempre
+          * foi. */}
+        <label className="rot" style={{ marginTop: 14 }}>Quantas vezes podes servir este mês? (opcional)</label>
+        <input
+          className="campo" type="number" inputMode="numeric" min="1" max="5" onWheel={largarAoRodar}
+          value={maxVezesMes} onChange={(e) => setMaxVezesMes(e.target.value)}
+          placeholder="Deixa em branco se não houver limite"
+        />
 
         <label className="rot" style={{ marginTop: 14 }}>Nota (opcional)</label>
         <textarea className="campo" rows={2} value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex.: só de manhã, ou até às 12h" />

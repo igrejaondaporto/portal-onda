@@ -6,8 +6,8 @@ import {
 } from "../../lib/painel";
 import {
   gerarSugestao, resultadoDaEscalaAtual, calcularAlertas, calcularVezesAprendiz,
-  construirIndisponibilidades, mesclarIndisponibilidades, validarSugestao,
-  candidatosParaEditar, chaveSlot,
+  construirIndisponibilidades, mesclarIndisponibilidades, construirLimitesMes,
+  validarSugestao, candidatosParaEditar, chaveSlot,
 } from "../../lib/sugestor";
 import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -81,6 +81,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     return validarSugestao({
       resultado: sugestao.resultado, domingos, ministerios,
       indisponibilidades: dadosGeracao.indisponibilidades, respondentes,
+      limitesMes: dadosGeracao.limitesMes,
     });
   }, [sugestao, dadosGeracao, domingos, ministerios, respondentes]);
 
@@ -117,7 +118,8 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     const indisponibilidades = mesclarIndisponibilidades(
       construirIndisponibilidades(respostas), indisponibilidadesCrossBase
     );
-    return { estatisticas, vezesAprendizPorMinisterio, indisponibilidades };
+    const limitesMes = construirLimitesMes(respostas);
+    return { estatisticas, vezesAprendizPorMinisterio, indisponibilidades, limitesMes };
   }
 
   async function gerar() {
@@ -202,6 +204,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     candidatosParaEditar({
       voluntarios, ministerios, resultado: sugestao?.resultado ?? {},
       indisponibilidades: dadosGeracao?.indisponibilidades ?? {},
+      limitesMes: dadosGeracao?.limitesMes ?? {},
       ministerioId, nivel, domingoId, ...opts,
     });
 

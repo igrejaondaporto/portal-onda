@@ -29,6 +29,38 @@ export function construirIndisponibilidades(respostas) {
   return mapa;
 }
 
+/** uid → número (quantas vezes a pessoa disse que consegue servir
+ *  este mês) — só entra quem respondeu isso; quem não respondeu, ou
+ *  deixou em branco, fica sem entrada nenhuma no mapa (sem limite,
+ *  comportamento de sempre). Diferente de `indisponibilidades`: dá
+ *  para estar disponível em vários domingos e mesmo assim só poder
+ *  servir uma vez — "o Kairan está disponível em 2 domingos de
+ *  outubro, mas só pode servir 1x no mês" (pedido do líder, 2026-09).
+ *  Quantas vezes JÁ está escalada é o `contagemMes` que o motor (ou
+ *  `contagemMesDoResultado`) já mantém; este mapa é só o teto. */
+export function construirLimitesMes(respostas) {
+  const mapa = {};
+  respostas.forEach((r) => {
+    if (Number.isInteger(r.maxVezesMes) && r.maxVezesMes > 0) mapa[r.id] = r.maxVezesMes;
+  });
+  return mapa;
+}
+
+/** Quantas vezes cada pessoa já aparece num `resultado` (a tabela
+ *  inteira, como titular OU aprendiz, em qualquer domingo e
+ *  ministério) — a mesma soma que `validarSugestao` já fazia por
+ *  dentro para o aviso de sobrecarga, extraída para ser reutilizada
+ *  por quem precisa do número sem precisar de repetir os dois
+ *  `forEach` aninhados. */
+export function contagemMesDoResultado(resultado) {
+  const contagem = {};
+  Object.values(resultado).forEach((r) => {
+    if (r?.titularId) contagem[r.titularId] = (contagem[r.titularId] ?? 0) + 1;
+    if (r?.aprendizId) contagem[r.aprendizId] = (contagem[r.aprendizId] ?? 0) + 1;
+  });
+  return contagem;
+}
+
 /** Funde o mapa da enquete com o de compromissos cruzados entre
  *  bases (quem já está escalado na Apoio nesse domingo) — mesmo
  *  formato uid → Set(domingoId), união simples. Quem está bloqueado
@@ -67,12 +99,17 @@ export function calcularVezesAprendiz(historicoLugares) {
  *  geração (não só a partir do histórico real) — senão quem tinha a
  *  data mais antiga no início ficava sempre em primeiro e levava toda
  *  vaga do mês, mesmo depois de já ter sido escalado nesta sugestão. */
-export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibilidades, estatisticas, vezesAprendizPorMinisterio }) {
+export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibilidades, estatisticas, vezesAprendizPorMinisterio, limitesMes = {} }) {
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const usoPorDomingo = {};
   const contagemMes = {};
   const somar = (id) => { contagemMes[id] = (contagemMes[id] ?? 0) + 1; };
   const usar = (domingoId, id) => { (usoPorDomingo[domingoId] ??= new Set()).add(id); };
+  // "só posso servir 1x este mês" — contagemMes já vai sendo somado
+  // slot a slot NESTA MESMA geração, por isso a segunda vez que o
+  // motor tenta escalar o Kairan ele já não aparece, mesmo que esteja
+  // livre nesse domingo (pedido do líder, 2026-09).
+  const dentroDoLimite = (id) => (contagemMes[id] ?? 0) < (limitesMes[id] ?? Infinity);
 
   const ultimaEfetiva = {};
   voluntarios.forEach((p) => { ultimaEfetiva[p.id] = estatisticas[p.id]?.ultima ?? ""; });
@@ -87,6 +124,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
     return voluntarios
       .filter((p) => p.ministerios?.[ministerioId] === "titular")
       .filter((p) => !indisponivel(p.id, domingoId))
+      .filter((p) => dentroDoLimite(p.id))
       .filter((p) => ministerioId === ministerioResponsavel?.id || !usoPorDomingo[domingoId]?.has(p.id))
       .sort((a, b) => {
         const ua = ultimaEfetiva[a.id] ?? "";
@@ -111,6 +149,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
       .filter((p) => p.ministerios?.[ministerioId] === "aprendiz")
       .filter((p) => p.id !== excluirId)
       .filter((p) => !indisponivel(p.id, domingoId))
+      .filter((p) => dentroDoLimite(p.id))
       .filter((p) => !usoPorDomingo[domingoId]?.has(p.id))
       .filter((p) => (aprendizMes[p.id] ?? 0) < RECOMENDADO_MES)
       .sort((a, b) => {
@@ -230,9 +269,18 @@ export function resultadoDaEscalaAtual(domingos, ministerios, escalasPorDomingo)
  *  filtro. A pessoa já selecionada nessa célula fica sempre na lista,
  *  mesmo inválida — é assim que o aviso vermelho por baixo do
  *  `<select>` continua a apontar para um nome visível, em vez de o
- *  campo ficar em branco sem se perceber porquê. */
+ *  campo ficar em branco sem se perceber porquê.
+ *
+ *  Uma terceira restrição dura, ao lado das duas de sempre: quem já
+ *  atingiu o número de vezes que disse conseguir servir este mês
+ *  (`limitesMes`, ver `construirLimitesMes`) — "o Kairan está
+ *  disponível em 2 domingos, mas só pode servir 1x". Ao contrário de
+ *  `usadoNoutroLugar` (só o mesmo domingo), esta conta o MÊS INTEIRO,
+ *  por isso não é `operacional`-condicionada como aquela — um limite
+ *  que a própria pessoa deu não tem a exceção do Responsável, que
+ *  existe só porque ele é um papel, não um posto a competir por vaga. */
 export function candidatosParaEditar({
-  voluntarios, ministerios, resultado, indisponibilidades,
+  voluntarios, ministerios, resultado, indisponibilidades, limitesMes = {},
   ministerioId, nivel, domingoId, atual = null, excluirId = null,
 }) {
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
@@ -246,11 +294,13 @@ export function candidatosParaEditar({
     const r = resultado[chave];
     return r?.titularId === uid || r?.aprendizId === uid;
   });
+  const contagemMes = contagemMesDoResultado(resultado);
+  const limiteAtingido = (uid) => (contagemMes[uid] ?? 0) >= (limitesMes[uid] ?? Infinity);
 
   return voluntarios
     .filter((p) => p.ministerios?.[ministerioId] === nivel)
     .filter((p) => p.id !== excluirId)
-    .filter((p) => p.id === atual || (!indisponivel(p.id) && !usadoNoutroLugar(p.id)));
+    .filter((p) => p.id === atual || (!indisponivel(p.id) && !usadoNoutroLugar(p.id) && !limiteAtingido(p.id)));
 }
 
 /** Tudo que merece o olhar do líder antes de publicar — nenhum destes
@@ -311,7 +361,7 @@ export function calcularAlertas({ domingos, ministerios, voluntarios, resultado,
  *  ministério nesse domingo); amarelo é só um ponto de atenção
  *  (sobrecarga no mês, não respondeu à enquete). Devolve, por slot,
  *  {titular, aprendiz} — cada um null ou {nivel: "erro"|"atencao", motivo}. */
-export function validarSugestao({ resultado, domingos, ministerios, indisponibilidades, respondentes }) {
+export function validarSugestao({ resultado, domingos, ministerios, indisponibilidades, respondentes, limitesMes = {} }) {
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
 
@@ -343,6 +393,14 @@ export function validarSugestao({ resultado, domingos, ministerios, indisponibil
         // (mesclarIndisponibilidades funde os dois) — a mensagem cobre
         // ambos sem distinguir a origem
         if (indisponivel(pessoaId, d.id)) return { nivel: "erro", motivo: "indisponível nesse dia" };
+        // "só posso servir 1x este mês" (ver construirLimitesMes) — um
+        // teto que a própria pessoa deu, tão duro quanto indisponível.
+        // `>` estrito: exatamente no limite (ex.: 1 vez, disse 1x) está
+        // certo, só passar do que disse é que é erro.
+        const limite = limitesMes[pessoaId];
+        if (limite != null && (contagemMes[pessoaId] ?? 0) > limite) {
+          return { nivel: "erro", motivo: `só disse poder servir ${limite}× este mês, já está em ${contagemMes[pessoaId]}` };
+        }
         if (operacional) {
           let vezesNoDomingo = 0;
           ministerios.forEach((m2) => {
