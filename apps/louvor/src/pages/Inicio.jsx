@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { cEscala, meusPapeisNoCulto, nomePapel, emojiPapel, souLiderOuAuxiliar } from "../lib/modelo";
 import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
-import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase } from "../lib/painel";
+import { ouvirVoluntarios, ouvirEventosDoMes, ouvirEventosMesEProximo, ouvirBase } from "../lib/painel";
 import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
@@ -103,11 +103,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // depois e ainda por responder — nunca via balão nenhum: o mais
   // próximo já não tinha `!minhaResposta`, e o outro nem entrava na
   // conta, porque `meuEvento` só aponta para um. Mesmo cálculo do
-  // popup automático (ConfirmacaoAutoStart), sempre no mês REAL de
-  // hoje — de propósito independente do mês que o Calendário abaixo
-  // está a mostrar (`mes`/`ano`, que o próprio voluntário navega).
+  // popup automático (ConfirmacaoAutoStart) — mês REAL de hoje MAIS
+  // o seguinte (`ouvirEventosMesEProximo`, ver lib/painel.js;
+  // reportado 2026-09: uma escala publicada para o domingo seguinte,
+  // já dentro do mês novo, ficava sem balão nenhum até o calendário
+  // virar sozinho) — de propósito independente do mês que o
+  // Calendário abaixo está a mostrar (`mes`/`ano`, que o próprio
+  // voluntário navega).
   const hoje = new Date();
-  useEffect(() => ouvirEventosDoMes(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual),
+  useEffect(() => ouvirEventosMesEProximo(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
   useEffect(() => ouvirConfirmacoesDoMes(eventosMesAtual, uid, setRespostasMesAtual), [eventosMesAtual, uid]);
