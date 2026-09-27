@@ -21,7 +21,8 @@
     "teste:ordem": "node scripts/testa-ordem-culto.mjs",
     "teste:mensagens": "node scripts/testa-mensagens-enquete.mjs",
     "teste:candidatos": "node scripts/testa-candidatos-escala.mjs",
-    "teste:ministerios": "node scripts/testa-ministerios-culto.mjs"
+    "teste:ministerios": "node scripts/testa-ministerios-culto.mjs",
+    "teste:escala-atual": "node scripts/testa-editar-escala-atual.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

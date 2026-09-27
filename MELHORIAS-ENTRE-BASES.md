@@ -178,6 +178,28 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **"Editar escala" carrega o que já está publicado, não só propõe do
+  zero** (`apps/tecnica/src/lib/sugestor.js`, `resultadoDaEscalaAtual`;
+  ligado em `SugestorEscala.jsx`). Antes, "Escala sugerida" só sabia
+  fazer uma coisa: gerar uma proposta nova (aleatória entre empates) a
+  partir do zero. Publicar o mês e voltar mais tarde para uma correção
+  pontual (alguém avisou que já não pode servir num culto escalado)
+  obrigava a "Gerar sugestão" outra vez — que reescrevia o mês INTEIRO
+  com uma proposta nova, arriscando trocar gente que já tinha
+  confirmado. Agora, quando `enquete.escalaPublicada` é `true`, o
+  botão passa a "Editar escala": carrega a escala REAL de cada domingo
+  (`obterEscalasDosEventos`) na mesma tabela, com os mesmos avisos e o
+  mesmo filtro de disponibilidade — o líder troca só a célula que
+  mudou, o resto fica exatamente como estava. "Gerar do zero" continua
+  disponível para quem quiser mesmo recomeçar o mês. **Mesma
+  arquitetura, mesma lacuna na Apoio**: `apps/apoio/src/components/
+  painel/SugestorEscala.jsx` tem o idêntico `sugestao=useState(null)`
+  só alimentado por `gerarSugestaoApoio`, nunca pela escala publicada
+  — a UI lá é outra (`CartaoDomingo`, lista com check, não `<select>`
+  por ministério), por isso o porte não é copiar o ficheiro, é o
+  mesmo princípio: um `resultadoDaEscalaAtual` equivalente para a
+  forma de dados da Apoio (`{pessoas:[], liderEscala}` por domingo).
+
 - **O editor de uma célula da escala listava gente indisponível**
   (`apps/tecnica/src/lib/sugestor.js`, `candidatosParaEditar`; ligado em
   `SugestorEscala.jsx`). Relatado pelo líder ao fechar a enquete de

@@ -200,6 +200,21 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
   return () => { pararEventos(); pararEscalas.forEach((p) => p()); };
 }
 
+/** A escala já publicada de cada domingo, num mapa `eventoId →
+ *  {lugares, liderEscala, pessoas}` — para "Editar escala" (Montar →
+ *  Escala sugerida) carregar o que já está no ar em vez de propor do
+ *  zero. Um `getDoc` por domingo, à parte de `obterEventosDoMes`
+ *  porque aqui só interessam os ids exatos da enquete (`enquete.
+ *  domingos`), não um intervalo de datas — um culto especial fora da
+ *  grelha normal do mês continua a bater certo desta forma. */
+export async function obterEscalasDosEventos(eventoIds) {
+  const pares = await Promise.all(eventoIds.map(async (id) => {
+    const esc = await getDoc(cEscala(id));
+    return [id, esc.exists() ? esc.data() : { pessoas: [], liderEscala: null, lugares: [] }];
+  }));
+  return Object.fromEntries(pares);
+}
+
 /** A escala titular/aprendiz passa pela Cloud Function — é lá que se
  *  recalcula `pessoas` (o que o resto do sistema já lê) e se valida
  *  que ninguém está em dois lugares no mesmo culto. */

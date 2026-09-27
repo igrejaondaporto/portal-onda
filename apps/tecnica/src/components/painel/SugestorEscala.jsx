@@ -2,11 +2,12 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete, marcarEscalaPublicada } from "../../lib/enquetes";
 import {
   obterEstatisticasEscala, obterHistoricoLugares, guardarEscalaTecnica,
-  obterIndisponibilidadesCrossBase,
+  obterIndisponibilidadesCrossBase, obterEscalasDosEventos,
 } from "../../lib/painel";
 import {
-  gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
-  mesclarIndisponibilidades, validarSugestao, candidatosParaEditar, chaveSlot,
+  gerarSugestao, resultadoDaEscalaAtual, calcularAlertas, calcularVezesAprendiz,
+  construirIndisponibilidades, mesclarIndisponibilidades, validarSugestao,
+  candidatosParaEditar, chaveSlot,
 } from "../../lib/sugestor";
 import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -97,33 +98,73 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     return { erros, atencoes };
   }, [avisos]);
 
+  // Os dados auxiliares (estatísticas, indisponibilidade real +
+  // cross-base) são os mesmos para propor do zero ou para carregar o
+  // que já está publicado — só muda o que se faz com eles a seguir
+  // (gerarSugestao vs. resultadoDaEscalaAtual). `gerar()` e
+  // `carregarAtual()` chamam isto e cada um trata o resultado à sua
+  // maneira.
+  async function carregarDadosAuxiliares() {
+    const [estatisticas, historicoLugares, indisponibilidadesCrossBase] = await Promise.all([
+      obterEstatisticasEscala(90),
+      obterHistoricoLugares(180),
+      obterIndisponibilidadesCrossBase(domingos.map((d) => d.id)),
+    ]);
+    const vezesAprendizPorMinisterio = calcularVezesAprendiz(historicoLugares);
+    // quem já está escalado na Apoio nesse domingo sai dos
+    // candidatos igual a quem votou indisponível — o motor não
+    // distingue a origem, só o aviso mostrado ao líder distingue
+    const indisponibilidades = mesclarIndisponibilidades(
+      construirIndisponibilidades(respostas), indisponibilidadesCrossBase
+    );
+    return { estatisticas, vezesAprendizPorMinisterio, indisponibilidades };
+  }
+
   async function gerar() {
     if (!enquete?.domingos?.length) return;
     setACarregar(true);
     try {
-      const [estatisticas, historicoLugares, indisponibilidadesCrossBase] = await Promise.all([
-        obterEstatisticasEscala(90),
-        obterHistoricoLugares(180),
-        obterIndisponibilidadesCrossBase(domingos.map((d) => d.id)),
-      ]);
-      const vezesAprendizPorMinisterio = calcularVezesAprendiz(historicoLugares);
-      // quem já está escalado na Apoio nesse domingo sai dos
-      // candidatos igual a quem votou indisponível — o motor não
-      // distingue a origem, só o aviso mostrado ao líder distingue
-      const indisponibilidades = mesclarIndisponibilidades(
-        construirIndisponibilidades(respostas), indisponibilidadesCrossBase
-      );
-      const dados = { estatisticas, vezesAprendizPorMinisterio, indisponibilidades };
+      const dados = await carregarDadosAuxiliares();
       setDadosGeracao(dados);
       const s = gerarSugestao({ domingos, ministerios, voluntarios, ...dados });
       setSugestao(s);
       setAlertas(calcularAlertas({
         domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
-        estatisticas, vezesAprendizPorMinisterio,
+        estatisticas: dados.estatisticas, vezesAprendizPorMinisterio: dados.vezesAprendizPorMinisterio,
       }));
       setPublicado(false);
     } catch (e) {
       torrada(e.message || "Não foi possível gerar a sugestão.");
+    } finally {
+      setACarregar(false);
+    }
+  }
+
+  // "Editar escala" — pedido do líder: alguém avisou que afinal não
+  // pode servir num culto já publicado, e "Gerar sugestão" reescrevia
+  // o mês inteiro com uma proposta nova e aleatória, não uma correção
+  // pontual. Carrega o que JÁ ESTÁ NO AR (obterEscalasDosEventos) na
+  // mesma tabela, para o líder trocar só a célula que mudou. Guardar
+  // continua a passar por `publicar()`, sem alteração nenhuma — grava
+  // culto a culto exatamente como sempre gravou.
+  async function carregarAtual() {
+    if (!enquete?.domingos?.length) return;
+    setACarregar(true);
+    try {
+      const [dados, escalasPorDomingo] = await Promise.all([
+        carregarDadosAuxiliares(),
+        obterEscalasDosEventos(domingos.map((d) => d.id)),
+      ]);
+      setDadosGeracao(dados);
+      const s = resultadoDaEscalaAtual(domingos, ministerios, escalasPorDomingo);
+      setSugestao(s);
+      setAlertas(calcularAlertas({
+        domingos, ministerios, voluntarios, resultado: s.resultado, contagemMes: s.contagemMes,
+        estatisticas: dados.estatisticas, vezesAprendizPorMinisterio: dados.vezesAprendizPorMinisterio,
+      }));
+      setPublicado(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível carregar a escala.");
     } finally {
       setACarregar(false);
     }
@@ -246,9 +287,27 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
         <div className="vaz" style={{ marginTop: 10 }}>A enquete de {mesLabel} ainda está aberta — fecha-a para gerar a escala.</div>
       )}
       {enquete && enquete.estado === "fechada" && !sugestao && (
-        <button className="btn full" data-tour="montar-gerar" style={{ marginTop: 12 }} disabled={aCarregar} onClick={gerar}>
-          {aCarregar ? "A gerar…" : "Gerar sugestão"}
-        </button>
+        enquete.escalaPublicada ? (
+          <>
+            {/* A escala deste mês já está no ar — carregar o que já
+              * existe, não propor um mês novo do zero. "Gerar do
+              * zero" fica como saída para quem quer mesmo recomeçar
+              * (ex.: a escala publicada já não faz sentido nenhum). */}
+            <button className="btn full" style={{ marginTop: 12 }} disabled={aCarregar} onClick={carregarAtual}>
+              {aCarregar ? "A carregar…" : "Editar escala"}
+            </button>
+            <button
+              className="btn sec full" style={{ marginTop: 8, fontSize: 12.5, color: "var(--cinza)" }}
+              disabled={aCarregar} onClick={gerar}
+            >
+              Gerar do zero
+            </button>
+          </>
+        ) : (
+          <button className="btn full" data-tour="montar-gerar" style={{ marginTop: 12 }} disabled={aCarregar} onClick={gerar}>
+            {aCarregar ? "A gerar…" : "Gerar sugestão"}
+          </button>
+        )
       )}
 
       {enquete && !aConfirmarExcluir && (
