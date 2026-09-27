@@ -221,6 +221,7 @@ export const purgarDadosDeVoluntariosInativos = onSchedule("every 24 hours", asy
       db().doc(`pessoas/${uid}/privado/pagamento`).delete().catch(() => {}),
       // o e-mail dos avisos (2026-09) — mesmo motivo
       db().doc(`pessoas/${uid}/privado/email`).delete().catch(() => {}),
+      db().doc(`pessoas/${uid}/privado/emailCodigo`).delete().catch(() => {}),
       db().doc(`pessoas/${uid}`).set({ foto: apagar }, { merge: true }),
     ]);
 

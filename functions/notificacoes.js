@@ -39,7 +39,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import {
-  POR_LOTE, configEnvio, emailDe, enviarEmails, enviarLote, montarEmail, reservarEnvios,
+  POR_LOTE, configEnvio, estadoEmailDe, enviarEmails, enviarLote, montarEmail, reservarEnvios,
 } from "./email.js";
 
 const db = () => admin.firestore();
@@ -384,13 +384,18 @@ export const enviarResumosEmail = onSchedule(
     for (const doc of fila.docs) {
       const uid = doc.id;
       const d = doc.data();
-      const email = await emailDe(uid);
-      if (!email) { await doc.ref.delete(); continue; }   // sem e-mail: nada a guardar
+      const estado = await estadoEmailDe(uid);
+      if (!estado) { await doc.ref.delete(); continue; }   // sem e-mail: nada a guardar
+      // e-mail por confirmar: a fila espera — sai no primeiro resumo
+      // depois de a pessoa confirmar (os domingos já passados caem abaixo)
+      if (!estado.confirmado) continue;
+      const email = estado.email;
       const escalas = [];
       const vistos = new Set();
+      const hoje = hojeLisboa();
       for (const e of d.escalas || []) {
         const k = `${e.eventoId}/${e.baseId}`;
-        if (vistos.has(k)) continue;
+        if (vistos.has(k) || String(e.data) < hoje) continue;
         vistos.add(k);
         if (await naEscala(e.eventoId, e.baseId, uid)) escalas.push(e);
       }
