@@ -178,6 +178,21 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **"Reportar problema" (Onda Tech Hub) falta em Financeiro e
+  Pastoral** — as outras 10 apps ganharam
+  `<BlocoReportarProblema uid={uid} />` no "A base" (ou equivalente) do
+  Início, mas estas duas não têm essa seção nenhuma:
+  `apps/financeiro/src/pages/Inicio.jsx` nem recebe `uid` como prop
+  (é um dashboard cross-base de reembolsos, não um Início por
+  voluntário) e `apps/pastoral` não tem `Inicio.jsx` sequer (as
+  páginas são `Bases/Domingo/Numeros/Ordem/Pessoas`, um painel do
+  pastor, não um lar por voluntário). Portar exige decidir ONDE o
+  botão faz sentido em cada uma antes de encaixar
+  `BlocoReportarProblema` — não é mecânico como nas outras 10. O Mural
+  ficou de fora de propósito, não por esquecimento: não é uma base
+  (ver `CLAUDE.md` raiz), e parte de quem usa lá nem tem `baseId`
+  nenhum (identidade só por telefone).
+
 - **"Editar escala" carrega o que já está publicado, não só propõe do
   zero** (`apps/tecnica/src/lib/sugestor.js`, `resultadoDaEscalaAtual`;
   ligado em `SugestorEscala.jsx`). Antes, "Escala sugerida" só sabia
