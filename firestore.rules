@@ -817,6 +817,17 @@ service cloud.firestore {
       allow write: if false;                     // só por função
     }
 
+    // ── relatos (raiz — o Onda Tech Hub triage de qualquer base) ──
+    // Mesmo desenho de solicitacoes/ acima, mas quem lê é a PESSOA que
+    // reportou (não a base dela toda — um relato é individual, não do
+    // líder) e a base ondatechhub, que vê tudo. Toda a escrita passa
+    // por Cloud Function (abrirRelato/mudarStatusRelato/
+    // excluirMeuRelato, ver functions/relatos.js).
+    match /relatos/{id} {
+      allow read:  if euSou(resource.data.reportadoPorId) || minhaBase('ondatechhub');
+      allow write: if false;                     // só por função
+    }
+
     // ── recados do Painel Pastoral para uma base ───────────
     // De ida, sem resposta e sem estado (decisão do dono do produto,
     // 2026-09): o pastor escreve, o líder lê e dispensa. Não é uma
