@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { podeDistribuir, ministeriosDaEscala } from "../lib/modelo";
+import { podeDistribuir } from "../lib/modelo";
+import { ministeriosComGente } from "../lib/sugestor";
 import { ouvirVoluntarios, ouvirEventosDoMes, ouvirBase, ouvirMinisterios } from "../lib/painel";
 import { obterOrdemCulto } from "../lib/culto";
 import { MESES, dataCurta, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
@@ -114,10 +115,17 @@ export default function Culto({ uid, papel, mes, ano, mudarMes, abaAlvo, eventoI
   const hoje = hojeISO();
   const lugarDe = (ev, ministerioId) => (ev.escala.lugares || []).find((l) => l.ministerioId === ministerioId);
   const pessoaPorId = (id) => voluntarios.find((p) => p.id === id);
-  // só 3 dos 7 ministérios têm gente escalada na hora do culto — os
-  // outros são produção/edição, sem posto ao vivo no domingo (ver
-  // ministeriosDaEscala em lib/modelo.js)
-  const ministeriosEscala = ministeriosDaEscala(ministerios);
+  // Normalmente só 3 dos 7 ministérios têm gente escalada na hora do
+  // culto — os outros são produção/edição, sem posto ao vivo no
+  // domingo. Mas o líder pode juntar um ministério extra a um culto
+  // em concreto ("+ Adicionar ministério" na folha de editar), e
+  // esse extra tem de continuar visível aqui, não só na folha — daí
+  // `ministeriosComGente`, não `ministeriosDaEscala` sozinho (ver
+  // lib/sugestor.js). Olha para o mês inteiro de uma vez: se algum
+  // domingo tiver um extra, a linha dele aparece na tabela do mês
+  // inteiro (vazia "—" nos outros domingos, como as 3 de sempre já
+  // ficam quando ninguém está escalado nesse dia).
+  const ministeriosEscala = ministeriosComGente(ministerios, eventosMes);
   const nomeLiderBase = voluntarios.find((p) => p.papel === "lider_base")?.nome ?? "líder da base";
 
   // A ordem do culto serve para preparar o próximo, não para reler os

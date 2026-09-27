@@ -20,7 +20,8 @@
     "teste:ciclo": "node scripts/e2e-ciclo-base.mjs",
     "teste:ordem": "node scripts/testa-ordem-culto.mjs",
     "teste:mensagens": "node scripts/testa-mensagens-enquete.mjs",
-    "teste:candidatos": "node scripts/testa-candidatos-escala.mjs"
+    "teste:candidatos": "node scripts/testa-candidatos-escala.mjs",
+    "teste:ministerios": "node scripts/testa-ministerios-culto.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
