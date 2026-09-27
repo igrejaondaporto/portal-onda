@@ -374,6 +374,32 @@ em `global.css` continua só com sirvo/culto/hoje) — escalado +
 publicado + por confirmar, um listener por culto do mês
 (`ouvirConfirmacoesDoMes`).
 
+### Bug corrigido 2026-09: escala do domingo seguinte, já no mês novo
+
+Reportado pelo líder: publicou a escala, mas ninguém recebeu o popup
+nem viu o balão a pedir confirmação. Em produção: a escala de
+04/10 estava publicada, com 6 pessoas escaladas, zero confirmações —
+enquanto os domingos de setembro tinham a maioria já respondida.
+
+Causa: `ConfirmacaoAutoStart.jsx` (o popup bloqueante, "o popup
+obrigatório da enquete, mas para a confirmação") e o balão em
+`Inicio.jsx` (`cultosPorConfirmar`) só liam `ouvirEventosDoMes(hoje.
+getFullYear(), hoje.getMonth(), …)` — o mês CALENDÁRIO atual. Uma
+escala publicada para o primeiro domingo do mês seguinte (o caso mais
+comum de todos: acontece toda vez que o líder publica perto da
+virada do mês, não só "com muita antecedência") ficava invisível para
+os dois até o relógio virar o mês sozinho. O comentário em
+`ConfirmacaoAutoStart.jsx` dizia que o balão cobria esse caso — não
+cobria, tinha exatamente a mesma limitação.
+
+Corrigido com `ouvirEventosMesEProximo` (`lib/painel.js`) — mês
+corrente + o seguinte, ao vivo, num único array; os dois avisos
+automáticos usam-no agora. O Calendário (`ouvirEventosDoMes` comum)
+não tinha o problema — mostra sempre o mês que a pessoa está a
+navegar, qualquer que seja. **Mesmo bug, mesma correção na Louvor
+Kinder** (`apps/louvorkinder`, código duplicado de propósito — ver
+`MELHORIAS-ENTRE-BASES.md`).
+
 ## Culto: Ordem, Feedbacks, Equipamentos, Melhorias
 
 Quatro sub-abas dentro de Culto (`src/pages/Culto.jsx`) — **Ordem do

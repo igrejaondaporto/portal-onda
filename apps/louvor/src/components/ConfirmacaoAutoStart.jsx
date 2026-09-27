@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ouvirEventosDoMes, ouvirVoluntarios } from "../lib/painel";
+import { ouvirEventosMesEProximo, ouvirVoluntarios } from "../lib/painel";
 import { ouvirConfirmacoesDoMes, confirmacaoDispensada, dispensarConfirmacao } from "../lib/confirmacao";
 import SheetConfirmarPresenca from "./SheetConfirmarPresenca";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -11,12 +11,14 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
  *  (onSnapshot via ouvirConfirmacoesDoMes): publicar a meio da sessão
  *  já dispara, sem precisar sair e voltar a entrar.
  *
- *  Só olha para o mês corrente — mesma limitação prática do
- *  Calendário (não há uma coleção só de "escalas publicadas",
- *  escalas vivem por culto; ver CLAUDE.md desta base). Uma escala
- *  publicada com muita antecedência para o mês seguinte só dispara o
- *  popup automático quando esse mês chegar — o balão no Início
- *  continua a valer para esse caso enquanto isso. */
+ *  Mês corrente + o seguinte (`ouvirEventosMesEProximo`, ver
+ *  lib/painel.js) — reportado 2026-09: só olhava para o mês corrente,
+ *  e uma escala publicada para o domingo seguinte, já dentro do mês
+ *  novo (ex.: publicada a 28 de setembro, para 4 de outubro), ficava
+ *  sem popup nenhum até o calendário virar o mês sozinho. O balão no
+ *  Início (Inicio.jsx) tinha exatamente o mesmo problema, apesar do
+ *  comentário aqui dizer o contrário — os dois usam agora o mesmo
+ *  helper. */
 export default function ConfirmacaoAutoStart({ uid }) {
   const torrada = useTorrada();
   const hoje = new Date();
@@ -26,7 +28,7 @@ export default function ConfirmacaoAutoStart({ uid }) {
 
   useEffect(() => {
     if (!uid) return;
-    return ouvirEventosDoMes(hoje.getFullYear(), hoje.getMonth(), setEventosMes);
+    return ouvirEventosMesEProximo(hoje.getFullYear(), hoje.getMonth(), setEventosMes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 

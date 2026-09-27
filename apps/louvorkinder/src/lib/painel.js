@@ -132,6 +132,26 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
   return () => { pararEventos(); pararEscalas.forEach((p) => p()); };
 }
 
+/** Como ouvirEventosDoMes, mas o mês corrente E o seguinte, ao vivo,
+ *  num único array — reportado 2026-09: o líder publicou a escala do
+ *  domingo seguinte (já dentro do mês novo, ex.: hoje é 28 de
+ *  setembro, o domingo é 4 de outubro) e ninguém viu o popup nem o
+ *  balão de confirmação de presença, porque os dois só olhavam para
+ *  `hoje.getMonth()` — o culto publicado ficava invisível até o
+ *  calendário virar o mês sozinho. Usado só pelos dois avisos
+ *  automáticos (ConfirmacaoAutoStart, o balão em Inicio.jsx); o
+ *  Calendário continua a pedir só o mês que a pessoa está a navegar
+ *  (`ouvirEventosDoMes`), esse não tem o problema — mostra o mês que
+ *  se está a ver, qualquer que seja. */
+export function ouvirEventosMesEProximo(ano, mesIndex, cb) {
+  const seguinte = mesIndex === 11 ? { ano: ano + 1, mes: 0 } : { ano, mes: mesIndex + 1 };
+  let atuais = null, proximos = null;
+  const emitir = () => { if (atuais && proximos) cb([...atuais, ...proximos]); };
+  const pararAtual = ouvirEventosDoMes(ano, mesIndex, (evs) => { atuais = evs; emitir(); });
+  const pararProximo = ouvirEventosDoMes(seguinte.ano, seguinte.mes, (evs) => { proximos = evs; emitir(); });
+  return () => { pararAtual(); pararProximo(); };
+}
+
 /** Passa pela Cloud Function (nunca setDoc direto) — só assim dá para
  *  validar no servidor que quem serve em mais do que uma base não
  *  fica escalado nas duas no mesmo culto, e que ninguém repete papel. */
