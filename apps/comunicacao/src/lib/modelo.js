@@ -74,14 +74,9 @@ export const funcoesDosMeusMinisterios = (funcoes, eventoId, escala, uid) =>
   funcoesDoCulto(funcoes, eventoId).filter((f) =>
     meusLugares(escala, uid).some((l) => l.ministerioId === f.ministerioId));
 
-/** Dos sete ministérios da Comunicação, só três têm gente escalada na
- *  hora do culto — os outros são produção/edição, sem posto ao vivo
- *  no domingo. Pedido do líder: tirar os outros da Escala (ver
- *  Culto.jsx) e de "montar escala" (SheetEscalaMinisterios) — em
- *  todo o resto (Ministérios do Painel, Wiki, Funções…) continuam
- *  intactos, isto filtra só nestas duas telas. Por nome, não por id
- *  fixo: "Responsável" foi criado pelo líder pelo próprio painel,
- *  sem slug conhecido de antemão. */
-const NOMES_MINISTERIOS_ESCALA = ["Storymaker", "Fotografia", "Responsável"];
-export const ministeriosDaEscala = (ministerios) =>
-  ministerios.filter((m) => NOMES_MINISTERIOS_ESCALA.includes(m.nome));
+// ministeriosDaEscala / ministeriosComGente mudaram-se para
+// lib/sugestor.js — este ficheiro importa firebase.js (para `db`,
+// `BASE_ID`), o que impede correr as duas com um `node` simples fora
+// do browser; sugestor.js já é Firestore-free de propósito (ver o
+// cabeçalho desse ficheiro) e é onde `npm run teste:ministerios` as
+// testa.

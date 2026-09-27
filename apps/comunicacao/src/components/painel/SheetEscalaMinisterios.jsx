@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { guardarEscala, dispensarBaseDeEvento, reincluirBaseEmEvento, obterEstatisticasEscala } from "../../lib/painel";
 import { obterRespostas } from "../../lib/enquetes";
-import { sugerirLugares, indisponiveisNoCulto } from "../../lib/sugestor";
+import { sugerirLugares, indisponiveisNoCulto, ministeriosDaEscala, ministeriosComGente } from "../../lib/sugestor";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
@@ -17,11 +17,37 @@ import { nomeEvento } from "@portal/shared/lib/data.js";
  *
  *  Ao contrário da Técnica, não há "Responsável"/líder de culto
  *  rotativo aqui — a Comunicação só tem o líder da base fixo (ver
- *  organograma). `liderEscala` fica sempre por definir. */
-export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado, onExcluir }) {
+ *  organograma). `liderEscala` fica sempre por definir.
+ *
+ *  Storymaker/Fotografia/Responsável (`ministeriosDaEscala`) aparecem
+ *  sempre — são os únicos com posto ao vivo no domingo. Os outros
+ *  quatro (Captação e Edição, UNVT, Social Media, Redação e Design)
+ *  não têm o que fazer num culto normal, por isso ficam fora por
+ *  omissão — mas o líder pode juntar um deles a ESTE culto em
+ *  concreto com "+ Adicionar ministério", sem mudar o padrão dos
+ *  outros domingos. Pedido do líder, 2026-09: "ele tem vários
+ *  ministérios [...] precisa ter autonomia para adicionar outros
+ *  ministérios no dia". `todosMinisterios` chega aqui como a lista
+ *  completa (os 7); `ministeriosPadrao`/`extrasIds` decidem quais
+ *  aparecem NESTA folha. */
+export default function SheetEscalaMinisterios({ evento, todosMinisterios, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
+
+  const ministeriosPadrao = ministeriosDaEscala(todosMinisterios);
+  const idsPadrao = new Set(ministeriosPadrao.map((m) => m.id));
+  // extras já guardados neste culto (reabrir a folha não pode
+  // "esquecer" um ministério que o líder juntou da última vez) — o
+  // resto da sessão só acrescenta com adicionarMinisterio()
+  const [extrasIds, setExtrasIds] = useState(() =>
+    ministeriosComGente(todosMinisterios, evento)
+      .filter((m) => !idsPadrao.has(m.id))
+      .map((m) => m.id)
+  );
+  const ministerios = [...ministeriosPadrao, ...todosMinisterios.filter((m) => extrasIds.includes(m.id))];
+  const porAdicionar = todosMinisterios.filter((m) => !idsPadrao.has(m.id) && !extrasIds.includes(m.id));
+  const [aEscolherMinisterio, setAEscolherMinisterio] = useState(false);
 
   async function alternarDispensa() {
     setADispensar(true);
@@ -102,6 +128,25 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
     }));
   }
 
+  // "+ Adicionar ministério" — só para este culto, nunca muda o padrão
+  // dos outros domingos (isso é Painel → Ministérios).
+  function adicionarMinisterio(ministerioId) {
+    setExtrasIds((atual) => [...atual, ministerioId]);
+    setLugares((atual) => [...atual, { ministerioId, pessoas: [null] }]);
+    setAEscolherMinisterio(false);
+  }
+
+  // Só existe para os extras — os 3 de sempre não se tiram daqui
+  // (Painel → Ministérios trata desativar um ministério a sério).
+  // Esvaziar as pessoas já bastava para o card não voltar a aparecer
+  // ao reabrir a folha (ver ministeriosComGente), mas tirar o card
+  // agora, sem esperar por guardar, é o que se espera de um "adicionei
+  // por engano".
+  function removerMinisterioExtra(ministerioId) {
+    setExtrasIds((atual) => atual.filter((id) => id !== ministerioId));
+    setLugares((atual) => atual.filter((l) => l.ministerioId !== ministerioId));
+  }
+
   async function guardar() {
     const limpos = lugares.map((l) => ({ ministerioId: l.ministerioId, pessoas: l.pessoas.filter(Boolean) }));
     const usados = new Set();
@@ -137,9 +182,20 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
         {ministerios.map((m) => {
           const lugar = lugares.find((l) => l.ministerioId === m.id);
           const candidatos = pessoasDoMinisterio(m.id);
+          const ehExtra = !idsPadrao.has(m.id);
           return (
             <div key={m.id} className="caixa" style={{ marginTop: 14 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: m.cor }}>{m.nome}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: m.cor }}>{m.nome}</p>
+                {ehExtra && (
+                  <button
+                    type="button" className="oc-icobt mag" aria-label={`Tirar ${m.nome} deste culto`}
+                    onClick={() => removerMinisterioExtra(m.id)}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               {lugar.pessoas.map((pessoaId, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
                   <select
@@ -168,6 +224,39 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
             </div>
           );
         })}
+
+        {porAdicionar.length > 0 && (
+          aEscolherMinisterio ? (
+            <div className="caixa" style={{ marginTop: 14 }}>
+              <p className="cap">Que ministério, só neste culto?</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                {porAdicionar.map((m) => (
+                  <button
+                    key={m.id} type="button" className="btn sec full" style={{ textAlign: "left" }}
+                    onClick={() => adicionarMinisterio(m.id)}
+                  >
+                    <span className="quadmin" style={{ background: m.cor }} />
+                    {m.nome}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button" className="btn sec full"
+                style={{ marginTop: 8, background: "none", color: "var(--cinza)" }}
+                onClick={() => setAEscolherMinisterio(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button" className="btn sec full" style={{ marginTop: 14 }}
+              onClick={() => setAEscolherMinisterio(true)}
+            >
+              + Adicionar ministério
+            </button>
+          )
+        )}
 
         <button className="btn full" style={{ marginTop: 18 }} disabled={aGuardar} onClick={guardar}>
           {aGuardar ? "A guardar…" : "Guardar escala"}
