@@ -6,7 +6,7 @@ import {
 } from "../../lib/painel";
 import {
   gerarSugestao, calcularAlertas, calcularVezesAprendiz, construirIndisponibilidades,
-  mesclarIndisponibilidades, validarSugestao, chaveSlot,
+  mesclarIndisponibilidades, validarSugestao, candidatosParaEditar, chaveSlot,
 } from "../../lib/sugestor";
 import { desenharEscalaCanvas, compartilharOuBaixarCanvas } from "../../lib/exportarEscala";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -153,7 +153,16 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
     });
   }
 
-  const candidatosPara = (ministerioId, nivel) => voluntarios.filter((p) => p.ministerios?.[ministerioId] === nivel);
+  // Quem pode aparecer no <select> de uma célula — ver
+  // candidatosParaEditar em lib/sugestor.js para o que fica de fora e
+  // porquê (indisponibilidade + duplo agendamento no mesmo domingo,
+  // as mesmas duas restrições duras do motor).
+  const candidatosPara = (ministerioId, nivel, domingoId, opts) =>
+    candidatosParaEditar({
+      voluntarios, ministerios, resultado: sugestao?.resultado ?? {},
+      indisponibilidades: dadosGeracao?.indisponibilidades ?? {},
+      ministerioId, nivel, domingoId, ...opts,
+    });
 
   async function publicar() {
     if (!sugestao) return;
@@ -320,7 +329,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
                                 onChange={(e) => definirCelula(d.id, m.id, "titularId", e.target.value)}
                               >
                                 <option value="">{r.semCandidato ? "sem candidato" : "por definir"}</option>
-                                {candidatosPara(m.id, "titular").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                {candidatosPara(m.id, "titular", d.id, { atual: r.titularId }).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                               </select>
                               {aviso ? (
                                 <p style={{ fontSize: 9.5, color: aviso.nivel === "erro" ? "var(--magenta)" : "#8a7300", marginTop: 3 }}>
@@ -358,7 +367,7 @@ export default function SugestorEscala({ ministerios, voluntarios, onPromover })
                                   onChange={(e) => definirCelula(d.id, m.id, "aprendizId", e.target.value)}
                                 >
                                   <option value="">sem aprendiz</option>
-                                  {candidatosPara(m.id, "aprendiz").map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                  {candidatosPara(m.id, "aprendiz", d.id, { atual: r.aprendizId, excluirId: r.titularId }).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
                                 {aviso && (
                                   <p style={{ fontSize: 9.5, color: aviso.nivel === "erro" ? "var(--magenta)" : "#8a7300", marginTop: 3 }}>

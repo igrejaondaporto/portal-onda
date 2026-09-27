@@ -175,6 +175,48 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
   return { resultado, contagemMes };
 }
 
+/** Quem pode aparecer no seletor de uma célula, ao editar à mão UMA
+ *  sugestão já gerada (`SugestorEscala.jsx`) — as mesmas duas
+ *  restrições duras do motor acima (`candidatosTitular`/
+ *  `candidatosAprendiz`), só que aplicadas ao estado ATUAL da tabela,
+ *  não à geração: fora quem votou indisponível nesse domingo, fora
+ *  quem já está noutro ministério OPERACIONAL nesse mesmo domingo
+ *  (Responsável acumula por regra — nunca entra nesta conta, ver
+ *  CLAUDE.md, "a exceção"). Antes disto o `<select>` listava TODA A
+ *  GENTE daquele nível, indisponível incluído — o líder marcava
+ *  "Julio: indisponível no Encontro de Mulheres" na enquete e via na
+ *  mesma o Julio como opção para o escalar nesse dia.
+ *
+ *  O que NÃO entra aqui: os limites "suaves" (sobrecarregado no mês,
+ *  aprendiz já treinou 2× este mês, não respondeu à enquete) — esses
+ *  continuam a ser avisos AMARELOS depois de escolhido
+ *  (`validarSugestao`), não uma porta fechada; só o vermelho vira
+ *  filtro. A pessoa já selecionada nessa célula fica sempre na lista,
+ *  mesmo inválida — é assim que o aviso vermelho por baixo do
+ *  `<select>` continua a apontar para um nome visível, em vez de o
+ *  campo ficar em branco sem se perceber porquê. */
+export function candidatosParaEditar({
+  voluntarios, ministerios, resultado, indisponibilidades,
+  ministerioId, nivel, domingoId, atual = null, excluirId = null,
+}) {
+  const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
+  const operacional = ministerioId !== ministerioResponsavel?.id;
+  const chaveDoSlot = chaveSlot(domingoId, ministerioId);
+  const indisponivel = (uid) => indisponibilidades[uid]?.has(domingoId) ?? false;
+  const usadoNoutroLugar = (uid) => operacional && ministerios.some((m) => {
+    if (m.id === ministerioResponsavel?.id) return false;   // Responsável não conta
+    const chave = chaveSlot(domingoId, m.id);
+    if (chave === chaveDoSlot) return false;                 // a própria célula não conta contra si
+    const r = resultado[chave];
+    return r?.titularId === uid || r?.aprendizId === uid;
+  });
+
+  return voluntarios
+    .filter((p) => p.ministerios?.[ministerioId] === nivel)
+    .filter((p) => p.id !== excluirId)
+    .filter((p) => p.id === atual || (!indisponivel(p.id) && !usadoNoutroLugar(p.id)));
+}
+
 /** Tudo que merece o olhar do líder antes de publicar — nenhum destes
  *  itens bloqueia nada, são avisos, não regras. */
 export function calcularAlertas({ domingos, ministerios, voluntarios, resultado, contagemMes, estatisticas, vezesAprendizPorMinisterio }) {

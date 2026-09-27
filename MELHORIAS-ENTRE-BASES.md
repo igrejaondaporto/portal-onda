@@ -178,6 +178,30 @@ sem apagar nada — é por aí que se começa antes de confiar nisto.
 
 ## Por portar (identificado, ainda não feito)
 
+- **O editor de uma célula da escala listava gente indisponível**
+  (`apps/tecnica/src/lib/sugestor.js`, `candidatosParaEditar`; ligado em
+  `SugestorEscala.jsx`). Relatado pelo líder ao fechar a enquete de
+  outubro/novembro: marcou-se indisponível no "Encontro de Mulheres" e,
+  ao trocar quem serve nesse dia, continuava a aparecer a si próprio na
+  lista do Responsável. A GERAÇÃO automática já respeitava a
+  indisponibilidade (é uma restrição dura, ver `apps/tecnica/CLAUDE.md`
+  "Sugestor de escala") — o que faltava era o `<select>` de EDITAR uma
+  célula à mão, que listava `voluntarios.filter(nível)` sem mais nada.
+  `candidatosParaEditar` aplica as mesmas duas restrições duras do
+  motor ao estado atual da tabela: fora quem está indisponível nesse
+  domingo, fora quem já está noutro ministério operacional nesse mesmo
+  domingo (o Responsável acumula por regra, nunca conta contra nem é
+  contado). A pessoa já selecionada numa célula fica sempre visível,
+  mesmo inválida — é assim que o aviso vermelho por baixo do `<select>`
+  continua a apontar para um nome real, em vez do campo ficar em
+  branco sem se perceber porquê. `npm run teste:candidatos` — 8 casos,
+  sem Firestore. **Não portado**: Apoio e Pessoal têm o mesmo problema,
+  noutro widget — "Editar equipa" (`CartaoDomingo` em
+  `SugestorEscala.jsx` de cada uma) lista `voluntarios.map(...)` inteiro
+  para marcar/desmarcar, sem filtrar quem votou indisponível nesse
+  domingo. É a mesma classe de bug, mas a UI é uma lista com check, não
+  um `<select>` por ministério — precisa de solução própria, não desta
+  função (essas bases não têm ministérios).
 - **A roda do rato muda números em silêncio** (`apps/tecnica/src/lib/campos.js`,
   `largarAoRodar`). Num computador, rodar por cima de um
   `<input type="number">` com foco muda o valor em vez de rolar — o
