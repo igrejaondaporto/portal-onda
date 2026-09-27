@@ -46,18 +46,27 @@ export function construirLimitesMes(respostas) {
   return mapa;
 }
 
-/** Quantas vezes cada pessoa já aparece num `resultado` (a tabela
- *  inteira, como titular OU aprendiz, em qualquer domingo e
- *  ministério) — a mesma soma que `validarSugestao` já fazia por
- *  dentro para o aviso de sobrecarga, extraída para ser reutilizada
- *  por quem precisa do número sem precisar de repetir os dois
- *  `forEach` aninhados. */
+/** Quantos DOMINGOS cada pessoa já aparece num `resultado` — não
+ *  quantas vezes foi atribuída a um lugar. O Responsável acumula com
+ *  um ministério operacional no mesmo culto (apps/tecnica/CLAUDE.md,
+ *  "O Responsável é a exceção") — sem esta distinção, o Jorge como
+ *  Responsável + Áudio no mesmo domingo contava como 2 no mês, quando
+ *  pra ele é só 1 dia extra na igreja (relatado pelo líder, 2026-09).
+ *  Conta pelo domingoId embutido na chave do slot (`chaveSlot`), não
+ *  pela quantidade de entradas. */
 export function contagemMesDoResultado(resultado) {
-  const contagem = {};
-  Object.values(resultado).forEach((r) => {
-    if (r?.titularId) contagem[r.titularId] = (contagem[r.titularId] ?? 0) + 1;
-    if (r?.aprendizId) contagem[r.aprendizId] = (contagem[r.aprendizId] ?? 0) + 1;
+  const domingosPorPessoa = {};
+  Object.entries(resultado).forEach(([chave, r]) => {
+    const domingoId = chave.split("|")[0];
+    const contar = (id) => {
+      if (!id) return;
+      (domingosPorPessoa[id] ??= new Set()).add(domingoId);
+    };
+    contar(r?.titularId);
+    contar(r?.aprendizId);
   });
+  const contagem = {};
+  Object.entries(domingosPorPessoa).forEach(([id, domingos]) => { contagem[id] = domingos.size; });
   return contagem;
 }
 
@@ -103,13 +112,26 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const usoPorDomingo = {};
   const contagemMes = {};
-  const somar = (id) => { contagemMes[id] = (contagemMes[id] ?? 0) + 1; };
+  const domingosContados = {}; // uid → Set(domingoId) já somado a contagemMes
+  // conta por DOMINGO, não por atribuição — Responsável + um
+  // ministério operacional no mesmo culto é 1 dia, não 2 (mesmo bug
+  // do Jorge relatado pelo líder, 2026-09; ver contagemMesDoResultado)
+  const somar = (id, domingoId) => {
+    if (!id) return;
+    const jaContados = (domingosContados[id] ??= new Set());
+    if (jaContados.has(domingoId)) return;
+    jaContados.add(domingoId);
+    contagemMes[id] = (contagemMes[id] ?? 0) + 1;
+  };
   const usar = (domingoId, id) => { (usoPorDomingo[domingoId] ??= new Set()).add(id); };
   // "só posso servir 1x este mês" — contagemMes já vai sendo somado
   // slot a slot NESTA MESMA geração, por isso a segunda vez que o
   // motor tenta escalar o Kairan ele já não aparece, mesmo que esteja
-  // livre nesse domingo (pedido do líder, 2026-09).
-  const dentroDoLimite = (id) => (contagemMes[id] ?? 0) < (limitesMes[id] ?? Infinity);
+  // livre nesse domingo (pedido do líder, 2026-09). Exceção: se o
+  // domingo já está contado (Responsável + Áudio no mesmo culto), a
+  // segunda atribuição não pesa no limite — `somar` já ia ignorá-la.
+  const dentroDoLimite = (id, domingoId) =>
+    domingosContados[id]?.has(domingoId) || (contagemMes[id] ?? 0) < (limitesMes[id] ?? Infinity);
 
   const ultimaEfetiva = {};
   voluntarios.forEach((p) => { ultimaEfetiva[p.id] = estatisticas[p.id]?.ultima ?? ""; });
@@ -124,7 +146,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
     return voluntarios
       .filter((p) => p.ministerios?.[ministerioId] === "titular")
       .filter((p) => !indisponivel(p.id, domingoId))
-      .filter((p) => dentroDoLimite(p.id))
+      .filter((p) => dentroDoLimite(p.id, domingoId))
       .filter((p) => ministerioId === ministerioResponsavel?.id || !usoPorDomingo[domingoId]?.has(p.id))
       .sort((a, b) => {
         const ua = ultimaEfetiva[a.id] ?? "";
@@ -149,7 +171,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
       .filter((p) => p.ministerios?.[ministerioId] === "aprendiz")
       .filter((p) => p.id !== excluirId)
       .filter((p) => !indisponivel(p.id, domingoId))
-      .filter((p) => dentroDoLimite(p.id))
+      .filter((p) => dentroDoLimite(p.id, domingoId))
       .filter((p) => !usoPorDomingo[domingoId]?.has(p.id))
       .filter((p) => (aprendizMes[p.id] ?? 0) < RECOMENDADO_MES)
       .sort((a, b) => {
@@ -185,7 +207,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
 
     if (titular) {
       if (operacional) usar(slot.domingoId, titular.id);
-      somar(titular.id);
+      somar(titular.id, slot.domingoId);
       ultimaEfetiva[titular.id] = slot.domingoId; // eventoId é sempre "AAAA-MM-DD"
       if (operacional) {
         const candsAp = candidatosAprendiz(slot.ministerioId, slot.domingoId, titular.id);
@@ -193,7 +215,7 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
         if (aprendiz) {
           aprendizId = aprendiz.id;
           usar(slot.domingoId, aprendiz.id);
-          somar(aprendiz.id);
+          somar(aprendiz.id, slot.domingoId);
           (aprendizEfetivo[aprendiz.id] ??= {});
           aprendizEfetivo[aprendiz.id][slot.ministerioId] = (aprendizEfetivo[aprendiz.id][slot.ministerioId] ?? 0) + 1;
           aprendizMes[aprendiz.id] = (aprendizMes[aprendiz.id] ?? 0) + 1;
@@ -231,8 +253,6 @@ export function gerarSugestao({ domingos, ministerios, voluntarios, indisponibil
  *  devolve. */
 export function resultadoDaEscalaAtual(domingos, ministerios, escalasPorDomingo) {
   const resultado = {};
-  const contagemMes = {};
-  const somar = (id) => { if (id) contagemMes[id] = (contagemMes[id] ?? 0) + 1; };
 
   domingos.forEach((d) => {
     const lugares = escalasPorDomingo[d.id]?.lugares || [];
@@ -242,12 +262,10 @@ export function resultadoDaEscalaAtual(domingos, ministerios, escalasPorDomingo)
         titularId: l?.titularId ?? null, aprendizId: l?.aprendizId ?? null,
         travado: false, motivoTravado: null, semCandidato: false,
       };
-      somar(l?.titularId);
-      somar(l?.aprendizId);
     });
   });
 
-  return { resultado, contagemMes };
+  return { resultado, contagemMes: contagemMesDoResultado(resultado) };
 }
 
 /** Quem pode aparecer no seletor de uma célula, ao editar à mão UMA
@@ -295,7 +313,17 @@ export function candidatosParaEditar({
     return r?.titularId === uid || r?.aprendizId === uid;
   });
   const contagemMes = contagemMesDoResultado(resultado);
-  const limiteAtingido = (uid) => (contagemMes[uid] ?? 0) >= (limitesMes[uid] ?? Infinity);
+  // se a pessoa já está noutro lugar NESTE MESMO domingo (o caso do
+  // Responsável + um ministério, apps/tecnica/CLAUDE.md "a exceção"),
+  // escolhê-la aqui também não aumenta o mês dela —
+  // contagemMesDoResultado já conta por domingo, não por lugar — por
+  // isso o limite não pode barrar essa segunda escolha no mesmo dia.
+  const domingoJaContado = (uid) => Object.entries(resultado).some(([chave, r]) => {
+    if (chave === chaveDoSlot) return false;
+    const [d] = chave.split("|");
+    return d === domingoId && (r?.titularId === uid || r?.aprendizId === uid);
+  });
+  const limiteAtingido = (uid) => !domingoJaContado(uid) && (contagemMes[uid] ?? 0) >= (limitesMes[uid] ?? Infinity);
 
   return voluntarios
     .filter((p) => p.ministerios?.[ministerioId] === nivel)
@@ -365,17 +393,12 @@ export function validarSugestao({ resultado, domingos, ministerios, indisponibil
   const ministerioResponsavel = ministerios.find((m) => m.ordem === 0) ?? null;
   const indisponivel = (uid, domingoId) => indisponibilidades[uid]?.has(domingoId) ?? false;
 
-  const contagemMes = {};
+  const contagemMes = contagemMesDoResultado(resultado);
   const aprendizMes = {};
   domingos.forEach((d) => {
     ministerios.forEach((m) => {
       const r = resultado[chaveSlot(d.id, m.id)];
-      if (!r) return;
-      if (r.titularId) contagemMes[r.titularId] = (contagemMes[r.titularId] ?? 0) + 1;
-      if (r.aprendizId) {
-        contagemMes[r.aprendizId] = (contagemMes[r.aprendizId] ?? 0) + 1;
-        aprendizMes[r.aprendizId] = (aprendizMes[r.aprendizId] ?? 0) + 1;
-      }
+      if (r?.aprendizId) aprendizMes[r.aprendizId] = (aprendizMes[r.aprendizId] ?? 0) + 1;
     });
   });
 

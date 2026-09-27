@@ -50,6 +50,15 @@ console.log("\ncontagemMesDoResultado");
   };
   conferir("soma titular e aprendiz, em qualquer domingo",
     contagemMesDoResultado(resultado), { kairan: 2, everton: 1 });
+
+  // relatado pelo líder, 2026-09: o Jorge é Responsável E titular do
+  // Áudio no MESMO domingo — pra ele isso é 1 dia na igreja, não 2
+  const mesmoDomingo = {
+    [chaveSlot("2026-10-18", "responsavel")]: { titularId: "jorge", aprendizId: null },
+    [chaveSlot("2026-10-18", "audio")]: { titularId: "jorge", aprendizId: null },
+  };
+  conferir("Responsável + ministério operacional no MESMO domingo conta 1×, não 2× (Jorge)",
+    contagemMesDoResultado(mesmoDomingo), { jorge: 1 });
 }
 
 console.log("\ngerarSugestao respeita o limite DURANTE a própria geração");
@@ -64,6 +73,48 @@ console.log("\ngerarSugestao respeita o limite DURANTE a própria geração");
     [audio04, audio11].filter((id) => id === "kairan").length, 1);
   conferir("o domingo sem o Kairan tem o Everton (não fica vazio)",
     [audio04, audio11].includes("everton"), true);
+}
+
+console.log("\nResponsável + ministério operacional no MESMO domingo não gasta 2× do limite (Jorge)");
+{
+  const MIN_JORGE = [
+    { id: "responsavel", nome: "Responsável", ordem: 0 },
+    { id: "audio", nome: "Áudio", ordem: 1 },
+  ];
+  const VOL_JORGE = [{ id: "jorge", nome: "Jorge", ministerios: { responsavel: "titular", audio: "titular" } }];
+  const domingoUnico = [{ id: "2026-10-18" }];
+  const limitesMes = { jorge: 1 }; // só pode servir 1x — mas Responsável+Áudio no mesmo dia é só 1 dia
+  const s = gerarSugestao({
+    domingos: domingoUnico, ministerios: MIN_JORGE, voluntarios: VOL_JORGE,
+    indisponibilidades: {}, estatisticas: {}, vezesAprendizPorMinisterio: {}, limitesMes,
+  });
+  conferir("Jorge assume os DOIS lugares no mesmo domingo, mesmo com limite de 1×",
+    [s.resultado[chaveSlot("2026-10-18", "responsavel")].titularId, s.resultado[chaveSlot("2026-10-18", "audio")].titularId],
+    ["jorge", "jorge"]);
+  conferir("contagemMes do Jorge fica em 1, não 2",
+    s.contagemMes.jorge, 1);
+
+  const resultadoJorge = {
+    [chaveSlot("2026-10-18", "responsavel")]: { titularId: "jorge", aprendizId: null },
+    [chaveSlot("2026-10-18", "audio")]: { titularId: "jorge", aprendizId: null },
+  };
+  const avisosJorge = validarSugestao({
+    resultado: resultadoJorge, domingos: domingoUnico, ministerios: MIN_JORGE,
+    indisponibilidades: {}, respondentes: new Set(["jorge"]), limitesMes,
+  });
+  conferir("validarSugestao não acusa erro — pro Jorge é só 1× este mês, dentro do limite dele",
+    avisosJorge[chaveSlot("2026-10-18", "audio")].titular, null);
+
+  // o líder edita à mão: o Jorge já está Responsável em 18/10, e o
+  // líder quer colocá-lo também no Áudio nesse MESMO domingo — o
+  // limite de 1× não pode barrar isso (é o mesmo dia)
+  const jaResponsavel = { [chaveSlot("2026-10-18", "responsavel")]: { titularId: "jorge", aprendizId: null } };
+  const candsAudio = candidatosParaEditar({
+    voluntarios: VOL_JORGE, ministerios: MIN_JORGE, resultado: jaResponsavel, indisponibilidades: {}, limitesMes,
+    ministerioId: "audio", nivel: "titular", domingoId: "2026-10-18",
+  });
+  conferir("candidatosParaEditar deixa o Jorge disponível pro Áudio no MESMO domingo em que já é Responsável",
+    candsAudio.map((p) => p.nome), ["Jorge"]);
 }
 
 console.log("\ncandidatosParaEditar — o mesmo teto, ao editar à mão");
