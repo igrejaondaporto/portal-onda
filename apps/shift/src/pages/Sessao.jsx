@@ -21,15 +21,15 @@ import Culto from "./Culto";
 import Inventario from "./Inventario";
 import Reembolsos from "./Reembolsos";
 import Licao from "./Licao";
+import Montar from "./Montar";
 import Perfil from "./Perfil";
 
-// Sem "Montar" aqui (era enquete de indisponibilidade + sugestor de
-// escala, herdado do molde da Apoio) — clone da Base New, que não
-// pediu esse fluxo. `lib/enquetes.js` e o balão de "responder enquete" em
-// Inicio.jsx continuam no código (herdados do molde), mas ficam
-// inertes: sem "Montar" nenhuma enquete chega a ser criada para esta
-// base, o balão nunca aparece. Se um dia fizer falta, é só devolver
-// a aba (ver git history de apps/apoio/src/pages/Sessao.jsx).
+// urna — enquete de disponibilidade e montagem da escala do mês
+// (2026-09: ligado a pedido do líder; mesmo fluxo da Apoio —
+// lib/enquetes.js e o balão de "responder enquete" em Inicio.jsx já
+// estavam no código desde o scaffolding, só ficavam inertes sem esta
+// aba para abrir a primeira enquete). Só a líder da base a vê.
+const ICONE_MONTAR = '<path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"/>';
 const ABAS_BASE = [
   ["inicio", "Início"],
   ["escala", "Escala"],
@@ -109,7 +109,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [vista, setVista] = useState(null);           // null = desligada
   const papelEfetivo = vista ? "voluntario" : papel;
   const lider = papelEfetivo === "lider_base";
-  const ABAS = ABAS_BASE;
+  const ABAS = lider ? [...ABAS_BASE, ["montar", "Montar", ICONE_MONTAR]] : ABAS_BASE;
 
   function irPara(p) {
     setPagina(p);
@@ -246,6 +246,9 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
           </div>
           {pagina === "reembolsos" && (
             <Reembolsos uid={uid} papel={papelEfetivo} definirCabecalho={setCab} />
+          )}
+          {pagina === "montar" && lider && (
+            <Montar ativo={pagina === "montar"} definirCabecalho={setCab} />
           )}
           {pagina === "perfil" && (
             <Perfil
