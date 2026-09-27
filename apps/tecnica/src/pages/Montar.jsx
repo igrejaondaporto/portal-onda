@@ -33,6 +33,12 @@ function LinhaResposta({ pessoa, resposta: r, domingos, eventosPorId, rotulo, on
             {r.semIndisponibilidade
               ? "Sem indisponibilidades"
               : `Indisponível em ${r.indisponivelEm.length} culto${r.indisponivelEm.length === 1 ? "" : "s"}`}
+            {/* Vem da resposta à enquete, não da escala — diz o que a
+              * pessoa DISSE que aguenta, não quantas vezes já está
+              * escalada. O sugestor já respeita isto sozinho (para de
+              * a propor depois de bater no número); isto é só para o
+              * líder ver de imediato, sem abrir a tabela. */}
+            {r.maxVezesMes != null && ` · só ${r.maxVezesMes}× este mês`}
           </p>
         </div>
         <span className="seta">✏️</span>
