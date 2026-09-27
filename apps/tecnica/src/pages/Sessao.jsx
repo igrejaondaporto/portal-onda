@@ -3,6 +3,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@portal/shared/lib/firebase.js";
 import { ouvirCultoAoVivoAtivo } from "@portal/shared/lib/cultoAoVivo.js";
 import { ouvirMinisterios } from "../lib/painel";
+import { chaveDoPath, PATH_POR_CHAVE } from "../lib/rotas";
 import { TorradaProvider } from "@portal/shared/lib/TorradaContext.jsx";
 import { TourProvider, TourAutoStart, useReverTour } from "@portal/shared/lib/TourContext.jsx";
 import Tour from "@portal/shared/components/Tour.jsx";
@@ -66,7 +67,26 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const [pessoa, setPessoa] = useState(null);
   const [basesDisponiveis, setBasesDisponiveis] = useState([]); // outras bases em que a pessoa serve
   const [menuAberto, setMenuAberto] = useState(false);
-  const [pagina, setPagina] = useState("inicio");
+  const [pagina, setPagina] = useState(() => chaveDoPath(window.location.pathname));
+  // sincroniza a barra de endereço com `pagina` — normaliza "/" (ou um
+  // caminho desconhecido) para o canónico ao entrar, e reage ao
+  // voltar/avançar do browser. `mudarPagina` (abaixo) faz o caminho
+  // inverso a cada troca de página feita de dentro da app.
+  useEffect(() => {
+    const canonico = PATH_POR_CHAVE[pagina] ?? "/inicio";
+    if (window.location.pathname !== canonico) history.replaceState(null, "", canonico);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    function aoVoltarOuAvancar() { setPagina(chaveDoPath(window.location.pathname)); }
+    window.addEventListener("popstate", aoVoltarOuAvancar);
+    return () => window.removeEventListener("popstate", aoVoltarOuAvancar);
+  }, []);
+  function mudarPagina(p) {
+    setPagina(p);
+    const path = PATH_POR_CHAVE[p] ?? "/inicio";
+    if (window.location.pathname !== path) history.pushState(null, "", path);
+  }
   const [cab, setCab] = useState({ titulo: "", subtitulo: "", chips: [] });
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
@@ -123,21 +143,28 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
   const lider = papelEfetivo === "lider_base";
   const ABAS = lider ? [...ABAS_BASE, ["montar", "Montar", ICONE_MONTAR]] : ABAS_BASE;
 
+  // com URL real, dá para chegar a /montar direto (link antigo, copiado
+  // por engano) sem ser líder — os dados já estão protegidos por trás
+  // (regras 3/4), mas a UI não deve tentar renderizar um ecrã vazio.
+  useEffect(() => {
+    if (pagina === "montar" && !lider) mudarPagina("inicio");
+  }, [pagina, lider]);
+
   function entrarNaVista(ministerioId, nome) {
     setVista({ ministerioId, nome });
     setAEscolherVista(false);
-    setPagina("inicio");                              // "Montar" deixa de existir
+    mudarPagina("inicio");                             // "Montar" deixa de existir
   }
 
   function irPara(p) {
-    setPagina(p);
+    mudarPagina(p);
     setMenuAberto(false);
   }
 
   function irParaEscala(eventoId) {
     setFocoEscala(eventoId ?? null);
     setFocoEscalaSeq((s) => s + 1);
-    setPagina("escala");
+    mudarPagina("escala");
     setMenuAberto(false);
   }
 
@@ -155,14 +182,14 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
 
   function irParaCulto(aba) {
     setAbaCulto(aba ?? "ordem");
-    setPagina("culto");
+    mudarPagina("culto");
     setMenuAberto(false);
   }
 
   function irParaWiki(wikiId) {
     setFocoWiki(wikiId ?? null);
     setFocoWikiSeq((s) => s + 1);
-    setPagina("wiki");
+    mudarPagina("wiki");
     setMenuAberto(false);
   }
 

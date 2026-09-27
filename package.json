@@ -23,7 +23,8 @@
     "teste:candidatos": "node scripts/testa-candidatos-escala.mjs",
     "teste:ministerios": "node scripts/testa-ministerios-culto.mjs",
     "teste:escala-atual": "node scripts/testa-editar-escala-atual.mjs",
-    "teste:limite": "node scripts/testa-limite-vezes-mes.mjs"
+    "teste:limite": "node scripts/testa-limite-vezes-mes.mjs",
+    "teste:rotas": "node scripts/testa-rotas-tecnica.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
