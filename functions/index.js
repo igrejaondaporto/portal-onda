@@ -90,6 +90,12 @@ export {
   estadoEnvioEmail, configurarEnvioEmail, enviarEmailTeste, enviarCodigoEmail, confirmarCodigoEmail,
 } from "./email.js";
 
+// Reportar bugs/erros/melhorias do painel, de qualquer base, para o
+// Onda Tech Hub triar — ficheiro próprio, mesmo motivo de
+// kinder.js/mural.js/pastoral.js (ver o comentário no topo de
+// relatos.js).
+export { abrirRelato, mudarStatusRelato, excluirMeuRelato } from "./relatos.js";
+
 admin.initializeApp();
 const db = admin.firestore();
 

@@ -92,6 +92,12 @@ bases, nunca no mesmo commit que uma correção local.
 | Kinder | `apps/kinder` | `kinder.igrejaonda.pt` | `apps/kinder/CLAUDE.md` |
 | Financeiro | `apps/financeiro` | `financeiro.igrejaonda.pt` | `apps/financeiro/CLAUDE.md` |
 | Pastoral | `apps/pastoral` | `pastoral.igrejaonda.pt` | `apps/pastoral/CLAUDE.md` |
+| Onda Tech Hub | `apps/ondatechhub` | `techhub.igrejaonda.pt` | `apps/ondatechhub/CLAUDE.md` |
+
+Onda Tech Hub não serve num domingo (é a equipa que cuida do Portal
+em si) mas é uma base como outra qualquer na arquitetura — login por
+PIN, `bases/ondatechhub`, multi-base — por isso entra na tabela,
+diferente do Mural abaixo.
 
 Fora desta tabela de propósito — não é uma base, é da igreja toda
 (mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,

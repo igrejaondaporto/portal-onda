@@ -17,7 +17,6 @@ import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import EnqueteAutoStart from "../components/EnqueteAutoStart.jsx";
-import ConfirmacaoAutoStart from "../components/ConfirmacaoAutoStart.jsx";
 import PainelLider from "./PainelLider";
 import Inicio from "./Inicio";
 import Escala from "./Escala";
@@ -130,7 +129,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
     <TourProvider>
       <TourAutoStart baseId={baseId} papel={papel} mostrarTourAoEntrar={mostrarTourAoEntrar} irPara={irPara} />
       <EnqueteAutoStart uid={uid} />
-      <ConfirmacaoAutoStart uid={uid} />
       <Tour />
       <div className="app">
         <AvisoOffline />
@@ -236,7 +234,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
       )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papelEfetivo} irPara={irPara}
+          uid={uid} baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}

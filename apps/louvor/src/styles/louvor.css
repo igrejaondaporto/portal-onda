@@ -706,3 +706,50 @@
   background: #fde3e2;
   color: #e0201b;
 }
+
+/* Confirmar presença no próprio box do culto (Escala) — 2026-09,
+ * BarraConfirmarPresenca.jsx. Cola por baixo do CartaoCulto
+ * partilhado: o wrapper tira as bordas de baixo do cartão e a barra
+ * continua o mesmo contorno, como se fosse o rodapé dele. */
+.lv-com-confirmar {
+  margin-bottom: 10px;
+}
+.lv-com-confirmar > .cartaoculto {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.lv-confirmar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--fio);
+  border-top: 1px dashed var(--fio);
+  border-radius: 0 0 14px 14px;
+  background: #fff;
+}
+.lv-confirmar[data-estado="pendente"] {
+  background: #fff8e6;
+}
+.lv-confirmar-motivo {
+  display: block;
+}
+.lv-confirmar-txt {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+}
+.lv-confirmar[data-estado="vai"] .lv-confirmar-txt { color: var(--verde); }
+.lv-confirmar[data-estado="nao_vai"] .lv-confirmar-txt { color: var(--magenta); font-weight: 600; }
+.lv-confirmar-link {
+  background: none;
+  border: 0;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cinza);
+  text-decoration: underline;
+  cursor: pointer;
+}

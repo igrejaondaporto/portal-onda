@@ -374,6 +374,57 @@ em `global.css` continua só com sirvo/culto/hoje) — escalado +
 publicado + por confirmar, um listener por culto do mês
 (`ouvirConfirmacoesDoMes`).
 
+### Bug corrigido 2026-09: escala do domingo seguinte, já no mês novo
+
+Reportado pelo líder: publicou a escala, mas ninguém recebeu o popup
+nem viu o balão a pedir confirmação. Em produção: a escala de
+04/10 estava publicada, com 6 pessoas escaladas, zero confirmações —
+enquanto os domingos de setembro tinham a maioria já respondida.
+
+Causa: `ConfirmacaoAutoStart.jsx` (o popup bloqueante, "o popup
+obrigatório da enquete, mas para a confirmação") e o balão em
+`Inicio.jsx` (`cultosPorConfirmar`) só liam `ouvirEventosDoMes(hoje.
+getFullYear(), hoje.getMonth(), …)` — o mês CALENDÁRIO atual. Uma
+escala publicada para o primeiro domingo do mês seguinte (o caso mais
+comum de todos: acontece toda vez que o líder publica perto da
+virada do mês, não só "com muita antecedência") ficava invisível para
+os dois até o relógio virar o mês sozinho. O comentário em
+`ConfirmacaoAutoStart.jsx` dizia que o balão cobria esse caso — não
+cobria, tinha exatamente a mesma limitação.
+
+Corrigido com `ouvirEventosMesEProximo` (`lib/painel.js`) — mês
+corrente + o seguinte, ao vivo, num único array; os dois avisos
+automáticos usam-no agora. O Calendário (`ouvirEventosDoMes` comum)
+não tinha o problema — mostra sempre o mês que a pessoa está a
+navegar, qualquer que seja. **Mesmo bug, mesma correção na Louvor
+Kinder** (`apps/louvorkinder`, código duplicado de propósito — ver
+`MELHORIAS-ENTRE-BASES.md`).
+
+### Confirmar no box do culto, não num popup (2026-09)
+
+Pedido do líder: "que os voluntários confirmem a escala clicando num
+botão Confirmar ao lado de cada dia, lá nos boxes em Escala — e na
+página inicial só um aviso, não enquetes como está agora".
+
+- **Escala** (as duas abas): cada box de um culto publicado, em que a
+  pessoa serve e que ainda não passou, ganha por baixo uma barra
+  (`components/BarraConfirmarPresenca.jsx`): "Confirmas que vais?" +
+  **Confirmar** + "Não posso" (pede a justificativa ali mesmo). Depois
+  fica "✓ Presença confirmada · Afinal não posso" ou "✗ Avisaste que
+  não podes · Afinal vou". Mesma função de sempre
+  (`confirmarPresencaLouvor`, `resposta: vai|nao_vai`) — o líder
+  continua a ver os 👍 na Escala geral sem mudança nenhuma.
+- **Início**: o balão verde passou a aviso — "Tens N cultos por
+  confirmar · Toca para confirmar em Escala" — e leva à Escala com o
+  primeiro culto por confirmar aberto. Já não abre folha nenhuma.
+- **Saiu o popup obrigatório** (`ConfirmacaoAutoStart.jsx`, e o
+  "Ainda não sei" guardado em `localStorage`). O "Mudar resposta" em
+  "O teu papel" e a confirmação de ENSAIO ficaram como estavam.
+
+A barra fica fora do `CartaoCulto` (partilhado, e o cabeçalho dele é
+um `<button>`), colada por baixo com `.lv-com-confirmar` (`styles/
+louvor.css`) — nada mudou em `packages/shared`.
+
 ## Culto: Ordem, Feedbacks, Equipamentos, Melhorias
 
 Quatro sub-abas dentro de Culto (`src/pages/Culto.jsx`) — **Ordem do
