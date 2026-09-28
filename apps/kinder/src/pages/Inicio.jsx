@@ -23,7 +23,6 @@ import ItensChecklist from "../components/sala/ItensChecklist";
 import ContagemCriancas from "../components/ContagemCriancas";
 import RepertorioLouvorKinder from "../components/licao/RepertorioLouvorKinder";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
-import BlocoReportarProblema from "@portal/shared/components/BlocoReportarProblema.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
   return (
@@ -301,7 +300,6 @@ export default function Inicio({
                 {tag ? <span className="tag" style={{ marginLeft: "auto" }}>{tag}</span> : <span className="seta">›</span>}
               </div>
             ))}
-            <BlocoReportarProblema uid={uid} paginaAtual="inicio" />
           </div>
         </div>
 

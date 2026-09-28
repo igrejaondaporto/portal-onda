@@ -23,7 +23,6 @@ import SheetAniversarios from "../components/painel/SheetAniversarios";
 import SheetConfirmarPresenca from "../components/SheetConfirmarPresenca";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
-import BlocoReportarProblema from "@portal/shared/components/BlocoReportarProblema.jsx";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -464,7 +463,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               )}
             </div>
           )}
-          <BlocoReportarProblema uid={uid} paginaAtual="inicio" />
         </div>
       </div>
     </div>
