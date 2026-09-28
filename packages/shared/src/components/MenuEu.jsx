@@ -4,8 +4,13 @@ import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 import SheetEmail from "./SheetEmail.jsx";
 import { estadoDoEmail, ouvirMeuEmail } from "../lib/email.js";
+import { useTorrada } from "../lib/TorradaContext.jsx";
+import { ouvirMeusRelatos } from "../lib/relatos.js";
+import SheetReportarProblema from "./SheetReportarProblema.jsx";
+import SheetAbrirRelato from "./SheetAbrirRelato.jsx";
+import SheetDetalheRelato from "./SheetDetalheRelato.jsx";
 
-export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
+export default function MenuEu({ uid, pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
   // da base (ver apps/louvor/src/lib/modelo.js) — nenhuma outra base
   // consegue produzir esse papel no token, seguro tratar aqui.
@@ -17,6 +22,18 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   const [estadoEmail, setEstadoEmail] = useState(null);
   useEffect(() => ouvirMeuEmail((m) => setEstadoEmail(estadoDoEmail(m))), []);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
+  const torrada = useTorrada();
+
+  // "Reportar problema" — no menu, não escondido no fundo do Início,
+  // porque um bug pode acontecer em qualquer ecrã (pedido do líder da
+  // Técnica: "não estou achando", esperava um menu de verdade).
+  const [meusRelatos, setMeusRelatos] = useState([]);
+  const [sheetRelato, setSheetRelato] = useState(null); // null | {tipo, relato?}
+  useEffect(() => {
+    if (!uid) return;
+    return ouvirMeusRelatos(uid, setMeusRelatos);
+  }, [uid]);
+  const relatosEmAberto = meusRelatos.filter((r) => r.status !== "resolvido" && r.status !== "recusado").length;
 
   return (
     <>
@@ -70,6 +87,15 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
             />
           )}
         </button>
+        <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setSheetRelato({ tipo: "lista" })}>
+          Reportar problema
+          {relatosEmAberto > 0 && (
+            <span
+              aria-label={`${relatosEmAberto} em aberto`}
+              style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "var(--laranja, #f5a300)", marginLeft: 8, verticalAlign: "middle" }}
+            />
+          )}
+        </button>
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
@@ -104,6 +130,27 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         </button>
       </div>
       {verEmail && <SheetEmail onFechar={() => setVerEmail(false)} />}
+      {sheetRelato?.tipo === "lista" && (
+        <SheetReportarProblema
+          relatos={meusRelatos}
+          onFechar={() => setSheetRelato(null)}
+          onNovoRelato={() => setSheetRelato({ tipo: "abrir" })}
+          onVerDetalhe={(r) => setSheetRelato({ tipo: "detalhe", relato: r })}
+        />
+      )}
+      {sheetRelato?.tipo === "abrir" && (
+        <SheetAbrirRelato
+          onFechar={() => setSheetRelato({ tipo: "lista" })}
+          onGuardado={(msg) => { setSheetRelato({ tipo: "lista" }); torrada(msg); }}
+        />
+      )}
+      {sheetRelato?.tipo === "detalhe" && (
+        <SheetDetalheRelato
+          relato={meusRelatos.find((r) => r.id === sheetRelato.relato.id) ?? sheetRelato.relato}
+          onFechar={() => setSheetRelato({ tipo: "lista" })}
+          onExcluido={() => setSheetRelato({ tipo: "lista" })}
+        />
+      )}
     </>
   );
 }
