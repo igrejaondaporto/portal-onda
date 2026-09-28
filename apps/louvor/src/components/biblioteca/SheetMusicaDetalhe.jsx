@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { definirVersaoPadrao, guardarMusica, CLASSIFICACOES, agruparUsoPorCulto, tonsParaMostrar } from "../../lib/biblioteca";
+import { definirVersaoPadrao, guardarMusica, desativarMusica, CLASSIFICACOES, agruparUsoPorCulto, tonsParaMostrar } from "../../lib/biblioteca";
 import { dataCurta } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import SheetVersao from "./SheetVersao";
@@ -55,6 +55,20 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, vol
   const [aEditarLinks, setAEditarLinks] = useState(false);
   const [linksForm, setLinksForm] = useState({ letra: "", cifra: "", audio: "", video: "" });
   const [aGuardarLinks, setAGuardarLinks] = useState(false);
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+  const [aExcluir, setAExcluir] = useState(false);
+
+  async function excluir() {
+    setAExcluir(true);
+    try {
+      await desativarMusica(musica.id, versoes.map((v) => v.id));
+      torrada("Música excluída da biblioteca");
+      onFechar();
+    } catch (e) {
+      torrada(e.message || "Não foi possível excluir a música.");
+      setAExcluir(false);
+    }
+  }
 
   function abrirEdicaoLinks() {
     setLinksForm({
@@ -223,7 +237,42 @@ export default function SheetMusicaDetalhe({ uid, souLider, musica, versoes, vol
           </button>
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={onFechar}>Fechar</button>
+        {/* Só líder/auxiliar — as regras recusam `ativo` a mais alguém */}
+        {souLider && (
+          <button
+            className="btn sec full" style={{ marginTop: 9, color: "var(--magenta)" }}
+            onClick={() => setConfirmarExcluir(true)}
+          >
+            Excluir música
+          </button>
+        )}
       </div>
+
+      {confirmarExcluir && (
+        <>
+          <div className="veu on" onClick={() => !aExcluir && setConfirmarExcluir(false)} />
+          <div className="pin on" role="alertdialog" aria-modal="true" aria-label="Excluir música">
+            <div className="pux" />
+            <h2 style={{ color: "var(--magenta)" }}>Excluir música?</h2>
+            <p className="sb2" style={{ marginTop: 6 }}>
+              <b>{musica.titulo}</b> · {musica.artista}
+            </p>
+            <p className="ds" style={{ textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>
+              Sai da Biblioteca com {versoes.length === 1 ? "a versão que tem" : `as ${versoes.length} versões que tem`}.
+              Os repertórios de cultos passados continuam a mostrar o nome.
+            </p>
+            <button
+              className="btn full" style={{ marginTop: 16, background: "var(--magenta)" }}
+              disabled={aExcluir} onClick={excluir}
+            >
+              {aExcluir ? "A excluir…" : "Excluir música"}
+            </button>
+            <button className="btn sec full" style={{ marginTop: 9 }} disabled={aExcluir} onClick={() => setConfirmarExcluir(false)}>
+              Cancelar
+            </button>
+          </div>
+        </>
+      )}
 
       {sheetVersao && (
         <SheetVersao

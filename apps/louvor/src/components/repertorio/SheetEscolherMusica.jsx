@@ -35,7 +35,7 @@ export default function SheetEscolherMusica({ musicas, musicaAnteriorTitulo, com
   }
 
   const q = norm(busca.trim());
-  const filtradas = musicas.filter((m) => !q || norm(m.titulo).includes(q) || norm(m.artista).includes(q));
+  const filtradas = musicas.filter((m) => m.ativo !== false && (!q || norm(m.titulo).includes(q) || norm(m.artista).includes(q)));
 
   return (
     <>
