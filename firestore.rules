@@ -507,13 +507,14 @@ service cloud.firestore {
       // auxiliar, já coberto por souLiderBase) cadastra música nova
       // (2026-09, antes era qualquer voluntário); adicionar versão
       // continua aberto a todos. Só o líder marca a versão padrão da
-      // Onda (decisão 3 do CLAUDE.md desta base). Nada é apagado a
-      // sério, por isso não há allow delete. ──
+      // Onda (decisão 3 do CLAUDE.md desta base) e só o líder exclui
+      // uma música (`ativo`/`desativadaEm`, "Excluir música", 2026-09).
+      // Nada é apagado a sério, por isso não há allow delete. ──
       match /musicas/{musica} {
         allow read:   if minhaBase(base);
         allow create: if souLiderBase(base);
         allow update: if minhaBase(base)
-                      && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['versaoPadraoId'])
+                      && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['versaoPadraoId', 'ativo', 'desativadaEm'])
                           || souLiderBase(base));
         allow delete: if false;
         match /versoes/{versao} {
