@@ -25,8 +25,12 @@ export function ouvirMeusRelatos(uid, cb) {
 }
 
 export const ROTULO_TIPO_RELATO = { erro: "Erro", bug: "Bug", melhoria: "Melhoria" };
+// "aberto"/"resolvido" são os valores internos (Firestore/Cloud
+// Functions, já em produção) — só o texto mostrado mudou, para bater
+// com o vocabulário pedido pelo líder: "novo" → "em andamento" →
+// "concluído".
 export const ROTULO_STATUS_RELATO = {
-  aberto: "Aberto", em_andamento: "Em andamento", resolvido: "Resolvido", recusado: "Recusado",
+  aberto: "Novo", em_andamento: "Em andamento", resolvido: "Concluído", recusado: "Recusado",
 };
 export const COR_STATUS_RELATO = {
   aberto: "var(--cinza)", em_andamento: "var(--azul)", resolvido: "var(--verde)", recusado: "var(--magenta)",
