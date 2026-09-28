@@ -39,6 +39,13 @@ export const desgastePastoral = (desde, ate) =>
 export const moverEtapaContacto = (contactoId, etapa, nota, gdId) =>
   chamar("moverEtapaContacto")({ contactoId, etapa, nota: nota ?? null, ...(gdId ? { gdId } : {}) }).then((r) => r.data);
 
+/** "Quer servir": passa o contacto para essa etapa e manda o pedido à
+ *  1.ª (e, se houver, 2.ª) base, ao mesmo tempo — o primeiro líder a
+ *  aprovar fica com a pessoa (functions/candidaturas.js). Chamar outra
+ *  vez enquanto está à espera troca as bases. */
+export const enviarContactoParaServir = (contactoId, bases) =>
+  chamar("enviarContactoParaServir")({ contactoId, bases }).then((r) => r.data);
+
 /** "Excluir" um contacto — nunca um delete a sério, `arquivado:true`
  *  (regra 5 do CLAUDE.md raiz). */
 export const arquivarContactoPastoral = (contactoId) =>

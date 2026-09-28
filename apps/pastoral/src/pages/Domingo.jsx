@@ -13,6 +13,7 @@ import NavCulto from "../components/NavCulto";
 import CalendarioAgenda from "../components/agenda/CalendarioAgenda";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import AvisoSemEscala from "../components/AvisoSemEscala";
+import AguardamLideres from "../components/AguardamLideres";
 
 /** As três salas fixas da Kinder (baby/fun/junior — `pessoas/{p}.categoria`
  *  lá, ver `apps/kinder/src/lib/modelo.js`). Cores iguais às de lá,
@@ -297,6 +298,10 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
     <>
       {/* a agenda do pastor em cima (pedido 2026-09): eventos da igreja
           e os privados de cada um — ver components/agenda */}
+      {/* quem o pastor mandou às bases e ainda espera por um líder
+          ("quero servir", functions/candidaturas.js) — some sozinho */}
+      <AguardamLideres />
+
       <CalendarioAgenda uid={uid} />
 
       {/* o culto por omissão já vem certo (ao vivo, ou hoje, ou o

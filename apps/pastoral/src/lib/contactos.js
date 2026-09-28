@@ -42,7 +42,7 @@ export const ETAPAS = [
   { id: "gd", nome: "No GD", descricao: "Está a ir a um grupo" },
   { id: "membro", nome: "Membro", descricao: "Fez o percurso de membresia" },
   { id: "voluntario", nome: "Quer servir", descricao: "Disse que quer entrar numa base" },
-  { id: "servindo", nome: "A servir", descricao: "Já está numa escala" },
+  { id: "servindo", nome: "A servir", descricao: "Já está numa base" },
 ];
 
 export const nomeEtapa = (id) => ETAPAS.find((e) => e.id === id)?.nome ?? id;
@@ -172,4 +172,63 @@ export function esquecidos(contactos, dias = DIAS_PARADO) {
     .map((c) => ({ ...c, dias: diasParado(c) }))
     .filter((c) => c.dias !== null && c.dias >= dias)
     .sort((a, b) => b.dias - a.dias);
+}
+
+/* ── "Quer servir" → os pedidos às bases (functions/candidaturas.js) ──
+ *
+ * Ao passar alguém para "Quer servir", o pastor escolhe 1 ou 2 bases e
+ * os líderes recebem o pedido ao mesmo tempo; o primeiro a aprovar
+ * fica com a pessoa e o pedido à outra some. O estado vive no próprio
+ * contacto (`contactos/{id}.servir`), escrito pelo servidor — por isso
+ * chega aqui ao vivo pelo mesmo `ouvirContactos`, sem regra nova. */
+
+/** As bases que recebem pedidos — a mesma lista de
+ *  `functions/candidaturas.js` (o servidor recusa as outras). Sem
+ *  Financeiro, Pastoral nem Onda Tech Hub (decisão do dono do produto). */
+export const BASES_CANDIDATURA = [
+  "apoio", "tecnica", "backstage", "comunicacao", "pessoal",
+  "louvor", "louvorkinder", "kinder", "new", "shift",
+];
+
+/** Há quantos dias o pedido foi enviado aos líderes. */
+export function diasAEspera(c) {
+  const ts = c.servir?.enviadoEm;
+  if (!ts?.toDate) return null;
+  return Math.floor((Date.now() - ts.toDate().getTime()) / 86400000);
+}
+
+const curto = (nome) => String(nome ?? "").replace(/^Base (de |da |do )?/, "");
+
+/** Uma frase para a linha do funil e para a folha do contacto — sempre
+ *  com texto e símbolo, nunca só a cor. `null` se nunca foi enviado. */
+export function estadoServir(c) {
+  const s = c.servir;
+  if (!s?.estado) return null;
+  const bases = s.bases ?? [];
+  if (s.estado === "aguardando") {
+    const pendentes = bases.filter((b) => b.estado === "pendente").map((b) => curto(b.nome));
+    const recusou = bases.filter((b) => b.estado === "recusada").map((b) => curto(b.nome));
+    const dias = diasAEspera(c);
+    return {
+      classe: "esp", icone: "⏳",
+      texto: `Aguardando os líderes (${pendentes.join(", ")})${dias ? ` · há ${dias} dia${dias === 1 ? "" : "s"}` : ""}`
+        + (recusou.length ? ` · ${recusou.join(", ")} disse agora não` : ""),
+    };
+  }
+  if (s.estado === "aprovada") {
+    const a = s.aprovadaPor ?? {};
+    return { classe: "ok", icone: "✅", texto: `Aprovado${a.nome ? ` por ${a.nome}` : ""}${a.baseNome ? ` (${a.baseNome})` : ""}` };
+  }
+  if (s.estado === "recusada") {
+    return { classe: "no", icone: "✗", texto: `${bases.map((b) => curto(b.nome)).join(" e ")} disse${bases.length > 1 ? "ram" : ""} agora não — escolhe outra base` };
+  }
+  return null; // cancelada: o pastor tirou-o do caminho, nada a mostrar
+}
+
+/** Quem está à espera dos líderes, os mais antigos primeiro. */
+export function aguardandoLideres(contactos) {
+  return contactos
+    .filter((c) => c.servir?.estado === "aguardando")
+    .map((c) => ({ ...c, diasEspera: diasAEspera(c) ?? 0 }))
+    .sort((a, b) => b.diasEspera - a.diasEspera);
 }
