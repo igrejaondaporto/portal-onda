@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, indiceEtapa, nomeEtapa, nomeGD, ouvirGDs } from "../lib/contactos";
-import { arquivarContactoPastoral, moverEtapaContacto } from "../lib/pastoral";
+import {
+  BASES_CANDIDATURA, ETAPAS, CORES_ETAPA, corTextoEtapa, diasParado, estadoServir, indiceEtapa, nomeEtapa, nomeGD, ouvirGDs,
+} from "../lib/contactos";
+import { arquivarContactoPastoral, enviarContactoParaServir, moverEtapaContacto } from "../lib/pastoral";
+import { ouvirBases } from "../lib/bases";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
 
@@ -21,6 +24,8 @@ import { dataTimestamp, linkWhatsApp } from "@portal/shared/lib/data.js";
  * "entregar" os contactos à mão — só que agora, depois de falar, há
  * onde registar que se falou.
  */
+const ROTULO_ESTADO_BASE = { pendente: "à espera", recusada: "agora não", cancelada: "cancelado", aprovada: "aprovado" };
+
 export default function SheetContacto({ contacto, onFechar }) {
   const torrada = useTorrada();
   const [aGuardar, setAGuardar] = useState(false);
@@ -36,8 +41,45 @@ export default function SheetContacto({ contacto, onFechar }) {
 
   useEffect(() => (escolherGD ? ouvirGDs(setGds) : undefined), [escolherGD]);
 
+  // passar para "Quer servir" pergunta primeiro a que base(s) — o
+  // pedido vai aos líderes (functions/candidaturas.js), e o estado
+  // volta no próprio contacto (`servir`)
+  const [escolherBases, setEscolherBases] = useState(false);
+  const [bases, setBases] = useState(null);
+  const [escolha, setEscolha] = useState([]); // [1.ª, 2.ª?]
+  useEffect(() => (escolherBases ? ouvirBases(setBases) : undefined), [escolherBases]);
+  const servir = estadoServir(contacto);
+  const aguardando = contacto.servir?.estado === "aguardando";
+
+  function abrirEscolherBases() {
+    setEscolherGD(false);
+    setEscolha(aguardando ? (contacto.servir.bases ?? []).filter((b) => b.estado === "pendente").map((b) => b.baseId) : []);
+    setEscolherBases(true);
+  }
+
+  /** Um toque escolhe a 1.ª, o seguinte a 2.ª; tocar numa escolhida tira-a. */
+  function alternarBase(id) {
+    setEscolha((e) => (e.includes(id) ? e.filter((x) => x !== id) : e.length >= 2 ? [e[0], id] : [...e, id]));
+  }
+
+  async function enviarAosLideres() {
+    if (!escolha.length) return;
+    setAGuardar(true);
+    try {
+      await enviarContactoParaServir(contacto.id, escolha);
+      torrada(`${contacto.nome} → enviado a ${escolha.map((b) => bases?.[b]?.nome ?? b).join(" e ")}`);
+      setEscolherBases(false);
+    } catch (e) {
+      torrada(e.message || "Não foi possível enviar.");
+    } finally {
+      setAGuardar(false);
+    }
+  }
+
   async function mover(etapa, gdId) {
     if (etapa === atual && !gdId) return;
+    if (aguardando && etapa !== "voluntario"
+      && !window.confirm(`${contacto.nome} tem um pedido à espera nas bases. Ao mover, o pedido sai do Início dos líderes. Continuar?`)) return;
     setAGuardar(true);
     try {
       await moverEtapaContacto(contacto.id, etapa, null, gdId);
@@ -129,6 +171,23 @@ export default function SheetContacto({ contacto, onFechar }) {
           </a>
         )}
 
+        {servir && (
+          <>
+            <label className="rot" style={{ marginTop: 14 }}>Quer servir</label>
+            <p className={`pa-servir ${servir.classe}`}>{servir.icone} {servir.texto}</p>
+            {(contacto.servir.bases ?? []).length > 0 && contacto.servir.estado !== "aprovada" && (
+              <p className="ds" style={{ marginTop: 4 }}>
+                {contacto.servir.bases.map((b) => `${b.opcao}.ª ${b.nome}: ${ROTULO_ESTADO_BASE[b.estado] ?? b.estado}`).join(" · ")}
+              </p>
+            )}
+            {contacto.servir.estado !== "aprovada" && !escolherBases && (
+              <button className="btn sec" style={{ marginTop: 8, padding: "7px 14px", fontSize: 12.5 }} onClick={abrirEscolherBases}>
+                {aguardando ? "Trocar as bases" : "Escolher outra base"}
+              </button>
+            )}
+          </>
+        )}
+
         <label className="rot" style={{ marginTop: 18 }}>Mover para</label>
         <div className="pa-etapas">
           {ETAPAS.map((e) => {
@@ -140,7 +199,7 @@ export default function SheetContacto({ contacto, onFechar }) {
                 className={`pa-etapa${e.id === atual ? " on" : ""}${i < iAtual ? " feita" : ""}`}
                 style={e.id === atual ? { background: CORES_ETAPA[e.id], borderColor: CORES_ETAPA[e.id], color: corTextoEtapa(e.id) } : undefined}
                 disabled={aGuardar || e.id === atual}
-                onClick={() => (e.id === "gd" ? setEscolherGD(true) : mover(e.id))}
+                onClick={() => (e.id === "gd" ? (setEscolherBases(false), setEscolherGD(true)) : e.id === "voluntario" ? abrirEscolherBases() : mover(e.id))}
               >
                 {e.nome}
               </button>
@@ -179,13 +238,44 @@ export default function SheetContacto({ contacto, onFechar }) {
           </div>
         )}
 
+        {escolherBases && (
+          <div className="pa-escolher-gd">
+            <p className="nmt" style={{ fontSize: 14 }}>Em que base quer servir?</p>
+            <p className="ds" style={{ marginTop: 2 }}>
+              Toca na 1.ª e, se quiseres, numa 2.ª. Os dois líderes recebem o pedido ao mesmo tempo — o primeiro a aprovar
+              fica com a pessoa, e o pedido do outro some.
+            </p>
+            {bases === null ? <p className="ds">A carregar as bases…</p> : (
+              <div className="pa-etapas" style={{ marginTop: 8 }}>
+                {BASES_CANDIDATURA.filter((id) => bases[id]).sort((a, b) => bases[a].nome.localeCompare(bases[b].nome, "pt")).map((id) => {
+                  const i = escolha.indexOf(id);
+                  return (
+                    <button
+                      key={id} className={`pa-etapa${i === 0 ? " on" : i === 1 ? " segunda" : ""}`}
+                      aria-pressed={i >= 0} disabled={aGuardar} onClick={() => alternarBase(id)}
+                    >
+                      {i >= 0 && <b className="pa-opcao">{i + 1}.ª</b>}{bases[id].nome}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn" style={{ flex: 1 }} disabled={aGuardar || !escolha.length} onClick={enviarAosLideres}>
+                {aGuardar ? "A enviar…" : escolha.length === 2 ? "Enviar aos dois líderes" : "Enviar ao líder"}
+              </button>
+              <button className="btn sec" style={{ flex: "none" }} onClick={() => setEscolherBases(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
         {historico.length > 0 && (
           <>
             <label className="rot" style={{ marginTop: 18 }}>O caminho até aqui</label>
             {historico.map((h, i) => (
               <p className="ds" key={i} style={{ marginTop: i === 0 ? 4 : 2 }}>
                 {h.de === h.para ? `Trocou de GD` : `${nomeEtapa(h.de)} → ${nomeEtapa(h.para)}`}
-                {h.gd ? ` (${h.gd})` : ""} · {String(h.em ?? "").slice(0, 10)}
+                {h.gd ? ` (${h.gd})` : ""}{h.nota ? ` — ${h.nota}` : ""} · {String(h.em ?? "").slice(0, 10)}
               </p>
             ))}
           </>

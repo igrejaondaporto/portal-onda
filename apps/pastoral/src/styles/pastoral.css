@@ -1281,3 +1281,31 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* ── "Quer servir": os pedidos às bases ──────────────────────
+ * O estado leva sempre símbolo + texto (⏳/✅/✗), nunca só a cor. */
+.pa-servir {
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+.pa-servir.esp { color: #955800; }
+.pa-servir.ok { color: #007a68; }
+.pa-servir.no { color: #c4005f; }
+/* a 2.ª base escolhida — contorno azul, a 1.ª é cheia */
+.pa-escolher-gd .pa-etapa.segunda {
+  border: 1.5px solid var(--azul);
+  color: var(--azul);
+  background: #fff;
+}
+.pa-opcao {
+  font-size: 11px;
+  font-weight: 800;
+  margin-right: 6px;
+  opacity: 0.85;
+}
+.destaque.pa-aguardam {
+  background: var(--laranja);
+  color: var(--tinta);
+}
