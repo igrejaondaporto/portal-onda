@@ -1,6 +1,6 @@
 import { MESES } from "@portal/shared/lib/data.js";
 
-export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onMudarMes, onAbrirDia }) {
+export default function Calendario({ ano, mes, eventosMes, uid, onMudarMes, onAbrirDia }) {
   const primeiro = (new Date(ano, mes, 1).getDay() + 6) % 7;
   const dias = new Date(ano, mes + 1, 0).getDate();
   const hoje = new Date();
@@ -29,9 +29,7 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
     const ev = porDia[d];
     let cl = "cald";
     if (ev) {
-      const souEscalado = ev.escala.pessoas.includes(uid);
-      const porConfirmar = souEscalado && ev.escala.publicado && !confirmados?.has(ev.id);
-      cl += porConfirmar ? " naoconfirmado" : souEscalado ? " sirvo" : " culto";
+      cl += ev.escala.pessoas.includes(uid) ? " sirvo" : " culto";
     } else if (diasEnsaio.has(d)) {
       cl += " ensaio";
     }
@@ -48,9 +46,6 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
   }
 
   const algumaEscala = eventosMes.some((e) => e.escala.pessoas.length);
-  const algumaPorConfirmar = eventosMes.some(
-    (e) => e.escala.pessoas.includes(uid) && e.escala.publicado && !confirmados?.has(e.id)
-  );
   const algumEnsaio = diasEnsaio.size > 0;
 
   return (
@@ -72,9 +67,6 @@ export default function Calendario({ ano, mes, eventosMes, uid, confirmados, onM
         <div className="legenda">
           <span className="lg"><s style={{ background: "linear-gradient(118deg,#001ED1,#001594)" }} />Serves</span>
           <span className="lg"><s style={{ background: "var(--agua)" }} />Culto</span>
-          {algumaPorConfirmar && (
-            <span className="lg"><s style={{ background: "var(--magenta)" }} />Por confirmar</span>
-          )}
           {algumEnsaio && (
             <span className="lg"><s style={{ background: "var(--violeta)" }} />Ensaio</span>
           )}

@@ -7,7 +7,7 @@ import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { ouvirAvisos, tempoRestante, percentagemDecorrida } from "../lib/avisos";
-import { ouvirConfirmacao, ouvirConfirmacoesDoMes, ouvirConfirmacoesEnsaioDoMes } from "../lib/confirmacao";
+import { ouvirConfirmacoesEnsaioDoMes } from "../lib/confirmacao";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
@@ -21,7 +21,7 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import SheetAniversarios from "../components/painel/SheetAniversarios";
-import SheetConfirmarPresenca from "../components/SheetConfirmarPresenca";
+import LembreteEnsaio, { isoLocal } from "../components/LembreteEnsaio";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 
@@ -44,13 +44,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [sheetComunicacao, setSheetComunicacao] = useState(null); // { tipo: "lista" | "abrir" | "detalhe", solicitacao? }
   const [avisos, setAvisos] = useState([]);
   const [sheetAniversarios, setSheetAniversarios] = useState(false);
-  const [minhaResposta, setMinhaResposta] = useState(null); // {resposta, justificativa?} | null
-  const [confirmadosMes, setConfirmadosMes] = useState(() => new Map());
   const [eventosMesAtual, setEventosMesAtual] = useState([]);
-  const [respostasMesAtual, setRespostasMesAtual] = useState(() => new Map());
-  const [sheetMudarResposta, setSheetMudarResposta] = useState(false);
   const [respostasEnsaioMesAtual, setRespostasEnsaioMesAtual] = useState(() => new Map());
-  const [sheetConfirmarEnsaio, setSheetConfirmarEnsaio] = useState(false);
   const [enquetesAbertas, setEnquetesAbertas] = useState([]);
   const [minhasRespostasEnquete, setMinhasRespostasEnquete] = useState({});
   const [eventosEnquetePorId, setEventosEnquetePorId] = useState({});
@@ -83,58 +78,29 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
 
-  // confirmação de presença — só depois de a escala do próprio culto
-  // estar publicada é que faz sentido perguntar (ver lib/confirmacao.js)
+  // Lembrete do ensaio da semana (2026-09, pedido do líder: saiu a
+  // confirmação de ESCALA — "vais servir?" —, fica só "quando é o
+  // ensaio e se vais"). Lê o mês REAL de hoje MAIS o seguinte
+  // (`ouvirEventosMesEProximo`, ver lib/painel.js): um ensaio no fim
+  // do mês para o primeiro domingo do mês seguinte tem de aparecer
+  // na mesma — de propósito independente do mês que o Calendário
+  // abaixo está a mostrar (`mes`/`ano`, que o voluntário navega).
   useEffect(() => {
-    if (!sirvo || !meuEvento?.escala.publicado) { setMinhaResposta(null); return; }
-    return ouvirConfirmacao(meuEvento.id, uid, setMinhaResposta);
-  }, [sirvo, meuEvento?.id, meuEvento?.escala.publicado, uid]);
-
-  // o mesmo, mas para todos os cultos do mês visível no Calendário —
-  // um listener por culto onde a pessoa está escalada e publicado
-  useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setConfirmadosMes), [eventosMes, uid]);
-
-  // balão de confirmação (abaixo) — tem de olhar para QUALQUER culto
-  // por confirmar este mês, não só `meuEvento` (o culto mais próximo
-  // em que serves, escolhido por obterMeuEvento sem olhar a
-  // confirmação). Sem isto, alguém escalado em dois domingos deste
-  // mês — o mais próximo já confirmado, um mais à frente publicado
-  // depois e ainda por responder — nunca via balão nenhum: o mais
-  // próximo já não tinha `!minhaResposta`, e o outro nem entrava na
-  // conta, porque `meuEvento` só aponta para um. Mesmo cálculo do
-  // antigo popup automático — mês REAL de hoje MAIS
-  // o seguinte (`ouvirEventosMesEProximo`, ver lib/painel.js;
-  // reportado 2026-09: uma escala publicada para o domingo seguinte,
-  // já dentro do mês novo, ficava sem balão nenhum até o calendário
-  // virar sozinho) — de propósito independente do mês que o
-  // Calendário abaixo está a mostrar (`mes`/`ano`, que o próprio
-  // voluntário navega).
-  const hoje = new Date();
-  useEffect(() => ouvirEventosMesEProximo(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []);
-  useEffect(() => ouvirConfirmacoesDoMes(eventosMesAtual, uid, setRespostasMesAtual), [eventosMesAtual, uid]);
-  // Todos os cultos por confirmar de uma vez (não só o mais próximo) —
-  // o balão abre o mesmo passo a passo "1/2, 2/2…" que o popup
-  // automático já tem (SheetConfirmarPresenca, `cultos.length > 1`),
-  // em vez de só perguntar por um e deixar o resto pendente sem aviso
-  // nenhum (pedido do líder).
-  const cultosPorConfirmar = eventosMesAtual
-    .filter((ev) => ev.escala?.publicado && (ev.escala.pessoas || []).includes(uid) && !respostasMesAtual.has(ev.id))
-    .sort((a, b) => a.data.localeCompare(b.data));
-  const cultoPorConfirmar = cultosPorConfirmar[0] ?? null;
-
-  // Confirmação de ENSAIO (2026-09) — mesmo cálculo, mas o gate é
-  // `dataEnsaio` estar marcada, não `publicado` (ver
-  // ouvirConfirmacoesEnsaioDoMes/confirmarPresencaEnsaioLouvor):
-  // assim que o líder marca a data do ensaio dentro do cartão do
-  // culto (Escala geral), quem serve nesse culto já vê o balão sem
-  // nenhum passo de "enviar" — a própria data existir é o convite.
+    const hoje = new Date();
+    return ouvirEventosMesEProximo(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual);
+  }, []);
   useEffect(() => ouvirConfirmacoesEnsaioDoMes(eventosMesAtual, uid, setRespostasEnsaioMesAtual), [eventosMesAtual, uid]);
-  const ensaiosPorConfirmar = eventosMesAtual
-    .filter((ev) => ev.escala?.dataEnsaio && (ev.escala.pessoas || []).includes(uid) && !respostasEnsaioMesAtual.has(ev.id))
-    .sort((a, b) => (a.escala.dataEnsaio || "").localeCompare(b.escala.dataEnsaio || ""));
-  const ensaioPorConfirmar = ensaiosPorConfirmar[0] ?? null;
+  // "Da semana": de hoje até daqui a 7 dias, o mais próximo — um
+  // ensaio marcado para daqui a duas semanas ainda não é lembrete.
+  // Fica visível até ao próprio dia, respondido ou não.
+  const hojeLocal = isoLocal();
+  const daquiAUmaSemana = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return isoLocal(d); })();
+  const ensaioDaSemana = eventosMesAtual
+    .filter((ev) => {
+      const iso = ev.escala?.dataEnsaio;
+      return iso && iso >= hojeLocal && iso <= daquiAUmaSemana && (ev.escala.pessoas || []).includes(uid);
+    })
+    .sort((a, b) => a.escala.dataEnsaio.localeCompare(b.escala.dataEnsaio))[0] ?? null;
 
   // enquete de indisponibilidade — o popup obrigatório (EnqueteAutoStart,
   // ver Sessao.jsx) já força a primeira resposta; este balão fica fixo
@@ -247,39 +213,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           </div>
         );
       })}
-      {cultoPorConfirmar && (
-        // Só um aviso (pedido do líder, 2026-09) — confirma-se no box do
-        // próprio culto, em Escala (BarraConfirmarPresenca). Tocar leva
-        // lá e abre o primeiro culto por confirmar.
-        <div
-          className="destaque" style={{ background: "var(--verde)", marginBottom: 10 }}
-          onClick={() => onIrEscala?.(cultoPorConfirmar.id)}
-        >
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma a tua escala</p>
-            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              {cultosPorConfirmar.length === 1
-                ? `Falta confirmar ${dataPorExtenso(cultoPorConfirmar.data)}`
-                : `Tens ${cultosPorConfirmar.length} cultos por confirmar`}
-            </p>
-            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Toca para confirmar em Escala</p>
-          </div>
-          <span style={{ fontSize: 24 }}>›</span>
-        </div>
-      )}
-      {ensaioPorConfirmar && (
-        <div
-          className="destaque" style={{ background: "var(--laranja)", marginBottom: 10 }}
-          onClick={() => setSheetConfirmarEnsaio(true)}
-        >
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma o ensaio</p>
-            <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              Vais ao ensaio de {dataPorExtenso(ensaioPorConfirmar.escala.dataEnsaio)}?
-            </p>
-          </div>
-          <span style={{ fontSize: 24 }}>🎙️</span>
-        </div>
+      {ensaioDaSemana && (
+        <LembreteEnsaio evento={ensaioDaSemana} resposta={respostasEnsaioMesAtual.get(ensaioDaSemana.id)} />
       )}
       {avisos.map((a) => (
         <div
@@ -381,16 +316,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                 {liderNome ? `${liderNome} ainda não definiu o teu papel.` : "O líder de escala ainda não foi definido."}
               </div>
             )}
-            {meuEvento.escala.publicado && minhaResposta && (
-              <div className="confirmado-linha">
-                <span style={{ fontSize: 13, fontWeight: 600, color: minhaResposta.resposta === "vai" ? "var(--verde)" : "var(--magenta)" }}>
-                  {minhaResposta.resposta === "vai" ? "✓ Vais" : `✗ Avisaste que não vais${minhaResposta.justificativa ? ` — ${minhaResposta.justificativa}` : ""}`}
-                </span>
-                <button className="btn sec" style={{ padding: "6px 12px", fontSize: 11.5 }} onClick={() => setSheetMudarResposta(true)}>
-                  Mudar resposta
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -400,7 +325,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <div className="cabecalho"><h3>Calendário</h3></div>
           <Calendario
             ano={ano} mes={mes} eventosMes={eventosMes} uid={uid}
-            confirmados={confirmadosMes}
             onMudarMes={mudarMes}
             onAbrirDia={(eventoId) => onIrEscala?.(eventoId)}
           />
@@ -499,25 +423,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     )}
     {sheetAniversarios && (
       <SheetAniversarios voluntarios={voluntarios} onFechar={() => setSheetAniversarios(false)} />
-    )}
-    {sheetMudarResposta && meuEvento && (
-      <SheetConfirmarPresenca
-        cultos={[meuEvento]}
-        minhasRespostas={minhaResposta ? { [meuEvento.id]: minhaResposta } : {}}
-        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
-        onFechar={() => setSheetMudarResposta(false)}
-        onGuardado={(msg) => { setSheetMudarResposta(false); torrada(msg); }}
-      />
-    )}
-    {sheetConfirmarEnsaio && ensaioPorConfirmar && (
-      <SheetConfirmarPresenca
-        tipo="ensaio"
-        cultos={ensaiosPorConfirmar}
-        minhasRespostas={{}}
-        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
-        onFechar={() => setSheetConfirmarEnsaio(false)}
-        onGuardado={(msg) => { setSheetConfirmarEnsaio(false); torrada(msg); }}
-      />
     )}
     {sheetEnquete && enquetesAbertas.length > 0 && (
       <SheetResponderEnquete

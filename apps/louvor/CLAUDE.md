@@ -137,8 +137,7 @@ que a Kinder já usa para faixas etárias/consentimento
   vez em `Sessao.jsx`) mantém a lista ao vivo (`ouvirPapeisEscala`)
   disponível em toda a app via `usePapeisEscala()` — evita passar
   `papeis` por prop até cada ecrã que formata um papel (Escala,
-  Início, Perfil, SheetEscala, SheetPessoa, Equipamentos,
-  SheetConfirmarPresenca…). `nomePapel(papeis, id)`/`emojiPapel(papeis,
+  Início, Perfil, SheetEscala, SheetPessoa, Equipamentos…). `nomePapel(papeis, id)`/`emojiPapel(papeis,
   id)` (`lib/modelo.js`) passaram a receber a lista como primeiro
   argumento — já não são um `.find` num array fixo.
 - **O `id` nasce do nome, na criação, e nunca muda** (slug sem
@@ -336,7 +335,45 @@ mapa de apelidos conferido à mão, tipo "Mari" → Mariana Turbuk) todas
 as versões que já existiam antes deste modelo existir. Não tenta
 adivinhar Lead de cultos passados — só o sinal do nome, sem `eventoId`.
 
+## Sem confirmação de escala — só o lembrete do ensaio (2026-09)
+
+**Estado atual — vale mais do que as secções de confirmação abaixo,
+que ficam como histórico.** Pedido do líder: "tirar a confirmação de
+escala, não é necessária. Deixar apenas um LEMBRETE de quando é o
+ensaio da SEMANA e se a pessoa vai participar."
+
+- **Saiu da app** tudo o que perguntava "vais servir?": a barra
+  Confirmar/Não posso nos boxes da Escala (`BarraConfirmarPresenca`,
+  apagado), o aviso verde "Confirma a tua escala" no Início, o "✓
+  Vais · Mudar resposta" em "O teu papel" (e o
+  `SheetConfirmarPresenca`, apagado), os 👍 do líder na Escala geral
+  e o dia vermelho "Por confirmar" no Calendário (`.cald.naoconfirmado`).
+  O push diário `lembrarConfirmacaoPresenca` deixou de incluir a Louvor
+  (`BASES_COM_CONFIRMACAO`, `functions/notificacoes.js`, PR de
+  functions à parte).
+- **Ficou** o lembrete do ensaio, no topo do Início
+  (`components/LembreteEnsaio.jsx`): "Ensaio desta semana · Quinta, 1
+  de outubro · 20:00 · 📍 local · para o culto de 4 de outubro", com
+  **Vou** / **Não posso** (motivo opcional ali mesmo) — responde-se
+  sem abrir folha. "Da semana" = `dataEnsaio` entre hoje e daqui a 7
+  dias, em hora local, o mais próximo; fica visível até ao próprio
+  dia, mesmo depois de respondido (é lembrete, não pendência), com
+  "Afinal não posso"/"Afinal vou". Mês corrente + o seguinte
+  (`ouvirEventosMesEProximo`), pelo mesmo motivo do bug abaixo.
+- **Mesmos dados de sempre**: `confirmarPresencaEnsaioLouvor` →
+  `confirmacoesEnsaio/{pessoa}`. O líder continua a ver as fotinhas de
+  quem vai ao ensaio na caixinha "Ensaio" da Escala geral.
+- **Nada apagado no Firestore** (regra 5): as respostas antigas em
+  `confirmacoes/{pessoa}` ficam; `confirmarPresencaLouvor` continua a
+  existir (o Louvor Kinder ainda a usa) — só deixou de haver quem a
+  chame a partir desta app.
+- **Louvor Kinder não mudou** — continua com a confirmação de escala
+  (ver `MELHORIAS-ENTRE-BASES.md`).
+
 ## Confirmação de presença (2026-09)
+
+> Histórico — a confirmação de ESCALA saiu em 2026-09, ver a secção
+> acima. O que se segue explica como funcionava.
 
 **A Louvor é a primeira base a ter confirmação de presença** — reverte
 uma decisão documentada no `CLAUDE.md` da Apoio ("Sem confirmação de
