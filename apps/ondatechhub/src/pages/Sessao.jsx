@@ -116,7 +116,7 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
       </div>
       {menuAberto && (
         <MenuComTour
-          uid={uid} baseId={baseId} papel={papel} irPara={irPara}
+          baseId={baseId} papel={papel} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}

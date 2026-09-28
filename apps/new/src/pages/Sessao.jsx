@@ -9,6 +9,7 @@ import MenuEu from "@portal/shared/components/MenuEu.jsx";
 import BarraVistaVoluntario from "@portal/shared/components/BarraVistaVoluntario.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
+import BotaoReportarFlutuante from "@portal/shared/components/BotaoReportarFlutuante.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
@@ -266,12 +267,13 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
         pagina={pagina} onIr={irPara} itens={ABAS}
         alertas={[...(aoVivoGravando ? ["culto"] : []), ...(alertaLicao ? ["licao"] : [])]}
       />
+      <BotaoReportarFlutuante uid={uid} paginaAtual={pagina} />
       {vista && (
         <BarraVistaVoluntario onSair={() => setVista(null)} />
       )}
       {menuAberto && (
         <MenuComTour
-          uid={uid} baseId={baseId} papel={papelEfetivo} irPara={irPara}
+          baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
