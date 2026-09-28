@@ -2682,3 +2682,235 @@ textarea.campo {
   margin-top: 3px;
   line-height: 1.35;
 }
+
+/* ── trocar de base (BotaoTrocarBase) ────────────────────────
+ * O menu vive num portal no <body>: dentro do cabeçalho ficava cortado
+ * pelo overflow:hidden da .crista e sem fundo (reportado 2026-09). */
+.tb-botao {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+  transition: 0.14s;
+}
+.tb-botao.on {
+  background: #fff;
+  color: var(--azul);
+}
+.tb-veu {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 40, 0.35);
+  z-index: 60;
+  animation: fd 0.18s;
+}
+.tb-menu {
+  position: fixed;
+  width: min(290px, calc(100vw - 24px));
+  background: #fff;
+  color: var(--tinta);
+  border-radius: 20px;
+  box-shadow: 0 18px 48px rgba(4, 8, 40, 0.28), 0 2px 6px rgba(4, 8, 40, 0.08);
+  padding: 8px;
+  z-index: 61;
+  animation: fd 0.18s;
+}
+.tb-seta {
+  position: absolute;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  transform: rotate(45deg);
+  border-radius: 3px;
+}
+.tb-titulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cinza);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 8px 10px 6px;
+}
+.tb-base {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tinta);
+  text-align: left;
+  cursor: pointer;
+}
+.tb-base + .tb-base {
+  margin-top: 2px;
+}
+button.tb-base:active {
+  background: var(--agua);
+}
+.tb-base.atual {
+  background: var(--agua);
+  cursor: default;
+}
+.tb-sigla {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  flex: none;
+}
+.tb-nome {
+  flex: 1;
+  min-width: 0;
+}
+.tb-nome small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cinza);
+}
+.tb-ok {
+  color: var(--azul);
+  font-weight: 800;
+}
+.tb-ir {
+  color: var(--cinza);
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ── "liga os avisos" (AvisoNotificacoes) — tapa o ecrã inteiro ──
+ * Por cima do tour (70) e por baixo do pop-up do e-mail (80). */
+.nt-modal {
+  position: fixed;
+  z-index: 79;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  color: var(--tinta);
+  border-radius: 28px;
+  padding: 28px 22px 18px;
+  box-shadow: 0 24px 64px rgba(4, 8, 40, 0.35);
+  animation: fd 0.25s;
+}
+.nt-ic {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--agua);
+  color: var(--azul);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+.nt-t {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-align: center;
+  margin-top: 14px;
+  line-height: 1.2;
+}
+.nt-d {
+  font-size: 14.5px;
+  color: var(--cinza);
+  text-align: center;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+.nt-lista {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.nt-lista li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  background: #f6f7fc;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.nt-lista li i {
+  font-style: normal;
+  font-size: 16px;
+}
+.nt-passos {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.nt-passos li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #f6f7fc;
+  border-radius: 14px;
+  padding: 11px 12px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.nt-n {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--azul);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  flex: none;
+}
+.nt-passo-ic {
+  margin-left: auto;
+  color: var(--azul);
+  flex: none;
+}
+.nt-nao {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cinza);
+  padding: 13px 0 2px;
+  cursor: pointer;
+}
+.nt-rodape {
+  font-size: 11.5px;
+  color: var(--cinza);
+  text-align: center;
+  margin-top: 8px;
+  opacity: 0.85;
+}

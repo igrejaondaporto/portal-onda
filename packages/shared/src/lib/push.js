@@ -57,13 +57,16 @@ const eIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
  */
 export function suportado() {
   if (!VAPID) return { ok: false, motivo: "sem-chave" };
+  // no iPhone, um site em separador nunca recebe push — e o
+  // `Notification.permission` mente, devolvendo "default" como se
+  // valesse a pena pedir. Vem ANTES da deteção abaixo de propósito: no
+  // Safari em separador `Notification`/`PushManager` nem existem, e a
+  // deteção devolvia "sem-suporte" — o aviso "instala primeiro" nunca
+  // chegava a aparecer a quem mais precisava dele (2026-09).
+  if (eIOS() && !instaladaComoApp()) return { ok: false, motivo: "instalar-primeiro" };
   if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
     return { ok: false, motivo: "sem-suporte" };
   }
-  // no iPhone, um site em separador nunca recebe push — e o
-  // `Notification.permission` mente, devolvendo "default" como se
-  // valesse a pena pedir
-  if (eIOS() && !instaladaComoApp()) return { ok: false, motivo: "instalar-primeiro" };
   return { ok: true };
 }
 
