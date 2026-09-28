@@ -51,7 +51,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { randomBytes, scryptSync } from "node:crypto";
-import { notificar } from "./notificacoes.js";
+import { SUBDOMINIO, notificar } from "./notificacoes.js";
 
 const db = () => admin.firestore();
 const agora = () => admin.firestore.FieldValue.serverTimestamp();
@@ -81,7 +81,8 @@ function hashPin(pin) {
   return `${sal}:${scryptSync(pin, sal, 64).toString("hex")}`;
 }
 
-const urlDaBase = (baseId) => `https://${baseId}.igrejaonda.pt/`;
+// back.igrejaonda.pt, techhub.igrejaonda.pt — ver SUBDOMINIO em notificacoes.js
+const urlDaBase = (baseId) => `https://${SUBDOMINIO[baseId] ?? baseId}.igrejaonda.pt/`;
 
 function exigeSessao(req) {
   const uid = req.auth?.uid;

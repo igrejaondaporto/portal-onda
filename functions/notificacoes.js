@@ -45,10 +45,13 @@ import {
 const db = () => admin.firestore();
 
 /** Os domínios por base, para a notificação abrir a app certa de quem
- *  serve em mais do que uma. O subdomínio é sempre o `baseId` — é o
- *  que os torna endereçáveis sem uma tabela (ver o comentário em
- *  `auth.js`, `packages/shared`). */
-const urlDaBase = (baseId, caminho = "/") => `https://${baseId}.igrejaonda.pt${caminho}`;
+ *  serve em mais do que uma. O subdomínio é o `baseId`, MENOS em duas
+ *  bases (ver a tabela do CLAUDE.md raiz): a Backstage vive em back. e
+ *  o Onda Tech Hub em techhub. — sem esta tabela, o toque numa
+ *  notificação para elas abria um endereço que não existe. A mesma
+ *  tabela está no cliente, em packages/shared/src/lib/auth.js. */
+export const SUBDOMINIO = { backstage: "back", ondatechhub: "techhub" };
+const urlDaBase = (baseId, caminho = "/") => `https://${SUBDOMINIO[baseId] ?? baseId}.igrejaonda.pt${caminho}`;
 
 /**
  * Envia a uma lista de pessoas, pelos dois canais: push (a quem o
