@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { entrarComPin } from "../lib/auth";
 import TecladoNumerico from "./TecladoNumerico";
+import SheetPrivacidade from "./SheetPrivacidade.jsx";
 
 /**
  * Folha do PIN. A validação real vive na Cloud Function `entrar` —
@@ -19,6 +20,7 @@ export default function SheetPin({ pessoa, nomeLider, onFechar, onDeveTrocarPin 
   const [aEnviar, setAEnviar] = useState(false);
   const [bloqueadoAte, setBloqueadoAte] = useState(null);
   const [agora, setAgora] = useState(Date.now());
+  const [verPrivacidade, setVerPrivacidade] = useState(false);
 
   useEffect(() => {
     const onTecla = (e) => e.key === "Escape" && onFechar();
@@ -109,7 +111,19 @@ export default function SheetPin({ pessoa, nomeLider, onFechar, onDeveTrocarPin 
         </div>
         <p className="aviso">{textoAviso}</p>
         <TecladoNumerico desativado={trancado} podeApagar={!!cod.length} onTecla={tecla} onApagar={apagar} />
+        {/* o mínimo RGPD (2026-09): a linha que quase todos os sites
+          * têm junto do "entrar" — ver SheetPrivacidade.jsx */}
+        <p className="ds" style={{ textAlign: "center", fontSize: 11.5, marginTop: 10 }}>
+          Ao entrar, aceitas a{" "}
+          <button
+            type="button" onClick={() => setVerPrivacidade(true)}
+            style={{ background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", textDecoration: "underline", cursor: "pointer" }}
+          >
+            política de privacidade
+          </button>.
+        </p>
       </div>
+      {verPrivacidade && <SheetPrivacidade onFechar={() => setVerPrivacidade(false)} />}
     </>
   );
 }

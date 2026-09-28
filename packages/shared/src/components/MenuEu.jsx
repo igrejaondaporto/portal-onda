@@ -3,6 +3,7 @@ import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 import SheetEmail from "./SheetEmail.jsx";
+import SheetPrivacidade from "./SheetPrivacidade.jsx";
 import { estadoDoEmail, ouvirMeuEmail } from "../lib/email.js";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
@@ -13,6 +14,7 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   const [expandida, setExpandida] = useState(false);
   // o e-mail dos avisos abre por cima deste menu, e fechá-lo volta aqui
   const [verEmail, setVerEmail] = useState(false);
+  const [verPrivacidade, setVerPrivacidade] = useState(false);
   // a bolinha no botão: laranja se o e-mail ainda está por confirmar
   const [estadoEmail, setEstadoEmail] = useState(null);
   useEffect(() => ouvirMeuEmail((m) => setEstadoEmail(estadoDoEmail(m))), []);
@@ -102,8 +104,17 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         >
           Fechar
         </button>
+        <p style={{ textAlign: "center", marginTop: 6 }}>
+          <button
+            type="button" onClick={() => setVerPrivacidade(true)}
+            style={{ background: "none", border: 0, padding: 4, font: "inherit", fontSize: 12, color: "var(--cinza)", textDecoration: "underline", cursor: "pointer" }}
+          >
+            Privacidade
+          </button>
+        </p>
       </div>
       {verEmail && <SheetEmail onFechar={() => setVerEmail(false)} />}
+      {verPrivacidade && <SheetPrivacidade onFechar={() => setVerPrivacidade(false)} />}
     </>
   );
 }

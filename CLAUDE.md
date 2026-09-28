@@ -229,6 +229,14 @@ acumulavam). Três funções agendadas, uma por prazo, mais um
 `ensaiarRetencao` que diz o que ia apagar sem apagar nada — usa-o antes
 de mexer em qualquer prazo.
 
+**A política de privacidade** (2026-09, o mínimo — pedido do dono do
+produto: "o básico do básico, é interno") é um texto curto em
+`packages/shared/src/components/SheetPrivacidade.jsx`, com link no
+ecrã do PIN ("Ao entrar, aceitas a política de privacidade",
+`SheetPin`) e no menu da foto (`MenuEu`) — chega a todas as bases sem
+cada app a ligar. Os prazos escritos lá têm de bater com
+`functions/retencao.js`: mudar um é mudar o outro.
+
 A tensão com a regra 5 ("nada é apagado, é desativado") resolve-se
 assim: **anonimiza-se a pessoa, não se apaga o registo.** Sai o que
 identifica alguém e já não serve (telefone, foto, PIN, IBAN); fica o
