@@ -18,7 +18,6 @@ import SheetSolicitacoesBase from "@portal/shared/components/SheetSolicitacoesBa
 import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitacao.jsx";
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
-import BlocoReportarProblema from "@portal/shared/components/BlocoReportarProblema.jsx";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -442,7 +441,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               </div>
             );
           })}
-          <BlocoReportarProblema uid={uid} paginaAtual="inicio" />
         </div>
       </div>
     </div>

@@ -234,7 +234,7 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
       )}
       {menuAberto && (
         <MenuComTour
-          baseId={baseId} papel={papelEfetivo} irPara={irPara}
+          uid={uid} baseId={baseId} papel={papelEfetivo} irPara={irPara}
           pessoa={pessoa}
           baseIdAtual={baseId}
           basesDisponiveis={basesDisponiveis}
