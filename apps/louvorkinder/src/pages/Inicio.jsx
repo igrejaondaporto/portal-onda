@@ -23,6 +23,7 @@ import SheetAniversarios from "../components/painel/SheetAniversarios";
 import SheetConfirmarPresenca from "../components/SheetConfirmarPresenca";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
+import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -217,6 +218,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   return (
     <>
       <RecadoPastoral papel={papel} />
+      {/* "quero servir" — pedidos à espera, só o líder vê (packages/shared) */}
+      <PedidosParaServir papel={papel} />
       {enquetesAbertas.map((e) => {
         const respondeu = !!minhasRespostasEnquete[e.id];
         return (

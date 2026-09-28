@@ -90,6 +90,17 @@ export {
   estadoEnvioEmail, configurarEnvioEmail, enviarEmailTeste, enviarCodigoEmail, confirmarCodigoEmail,
 } from "./email.js";
 
+// "Quero servir" — pedidos para entrar numa base, pelo perfil do
+// voluntário ou pelo funil do Painel Pastoral; o líder aprova (cria ou
+// liga a pessoa) ou diz "agora não". Ficheiro próprio, mesmo motivo de
+// kinder.js/mural.js/pastoral.js (ver o comentário no topo de
+// candidaturas.js). TODAS as funções de lá têm de estar nesta lista —
+// o Firebase só cria o que sai deste ficheiro (ver o CLAUDE.md raiz).
+export {
+  pedirParaServir, cancelarPedidoServir, enviarContactoParaServir,
+  decidirCandidatura, notificarCandidatura,
+} from "./candidaturas.js";
+
 // Reportar bugs/erros/melhorias do painel, de qualquer base, para o
 // Onda Tech Hub triar — ficheiro próprio, mesmo motivo de
 // kinder.js/mural.js/pastoral.js (ver o comentário no topo de

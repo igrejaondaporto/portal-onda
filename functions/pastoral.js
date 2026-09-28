@@ -40,6 +40,7 @@ import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import admin from "firebase-admin";
 import { randomBytes, scryptSync } from "node:crypto";
+import { cancelarPedidosDoContacto } from "./candidaturas.js";
 
 const db = () => admin.firestore();
 
@@ -996,6 +997,13 @@ export const moverEtapaContacto = onCall(async (req) => {
   // como "membro" por engano tem de poder voltar. O histórico regista
   // as duas direções, por isso não se perde nada ao corrigir. Trocar
   // só de GD (mesma etapa) também fica no histórico.
+  // "Quer servir" com pedidos à espera nas bases (candidaturas.js): se
+  // o pastor o move para outra etapa, os pedidos saem do Início dos
+  // líderes — ninguém fica a responder a quem já não está nesse ponto
+  if (etapa !== "voluntario" && snap.data().servir?.estado === "aguardando") {
+    await cancelarPedidosDoContacto(contactoId, "pastor_mudou_etapa");
+  }
+
   await ref.set({
     ...(anterior !== etapa ? {
       etapa,
@@ -1031,6 +1039,8 @@ export const arquivarContactoPastoral = onCall(async (req) => {
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError("not-found", "Contacto não encontrado.");
     await ref.set({ arquivado: true }, { merge: true });
+    // os pedidos "quer servir" à espera saem do Início dos líderes
+    await cancelarPedidosDoContacto(contactoId, "contacto_arquivado");
     return { ok: true };
   } catch (e) {
     if (e instanceof HttpsError) throw e;

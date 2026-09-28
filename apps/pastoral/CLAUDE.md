@@ -35,6 +35,7 @@ inventário. O que escreve, e porquê:
 | Um recado a uma base | `recados/{id}` | De ida, sem resposta, sem estado — o líder lê e dispensa |
 | Excluir um contacto do funil | `contactos/{id}.arquivado` | "Excluir" nunca apaga (regra 5 do CLAUDE.md raiz); mesmo campo que a Pessoal já usa no Formulário dela |
 | Corrigir a DURAÇÃO de um momento | `eventos/{e}/estatisticasCulto/registo.secoesReais[].duracaoCorrigidaMin` | Depois de "Finalizar culto" copiar tudo para o arquivo, nada mais o edita — um erro ficava congelado para sempre (pedido 2026-09). Corrige a duração, não a hora de relógio — ninguém sabe de cor a que horas algo entrou |
+| Mandar um visitante às bases ("Quer servir") | `candidaturas/{id}` + `contactos/{id}.servir` | O pastor escolhe 1 ou 2 bases; quem DECIDE é o líder de cada base (aprova ou "agora não") — o painel só pede. Ver "Quer servir" abaixo |
 | Trocar o líder de uma base | `bases/{b}/pessoas/{id}.papel` | A ÚNICA escrita numa base que não é a própria — decisão nova do dono do produto (2026-09), ver "Trocar líder" abaixo |
 
 Escalas continuam do líder de cada base — o painel não monta nem
@@ -401,6 +402,34 @@ barra laranja à esquerda E o texto "à espera há N dias em …" — nunca
 só a cor. O aviso por cima tem "Ver só os parados". O relógio é
 `etapaEm` (ou `criadoEm` se nunca foi movido); quem já está "A
 servir" nunca está parado.
+
+**"Quer servir" manda o pedido às bases** (pedido 2026-09). Tocar em
+"Quer servir" na folha do contacto não move logo: pergunta a que
+base(s) — a 1.ª e, se quiser, uma 2.ª (um toque escolhe a 1.ª, o
+seguinte a 2.ª). `enviarContactoParaServir` (functions/
+candidaturas.js) move a etapa e cria um pedido por base, na mesma
+escrita; os dois líderes recebem ao mesmo tempo (cartão no Início +
+push/e-mail), e **o primeiro a aprovar fica com a pessoa — o pedido à
+outra base é cancelado e desaparece**. Aprovar cria (ou liga) a pessoa
+na base e passa o contacto a "A servir" sozinho, com "Aprovado na Base
+X por Fulano" no histórico. O estado volta em `contactos/{id}.servir`
+(escrito só pelo servidor), por isso aparece ao vivo pelo mesmo
+`ouvirContactos`, sem regra nova: na linha do funil e na folha
+(`estadoServir`, lib/contactos.js — ⏳ aguardando / ✅ aprovado por /
+✗ agora não, sempre com texto). "Trocar as bases" reenvia (os pedidos
+antigos saem); mover para outra etapa ou excluir o contacto tira os
+pedidos do Início dos líderes (a folha avisa antes).
+
+**No topo do Domingo, "N pessoas querem servir e aguardam os líderes"**
+(`AguardamLideres.jsx`, laranja como "parado"): quem está à espera,
+quantos há mais de 7 dias e em que bases — para o pastor ir atrás do
+líder. Toca-se para a lista, e numa pessoa para a folha do contacto.
+Sai sozinho quando os líderes respondem.
+
+A lista de bases que recebem pedidos (`BASES_CANDIDATURA`) vive em
+três sítios — aqui (`lib/contactos.js`), em `packages/shared/src/lib/
+candidaturas.js` e em `functions/candidaturas.js`, que é quem manda
+(recusa as outras). Sem Financeiro, Pastoral nem Onda Tech Hub.
 
 ## A agenda (topo da aba Domingo)
 

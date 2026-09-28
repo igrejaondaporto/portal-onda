@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
 import {
-  DIAS_PARADO, contarPorEtapa, conversaoFunil, corTextoEtapa, diasParado, esquecidos, nomeGD, ouvirContactos,
+  DIAS_PARADO, contarPorEtapa, conversaoFunil, corTextoEtapa, diasParado, esquecidos, estadoServir, nomeGD, ouvirContactos,
 } from "../lib/contactos";
 import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
@@ -517,6 +517,7 @@ export default function Pessoas({ ativo, definirCabecalho }) {
               const etapa = etapas.find((e) => e.id === c.etapa);
               const parado = idsParados.has(c.id);
               const gd = nomeGD(c);
+              const servir = estadoServir(c);
               return (
                 <div
                   className={`linha cabtoque${parado ? " pa-parado" : ""}`} key={c.id}
@@ -535,6 +536,9 @@ export default function Pessoas({ ativo, definirCabecalho }) {
                         a app) */}
                     {c.criadoEm && <p className="cap" style={{ marginTop: 3 }}>chegou {haAtras(c.criadoEm)}</p>}
                     {gd && <p className="cap" style={{ marginTop: 2 }}>GD: <b>{gd}</b></p>}
+                    {/* o pedido às bases (Quer servir) — à espera, aprovado
+                        por quem, ou "agora não" (functions/candidaturas.js) */}
+                    {servir && <p className={`pa-servir ${servir.classe}`}>{servir.icone} {servir.texto}</p>}
                     {/* parado há mais de uma semana na mesma etapa —
                         texto e não só a cor da linha (pedido 2026-09) */}
                     {parado && (

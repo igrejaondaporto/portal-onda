@@ -4,7 +4,9 @@ import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
 import SheetEmail from "./SheetEmail.jsx";
 import SheetPrivacidade from "./SheetPrivacidade.jsx";
+import SheetServirNoutraBase from "./SheetServirNoutraBase.jsx";
 import { estadoDoEmail, ouvirMeuEmail } from "../lib/email.js";
+import { ouvirMeuPedido } from "../lib/candidaturas.js";
 
 export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
@@ -18,6 +20,11 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
   // a bolinha no botão: laranja se o e-mail ainda está por confirmar
   const [estadoEmail, setEstadoEmail] = useState(null);
   useEffect(() => ouvirMeuEmail((m) => setEstadoEmail(estadoDoEmail(m))), []);
+  // "Servir noutra base" (functions/candidaturas.js) — o pedido à
+  // espera, se houver, aparece no próprio botão
+  const [verServir, setVerServir] = useState(false);
+  const [meuPedido, setMeuPedido] = useState(null);
+  useEffect(() => ouvirMeuPedido(setMeuPedido), []);
   const { aTrocar, destino, escolherBase } = useTrocarBase();
 
   return (
@@ -72,6 +79,13 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
             />
           )}
         </button>
+        {/* em todas as bases, como o e-mail: pedir para servir também
+          * noutra base. Azul mais cheio que os outros, de propósito
+          * (pedido do dono do produto) — é um convite, não definições. */}
+        <button className="btn full sv-menu" style={{ marginTop: 9 }} onClick={() => setVerServir(true)}>
+          🙋 Servir noutra base
+          {meuPedido && <span className="sv-menu-estado">Pedido à {meuPedido.baseNome} · à espera</span>}
+        </button>
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>
             Painel do líder
@@ -115,6 +129,13 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
       </div>
       {verEmail && <SheetEmail onFechar={() => setVerEmail(false)} />}
       {verPrivacidade && <SheetPrivacidade onFechar={() => setVerPrivacidade(false)} />}
+      {verServir && (
+        <SheetServirNoutraBase
+          basesOndeServe={[baseIdAtual, ...basesDisponiveis.map((b) => b.id)].filter(Boolean)}
+          pedido={meuPedido}
+          onFechar={() => setVerServir(false)}
+        />
+      )}
     </>
   );
 }

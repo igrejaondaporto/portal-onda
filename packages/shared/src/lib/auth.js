@@ -57,6 +57,13 @@ export const PORTAS_DEV = {
   ondatechhub: 5185,
 };
 
+/** O subdomínio de cada base é o baseId, MENOS nestas duas (ver a
+ *  tabela do CLAUDE.md raiz): a Backstage vive em back.igrejaonda.pt e
+ *  o Onda Tech Hub em techhub.igrejaonda.pt. Sem isto, trocar para uma
+ *  delas mandava para um endereço que não existe. A mesma tabela está
+ *  no servidor (`SUBDOMINIO`, functions/notificacoes.js). */
+export const SUBDOMINIO = { backstage: "back", ondatechhub: "techhub" };
+
 /** Troca de base sem pedir PIN outra vez. Cada base é uma app e um
  *  domínio separados (apoio.igrejaonda.pt, tecnica.igrejaonda.pt…) —
  *  trocar os claims do token sozinho não muda qual app está a
@@ -89,7 +96,7 @@ export async function trocarBase(novoBaseId) {
     // domínio não parte nada — basta os subdomínios continuarem a ser
     // o baseId, que é o que os torna endereçáveis.
     const dominio = window.location.hostname.split(".").slice(1).join(".");
-    const url = `https://${novoBaseId}.${dominio}/#tok=${encodeURIComponent(data.token)}`;
+    const url = `https://${SUBDOMINIO[novoBaseId] ?? novoBaseId}.${dominio}/#tok=${encodeURIComponent(data.token)}`;
     window.location.assign(url);
     // devolve o url mesmo tendo tentado navegar sozinho — numa app instalada
     // (PWA) ou nalgum browser, a navegação para outro domínio por script
