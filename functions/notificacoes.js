@@ -439,13 +439,16 @@ export const enviarResumosEmail = onSchedule(
  * para um culto — nunca "nos próximos dois dias", que mandaria a
  * mesma coisa dois dias seguidos.
  *
- * Só a Louvor e o Louvor Kinder (cópia da app da Louvor, mesmo fluxo),
- * porque só elas têm confirmação de presença (a Apoio decidiu
- * explicitamente não a ter). Quando outra
+ * Só o Louvor Kinder, porque só ele pede confirmação de escala. A
+ * Louvor teve-a e saiu em 2026-09 (pedido do líder: "a confirmação
+ * de escala não é necessária" — a app passou a mostrar só o lembrete
+ * do ensaio da semana, ver apps/louvor/CLAUDE.md); sem a pergunta na
+ * app, este push só mandava as pessoas confirmar algo que já não
+ * existe. A Apoio decidiu explicitamente nunca a ter. Quando outra
  * base ganhar o mesmo fluxo, acrescenta-se o slug à constante — o
  * resto da função já é genérico.
  */
-const BASES_COM_CONFIRMACAO = ["louvor", "louvorkinder"];
+const BASES_COM_CONFIRMACAO = ["louvorkinder"];
 const DIAS_ANTES = 2;
 
 export const lembrarConfirmacaoPresenca = onSchedule(
