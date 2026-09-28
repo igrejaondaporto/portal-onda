@@ -8,23 +8,17 @@ const LINKS = [["video", "Vídeo"], ["letra", "Letra"], ["audio", "Áudio"]];
  *  topo do box de cada culto em Lições, o mesmo para as três salas.
  *  Só leitura: montar e mudar é no painel do Louvor Kinder. Numeração
  *  só de músicas; um medley repete o número da música de antes (mesma
- *  regra do Repertório da Louvor e do cartão da Técnica).
- *
- *  `mostrarQuemToca={false}` esconde os cantores (e nem pede a escala
- *  ao servidor) — quem é da sala Baby não precisa de saber quem canta
- *  no dia (pedido 2026-09); Fun, Júnior e a líder geral continuam a
- *  ver. */
-export default function RepertorioLouvorKinder({ eventoId, mostrarQuemToca = true }) {
+ *  regra do Repertório da Louvor e do cartão da Técnica). */
+export default function RepertorioLouvorKinder({ eventoId }) {
   const [repertorio, setRepertorio] = useState(null);
   const [escala, setEscala] = useState([]);
   useEffect(() => ouvirRepertorioLouvorKinder(eventoId, setRepertorio), [eventoId]);
   useEffect(() => {
     let vivo = true;
     setEscala([]);
-    if (!mostrarQuemToca) return;
     obterEscalaLouvorKinder(eventoId).then((e) => vivo && setEscala(e));
     return () => { vivo = false; };
-  }, [eventoId, mostrarQuemToca]);
+  }, [eventoId]);
 
   const itens = repertorio?.itens ?? [];
   const numero = {};
@@ -38,7 +32,7 @@ export default function RepertorioLouvorKinder({ eventoId, mostrarQuemToca = tru
   return (
     <div className="kin-rep">
       <p className="kin-rep-tit">🎵 Louvor</p>
-      {mostrarQuemToca && escala.length > 0 && (
+      {escala.length > 0 && (
         <div className="kin-rep-escala">
           {escala.map((p, i) => (
             <p key={i} className="kin-rep-quem">
