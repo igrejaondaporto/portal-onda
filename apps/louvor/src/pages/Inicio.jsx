@@ -7,7 +7,6 @@ import { obterMeuEvento, definirFrase } from "../lib/culto";
 import { ouvirReembolsos, marcarReembolsoVisto } from "../lib/reembolsos";
 import { ouvirMusicas } from "../lib/biblioteca";
 import { ouvirAvisos, tempoRestante, percentagemDecorrida } from "../lib/avisos";
-import { ouvirConfirmacoesEnsaioDoMes } from "../lib/confirmacao";
 import { ouvirEnquetesAbertas, ouvirMinhaResposta, obterEventosPorIds, tempoRestanteVoto, percentagemDecorridaVoto } from "../lib/enquetes";
 import { diasAte, fraseDiasAte } from "../lib/aniversarios";
 import { dataPorExtenso, dataCurta, eur, nomeCurto } from "@portal/shared/lib/data.js";
@@ -45,7 +44,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [avisos, setAvisos] = useState([]);
   const [sheetAniversarios, setSheetAniversarios] = useState(false);
   const [eventosMesAtual, setEventosMesAtual] = useState([]);
-  const [respostasEnsaioMesAtual, setRespostasEnsaioMesAtual] = useState(() => new Map());
   const [enquetesAbertas, setEnquetesAbertas] = useState([]);
   const [minhasRespostasEnquete, setMinhasRespostasEnquete] = useState({});
   const [eventosEnquetePorId, setEventosEnquetePorId] = useState({});
@@ -78,9 +76,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const souLiderEscala = !!meuEvento && meuEvento.escala.liderEscala === uid;
   const sirvo = !!meuEvento && (meuEvento.escala.pessoas || []).includes(uid);
 
-  // Lembrete do ensaio da semana (2026-09, pedido do líder: saiu a
-  // confirmação de ESCALA — "vais servir?" —, fica só "quando é o
-  // ensaio e se vais"). Lê o mês REAL de hoje MAIS o seguinte
+  // Lembrete do ensaio da semana (2026-09, pedido do líder: sem
+  // confirmação nenhuma — nem de escala nem de ensaio —, só "tens
+  // ensaio esta semana, tal dia, tal local, tal hora"). Lê o mês REAL de hoje MAIS o seguinte
   // (`ouvirEventosMesEProximo`, ver lib/painel.js): um ensaio no fim
   // do mês para o primeiro domingo do mês seguinte tem de aparecer
   // na mesma — de propósito independente do mês que o Calendário
@@ -89,10 +87,9 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     const hoje = new Date();
     return ouvirEventosMesEProximo(hoje.getFullYear(), hoje.getMonth(), setEventosMesAtual);
   }, []);
-  useEffect(() => ouvirConfirmacoesEnsaioDoMes(eventosMesAtual, uid, setRespostasEnsaioMesAtual), [eventosMesAtual, uid]);
   // "Da semana": de hoje até daqui a 7 dias, o mais próximo — um
   // ensaio marcado para daqui a duas semanas ainda não é lembrete.
-  // Fica visível até ao próprio dia, respondido ou não.
+  // Fica visível até ao próprio dia.
   const hojeLocal = isoLocal();
   const daquiAUmaSemana = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return isoLocal(d); })();
   const ensaioDaSemana = eventosMesAtual
@@ -214,7 +211,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         );
       })}
       {ensaioDaSemana && (
-        <LembreteEnsaio evento={ensaioDaSemana} resposta={respostasEnsaioMesAtual.get(ensaioDaSemana.id)} />
+        <LembreteEnsaio evento={ensaioDaSemana} />
       )}
       {avisos.map((a) => (
         <div

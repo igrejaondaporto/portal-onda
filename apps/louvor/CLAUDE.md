@@ -335,6 +335,20 @@ mapa de apelidos conferido à mão, tipo "Mari" → Mariana Turbuk) todas
 as versões que já existiam antes deste modelo existir. Não tenta
 adivinhar Lead de cultos passados — só o sinal do nome, sem `eventoId`.
 
+## Ensaio: só lembrete, sem confirmação nenhuma (2026-09, 2.ª volta)
+
+**Vale mais do que a secção a seguir.** Pedido do líder: "não vou
+querer confirmação no ensaio, quero apenas um lembrete — tem ensaio
+esta semana, tal dia, tal local, tal horário". O `LembreteEnsaio.jsx`
+passou a ser só texto ("Tens ensaio esta semana · Quinta, 1 de
+outubro · 20:00 · 📍 local"), sem "Vou"/"Não posso"; saíram também as
+fotinhas de quem ia na caixinha "Ensaio" da Escala geral e o
+`lib/confirmacao.js` inteiro (ficou sem uso). A app da Louvor já não
+pede confirmação de nada — nem escala, nem ensaio. As respostas
+antigas em `confirmacoesEnsaio/` ficam gravadas (regra 5); a Cloud
+Function `confirmarPresencaEnsaioLouvor` continua a existir (o Louvor
+Kinder ainda a usa).
+
 ## Sem confirmação de escala — só o lembrete do ensaio (2026-09)
 
 **Estado atual — vale mais do que as secções de confirmação abaixo,
@@ -556,6 +570,21 @@ pontual e manual (ver "Importação do LouveApp" abaixo).
 ### Classificações (do LouveApp, confirmadas)
 
 `Adoração` · `Alegria` · `Consagração` · `Contemplação` · `Especiais` · `Louvor` — ver `src/lib/biblioteca.js`, `CLASSIFICACOES` (com o texto de ajuda de cada uma).
+
+### Excluir música (2026-09)
+
+Pedido do líder: "não tem como excluir uma música da biblioteca".
+Botão vermelho "Excluir música" no fim da ficha da música
+(`SheetMusicaDetalhe.jsx`), só para líder/auxiliar, com confirmação
+vermelha. Nunca apagada a sério (regra 5): `desativarMusica`
+(`lib/biblioteca.js`) grava `ativo:false` + `desativadaEm` na música e
+desativa cada versão pelo mesmo caminho do "Excluir versão"
+(`desativarVersao`, que também a tira do Histórico por cantor). Some
+da Biblioteca, da escolha de música do Repertório e da deteção de
+duplicados (`encontrarDuplicata`) — uma música excluída pode voltar a
+ser cadastrada. Os repertórios passados continuam a mostrar o nome
+(`ouvirMusicas` em si não filtra). `firestore.rules`: `ativo` e
+`desativadaEm` numa música só o líder escreve, como `versaoPadraoId`.
 
 ### 3. Modelo de dados (Firestore)
 

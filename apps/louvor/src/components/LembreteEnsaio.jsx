@@ -1,21 +1,15 @@
-import { useState } from "react";
-import { confirmarPresencaEnsaio } from "../lib/confirmacao";
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
-import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 
 /**
- * Lembrete do ensaio da semana, no Início (pedido do líder, 2026-09:
- * "tirar a confirmação de escala, deixar só um LEMBRETE de quando é o
- * ensaio da semana e se a pessoa vai participar"). Substitui o balão
- * "Confirma o ensaio" e o aviso "Confirma a tua escala".
+ * Lembrete do ensaio da semana, no Início — só uma frase, sem
+ * confirmação nenhuma (pedido do líder, 2026-09: "não vou querer
+ * confirmação, quero apenas um lembrete: tem ensaio esta semana,
+ * tal dia, tal local, tal horário"). Antes tinha "Vou"/"Não posso";
+ * saiu, e com ele as fotinhas de quem ia na caixinha "Ensaio" da
+ * Escala — já não há nada para ninguém confirmar.
  *
- * Fica visível até ao dia do ensaio, mesmo depois de a pessoa
- * responder — é um lembrete, não uma pendência que some. A resposta
- * responde-se aqui mesmo, sem abrir folha nenhuma (a regra dos três
- * toques): "Vou" grava logo; "Não posso" pede o motivo (opcional)
- * no próprio cartão. Mesma função de sempre
- * (`confirmarPresencaEnsaioLouvor`), por isso o líder continua a ver
- * as fotinhas de quem vai na caixinha "Ensaio" da Escala geral.
+ * Aparece a quem está escalado num culto com ensaio marcado entre
+ * hoje e daqui a 7 dias (ver Inicio.jsx), até ao próprio dia.
  */
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -36,84 +30,20 @@ function quando(iso) {
   return DIAS[new Date(a, m - 1, d).getDay()];
 }
 
-export default function LembreteEnsaio({ evento, resposta }) {
-  const torrada = useTorrada();
-  const [pedirMotivo, setPedirMotivo] = useState(false);
-  const [motivo, setMotivo] = useState("");
-  const [aEnviar, setAEnviar] = useState(false);
+export default function LembreteEnsaio({ evento }) {
   const { dataEnsaio, horaEnsaio, localEnsaio } = evento.escala;
-
-  async function responder(r, justificativa = "") {
-    setAEnviar(true);
-    try {
-      await confirmarPresencaEnsaio(evento.id, undefined, r, justificativa);
-      setPedirMotivo(false);
-      setMotivo("");
-      torrada(r === "vai" ? "Até ao ensaio!" : "O líder já sabe que não podes");
-    } catch (e) {
-      torrada(e.message || "Não foi possível guardar.");
-    } finally {
-      setAEnviar(false);
-    }
-  }
-
-  let rodape;
-  if (pedirMotivo) {
-    rodape = (
-      <div className="lv-ensaio-motivo">
-        <textarea
-          className="campo" rows={2} value={motivo} autoFocus
-          onChange={(e) => setMotivo(e.target.value)} placeholder="Porque não podes? (opcional)"
-        />
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button className="lv-ensaio-bt sec" disabled={aEnviar} onClick={() => setPedirMotivo(false)}>Cancelar</button>
-          <button className="lv-ensaio-bt" disabled={aEnviar} onClick={() => responder("nao_vai", motivo)}>
-            {aEnviar ? "A enviar…" : "Avisar o líder"}
-          </button>
-        </div>
-      </div>
-    );
-  } else if (resposta?.resposta === "vai") {
-    rodape = (
-      <div className="lv-ensaio-resposta">
-        <span>✓ Vais ao ensaio</span>
-        <button className="lv-ensaio-link" disabled={aEnviar} onClick={() => setPedirMotivo(true)}>Afinal não posso</button>
-      </div>
-    );
-  } else if (resposta?.resposta === "nao_vai") {
-    rodape = (
-      <div className="lv-ensaio-resposta">
-        <span>✗ Avisaste que não vais{resposta.justificativa ? ` — ${resposta.justificativa}` : ""}</span>
-        <button className="lv-ensaio-link" disabled={aEnviar} onClick={() => responder("vai")}>Afinal vou</button>
-      </div>
-    );
-  } else {
-    rodape = (
-      <div className="lv-ensaio-resposta">
-        <span>Vais participar?</span>
-        <button className="lv-ensaio-link" disabled={aEnviar} onClick={() => setPedirMotivo(true)}>Não posso</button>
-        <button className="lv-ensaio-bt" disabled={aEnviar} onClick={() => responder("vai")}>
-          {aEnviar ? "A guardar…" : "Vou"}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="destaque lv-ensaio">
-      <div className="lv-ensaio-topo">
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Ensaio desta semana</p>
-          <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-            {quando(dataEnsaio)}, {dataPorExtenso(dataEnsaio)}{horaEnsaio ? ` · ${horaEnsaio}` : ""}
-          </p>
-          <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
-            {localEnsaio ? `📍 ${localEnsaio} · ` : ""}para o culto de {dataPorExtenso(evento.data)}
-          </p>
-        </div>
-        <span style={{ fontSize: 24 }}>🎙️</span>
+      <div>
+        <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Tens ensaio esta semana</p>
+        <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
+          {quando(dataEnsaio)}, {dataPorExtenso(dataEnsaio)}{horaEnsaio ? ` · ${horaEnsaio}` : ""}
+        </p>
+        <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>
+          {localEnsaio ? `📍 ${localEnsaio} · ` : ""}para o culto de {dataPorExtenso(evento.data)}
+        </p>
       </div>
-      {rodape}
+      <span style={{ fontSize: 24 }}>🎙️</span>
     </div>
   );
 }

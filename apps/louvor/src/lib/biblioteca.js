@@ -256,13 +256,29 @@ export async function desativarVersao(musicaId, versaoId) {
   limparIndiceParaVersao(musicaId, versaoId);
 }
 
+/** "Excluir música" (SheetMusicaDetalhe.jsx, só líder/auxiliar —
+ *  as regras do Firestore recusam `ativo` a quem não é, ver
+ *  firestore.rules). Pedido do líder, 2026-09: "não tem como excluir
+ *  uma música da biblioteca". Nunca apagada a sério (regra 5 do
+ *  CLAUDE.md raiz): a música fica `ativo:false` e cada versão dela
+ *  sai como no "Excluir versão" (desativarVersao, que também a tira do
+ *  Histórico por cantor). Some da Biblioteca e da escolha de música
+ *  do Repertório (os dois filtram `ativo !== false`); os repertórios
+ *  antigos que já a tinham continuam a mostrar o nome. */
+export async function desativarMusica(musicaId, versaoIds = []) {
+  await updateDoc(doc(db, `bases/${BASE_ID}/musicas/${musicaId}`), { ativo: false, desativadaEm: serverTimestamp() });
+  await Promise.all(versaoIds.map((v) => desativarVersao(musicaId, v)));
+}
+
+export const musicaAtiva = (m) => m.ativo !== false;
+
 export const novaMusicaId = () => doc(cMusicas()).id;
 
 /** Nunca bloqueia — só avisa "é uma versão nova?" e mostra a existente
  *  (ver CLAUDE.md desta base, decisão 9). */
 export function encontrarDuplicata(musicas, titulo, artista) {
   const chave = chaveIdentidade(titulo, artista);
-  return musicas.find((m) => m.chaveIdentidade === chave) ?? null;
+  return musicas.find((m) => m.ativo !== false && m.chaveIdentidade === chave) ?? null;
 }
 
 export async function criarMusica(id, dados) {

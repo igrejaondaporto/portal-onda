@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, papeisAtivos } from "../lib/modelo";
+import { nomePapel, emojiPapel, nomeCor, podeDistribuir, papeisAtivos } from "../lib/modelo";
 import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
-import { ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
@@ -11,7 +10,6 @@ import { ouvirMusicas, obterTonsDosItens } from "../lib/biblioteca";
 import { MESES, dataCurta, dataPorExtenso, diaSemanaAbrev, hojeISO } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
-import Avatar from "@portal/shared/components/Avatar.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
 import CalendarioSemanal from "../components/CalendarioSemanal";
 
@@ -39,7 +37,7 @@ const ITENS_VAZIOS_REP = [];
  *  está aberto (é `children` do CartaoCulto). `podeEditar` já vem
  *  calculado (líder da base, auxiliar, ou líder de escala deste
  *  culto, ver podeDistribuir). */
-function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmadosEnsaio, contactoAberto, onToggleContacto }) {
+function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, contactoAberto, onToggleContacto }) {
   const torrada = useTorrada();
   const papeis = usePapeisEscala();
   const [repertorio, setRepertorio] = useState(null);
@@ -189,22 +187,6 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmadosEn
             {evento.escala.dataEnsaio && ` - ${diaSemanaAbrev(evento.escala.dataEnsaio)}, ${dataPorExtenso(evento.escala.dataEnsaio)}`}
             {evento.escala.horaEnsaio && ` , ⏰ - ${evento.escala.horaEnsaio}`}
           </p>
-          {/* Quem já confirmou o ensaio — mini-fotos numa linha própria,
-              abaixo do título (ao lado cortava e não cabia todo mundo),
-              nunca uma lista (pedido do líder, "não fica uma lista
-              grande"). Ver ouvirConfirmacoesEnsaioPorCulto. */}
-          {confirmadosEnsaio?.size > 0 && (
-            <div style={{ display: "flex", marginTop: 6 }} title="Já confirmaram o ensaio">
-              {[...confirmadosEnsaio].slice(0, 10).map((pessoaId, i) => {
-                const p = pessoaPorId(pessoaId);
-                return p ? (
-                  <span key={pessoaId} style={{ marginLeft: i === 0 ? 0 : -6, border: "2px solid #fff", borderRadius: "50%" }}>
-                    <Avatar pessoa={p} tamanho={18} fonte={8} />
-                  </span>
-                ) : null;
-              })}
-            </div>
-          )}
           {evento.escala.localEnsaio && <p className="ds">📍 {evento.escala.localEnsaio}</p>}
           {!evento.escala.dataEnsaio && <p className="ds">Ainda não marcado</p>}
           <CalendarioSemanal domingoISO={evento.data} ensaioISO={evento.escala.dataEnsaio} />
@@ -278,23 +260,12 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const [abertos, setAbertos] = useState({});
   const [contactoAberto, setContactoAberto] = useState(null);
   const [aba, setAba] = useState("minhas");
-  const [confirmadosEnsaio, setConfirmadosEnsaio] = useState(() => new Map());
   const refsEventos = useRef({});
-  const souLider = souLiderOuAuxiliar(papel);
 
   useEffect(() => ouvirEventosDoMes(ano, mes, setEventosMes), [ano, mes]);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirBase(setBase), []);
-  // Só o líder/auxiliar vê quem vai ao ensaio (Escala geral) — as
-  // regras só deixam ler confirmação alheia sendo líder, ver
-  // firestore.rules; nem vale a pena montar o listener sem ser. A
-  // confirmação de ESCALA ("vais servir?") saiu em 2026-09 (pedido do
-  // líder) — só o ensaio pede resposta, ver LembreteEnsaio.jsx.
-  useEffect(() => {
-    if (!souLider) { setConfirmadosEnsaio(new Map()); return; }
-    return ouvirConfirmacoesEnsaioPorCulto(eventosMes, setConfirmadosEnsaio);
-  }, [souLider, eventosMes]);
 
   useEffect(() => {
     if (!eventoIdFoco || !eventosMes.length) return;
@@ -347,7 +318,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
     );
   }
 
-  function CartaoDoCulto({ ev, mostrarConfirmados }) {
+  function CartaoDoCulto({ ev }) {
     const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
     const aberto = !!abertos[ev.id];
     return (
@@ -367,7 +338,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         <DetalhesCulto
           evento={ev} musicas={musicas} podeEditar={podeDistribuir(papel, uid, ev.escala)}
           pessoaPorId={pessoaPorId}
-          confirmadosEnsaio={mostrarConfirmados ? confirmadosEnsaio.get(ev.id) : null}
           contactoAberto={contactoAberto?.eventoId === ev.id ? contactoAberto.pessoaId : null}
           onToggleContacto={(pessoaId) => setContactoAberto((a) =>
             a?.eventoId === ev.id && a?.pessoaId === pessoaId ? null : { eventoId: ev.id, pessoaId })}
@@ -468,7 +438,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
           </div>
 
           <div className="sect">
-            {eventosMes.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} mostrarConfirmados={souLider} />)}
+            {eventosMes.map((ev) => <CartaoDoCulto key={ev.id} ev={ev} />)}
           </div>
         </>
       )}

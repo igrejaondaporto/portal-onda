@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer, ouvirCantoresComVersao } from "../lib/biblioteca";
+import { ouvirMusicas, ouvirVersoes, obterPreviaDeezer, ouvirCantoresComVersao, musicaAtiva } from "../lib/biblioteca";
 import { obterEventosDoMes, ouvirVoluntarios } from "../lib/painel";
 import { souLiderOuAuxiliar } from "../lib/modelo";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -75,7 +75,8 @@ export default function Biblioteca({ uid, papel, ativo, definirCabecalho }) {
   const audioRef = useRef(null);
   const paginaAtivaRef = useRef(null);
 
-  useEffect(() => ouvirMusicas(setMusicas), []);
+  // as excluídas (ativo:false, desativarMusica) nunca entram na lista
+  useEffect(() => ouvirMusicas((todas) => setMusicas(todas.filter(musicaAtiva))), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirCantoresComVersao(setCantoresComVersao), []);
   useEffect(() => () => audioRef.current?.pause(), []);
