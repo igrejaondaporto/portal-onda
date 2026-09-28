@@ -22,12 +22,13 @@ const chave = JSON.parse(readFileSync("./service-account.json", "utf8"));
 admin.initializeApp({ credential: admin.credential.cert(chave) });
 const db = admin.firestore();
 
-// o Julio fica líder (para poder adicionar gente nova pelo Painel do
-// líder, caminho normal, a partir de agora) — os outros quatro são
-// pares: qualquer um dos 5 gere qualquer relato (ver exigeOndaTechHub
-// em functions/relatos.js, que não olha para papel).
+// Todos "voluntario" — equipa plana, sem líder desta base em concreto.
+// Não há Painel do líder nesta app (5 pessoas fixas, sem voluntários
+// para gerir), e qualquer um dos 5 gere qualquer relato (ver
+// exigeOndaTechHub em functions/relatos.js, que não olha para papel)
+// — um "lider_base" aqui só mostraria um botão morto no menu.
 const MEMBROS = [
-  { nome: "Julio", papel: "lider_base" },
+  { nome: "Julio", papel: "voluntario" },
   { nome: "Vitor", papel: "voluntario" },
   { nome: "Kairan", papel: "voluntario" },
   { nome: "Diogo", papel: "voluntario" },
