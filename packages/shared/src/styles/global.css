@@ -1501,6 +1501,47 @@ textarea.campo {
   animation: respirar 1.2s ease-in-out infinite;
 }
 
+/* ── Reportar problema — botão flutuante ──────────────────────
+ * Sempre visível, canto inferior direito, acima da NavBar (.navb é
+ * z-index 12) — pedido do líder: nada de esconder isto num menu.
+ * No telemóvel fica por cima da barra inferior; no computador (ver
+ * media query lá em baixo) a NavBar vira sidebar à esquerda e este
+ * botão desce ao canto, sem ninguém a disputar o espaço. */
+.botao-flutuante {
+  position: fixed;
+  right: 16px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 13;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 20, 120, 0.32);
+}
+.botao-flutuante-conta {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: var(--laranja);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
 /* ── "A ver como voluntário" ──────────────────────────────────
  * A faixa que fica à vista enquanto o líder espreita o painel pelos
  * olhos da equipa. Flutua acima da barra de navegação no telemóvel
@@ -1551,6 +1592,9 @@ textarea.campo {
     display: grid;
     grid-template-columns: 1fr 1fr;
     min-height: 100dvh;
+  }
+  .botao-flutuante {
+    bottom: 24px; /* a NavBar vira sidebar à esquerda aqui — o canto fica livre */
   }
   .crista.entrada {
     padding: 46px 46px 0;
