@@ -139,7 +139,7 @@ export function ouvirEventosDoMes(ano, mesIndex, cb) {
  *  balão de confirmação de presença, porque os dois só olhavam para
  *  `hoje.getMonth()` — o culto publicado ficava invisível até o
  *  calendário virar o mês sozinho. Usado só pelos dois avisos
- *  automáticos (ConfirmacaoAutoStart, o balão em Inicio.jsx); o
+ *  automáticos (o aviso em Inicio.jsx); o
  *  Calendário continua a pedir só o mês que a pessoa está a navegar
  *  (`ouvirEventosDoMes`), esse não tem o problema — mostra o mês que
  *  se está a ver, qualquer que seja. */

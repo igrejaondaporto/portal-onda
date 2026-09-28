@@ -16,8 +16,9 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
  * escala que o líder subiu") — mais fácil ver de relance quem mais
  * está a servir do que abrir o cartão do culto em Escala.jsx.
  *
- * `bloqueante` é usado só pelo popup automático ao publicar
- * (ConfirmacaoAutoStart) — tira o toque no véu, mesmo padrão de
+ * `bloqueante` era usado só pelo popup automático ao publicar
+ * (ConfirmacaoAutoStart — removido 2026-09: confirma-se agora no box
+ * do culto em Escala, BarraConfirmarPresenca) — tira o toque no véu, mesmo padrão de
  * SheetResponderEnquete/bloqueante; ganha também "Ainda não sei"
  * (`onNaoSeiAinda`), pedido do líder — fecha sem gravar resposta
  * nenhuma, a pessoa responde depois pelo balão fixo no Início.
