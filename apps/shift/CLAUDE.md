@@ -94,16 +94,25 @@ A regra do Storage em `bases/{base}/licoes/{ficheiro}` continua a
 existir (serve a New/Kinder, que ainda fazem upload de `.docx`) mas
 fica sem uso nesta base — nada escreve lá a partir da SHIFT.
 
+## Montar — enquete de indisponibilidade + escala sugerida (2026-09)
+
+Ligado a pedido da líder. Cópia 1:1 da Apoio, a mesma equipa única
+sem ministérios: `lib/enquetes.js` (Cloud Functions genéricas por
+`baseId`, já existiam) e o balão de "responder enquete" em
+`Inicio.jsx` já estavam no código desde o scaffolding — inertes só
+por faltar a aba para abrir a primeira enquete. Portado para cá:
+- `lib/sugestor.js` — cópia exata de `apps/apoio/src/lib/sugestor.js`
+  (`gerarSugestaoApoio`: qualquer pessoa serve para qualquer domingo,
+  sem o problema de "beco sem saída" da Técnica, que tem ministérios).
+- `pages/Montar.jsx`, `components/painel/SheetAbrirEnquete.jsx`,
+  `components/painel/SugestorEscala.jsx` — cópias 1:1 da Apoio.
+- Aba "Montar" em `Sessao.jsx`, só para a líder da base.
+
+Zero mudança em `functions/`, `firestore.rules` ou `packages/shared`
+— tudo já era genérico por base.
+
 ## O que esta base NÃO tem (herdado do molde da New/Apoio, removido de propósito)
 
-- **"Montar"** (enquete de indisponibilidade + sugestor de escala) —
-  não foi pedido para esta base. `lib/enquetes.js` e o balão de
-  "responder enquete" em `Inicio.jsx` continuam no código (o molde
-  trazia), mas ficam inertes: sem a aba "Montar" para abrir uma
-  enquete, nenhuma chega a ser criada para `baseId: "shift"`, o
-  balão nunca aparece. Se um dia fizer falta, portar de volta
-  (ver `apps/apoio/src/pages/Montar.jsx` e
-  `apps/apoio/src/components/painel/SugestorEscala.jsx`).
 - **Reembolsos** não é uma aba (nunca foi, nem na Apoio/New) —
   continua alcançável por "A base" no Início, herdado do molde, não
   pedido nem removido explicitamente. Confirmar com a Melissa se deve
