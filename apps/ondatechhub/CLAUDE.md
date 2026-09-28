@@ -36,7 +36,7 @@ Ainda por fazer antes de dar por pronta:
 |---|---|
 | **Relato** | Um bug/erro/melhoria reportado por alguém, de qualquer base |
 | **Tipo** | erro, bug ou melhoria — o que a pessoa marcou ao reportar |
-| **Estado** | aberto → em andamento → resolvido (ou recusado, em qualquer ponto) |
+| **Estado** | Novo → Em andamento → Concluído (ou Recusado, em qualquer ponto) — os valores internos continuam `aberto`/`em_andamento`/`resolvido`/`recusado` (Firestore, Cloud Functions), só o texto mostrado mudou para bater com o vocabulário pedido |
 
 Não digas "ticket", "issue" nem "chamado" na interface — é sempre
 "relato".

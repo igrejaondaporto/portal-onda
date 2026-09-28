@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { ouvirTodosRelatos, nomeBase } from "../lib/relatos.js";
-import { ROTULO_TIPO_RELATO, COR_STATUS_RELATO } from "@portal/shared/lib/relatos.js";
+import { ROTULO_TIPO_RELATO, ROTULO_STATUS_RELATO, COR_STATUS_RELATO } from "@portal/shared/lib/relatos.js";
 import SheetRelatoAdmin from "../components/SheetRelatoAdmin.jsx";
 
 // mesmo padrão de Solicitacoes.jsx (Comunicação) — secções empilhadas,
 // não Kanban lado a lado (no telemóvel, uso real desta app, colunas
-// lado a lado ficam a maior parte fora do ecrã).
+// lado a lado ficam a maior parte fora do ecrã). Rótulos vêm de
+// ROTULO_STATUS_RELATO (packages/shared) — nunca repetir aqui, senão
+// os dois driftam (já aconteceu: esta lista ainda dizia "Aberto"/
+// "Resolvido" depois de os rótulos partilhados mudarem para "Novo"/
+// "Concluído").
 const COLUNAS = [
-  ["aberto", "Aberto", "var(--cinza)"],
-  ["em_andamento", "Em andamento", "var(--azul)"],
-  ["resolvido", "Resolvido", "var(--verde)"],
+  ["aberto", ROTULO_STATUS_RELATO.aberto, "var(--cinza)"],
+  ["em_andamento", ROTULO_STATUS_RELATO.em_andamento, "var(--azul)"],
+  ["resolvido", ROTULO_STATUS_RELATO.resolvido, "var(--verde)"],
 ];
 
 export default function Relatos({ ativo, definirCabecalho }) {
@@ -82,7 +86,7 @@ export default function Relatos({ ativo, definirCabecalho }) {
                 <p className="nmt">{r.titulo}</p>
                 <p className="ds">{nomeBase(r.baseOrigemId)} · {r.reportadoPorNome ?? "…"}</p>
               </div>
-              <span className="tag cinz" style={{ background: COR_STATUS_RELATO.recusado }}>recusado</span>
+              <span className="tag cinz" style={{ background: COR_STATUS_RELATO.recusado }}>{ROTULO_STATUS_RELATO.recusado}</span>
             </div>
           ))}
         </div>
