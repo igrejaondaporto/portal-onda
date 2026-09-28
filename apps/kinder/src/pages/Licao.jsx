@@ -153,7 +153,7 @@ export default function Licao({ uid, papel, pessoa, mes, ano, mudarMes, ativo, d
                     * as três (pedido do líder, 2026-09). O CartaoCulto só
                     * monta o corpo com o box aberto, por isso cada culto
                     * só pede a escala quando alguém o abre. */}
-                  <RepertorioLouvorKinder eventoId={ev.id} />
+                  <RepertorioLouvorKinder eventoId={ev.id} mostrarQuemToca={restrita !== "baby"} />
                   {doEvento.length === 0 ? (
                     <div className="vaz">
                       {sala ? `Ainda não há lição da sala ${nomeCategoria(sala)} para este culto.` : "Ainda não há lição para este culto."}

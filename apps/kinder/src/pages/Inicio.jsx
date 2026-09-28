@@ -284,7 +284,7 @@ export default function Inicio({
             ) : (
               <div className="vaz">Ainda não há lição para a tua sala.</div>
             )}
-            {proximoCulto && <RepertorioLouvorKinder eventoId={proximoCulto.id} />}
+            {proximoCulto && <RepertorioLouvorKinder eventoId={proximoCulto.id} mostrarQuemToca={restrita !== "baby"} />}
           </div>
 
           <div className="sect">

@@ -413,6 +413,12 @@ Leitura única, não ao vivo; se falhar, a secção simplesmente não
 aparece. Os nomes dos papéis são uma cópia de `PAPEIS` do Louvor
 Kinder em `lib/repertorioLouvorKinder.js` — mudar lá, mudar aqui.
 
+**Quem é da sala Baby não vê os cantores** (pedido 2026-09: "não faz
+parte do dia a dia dela") — `mostrarQuemToca={restrita !== "baby"}` no
+Início e em Lições (`minhaSalaRestrita`, por isso a líder geral, sem
+sala, continua a ver). O repertório em si continua a aparecer; só a
+lista de quem toca some, e a escala nem é pedida ao servidor.
+
 **Também em Lições** — o mesmo componente abre no topo do box de cada
 culto (`Licao.jsx`), por cima das lições das salas, porque o louvor é
 o mesmo para as três.
