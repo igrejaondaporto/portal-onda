@@ -854,6 +854,24 @@ service cloud.firestore {
       allow create, delete: if false;            // só por função
     }
 
+    // ── "quero servir" — pedidos para entrar numa base ──────
+    // (functions/candidaturas.js). Um documento por pessoa POR BASE.
+    // Lê: o líder/auxiliar da base de destino (o cartão no Início), a
+    // pessoa que pediu pelo perfil (o "à espera" no menu da foto) e o
+    // Painel Pastoral. Escrita só por função: aprovar cria identidade
+    // (regra 2 do CLAUDE.md raiz) e cancela o pedido à outra base na
+    // mesma escrita — coisa que uma regra não garante. Nunca apagado:
+    // cancelado/recusado fica gravado (regra 5).
+    // `pessoaId` só existe nos pedidos pelo perfil — num pedido do
+    // funil (visitante, sem identidade ainda) a comparação dá erro e a
+    // leitura cai para as outras duas condições, que é o que se quer.
+    match /candidaturas/{id} {
+      allow read:  if souLiderBase(resource.data.baseId)
+                   || vejoTudoPastoral()
+                   || (autenticado() && resource.data.pessoaId == request.auth.uid);
+      allow write: if false;                     // só por função
+    }
+
     // ── Brand: marcas + acervo ──────────────────────────────
     // Raiz, não bases/comunicacao: leitura para TODAS as bases (o
     // líder de Kids precisa do logo certo tanto quanto a Comunicação
