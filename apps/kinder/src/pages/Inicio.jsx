@@ -284,7 +284,9 @@ export default function Inicio({
             ) : (
               <div className="vaz">Ainda não há lição para a tua sala.</div>
             )}
-            {proximoCulto && <RepertorioLouvorKinder eventoId={proximoCulto.id} />}
+            {/* a Baby não usa o Louvor Kinder — o louvor dela é o campo
+              * "Louvor" da própria lição (pedido 2026-09) */}
+            {proximoCulto && restrita !== "baby" && <RepertorioLouvorKinder eventoId={proximoCulto.id} />}
           </div>
 
           <div className="sect">
