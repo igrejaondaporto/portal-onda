@@ -23,6 +23,7 @@ import ItensChecklist from "../components/sala/ItensChecklist";
 import ContagemCriancas from "../components/ContagemCriancas";
 import RepertorioLouvorKinder from "../components/licao/RepertorioLouvorKinder";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
+import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
   return (
@@ -182,6 +183,8 @@ export default function Inicio({
   return (
     <>
       <RecadoPastoral papel={papel} />
+      {/* "quero servir" — pedidos à espera, só o líder vê (packages/shared) */}
+      <PedidosParaServir papel={papel} />
       {salasSemLicao.length > 0 && (
         <Destaque
           rotulo="A precisar de ti" titulo={`Falta a lição de ${salasSemLicao.map((c) => c.nome).join(", ")}`}
