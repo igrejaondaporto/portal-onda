@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, papeisAtivos } from "../lib/modelo";
 import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
-import { ouvirConfirmacoesDoMes, ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
+import { ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
@@ -13,7 +13,6 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
-import BarraConfirmarPresenca from "../components/BarraConfirmarPresenca";
 import CalendarioSemanal from "../components/CalendarioSemanal";
 
 /** Cabide — não existe emoji universal para isto, por isso é um ícone
@@ -40,7 +39,7 @@ const ITENS_VAZIOS_REP = [];
  *  está aberto (é `children` do CartaoCulto). `podeEditar` já vem
  *  calculado (líder da base, auxiliar, ou líder de escala deste
  *  culto, ver podeDistribuir). */
-function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, confirmadosEnsaio, contactoAberto, onToggleContacto }) {
+function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmadosEnsaio, contactoAberto, onToggleContacto }) {
   const torrada = useTorrada();
   const papeis = usePapeisEscala();
   const [repertorio, setRepertorio] = useState(null);
@@ -131,12 +130,7 @@ function DetalhesCulto({ evento, musicas, podeEditar, pessoaPorId, confirmados, 
                 <LinhaPessoaContacto
                   key={e.pessoaId} pessoa={p}
                   resumo={`${emojiPapel(papeis, e.papel)} ${nomePapel(papeis, e.papel)}`}
-                  tagExtra={(
-                    <>
-                      {evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
-                      {confirmados?.has(e.pessoaId) && <span title="Confirmou presença">👍</span>}
-                    </>
-                  )}
+                  tagExtra={evento.escala.liderEscala === e.pessoaId && <span className="tag lim">Líder de escala</span>}
                   aberta={contactoAberto === e.pessoaId}
                   onToggle={() => onToggleContacto(e.pessoaId)}
                 />
@@ -284,10 +278,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const [abertos, setAbertos] = useState({});
   const [contactoAberto, setContactoAberto] = useState(null);
   const [aba, setAba] = useState("minhas");
-  const [confirmados, setConfirmados] = useState(() => new Map());
-  // as MINHAS respostas, por culto do mês — o botão "Confirmar" em cada
-  // box (BarraConfirmarPresenca), para toda a gente, não só o líder
-  const [minhasRespostas, setMinhasRespostas] = useState(() => new Map());
   const [confirmadosEnsaio, setConfirmadosEnsaio] = useState(() => new Map());
   const refsEventos = useRef({});
   const souLider = souLiderOuAuxiliar(papel);
@@ -296,14 +286,11 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirBase(setBase), []);
-  useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setMinhasRespostas), [eventosMes, uid]);
-  // Só o líder/auxiliar vê "quem confirmou" (Escala geral, pedido do
-  // líder) — as regras só deixam ler confirmação alheia sendo líder,
-  // ver firestore.rules; nem vale a pena montar o listener sem ser.
-  useEffect(() => {
-    if (!souLider) { setConfirmados(new Map()); return; }
-    return ouvirConfirmacoesPorCulto(eventosMes, setConfirmados);
-  }, [souLider, eventosMes]);
+  // Só o líder/auxiliar vê quem vai ao ensaio (Escala geral) — as
+  // regras só deixam ler confirmação alheia sendo líder, ver
+  // firestore.rules; nem vale a pena montar o listener sem ser. A
+  // confirmação de ESCALA ("vais servir?") saiu em 2026-09 (pedido do
+  // líder) — só o ensaio pede resposta, ver LembreteEnsaio.jsx.
   useEffect(() => {
     if (!souLider) { setConfirmadosEnsaio(new Map()); return; }
     return ouvirConfirmacoesEnsaioPorCulto(eventosMes, setConfirmadosEnsaio);
@@ -346,7 +333,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
     ...papeis.filter((p) => p.ativo === false && eventosMes.some((ev) => escaladosDoPapel(ev, p.id).length > 0)),
   ];
 
-  function etiquetaEnfase(ev, mostrarConfirmados) {
+  function etiquetaEnfase(ev) {
     const id = ev.tipoCulto || tipoCultoDefault(ev.data);
     return (
       <>
@@ -356,11 +343,6 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         <span className="tag esp" style={{ verticalAlign: "middle", marginLeft: 6 }}>
           {nomeTipoCulto(tiposCulto, id)}
         </span>
-        {mostrarConfirmados && ev.escala?.publicado && (
-          <span className="tag cinz" style={{ verticalAlign: "middle", marginLeft: 6 }}>
-            👍 {confirmados.get(ev.id)?.size ?? 0}
-          </span>
-        )}
       </>
     );
   }
@@ -368,13 +350,11 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   function CartaoDoCulto({ ev, mostrarConfirmados }) {
     const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
     const aberto = !!abertos[ev.id];
-    // publicado + sirvo + ainda não passou → o box ganha o "Confirmar"
-    const pedeConfirmacao = souEuNoCulto && ev.escala?.publicado && ev.data >= hoje;
-    const cartao = (
+    return (
       <CartaoCulto
         evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
         realcado={realcado === ev.id}
-        etiqueta={etiquetaEnfase(ev, mostrarConfirmados)}
+        etiqueta={etiquetaEnfase(ev)}
         refCartao={(el) => { refsEventos.current[ev.id] = el; }}
         onAlternar={() => setAbertos((v) => ({ ...v, [ev.id]: !v[ev.id] }))}
         resumo={souEuNoCulto ? "Serves" : `${(ev.escala.pessoas || []).length} pessoas`}
@@ -387,20 +367,12 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
         <DetalhesCulto
           evento={ev} musicas={musicas} podeEditar={podeDistribuir(papel, uid, ev.escala)}
           pessoaPorId={pessoaPorId}
-          confirmados={mostrarConfirmados ? confirmados.get(ev.id) : null}
           confirmadosEnsaio={mostrarConfirmados ? confirmadosEnsaio.get(ev.id) : null}
           contactoAberto={contactoAberto?.eventoId === ev.id ? contactoAberto.pessoaId : null}
           onToggleContacto={(pessoaId) => setContactoAberto((a) =>
             a?.eventoId === ev.id && a?.pessoaId === pessoaId ? null : { eventoId: ev.id, pessoaId })}
         />
       </CartaoCulto>
-    );
-    if (!pedeConfirmacao) return cartao;
-    return (
-      <div className="lv-com-confirmar">
-        {cartao}
-        <BarraConfirmarPresenca evento={ev} resposta={minhasRespostas.get(ev.id)} />
-      </div>
     );
   }
 

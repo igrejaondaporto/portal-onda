@@ -7,7 +7,7 @@ const Ctx = createContext(PAPEIS_PADRAO);
  * Os papéis da escala (Lead, Guitarra, Bateria…), ao vivo, para toda
  * a app — evita passar `papeis` por prop de Sessao.jsx até cada
  * ecrã/sheet que precisa formatar um papel (Escala, SheetEscala,
- * SheetPessoa, Equipamentos, Perfil, Início, SheetConfirmarPresenca…).
+ * SheetPessoa, Equipamentos, Perfil, Início…).
  * Montado uma vez em Sessao.jsx, dentro do TorradaProvider — o mesmo
  * padrão de TourProvider ao lado.
  */
