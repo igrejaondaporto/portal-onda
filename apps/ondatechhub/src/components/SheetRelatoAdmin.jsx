@@ -3,6 +3,7 @@ import { mudarStatusRelato, nomeBase } from "../lib/relatos.js";
 import { ROTULO_TIPO_RELATO, ROTULO_STATUS_RELATO, COR_STATUS_RELATO } from "@portal/shared/lib/relatos.js";
 import { haAtras } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import AnexoRelato from "@portal/shared/components/AnexoRelato.jsx";
 
 // qualquer membro do Onda Tech Hub move para qualquer estado — são 5
 // pessoas de confiança triando junto, não uma fila de aprovação (ver
@@ -37,6 +38,8 @@ export default function SheetRelatoAdmin({ relato, onFechar }) {
 
         <label className="rot" style={{ marginTop: 14 }}>O que aconteceu</label>
         <p className="ds">{relato.descricao}</p>
+
+        <AnexoRelato url={relato.anexoUrl} tipo={relato.anexoTipo} />
 
         <label className="rot" style={{ marginTop: 14 }}>Reportado por</label>
         <p className="ds">
