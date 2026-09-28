@@ -48,7 +48,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   const [confirmadosMes, setConfirmadosMes] = useState(() => new Map());
   const [eventosMesAtual, setEventosMesAtual] = useState([]);
   const [respostasMesAtual, setRespostasMesAtual] = useState(() => new Map());
-  const [sheetConfirmar, setSheetConfirmar] = useState(false);
   const [sheetMudarResposta, setSheetMudarResposta] = useState(false);
   const [respostasEnsaioMesAtual, setRespostasEnsaioMesAtual] = useState(() => new Map());
   const [sheetConfirmarEnsaio, setSheetConfirmarEnsaio] = useState(false);
@@ -103,7 +102,7 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   // depois e ainda por responder — nunca via balão nenhum: o mais
   // próximo já não tinha `!minhaResposta`, e o outro nem entrava na
   // conta, porque `meuEvento` só aponta para um. Mesmo cálculo do
-  // popup automático (ConfirmacaoAutoStart) — mês REAL de hoje MAIS
+  // antigo popup automático — mês REAL de hoje MAIS
   // o seguinte (`ouvirEventosMesEProximo`, ver lib/painel.js;
   // reportado 2026-09: uma escala publicada para o domingo seguinte,
   // já dentro do mês novo, ficava sem balão nenhum até o calendário
@@ -249,17 +248,23 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         );
       })}
       {cultoPorConfirmar && (
+        // Só um aviso (pedido do líder, 2026-09) — confirma-se no box do
+        // próprio culto, em Escala (BarraConfirmarPresenca). Tocar leva
+        // lá e abre o primeiro culto por confirmar.
         <div
           className="destaque" style={{ background: "var(--verde)", marginBottom: 10 }}
-          onClick={() => setSheetConfirmar(true)}
+          onClick={() => onIrEscala?.(cultoPorConfirmar.id)}
         >
           <div>
-            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma a tua presença</p>
+            <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Confirma a tua escala</p>
             <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>
-              Vais servir {dataPorExtenso(cultoPorConfirmar.data)}?
+              {cultosPorConfirmar.length === 1
+                ? `Falta confirmar ${dataPorExtenso(cultoPorConfirmar.data)}`
+                : `Tens ${cultosPorConfirmar.length} cultos por confirmar`}
             </p>
+            <p style={{ fontSize: 12.5, opacity: 0.9, marginTop: 3 }}>Toca para confirmar em Escala</p>
           </div>
-          <span style={{ fontSize: 24 }}>✓</span>
+          <span style={{ fontSize: 24 }}>›</span>
         </div>
       )}
       {ensaioPorConfirmar && (
@@ -494,15 +499,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
     )}
     {sheetAniversarios && (
       <SheetAniversarios voluntarios={voluntarios} onFechar={() => setSheetAniversarios(false)} />
-    )}
-    {sheetConfirmar && cultoPorConfirmar && (
-      <SheetConfirmarPresenca
-        cultos={cultosPorConfirmar}
-        minhasRespostas={{}}
-        pessoaPorId={(id) => voluntarios.find((p) => p.id === id)}
-        onFechar={() => setSheetConfirmar(false)}
-        onGuardado={(msg) => { setSheetConfirmar(false); torrada(msg); }}
-      />
     )}
     {sheetMudarResposta && meuEvento && (
       <SheetConfirmarPresenca

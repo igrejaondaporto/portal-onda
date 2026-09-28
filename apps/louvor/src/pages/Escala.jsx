@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { nomePapel, emojiPapel, nomeCor, podeDistribuir, souLiderOuAuxiliar, papeisAtivos } from "../lib/modelo";
 import { usePapeisEscala } from "../lib/PapeisEscalaContext.jsx";
-import { ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
+import { ouvirConfirmacoesDoMes, ouvirConfirmacoesPorCulto, ouvirConfirmacoesEnsaioPorCulto } from "../lib/confirmacao";
 import { nomeTipoCulto, tipoCultoDefault } from "@portal/shared/lib/tipoCulto.js";
 import { useTiposCulto } from "@portal/shared/lib/TiposCultoContext.jsx";
 import { ouvirEventosDoMes, ouvirVoluntarios, ouvirBase } from "../lib/painel";
@@ -13,6 +13,7 @@ import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import CartaoCulto from "@portal/shared/components/CartaoCulto.jsx";
+import BarraConfirmarPresenca from "../components/BarraConfirmarPresenca";
 import CalendarioSemanal from "../components/CalendarioSemanal";
 
 /** Cabide — não existe emoji universal para isto, por isso é um ícone
@@ -284,6 +285,9 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   const [contactoAberto, setContactoAberto] = useState(null);
   const [aba, setAba] = useState("minhas");
   const [confirmados, setConfirmados] = useState(() => new Map());
+  // as MINHAS respostas, por culto do mês — o botão "Confirmar" em cada
+  // box (BarraConfirmarPresenca), para toda a gente, não só o líder
+  const [minhasRespostas, setMinhasRespostas] = useState(() => new Map());
   const [confirmadosEnsaio, setConfirmadosEnsaio] = useState(() => new Map());
   const refsEventos = useRef({});
   const souLider = souLiderOuAuxiliar(papel);
@@ -292,6 +296,7 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
   useEffect(() => ouvirMusicas(setMusicas), []);
   useEffect(() => ouvirBase(setBase), []);
+  useEffect(() => ouvirConfirmacoesDoMes(eventosMes, uid, setMinhasRespostas), [eventosMes, uid]);
   // Só o líder/auxiliar vê "quem confirmou" (Escala geral, pedido do
   // líder) — as regras só deixam ler confirmação alheia sendo líder,
   // ver firestore.rules; nem vale a pena montar o listener sem ser.
@@ -363,7 +368,9 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
   function CartaoDoCulto({ ev, mostrarConfirmados }) {
     const souEuNoCulto = (ev.escala.pessoas || []).includes(uid);
     const aberto = !!abertos[ev.id];
-    return (
+    // publicado + sirvo + ainda não passou → o box ganha o "Confirmar"
+    const pedeConfirmacao = souEuNoCulto && ev.escala?.publicado && ev.data >= hoje;
+    const cartao = (
       <CartaoCulto
         evento={ev} hoje={hoje} sirvo={souEuNoCulto} aberto={aberto}
         realcado={realcado === ev.id}
@@ -387,6 +394,13 @@ export default function Escala({ uid, papel, mes, ano, mudarMes, eventoIdFoco, f
             a?.eventoId === ev.id && a?.pessoaId === pessoaId ? null : { eventoId: ev.id, pessoaId })}
         />
       </CartaoCulto>
+    );
+    if (!pedeConfirmacao) return cartao;
+    return (
+      <div className="lv-com-confirmar">
+        {cartao}
+        <BarraConfirmarPresenca evento={ev} resposta={minhasRespostas.get(ev.id)} />
+      </div>
     );
   }
 
