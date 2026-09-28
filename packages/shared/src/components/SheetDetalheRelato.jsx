@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { excluirMeuRelato, ROTULO_TIPO_RELATO, ROTULO_STATUS_RELATO, COR_STATUS_RELATO } from "../lib/relatos.js";
 import { useTorrada } from "../lib/TorradaContext.jsx";
+import AnexoRelato from "./AnexoRelato.jsx";
 
 /** Vista só de leitura do relato, do lado de quem reportou — quem
  *  muda o estado é sempre o Onda Tech Hub (ver apps/ondatechhub),
@@ -36,6 +37,8 @@ export default function SheetDetalheRelato({ relato, onFechar, onExcluido }) {
 
         <label className="rot" style={{ marginTop: 14 }}>O que aconteceu</label>
         <p className="ds">{relato.descricao}</p>
+
+        <AnexoRelato url={relato.anexoUrl} tipo={relato.anexoTipo} />
 
         <label className="rot" style={{ marginTop: 14 }}>Estado</label>
         <p className="ds">

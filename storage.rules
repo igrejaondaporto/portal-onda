@@ -10,6 +10,11 @@ service firebase.storage {
                                  && (request.auth.token.papel == 'lider_base' || request.auth.token.papel == 'auxiliar'); }
     function imagem()      { return request.resource.contentType.matches('image/.*')
                                  && request.resource.size < 6 * 1024 * 1024; }
+    // Vídeo de anexo de relato (ver relatos/{relatoId} abaixo) — sem
+    // compressão possível no cliente, por isso o limite é só um teto
+    // (mesmo valor que licoes/{ficheiro} já usa para vídeo/documento).
+    function video()       { return request.resource.contentType.matches('video/.*')
+                                 && request.resource.size < 20 * 1024 * 1024; }
     // espelha vejoTodosReembolsos() do firestore.rules — só o
     // Financeiro (bases/financeiro.veReembolsos == "todas") sobe o
     // comprovativo de pagamento, numa base que não é a dele.
@@ -114,6 +119,19 @@ service firebase.storage {
     match /marcas/{ficheiro} {
       allow read:  if autenticado();
       allow write: if lider('comunicacao') && imagem();
+    }
+    // Anexo de um relato (screenshot/vídeo do problema) — raiz, não
+    // bases/{base}, porque relatos/{id} no Firestore também é raiz
+    // (qualquer pessoa, de qualquer base, reporta). O id vem do
+    // cliente ANTES de o documento existir (mesmo padrão de marcas/
+    // acima), por isso a rule não confirma nada contra o Firestore —
+    // só autenticação, o que já chega dado o baixo risco (não é dado
+    // sensível, é um screenshot/vídeo do próprio painel). Apagado
+    // pela Cloud Function (Admin SDK, ignora esta rule) quando o
+    // relato passa a "resolvido" — ver functions/relatos.js.
+    match /relatos/{relatoId}/{ficheiro} {
+      allow read:  if autenticado();
+      allow write: if autenticado() && (imagem() || video());
     }
     // Mural Onda: fotos de cada anúncio, uma pasta por autor — só
     // quem publicou sobe/substitui as suas (uid no caminho, como
