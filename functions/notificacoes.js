@@ -322,6 +322,17 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
  * Antes de mandar, confirma cada domingo na escala a sério: quem foi
  * posto e tirado no mesmo dia não recebe "estás escalado" às 20h.
  *
+ * **A fila só diz QUE meses mudaram — o que se lista é o mês inteiro**
+ * (bug reportado 2026-09): o e-mail dizia "Estás na escala de
+ * outubro" e mostrava só os domingos que tinham ENTRADO na fila (18/10),
+ * sem o 4/10 em que a pessoa já estava escalada de antes (a escala
+ * desse domingo foi feita antes de a fila existir, por isso nunca lá
+ * entrou). Agora, para cada mês com pelo menos uma entrada válida na
+ * fila, lista-se TODOS os cultos desse mês (de hoje em diante) em que
+ * a pessoa está escalada, em qualquer base — lidos das escalas a
+ * sério (`cultosDoMes`, uma leitura por mês e por culto, partilhada
+ * por toda a gente do mesmo envio).
+ *
  * Quem não couber no teto de hoje (95) fica na fila para amanhã, pela
  * ordem de chegada — o mais antigo sai primeiro. O documento da fila
  * apaga-se depois de enviado: é trabalho por fazer, não histórico (o
@@ -369,6 +380,37 @@ export const enviarResumosEmail = onSchedule(
     const fila = await db().collection("filaEmail").get();
     if (fila.empty) return;
 
+    // cada mês lido uma vez, mesmo que meia igreja o tenha na fila:
+    // todos os cultos ativos do mês, cada um com quem está escalado
+    // em cada base (as duas formas de escala, ver pessoasDaEscala)
+    const cacheMeses = new Map();
+    const cultosDoMes = (mes) => {
+      if (!cacheMeses.has(mes)) {
+        cacheMeses.set(mes, (async () => {
+          const [a, m] = mes.split("-").map(Number);
+          const fim = m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, "0")}-01`;
+          const snap = await db().collection("eventos")
+            .where("data", ">=", `${mes}-01`).where("data", "<", fim).get();
+          return Promise.all(snap.docs.filter((ev) => ev.data().ativo !== false).map(async (ev) => {
+            const escalas = await ev.ref.collection("escalas").get();
+            return {
+              eventoId: ev.id, data: String(ev.data().data).slice(0, 10), tipo: ev.data().tipo ?? null,
+              porBase: escalas.docs.map((e) => [e.id, pessoasDaEscala(e.data())]),
+            };
+          }));
+        })());
+      }
+      return cacheMeses.get(mes);
+    };
+    const cacheNomes = new Map();
+    const nomeDaBase = async (baseId) => {
+      if (!cacheNomes.has(baseId)) {
+        const b = await db().doc(`bases/${baseId}`).get().catch(() => null);
+        cacheNomes.set(baseId, b?.exists ? (b.data().nome ?? baseId) : baseId);
+      }
+      return cacheNomes.get(baseId);
+    };
+
     // cada escala lida uma vez, mesmo que meia base esteja nela
     const cacheEscalas = new Map();
     const naEscala = async (eventoId, baseId, uid) => {
@@ -390,14 +432,25 @@ export const enviarResumosEmail = onSchedule(
       // depois de a pessoa confirmar (os domingos já passados caem abaixo)
       if (!estado.confirmado) continue;
       const email = estado.email;
-      const escalas = [];
-      const vistos = new Set();
       const hoje = hojeLisboa();
+      // que meses mudaram — só conta uma entrada que ainda está de pé
+      // (posto e tirado no mesmo dia não manda e-mail nenhum)
+      const meses = new Set();
       for (const e of d.escalas || []) {
-        const k = `${e.eventoId}/${e.baseId}`;
-        if (vistos.has(k) || String(e.data) < hoje) continue;
-        vistos.add(k);
-        if (await naEscala(e.eventoId, e.baseId, uid)) escalas.push(e);
+        if (String(e.data) < hoje) continue;
+        if (await naEscala(e.eventoId, e.baseId, uid)) meses.add(String(e.data).slice(0, 7));
+      }
+      // …e desses meses, todos os cultos em que a pessoa serve
+      const escalas = [];
+      for (const mes of [...meses].sort()) {
+        for (const c of await cultosDoMes(mes)) {
+          if (c.data < hoje) continue;
+          for (const [baseId, pessoas] of c.porBase) {
+            if (pessoas.has(uid)) {
+              escalas.push({ eventoId: c.eventoId, baseId, nomeBase: await nomeDaBase(baseId), data: c.data, tipo: c.tipo });
+            }
+          }
+        }
       }
       const pendentes = d.pendentes || [];
       if (!escalas.length && !pendentes.length) { await doc.ref.delete(); continue; }
