@@ -10,6 +10,7 @@
  */
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { auth, chamar, db, BASE_ID } from "./firebase.js";
+import { SUBDOMINIO } from "./auth.js";
 
 /** As bases que recebem pedidos — a MESMA lista de
  *  `functions/candidaturas.js` (uma base nova entra nos dois sítios).
@@ -22,9 +23,9 @@ export const BASES_CANDIDATURA = [
 
 export const PAPEIS_QUE_RESPONDEM = new Set(["lider_base", "auxiliar"]);
 
-/** O endereço da app de cada base — o subdomínio é sempre o baseId (o
- *  mesmo pressuposto de `trocarBase`, em auth.js). */
-export const urlDaBase = (baseId) => `https://${baseId}.igrejaonda.pt`;
+/** O endereço da app de cada base — o subdomínio é o baseId, menos na
+ *  Backstage (back.) e no Onda Tech Hub (techhub.): `SUBDOMINIO`, auth.js. */
+export const urlDaBase = (baseId) => `https://${SUBDOMINIO[baseId] ?? baseId}.igrejaonda.pt`;
 
 /** As bases a que se pode pedir, por nome — `bases/{id}` é legível por
  *  qualquer sessão (firestore.rules). */
