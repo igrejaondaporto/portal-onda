@@ -253,7 +253,10 @@ líder o vê. Sai na mesma anonimização (`retencao.js`). Envio em
 chave em `config/emailEnvio`, que nenhuma regra abre
 (`scripts/definirEnvioEmail.mjs`). Por e-mail só vai o que é
 **pessoal** (reembolso, confirmar presença, escalas — estas num resumo
-mensal às 20h, `enviarResumosEmail`), nunca o recado à base inteira; e
+mensal às 20h, `enviarResumosEmail`, a não ser que o culto seja nos
+próximos 7 dias: aí o e-mail sai na hora, para quem entra e para quem
+sai da escala — `notificarEscala`), nunca o recado à base inteira (só
+push); sair de uma escala mais à frente avisa só por push; e
 nunca mais de **95 por dia** (plano grátis do Resend) — o resto espera
 na `filaEmail` pelo dia seguinte. Só se manda a endereços
 **confirmados** (`verificado:true`, que só o Admin SDK escreve): o
