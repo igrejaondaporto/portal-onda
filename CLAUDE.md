@@ -37,6 +37,10 @@ apps/mural/             Mural Onda — anúncios de dou/vendo/arrendo e de
                         eventos/: da igreja, não de uma equipa de
                         voluntários) — mesmo assim é um Worker Cloudflare
                         próprio, como qualquer app. Domínio: mural.igrejaonda.pt
+apps/voluntario/        Teste "Onde vais servir?" para quem sai da reunião
+                        de novos voluntários. NÃO é uma base, sem login;
+                        por agora uma página estática, ainda sem ligação
+                        a líderes nem ao pastor. Domínio: voluntario.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`
@@ -102,6 +106,8 @@ diferente do Mural abaixo.
 Fora desta tabela de propósito — não é uma base, é da igreja toda
 (mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,
 `mural.igrejaonda.pt`, `apps/mural/CLAUDE.md`.
+Também fora: o teste **"Onde vais servir?"**, `apps/voluntario`,
+`voluntario.igrejaonda.pt`, `apps/voluntario/CLAUDE.md`.
 
 ## Stack
 
