@@ -28,23 +28,53 @@ não há login, nem PIN, nem `bases/voluntario`.
   última a sair da frente (`ordemFinal`). Os 10 pontos por cima da
   pergunta apagam-se à medida que afunila ("restam 5", "a confirmar")
   — sem nomes nem cores, para ninguém ir atrás de uma base.
+- **Perguntas sobre o serviço, não sobre a personalidade** (revisão
+  pedida pelo dono do produto: "alguém da Técnica também pode ser
+  criativo, ou gostar de falar com pessoas, e mesmo assim ser da
+  Técnica"). A 1.ª fala de som, luz, imagem, banda / receber, acolher,
+  ensinar — não de "gostar de pessoas". Saíram "criativo/organizado",
+  "o ouvido ou o olhar", "rotina ou novidade", "a pressão do último
+  minuto" (traços que atravessam bases). Simulado: quem é da Técnica e
+  responde "criativo(a)" e "no centro" continua a sair Técnica (299 em
+  300). Limite conhecido: quem escolher o grupo errado na 1.ª pergunta
+  já não volta ao outro (tentou-se um motor bayesiano que volta atrás,
+  mas errava mais nos casos normais) — por isso a 1.ª é concreta, e o
+  resultado é sempre editável.
 - **Desenho simétrico** (`BANCO`): a 1.ª pergunta divide tarefa |
-  pessoas; em cada grupo de 5 há 10 perguntas, **uma por cada par** de
-  bases (o par de um lado, as outras 3 do outro); cada pessoa responde a
-  7 das 10 do seu grupo. Por isso, ao acaso, cada base sai **exatamente
-  10%** das vezes; quem responde sempre como a sua base acerta 100%; com
-  1 resposta em cada 10 "trocada" acerta ~85%, igual para todas.
-  Qualquer mudança ao `BANCO` tem de manter isto:
-  `node scripts/simularTesteVoluntario.mjs` antes de publicar (corre o
-  código da própria página por todos os caminhos; sai com erro se
-  desequilibrar). Uma pergunta nova entra sempre como um PAR que ainda
-  não tem pergunta — ou troca o texto de uma que já existe.
+  pessoas; em cada grupo de 5 há 10 perguntas — 5 **de par** (duas bases
+  de um lado, três do outro, em ciclo) e 5 **de uma base** ("Mexer na
+  mesa de som, nas luzes ou no projetor?" — Adorava / Não é bem a minha
+  praia), as de confirmação. Cada pessoa responde a 7 das 10 do seu
+  grupo. Ao acaso, cada base sai **~10%** das vezes; quem responde
+  sempre como a sua base acerta 100%; com 1 resposta em cada 10
+  "trocada" acerta ~84%, igual para todas. Qualquer mudança ao `BANCO`
+  tem de manter isto: `node scripts/simularTesteVoluntario.mjs` antes
+  de publicar (corre o código da própria página por todos os caminhos;
+  sai com erro se desequilibrar).
+- **A pergunta da música** ("Cantas ou tocas algum instrumento?",
+  `PERGUNTA_MUSICA`): Louvor e Louvor Kinder pedem cantar ou tocar.
+  Sem ela, uma pessoa da Técnica que respondeu "criativo(a)" e "uma
+  tarefa que aperfeiçoo com a prática" saía Louvor (as duas partilham
+  "o ouvido" e "um som mal feito") — reportado pelo dono do produto.
+  Não dá pontos; "Não toco nem canto" tira as duas das sugestões (na
+  lista para mudar ficam no fim, com "pede cantar ou tocar"). Aparece
+  quando uma delas vai à frente (entre 3 ou menos) e conta para as 8,
+  ou no fim, a mais (9.ª), se uma delas ia ser sugerida sem se ter
+  perguntado. Nunca a abrir o teste. O script de simulação verifica que
+  quem não toca nunca as recebe, nem em 2.º.
 - Empate que sobre: sorteio **por pessoa** (semente = telemóvel), nunca
   a ordem da lista — já deu viés para a Apoio uma vez.
 - Até 2 perguntas sobre a **área** da 1.ª base (Técnica, Comunicação,
   Pessoal, Louvor, Louvor Kinder, Kinder). As idades da Kinder
   (Baby/Fun/Júnior) só aparecem aqui, nunca no funil; SHIFT
   (pré-adolescentes) e New (adolescentes) são bases diferentes.
+- **Saltar o teste** (pedido do dono do produto: "nem todos vão querer
+  fazer o teste"): no ecrã inicial, "Já sei onde quero servir" pede o
+  mesmo nome e telemóvel e abre a lista das 10 bases (por ordem
+  alfabética, com a descrição de cada uma) para escolher a 1.ª e, se
+  quiser, a 2.ª (`renderEscolher`). Fica gravado como os outros, com
+  `direto: true` e sem pontos. "Afinal, quero fazer o teste" volta ao
+  funil.
 - No fim é uma **sugestão**: a pessoa aceita as duas bases, ou abre a
   lista com os pontos dela e escolhe outra/troca a ordem. Só depois
   "envia".
