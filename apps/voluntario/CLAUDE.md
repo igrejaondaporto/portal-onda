@@ -7,7 +7,8 @@ Lê primeiro o `CLAUDE.md` da raiz. Isto é o que é diferente aqui.
 Um teste de vocação curto para quem acabou de sair da **reunião de
 novos voluntários**: o pastor mostra o link/QR
 (`voluntario.igrejaonda.pt`), a pessoa escreve nome e telemóvel e
-responde a 10 perguntas no máximo. **Não é uma base** (como o Mural):
+responde a 3 ou 4 perguntas de duas respostas (mais até 2 sobre a
+área da base). **Não é uma base** (como o Mural):
 não há login, nem PIN, nem `bases/voluntario`.
 
 - **Funil tipo "Akinator"** (2026-09, pedido do dono do produto — o
@@ -15,14 +16,19 @@ não há login, nem PIN, nem `bases/voluntario`.
   fora de metade das perguntas): perguntas de **2 respostas**, cada
   resposta aponta para um grupo de bases (+1), as bases fora dos dois
   lados ficam neutras (+0,5). A pergunta seguinte é a que melhor divide
-  as bases que vão à frente (`proximaPergunta`); para quando só sobra
-  uma a 1,5 pontos das outras (mín. 4, máx. 8 perguntas). Os 10 pontos
-  por cima da pergunta apagam-se à medida que afunila — sem nomes nem
-  cores, para ninguém ir atrás de uma base.
+  as bases que vão à frente (`proximaPergunta`); **para assim que só uma
+  vai à frente** (3 ou 4 perguntas). Não há perguntas "de confirmação":
+  a primeira versão tinha-as e o dono do produto achou-as repetidas
+  ("já disse que prefiro tarefas e depois pergunta se prefiro estar à
+  frente ou atrás"). A **2.ª base** é a que ficou mais perto — mais
+  pontos e, em empate, a última a sair da frente (`ordemFinal`): Técnica
+  → Apoio, Comunicação → Louvor, Kinder ↔ Louvor Kinder, SHIFT → Pessoal.
+  Os 10 pontos por cima da pergunta apagam-se à medida que afunila —
+  sem nomes nem cores, para ninguém ir atrás de uma base.
 - **Desenho simétrico** (`BANCO`): a 1.ª pergunta divide 5 | 5
   (tarefa | pessoas) e cada grupo tem 5 perguntas 2 | 3 em ciclo. Por
   isso, respondendo ao acaso, cada base sai **exatamente 10%** das
-  vezes, e quem responde sempre como a sua base acerta 100% em 5–6
+  vezes, e quem responde sempre como a sua base acerta 100% em 3–4
   perguntas. Qualquer mudança ao `BANCO` tem de manter isto:
   `node scripts/simularTesteVoluntario.mjs` antes de publicar (corre o
   código da própria página por todos os caminhos; sai com erro se
@@ -31,7 +37,7 @@ não há login, nem PIN, nem `bases/voluntario`.
   a ordem da lista — já deu viés para a Apoio uma vez.
 - Até 2 perguntas sobre a **área** da 1.ª base (Técnica, Comunicação,
   Pessoal, Louvor, Louvor Kinder, Kinder). As idades da Kinder
-  (Baby/Fun/Júnior) só aparecem aqui, nunca nas 8 gerais; SHIFT
+  (Baby/Fun/Júnior) só aparecem aqui, nunca no funil; SHIFT
   (pré-adolescentes) e New (adolescentes) são bases diferentes.
 - No fim é uma **sugestão**: a pessoa aceita as duas bases, ou abre a
   lista com os pontos dela e escolhe outra/troca a ordem. Só depois
@@ -47,7 +53,7 @@ nada. Hoje é **um `index.html` estático** (Vite só copia; sem React,
 sem Firebase):
 
 - "Enviar ao pastor" **não envia nada** — grava só no `localStorage`
-  do telemóvel da pessoa (`onda.teste-bases.v7`). O selo "PRÉVIA" e o
+  do telemóvel da pessoa (`onda.teste-bases.v8`). O selo "PRÉVIA" e o
   botão "Apagar e repetir" da prévia saíram a pedido do dono do
   produto: a página já se apresenta como a versão final.
 - "Um teste por telemóvel" é só neste browser.

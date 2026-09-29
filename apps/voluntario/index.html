@@ -284,7 +284,11 @@ function tintaSobre(hex) {
  * Cada resposta aponta para um grupo de bases (+1 ponto a cada uma);
  * as bases que não estão em nenhum dos lados ficam neutras (+0,5 — o
  * mesmo que valeria ao acaso). A pergunta seguinte é escolhida entre as
- * que melhor dividem as bases que ainda estão em jogo.
+ * que melhor dividem as bases que vão à frente, e o teste PARA assim
+ * que só uma vai à frente — sem perguntas "de confirmação" (o dono do
+ * produto achou-as repetidas: "já disse que prefiro tarefas, e depois
+ * pergunta se prefiro estar à frente ou atrás"). A 2.ª base é a que
+ * ficou mais perto: mais pontos e, em empate, a última a sair da frente.
  *
  * Desenho simétrico, para cada base ter exatamente as mesmas hipóteses:
  * a 1.ª pergunta divide 5 | 5 (tarefa | pessoas); dentro de cada grupo
@@ -293,9 +297,9 @@ function tintaSobre(hex) {
  *   tarefa:  Louvor · Comunicação · Técnica · Apoio · Backstage
  *   pessoas: Louvor Kinder · Kinder · SHIFT · New · Pessoal
  * Simulado com todos os caminhos: respostas ao acaso dão 10,0% a cada
- * base; quem responde sempre como a sua base acerta 100% (5 a 6
- * perguntas); com 1 resposta em cada 10 "trocada" acerta 73% (87% no
- * top-2). Mexer numa pergunta é mexer nisto: simular outra vez.
+ * base; quem responde sempre como a sua base acerta 100% em 3 ou 4
+ * perguntas; com 1 resposta em cada 10 "trocada" acerta 70%. Mexer
+ * numa pergunta é mexer nisto: node scripts/simularTesteVoluntario.mjs
  * ════════════════════════════════════════════════════════════════ */
 const BANCO = [
   { id: "pessoas", q: "Num dia de serviço, o que te sabe melhor?",
@@ -303,8 +307,8 @@ const BANCO = [
     b: ["🛠️", "Pôr as mãos (ou o talento) numa tarefa", ["apoio", "tecnica", "backstage", "comunicacao", "louvor"]] },
   // ── grupo tarefa
   { id: "artista", q: "Qual destas te descreve melhor?",
-    a: ["🎨", "Tenho veia artística", ["louvor", "comunicacao"]],
-    b: ["🔧", "Sou prático(a) e resolvo", ["tecnica", "apoio", "backstage"]] },
+    a: ["🎨", "Criativo(a): invento, componho, desenho", ["louvor", "comunicacao"]],
+    b: ["📋", "Organizado(a): sigo o plano à risca", ["tecnica", "apoio", "backstage"]] },
   { id: "ecras", q: "Onde passas horas sem dar por elas?",
     a: ["💻", "Ao computador, com câmaras ou cabos", ["comunicacao", "tecnica"]],
     b: ["🚶", "Longe dos ecrãs", ["louvor", "apoio", "backstage"]] },
@@ -314,16 +318,16 @@ const BANCO = [
   { id: "incomoda", q: "O que te incomoda mais?",
     a: ["⏰", "Atrasos e coisas fora do sítio", ["apoio", "backstage"]],
     b: ["🎧", "Um som, uma imagem ou uma música mal feitos", ["louvor", "comunicacao", "tecnica"]] },
-  { id: "aovivo", q: "Num evento, onde preferes estar?",
-    a: ["⚡", "No centro, onde tudo acontece ao vivo", ["backstage", "louvor"]],
-    b: ["🫥", "Por trás, sem ninguém dar por isso", ["comunicacao", "tecnica", "apoio"]] },
+  { id: "pressao", q: "E a pressão do último minuto?",
+    a: ["⚡", "Dá-me energia: é quando rendo mais", ["backstage", "louvor"]],
+    b: ["🗓️", "Prefiro ter tudo pronto com tempo", ["comunicacao", "tecnica", "apoio"]] },
   // ── grupo pessoas
   { id: "paciencia", q: "Com quem tens mais paciência?",
     a: ["🧸", "Com os mais pequenos", ["louvorkinder", "kinder"]],
     b: ["🗣️", "Com quem já conversa a sério", ["shift", "new", "pessoal"]] },
   { id: "preparar", q: "O que preparas com mais gosto?",
     a: ["🧩", "Uma atividade ou um jogo", ["kinder", "shift"]],
-    b: ["🎉", "Um momento especial: uma canção, uma conversa, uma boa receção", ["louvorkinder", "new", "pessoal"]] },
+    b: ["🎉", "Um momento especial para alguém", ["louvorkinder", "new", "pessoal"]] },
   { id: "adolescentes", q: "Um grupo de adolescentes. Para ti é…",
     a: ["🔥", "Um desafio, e eu adoro", ["shift", "new"]],
     b: ["😬", "Prefiro outro público", ["louvorkinder", "kinder", "pessoal"]] },
@@ -334,8 +338,7 @@ const BANCO = [
     a: ["😁", "Pôr toda a gente a sorrir", ["pessoal", "louvorkinder"]],
     b: ["🌱", "Acompanhar alguém ao longo do tempo", ["kinder", "shift", "new"]] },
 ];
-const MAX_GERAIS = 8;      // perguntas de 2 respostas, no máximo
-const MIN_GERAIS = 4;      // nunca decide antes disto
+const MAX_GERAIS = 8;      // perguntas de 2 respostas: rede de segurança (o desenho acaba em 3–4)
 const FOLGA = 1;           // em jogo = a 1 ponto (ou menos) da que vai à frente
 const MAX_PERGUNTAS = 10;  // com as de área
 
@@ -346,7 +349,7 @@ const ladoDe = (pg, b) => (pg.a[2].includes(b) ? "a" : pg.b[2].includes(b) ? "b"
  * do Portal), também com 5 respostas. A área sai da 1.ª pergunta; se
  * aí a pessoa não escolheu uma área, sai da 2.ª. Na Louvor e no
  * Louvor Kinder a 2.ª é a experiência (útil ao líder).
- * Apoio, Backstage, SHIFT e New não têm áreas: o teste acaba nas 8.
+ * Apoio, Backstage, SHIFT e New não têm áreas: o teste acaba no funil.
  * ════════════════════════════════════════════════════════════════ */
 const EXPERIENCIA = { q: "Há quanto tempo cantas ou tocas?", op: [
   [null, "🌱", "Estou a começar"], [null, "📅", "1 a 2 anos"], [null, "🎯", "3 a 5 anos"],
@@ -431,20 +434,19 @@ const aFrente = (c) => { const m = Math.max(...Object.values(c)); return IDS.fil
 
 /* a próxima pergunta: a que divide mais ao meio as bases que vão à
  * frente (e, entre essas, as que ainda estão em jogo); entre as
- * igualmente boas, sorteio desta pessoa. null = já dá para decidir.
- * Olhar primeiro para as da frente é o que impede de perguntar sobre
- * miúdos a quem acabou de dizer "tarefa" (o outro grupo ainda está "em
- * jogo" — a 1 ponto — mas já não vai à frente). */
+ * igualmente boas, sorteio desta pessoa. null = já dá para decidir:
+ * só uma vai à frente. Olhar para as da frente é também o que impede de
+ * perguntar sobre miúdos a quem acabou de dizer "tarefa". */
 function proximaPergunta() {
   if (resps.length >= MAX_GERAIS) return null;
   const c = contagem(), jogo = emJogo(c), frente = aFrente(c);
-  if (jogo.length === 1 && resps.length >= MIN_GERAIS) return null;
+  if (frente.length === 1) return null;
   const divide = (pg, grupo) => Math.min(grupo.filter((b) => ladoDe(pg, b) === "a").length, grupo.filter((b) => ladoDe(pg, b) === "b").length);
   const feitas = new Set(resps.map((x) => x.id));
   let melhores = [], nota = 0;
   BANCO.forEach((pg) => {
     if (feitas.has(pg.id)) return;
-    if (!divide(pg, jogo)) return;
+    if (!divide(pg, frente)) return;
     const n = divide(pg, frente) * 100 + divide(pg, jogo);
     if (n > nota) { nota = n; melhores = [pg]; } else if (n === nota) melhores.push(pg);
   });
@@ -456,6 +458,16 @@ function proximaPergunta() {
 let sorteio = {};
 function prepararSorteio(s0) { const o = baralhar(IDS, s0 * 7 + 13); sorteio = Object.fromEntries(o.map((b, i) => [b, i / 1000])); }
 const ordenadas = (c) => [...IDS].sort((a, b) => (c[b] - c[a]) || (sorteio[b] - sorteio[a]));
+
+/* a ordem final: pontos; em empate, a que ficou à frente até mais tarde
+ * no funil (a 2.ª base é "a última a sair", a mais parecida com as
+ * respostas); só depois o sorteio */
+function ordemFinal() {
+  const ate = Object.fromEntries(IDS.map((b) => [b, -1]));
+  for (let k = 0; k <= resps.length; k++) aFrente(contagem(resps.slice(0, k))).forEach((b) => { ate[b] = k; });
+  const c = contagem();
+  return [...IDS].sort((a, b) => (c[b] - c[a]) || (ate[b] - ate[a]) || (sorteio[b] - sorteio[a]));
+}
 
 /* ════════════════════════════════════════════════════════════════
  * Ecrãs
@@ -475,7 +487,7 @@ function renderId() {
   sub.textContent = "Para quem esteve na reunião de novos voluntários.";
   corpo.innerHTML = `<div class="inicio"><div>
     <ul class="pontos">
-      <li><b class="n">1</b><span><b>Perguntas de duas respostas</b> que vão afunilando até à tua base. No máximo 10, uns 2 minutos.</span></li>
+      <li><b class="n">1</b><span><b>Poucas perguntas de duas respostas</b>, que vão afunilando até à tua base. Menos de 2 minutos.</span></li>
       <li><b class="n">2</b><span>No fim sugerimos <b>as duas bases que mais combinam contigo</b>. Aceitas ou escolhes outras.</span></li>
       <li><b class="n">3</b><span>Só quando confirmas é que <b>vai para o pastor</b>. Não precisas de dizer nada em voz alta.</span></li>
     </ul></div><div class="inicio-form">
@@ -507,11 +519,11 @@ function renderId() {
 /* o "funil": 10 pontos, acesos os das bases que vão à frente — sem nomes
  * nem cores (não é para a pessoa ir atrás de uma base, é para ver o
  * teste a afunilar) */
-function funil(acesas, achada = false) {
+function funil(acesas) {
   return `<div class="progresso">
       <button class="voltar" id="voltar" aria-label="Voltar">‹</button>
       <div class="funil" role="img" aria-label="${acesas} de 10 bases ainda em jogo">${IDS.map((_, i) => `<i class="${i < acesas ? "on" : ""}"></i>`).join("")}</div>
-      <span>${achada ? "encontrada" : acesas === 1 ? "a confirmar" : `restam ${acesas}`}</span>
+      <span>${acesas === 1 ? "encontrada" : `restam ${acesas}`}</span>
     </div>`;
 }
 function opcoesHtml(lista, escolhida) {
@@ -546,8 +558,8 @@ function renderFunil() {
 }
 
 function depoisFunil() {
-  const c = contagem(), ord = ordenadas(c);
-  final = { primeira: ord[0], segunda: ord[1], contagem: c };
+  const c = contagem(), ord = ordemFinal();
+  final = { primeira: ord[0], segunda: ord[1], contagem: c, ordem: ord };
   // as perguntas de área da 1.ª base, sem passar das 10 no total
   const livres = MAX_PERGUNTAS - resps.length;
   cats = (CATEGORIAS[ord[0]] || []).slice(0, livres).map((_, i) => ({ i, escolha: null }));
@@ -561,7 +573,7 @@ function renderCategoria() {
   titulo.innerHTML = `Pergunta <em>${n + 1}</em>`;
   sub.textContent = `Sobre a tua área na ${BASES[final.primeira].nome}`;
   const lista = def.op.map(([area, e, t], i) => ({ v: String(i), e, t }));
-  corpo.innerHTML = `${funil(1, true)}<h2 class="pergunta">${esc(def.q)}</h2>${opcoesHtml(lista, c.escolha)}`;
+  corpo.innerHTML = `${funil(1)}<h2 class="pergunta">${esc(def.q)}</h2>${opcoesHtml(lista, c.escolha)}`;
   document.getElementById("voltar").onclick = () => { if (atual > 0) { atual--; render(); } else { passo = "funil"; atual = resps.length - 1; render(); } };
   ligarOpcoes((v) => {
     c.escolha = v;
@@ -614,7 +626,7 @@ function cartaoBase(f, b, n) {
 /* a lista de todas as bases, pela pontuação DESTA pessoa, para escolher
  * a 1.ª e a 2.ª — nunca a tabela das perguntas (essa é só do pastor) */
 function listaEditar(f) {
-  const c = f.contagem, ord = ordenadas(c);
+  const c = f.contagem, ord = f.ordem || ordenadas(c);
   return `<div class="pontos-meus">
     <h4>Escolhe as tuas duas bases</h4>
     <p class="nota" style="text-align:left;margin:-4px 0 10px">Estão por ordem dos teus pontos. Toca em <b>1.ª</b> ou <b>2.ª</b> em qualquer base.</p>
