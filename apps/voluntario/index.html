@@ -285,13 +285,18 @@ function tintaSobre(hex) {
  * ponto a cada uma); as bases que não estão em nenhum dos lados ficam
  * neutras (+0,5 — o mesmo que valeria ao acaso).
  *
- * A 1.ª divide tarefa | pessoas. Em cada grupo de 5 há 10 perguntas,
- * UMA POR CADA PAR de bases (o par de um lado, as outras 3 do outro),
- * cada uma sobre um tema diferente — para confirmar sem repetir a mesma
- * pergunta por outras palavras (o dono do produto achou repetido "já
- * disse que prefiro tarefas e depois pergunta se prefiro estar à frente
- * ou atrás"; e depois achou 3 perguntas pouco: "põe umas 8, para
- * confirmar"). Cada pessoa responde a 7 das 10 do seu grupo.
+ * A 1.ª divide tarefa | pessoas — sobre o SERVIÇO ("som, luz, imagem,
+ * banda" / "receber, acolher, ensinar"), não sobre a personalidade: uma
+ * pessoa da Técnica que gosta de pessoas continua a escolher "som".
+ * Em cada grupo de 5 há 10 perguntas: 5 "de par" (duas bases de um lado,
+ * três do outro, em ciclo) e 5 "de uma base" ("Mexer na mesa de som, nas
+ * luzes ou no projetor?" — Adorava / Não é bem a minha praia), as que
+ * mais protegem a confirmação. Todas sobre o que se faz ao domingo, não
+ * traços que atravessam bases: saíram "criativo/organizado", "o ouvido
+ * ou o olhar", "rotina ou novidade" e "a pressão do último minuto" (o
+ * dono do produto: "alguém da Técnica também pode ser criativo, ou
+ * gostar de falar com pessoas, e mesmo assim ser da Técnica"). Cada
+ * pessoa responde a 7 das 10 do seu grupo.
  *
  * A pergunta seguinte: primeiro a que separa as bases que vão à frente;
  * depois a que separa as que estão perto; depois uma que envolva a da
@@ -309,32 +314,33 @@ const PESSOAS = ["louvorkinder", "kinder", "shift", "new", "pessoal"];
 /* uma pergunta de um grupo: `par` na resposta a, as outras 3 na b */
 const doGrupo = (grupo) => (id, q, a, b, par) => ({ id, q, a: [...a, par], b: [...b, grupo.filter((x) => !par.includes(x))] });
 const T = doGrupo(TAREFA), P = doGrupo(PESSOAS);
+const SIM = ["😍", "Adorava"], NAO = ["🤷", "Não é bem a minha praia"];
 const BANCO = [
-  { id: "pessoas", q: "Num dia de serviço, o que te sabe melhor?",
-    a: ["🤝", "Estar com as pessoas, cara a cara", PESSOAS],
-    b: ["🛠️", "Pôr as mãos (ou o talento) numa tarefa", TAREFA] },
-  // ── tarefa: os 10 pares de Louvor · Comunicação · Técnica · Apoio · Backstage
-  T("artista", "Qual destas te descreve melhor?", ["🎨", "Criativo(a): invento, componho, desenho"], ["📋", "Organizado(a): sigo o plano à risca"], ["louvor", "comunicacao"]),
-  T("ouvido", "Qual é o teu sentido mais apurado?", ["👂", "O ouvido: noto logo uma nota ou um som fora do sítio"], ["👀", "O olhar: imagens, espaços, pormenores"], ["louvor", "tecnica"]),
-  T("rotina", "Que tipo de tarefa preferes?", ["🔁", "Uma que se repete e aperfeiçoo com a prática"], ["🆕", "Uma diferente todas as semanas"], ["louvor", "apoio"]),
-  T("pressao", "E a pressão do último minuto?", ["⚡", "Dá-me energia: é quando rendo mais"], ["🗓️", "Prefiro ter tudo pronto com tempo"], ["louvor", "backstage"]),
+  { id: "pessoas", q: "No domingo, onde te imaginas a servir?",
+    a: ["🤝", "Com as pessoas: receber, acolher, ensinar, acompanhar ou animar os miúdos", PESSOAS],
+    b: ["🎛️", "A fazer o culto acontecer: som, luz, imagem, banda ou organização", TAREFA] },
+  // ── tarefa: 5 de par (ciclo Louvor · Comunicação · Técnica · Apoio · Backstage) + 5 de uma base
+  T("criar", "O que gostavas mais de criar?", ["🎨", "Algo que toque as pessoas: uma canção, uma foto, um vídeo"], ["✅", "Um culto que corre sem uma falha"], ["louvor", "comunicacao"]),
   T("ecras", "Onde passas horas sem dar por elas?", ["💻", "Ao computador, com câmaras ou cabos"], ["🚶", "Longe dos ecrãs"], ["comunicacao", "tecnica"]),
-  T("autonomia", "Como trabalhas melhor?", ["🧭", "Ao meu ritmo, com autonomia"], ["🤜", "Em sintonia com uma equipa, todos ao mesmo tempo"], ["comunicacao", "apoio"]),
-  T("posto", "Num evento, preferes…", ["🏃", "Andar por todo o lado"], ["📍", "Ter o meu posto e cuidar dele"], ["comunicacao", "backstage"]),
   T("cedo", "Chegas cedo à igreja. O que fazes primeiro?", ["🪑", "Monto: cadeiras, cabos, material"], ["📝", "Preparo o que vai acontecer: ensaio, fotos, alinhamento"], ["tecnica", "apoio"]),
-  T("avaria", "Algo falha a meio do culto. Tu…", ["🧯", "Resolvo, sem ninguém dar por isso"], ["🙏", "Prefiro que alguém trate disso"], ["tecnica", "backstage"]),
-  T("incomoda", "O que te incomoda mais?", ["⏰", "Atrasos e coisas fora do sítio"], ["🎧", "Um som, uma imagem ou uma música mal feitos"], ["apoio", "backstage"]),
-  // ── pessoas: os 10 pares de Louvor Kinder · Kinder · SHIFT · New · Pessoal
+  T("incomoda", "O que te incomoda mais num culto?", ["⏰", "Atrasos e coisas fora do sítio"], ["🎧", "Um som, uma imagem ou uma música mal feitos"], ["apoio", "backstage"]),
+  T("centro", "Durante o culto, onde te vês?", ["⚡", "No centro: no palco ou a dirigir o que acontece"], ["🎚️", "Por trás: na mesa, atrás da câmara ou a cuidar da sala"], ["backstage", "louvor"]),
+  T("so_louvor", "Estar no palco, com a banda, a conduzir a igreja a cantar?", SIM, NAO, ["louvor"]),
+  T("so_comunicacao", "Fotografar, filmar ou fazer os posts do culto?", SIM, NAO, ["comunicacao"]),
+  T("so_tecnica", "Mexer na mesa de som, nas luzes ou no projetor?", SIM, NAO, ["tecnica"]),
+  T("so_apoio", "Montar e arrumar a sala, antes e depois do culto?", SIM, NAO, ["apoio"]),
+  T("so_backstage", "De rádio na mão, coordenar o culto: tempos, púlpito, chamar a banda?", SIM, NAO, ["backstage"]),
+  // ── pessoas: 5 de par (ciclo Louvor Kinder · Kinder · SHIFT · New · Pessoal) + 5 de uma base
   P("paciencia", "Com quem tens mais paciência?", ["🧸", "Com os mais pequenos"], ["🗣️", "Com quem já conversa a sério"], ["louvorkinder", "kinder"]),
-  P("animar", "Onde estás mais à vontade?", ["📣", "A animar um grupo inteiro"], ["🫂", "Com uma pessoa de cada vez"], ["louvorkinder", "shift"]),
-  P("microfone", "Microfone na mão, à frente de um grupo?", ["🎤", "Adoro"], ["🙈", "Prefiro não"], ["louvorkinder", "new"]),
-  P("superpoder", "Qual é o teu superpoder?", ["😁", "Pôr toda a gente a sorrir"], ["🌱", "Acompanhar alguém ao longo do tempo"], ["louvorkinder", "pessoal"]),
   P("preparar", "O que preparas com mais gosto?", ["🧩", "Uma atividade ou um jogo"], ["🎉", "Um momento especial para alguém"], ["kinder", "shift"]),
-  P("ensinar", "O que gostavas mais de fazer?", ["📖", "Explicar uma história da Bíblia"], ["🎈", "Receber, animar ou jogar"], ["kinder", "new"]),
-  P("dom", "O teu dom é mais…", ["🩹", "Cuidar: reparo no que falta a alguém"], ["🚀", "Inspirar: ponho os outros a crescer"], ["kinder", "pessoal"]),
   P("adolescentes", "Um grupo de adolescentes. Para ti é…", ["🔥", "Um desafio, e eu adoro"], ["😬", "Prefiro outro público"], ["shift", "new"]),
-  P("mexer", "Num domingo, preferes…", ["🏃", "Andar de um lado para o outro"], ["🪑", "Ficar num sítio, com o mesmo grupo"], ["shift", "pessoal"]),
   P("conversa", "Que conversa preferes?", ["☕", "A fundo, com calma e um café"], ["⚡", "Rápida e cheia de energia"], ["new", "pessoal"]),
+  P("superpoder", "Qual é o teu superpoder?", ["😁", "Pôr toda a gente a sorrir"], ["🌱", "Acompanhar alguém ao longo do tempo"], ["pessoal", "louvorkinder"]),
+  P("so_louvorkinder", "Cantar e dançar com os miúdos, no culto deles?", SIM, NAO, ["louvorkinder"]),
+  P("so_kinder", "Cuidar das crianças pequenas e dar-lhes a lição?", SIM, NAO, ["kinder"]),
+  P("so_shift", "Liderar um grupo de miúdos mais crescidos, com jogos e desafios?", SIM, NAO, ["shift"]),
+  P("so_new", "Acompanhar adolescentes e conversar com eles sobre fé e vida?", SIM, NAO, ["new"]),
+  P("so_pessoal", "Receber as pessoas à porta, sentá-las e servir o café?", SIM, NAO, ["pessoal"]),
 ];
 const MAX_GERAIS = 8;      // perguntas de 2 respostas: sempre 8 (a da música conta)
 const FOLGA = 1;           // perto = a 1 ponto (ou menos) da que vai à frente
@@ -467,8 +473,11 @@ function proximaPergunta() {
   const envolve = (pg, grupo) => grupo.filter((b) => ladoDe(pg, b) !== null).length;
   const feitas = new Set(resps.map((x) => x.id));
   let melhores = [], nota = 0;
+  const ok = new Set(possiveis());
   BANCO.forEach((pg) => {
     if (feitas.has(pg.id)) return;
+    // quem não toca: não perguntar "estar no palco com a banda?" nem a do Louvor Kinder
+    if (pg.a[2].length === 1 && !ok.has(pg.a[2][0])) return;
     const n = divide(pg, frente) * 10000 + divide(pg, jogo) * 100 + envolve(pg, frente);
     if (!n) return;
     if (n > nota) { nota = n; melhores = [pg]; } else if (n === nota) melhores.push(pg);
