@@ -230,13 +230,22 @@ export const notificarReembolso = onDocumentWritten("bases/{baseId}/reembolsos/{
 });
 
 /* ══════════════════════════════════════════════════════════════
- *  GATILHO 3 — entraste na escala
+ *  GATILHO 3 — entraste (ou saíste) da escala
  * ══════════════════════════════════════════════════════════════
  *
- * Só a QUEM ENTROU, nunca à escala toda. O líder mexe na escala
+ * Só a QUEM MUDOU, nunca à escala toda. O líder mexe na escala
  * várias vezes até a fechar; notificar toda a gente a cada gravação
  * seria a forma mais rápida de a equipa desligar as notificações no
  * primeiro mês.
+ *
+ * Quem ENTRA: push na hora; o e-mail vai no resumo das 20h. Quem SAI
+ * (2026-09, pedido do dono do produto — "se o nome da pessoa está
+ * envolvido na mudança, ela precisa de saber"): push na hora, sem
+ * e-mail. **Culto urgente** — de hoje até daqui a 7 dias: aí o e-mail
+ * sai na hora, para quem entra e para quem sai, porque não pode
+ * esperar pelo resumo ("faltam seis dias e tiraram alguém"). Um culto
+ * que já passou não gera aviso nenhum (é o líder a acertar o
+ * histórico, não notícia para ninguém).
  *
  * Um gatilho no documento da escala cobre as dez bases de uma vez —
  * a alternativa era acrescentar a mesma linha às seis
@@ -244,6 +253,8 @@ export const notificarReembolso = onDocumentWritten("bases/{baseId}/reembolsos/{
  * Lê as duas formas de escala do repo, a mesma deteção de
  * `escalasCrossBase`.
  */
+const DIAS_URGENTE = 7;
+
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
@@ -272,7 +283,8 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
   const depois = pessoasDaEscala(evento.data?.after?.data());
 
   const novos = [...depois].filter((uid) => !antes.has(uid));
-  if (!novos.length) return;
+  const saidos = [...antes].filter((uid) => !depois.has(uid));
+  if (!novos.length && !saidos.length) return;
 
   const { eventoId, baseId } = evento.params;
   const [base, doc] = await Promise.all([
@@ -280,29 +292,38 @@ export const notificarEscala = onDocumentWritten("eventos/{eventoId}/escalas/{ba
     db().doc(`eventos/${eventoId}`).get().catch(() => null),
   ]);
 
-  const nomeBase = base?.exists ? (base.data().nome ?? baseId) : baseId;
   // o nome do culto especial, ou a data — o mesmo critério do
   // `nomeEvento` partilhado, mas sem poder importá-lo (as Functions
   // não trazem packages/shared para o deploy)
   // (2026-09: a data por extenso — "2026-09-27" cru ficava feio no
   // assunto de um e-mail)
-  const data = doc?.exists ? (doc.data().data ?? eventoId) : eventoId;
-  const quando = doc?.exists && doc.data().tipo ? `${doc.data().tipo} (${dataPorExtenso(data)})` : dataPorExtenso(data);
-
-  // push na hora; o e-mail vai no resumo das 20h (ver abaixo)
-  await notificar(novos, {
-    titulo: `Estás escalado — ${nomeBase}`,
-    corpo: `Foste escalado para ${quando}.`,
-    url: urlDaBase(baseId),
-    tag: `escala-${eventoId}`,
-    email: false,
-  });
-
+  const data = String(doc?.exists ? (doc.data().data ?? eventoId) : eventoId).slice(0, 10);
   // um domingo que já passou não é notícia para ninguém
-  if (String(data).slice(0, 10) < hojeLisboa()) return;
+  const hoje = hojeLisboa();
+  if (data < hoje) return;
+  const [a, m, d] = hoje.split("-").map(Number);
+  const limiteUrgente = new Date(Date.UTC(a, m - 1, d + DIAS_URGENTE)).toISOString().slice(0, 10);
+  const urgente = data <= limiteUrgente;
+
+  const nomeBase = base?.exists ? (base.data().nome ?? baseId) : baseId;
+  const tipo = doc?.exists ? (doc.data().tipo ?? null) : null;
+  const quando = tipo ? `${tipo} (${dataPorExtenso(data)})` : dataPorExtenso(data);
+  // a mesma tag para entrar e sair: a notificação nova substitui a
+  // antiga do mesmo culto em vez de se empilhar
+  const comum = { url: urlDaBase(baseId), tag: `escala-${eventoId}`, email: urgente };
+
+  if (novos.length) {
+    await notificar(novos, { ...comum, titulo: `Estás escalado — ${nomeBase}`, corpo: `Foste escalado para ${quando}.` });
+  }
+  if (saidos.length) {
+    await notificar(saidos, { ...comum, titulo: `Saíste da escala — ${nomeBase}`, corpo: `Já não estás escalado para ${quando}.` });
+  }
+
+  // o e-mail de quem entra num culto mais à frente vai no resumo das
+  // 20h (o urgente já saiu acima)
+  if (urgente || !novos.length) return;
   const entrada = {
-    eventoId, baseId, nomeBase, data: String(data).slice(0, 10),
-    tipo: doc?.exists ? (doc.data().tipo ?? null) : null,
+    eventoId, baseId, nomeBase, data, tipo,
     // Timestamp.now(), não serverTimestamp(): vai dentro de um array
     em: admin.firestore.Timestamp.now(),
   };
