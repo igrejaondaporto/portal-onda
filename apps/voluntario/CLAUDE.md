@@ -39,6 +39,17 @@ não há login, nem PIN, nem `bases/voluntario`.
   código da própria página por todos os caminhos; sai com erro se
   desequilibrar). Uma pergunta nova entra sempre como um PAR que ainda
   não tem pergunta — ou troca o texto de uma que já existe.
+- **A pergunta da música** ("Cantas ou tocas algum instrumento?",
+  `PERGUNTA_MUSICA`): Louvor e Louvor Kinder pedem cantar ou tocar.
+  Sem ela, uma pessoa da Técnica que respondeu "criativo(a)" e "uma
+  tarefa que aperfeiçoo com a prática" saía Louvor (as duas partilham
+  "o ouvido" e "um som mal feito") — reportado pelo dono do produto.
+  Não dá pontos; "Não toco nem canto" tira as duas das sugestões (na
+  lista para mudar ficam no fim, com "pede cantar ou tocar"). Aparece
+  quando uma delas vai à frente (entre 3 ou menos) e conta para as 8,
+  ou no fim, a mais (9.ª), se uma delas ia ser sugerida sem se ter
+  perguntado. Nunca a abrir o teste. O script de simulação verifica que
+  quem não toca nunca as recebe, nem em 2.º.
 - Empate que sobre: sorteio **por pessoa** (semente = telemóvel), nunca
   a ordem da lista — já deu viés para a Apoio uma vez.
 - Até 2 perguntas sobre a **área** da 1.ª base (Técnica, Comunicação,

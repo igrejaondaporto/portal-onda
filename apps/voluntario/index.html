@@ -336,9 +336,27 @@ const BANCO = [
   P("mexer", "Num domingo, preferes…", ["🏃", "Andar de um lado para o outro"], ["🪑", "Ficar num sítio, com o mesmo grupo"], ["shift", "pessoal"]),
   P("conversa", "Que conversa preferes?", ["☕", "A fundo, com calma e um café"], ["⚡", "Rápida e cheia de energia"], ["new", "pessoal"]),
 ];
-const MAX_GERAIS = 8;      // perguntas de 2 respostas: sempre 8
+const MAX_GERAIS = 8;      // perguntas de 2 respostas: sempre 8 (a da música conta)
 const FOLGA = 1;           // perto = a 1 ponto (ou menos) da que vai à frente
 const MAX_PERGUNTAS = 10;  // com as de área
+
+/* A pergunta da música. Louvor e Louvor Kinder pedem cantar ou tocar —
+ * sem isto, uma pessoa da Técnica que respondeu "criativo(a)" e "uma
+ * tarefa que aperfeiçoo com a prática" saía Louvor (as duas partilham
+ * "o ouvido" e "um som mal feito"). Não dá pontos a ninguém: quem
+ * responde "Não" deixa de receber estas duas bases como sugestão (na
+ * lista para mudar continuam, lá no fim). Só aparece quando uma delas
+ * vai à frente (entre 3 ou menos) — e conta para as 8 — ou, no fim, se
+ * uma delas ia ser sugerida e ainda não se perguntou (aí é a 9.ª).
+ * Nunca a abrir o teste (o dono do produto não quis uma pergunta de
+ * música "à porta"). */
+const MUSICA = ["louvor", "louvorkinder"];
+const PERGUNTA_MUSICA = { id: "musica", q: "Cantas ou tocas algum instrumento?",
+  a: ["🎸", "Sim, canto ou toco (nem que seja um pouco)", []],
+  b: ["🙅", "Não toco nem canto", []] };
+const perguntaPorId = (id) => (id === PERGUNTA_MUSICA.id ? PERGUNTA_MUSICA : BANCO.find((x) => x.id === id));
+const naoToca = (lista = resps) => lista.some((x) => x.id === PERGUNTA_MUSICA.id && x.r === "b");
+const possiveis = (lista = resps) => (naoToca(lista) ? IDS.filter((b) => !MUSICA.includes(b)) : IDS);
 
 const ladoDe = (pg, b) => (pg.a[2].includes(b) ? "a" : pg.b[2].includes(b) ? "b" : null);
 
@@ -422,13 +440,14 @@ function baralhar(arr, s0) {
 function contagem(lista = resps) {
   const c = Object.fromEntries(IDS.map((b) => [b, 0]));
   lista.forEach(({ id, r }) => {
-    const pg = BANCO.find((x) => x.id === id);
+    const pg = perguntaPorId(id);
     IDS.forEach((b) => { const l = ladoDe(pg, b); c[b] += l === null ? 0.5 : l === r ? 1 : 0; });
   });
   return c;
 }
-const emJogo = (c) => { const m = Math.max(...Object.values(c)); return IDS.filter((b) => c[b] >= m - FOLGA); };
-const aFrente = (c) => { const m = Math.max(...Object.values(c)); return IDS.filter((b) => c[b] === m); };
+/* só entre as bases ainda possíveis (sem Louvor/Louvor Kinder para quem não toca) */
+const emJogo = (c, lista = resps) => { const ok = possiveis(lista), m = Math.max(...ok.map((b) => c[b])); return ok.filter((b) => c[b] >= m - FOLGA); };
+const aFrente = (c, lista = resps) => { const ok = possiveis(lista), m = Math.max(...ok.map((b) => c[b])); return ok.filter((b) => c[b] === m); };
 
 /* a próxima pergunta (null = já foram as 8): a que divide mais ao meio
  * as bases que vão à frente; depois a que divide as que estão perto;
@@ -436,8 +455,14 @@ const aFrente = (c) => { const m = Math.max(...Object.values(c)); return IDS.fil
  * boas, sorteio desta pessoa. Olhar para as da frente é também o que
  * impede de perguntar sobre miúdos a quem acabou de dizer "tarefa". */
 function proximaPergunta() {
-  if (resps.length >= MAX_GERAIS) return null;
+  const jaMusica = resps.some((x) => x.id === PERGUNTA_MUSICA.id);
+  if (resps.length >= MAX_GERAIS) {
+    // no fim: se Louvor ou Louvor Kinder ia ser sugerida e ainda não se
+    // perguntou, pergunta-se agora (a mais — nunca sugerir sem saber)
+    return !jaMusica && ordemFinal().slice(0, 2).some((b) => MUSICA.includes(b)) ? PERGUNTA_MUSICA : null;
+  }
   const c = contagem(), jogo = emJogo(c), frente = aFrente(c);
+  if (!jaMusica && frente.length <= 3 && frente.some((b) => MUSICA.includes(b))) return PERGUNTA_MUSICA;
   const divide = (pg, grupo) => Math.min(grupo.filter((b) => ladoDe(pg, b) === "a").length, grupo.filter((b) => ladoDe(pg, b) === "b").length);
   const envolve = (pg, grupo) => grupo.filter((b) => ladoDe(pg, b) !== null).length;
   const feitas = new Set(resps.map((x) => x.id));
@@ -462,9 +487,10 @@ const ordenadas = (c) => [...IDS].sort((a, b) => (c[b] - c[a]) || (sorteio[b] - 
  * respostas); só depois o sorteio */
 function ordemFinal() {
   const ate = Object.fromEntries(IDS.map((b) => [b, -1]));
-  for (let k = 0; k <= resps.length; k++) aFrente(contagem(resps.slice(0, k))).forEach((b) => { ate[b] = k; });
-  const c = contagem();
-  return [...IDS].sort((a, b) => (c[b] - c[a]) || (ate[b] - ate[a]) || (sorteio[b] - sorteio[a]));
+  for (let k = 0; k <= resps.length; k++) { const l = resps.slice(0, k); aFrente(contagem(l), l).forEach((b) => { ate[b] = k; }); }
+  const c = contagem(), ok = new Set(possiveis());
+  // quem não toca: Louvor e Louvor Kinder vão para o fim, nunca sugeridas
+  return [...IDS].sort((a, b) => (ok.has(b) - ok.has(a)) || (c[b] - c[a]) || (ate[b] - ate[a]) || (sorteio[b] - sorteio[a]));
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -535,15 +561,15 @@ function ligarOpcoes(fn) {
 }
 
 function renderFunil() {
-  const pg = BANCO.find((x) => x.id === resps[atual]?.id) || proximaPergunta();
-  const antes = contagem(resps.slice(0, atual));
+  const pg = perguntaPorId(resps[atual]?.id) || proximaPergunta();
+  const feitas = resps.slice(0, atual), antes = contagem(feitas);
   titulo.innerHTML = `Pergunta <em>${atual + 1}</em>`;
-  sub.textContent = atual === 0 ? "Só duas respostas. Escolhe a que é mais tu." : aFrente(antes).length === 1 ? "Só a confirmar." : "Vamos afunilando.";
+  sub.textContent = atual === 0 ? "Só duas respostas. Escolhe a que é mais tu." : aFrente(antes, feitas).length === 1 ? "Só a confirmar." : "Vamos afunilando.";
   // a ordem das 2 respostas também muda de pessoa para pessoa
   const ordemAB = baralhar(["a", "b"], semente + atual * 17);
   const lista = ordemAB.map((l) => ({ v: l, e: pg[l][0], t: pg[l][1] }));
   const escolhida = resps[atual]?.id === pg.id ? resps[atual].r : null;
-  corpo.innerHTML = `${funil(aFrente(antes).length)}<h2 class="pergunta">${esc(pg.q)}</h2>${opcoesHtml(lista, escolhida)}`;
+  corpo.innerHTML = `${funil(aFrente(antes, feitas).length)}<h2 class="pergunta">${esc(pg.q)}</h2>${opcoesHtml(lista, escolhida)}`;
   corpo.querySelector(".opcoes").classList.add("duas-op");
   document.getElementById("voltar").onclick = () => { if (atual === 0) passo = "id"; else atual--; render(); };
   ligarOpcoes((v) => {
@@ -557,7 +583,7 @@ function renderFunil() {
 
 function depoisFunil() {
   const c = contagem(), ord = ordemFinal();
-  final = { primeira: ord[0], segunda: ord[1], contagem: c, ordem: ord };
+  final = { primeira: ord[0], segunda: ord[1], contagem: c, ordem: ord, naoToca: naoToca() };
   // as perguntas de área da 1.ª base, sem passar das 10 no total
   const livres = MAX_PERGUNTAS - resps.length;
   cats = (CATEGORIAS[ord[0]] || []).slice(0, livres).map((_, i) => ({ i, escolha: null }));
@@ -633,7 +659,7 @@ function listaEditar(f) {
       const e1 = f.escolha.p1 === b, e2 = f.escolha.p2 === b;
       return `<div class="edit-linha${e1 || e2 ? " on" : ""}">
         <span class="edit-sig" style="background:${B.cor};color:${tintaSobre(B.cor)}">${B.sig}</span>
-        <span class="edit-nome">${esc(B.nome)}<small>${String(pts).replace(".", ",")} ponto${pts === 1 ? "" : "s"}</small></span>
+        <span class="edit-nome">${esc(B.nome)}<small>${f.naoToca && MUSICA.includes(b) ? "pede cantar ou tocar" : `${String(pts).replace(".", ",")} ponto${pts === 1 ? "" : "s"}`}</small></span>
         <button class="edit-pos" data-b="${b}" data-n="1" aria-pressed="${e1}">1.ª</button>
         <button class="edit-pos" data-b="${b}" data-n="2" aria-pressed="${e2}">2.ª</button>
       </div>`;
