@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [apoio, tecnica, backstage, comunicacao, pessoal, kinder, louvor, louvorkinder, new, shift, financeiro, pastoral, mural, ondatechhub]
+        app: [apoio, tecnica, backstage, comunicacao, pessoal, kinder, louvor, louvorkinder, new, shift, financeiro, pastoral, mural, ondatechhub, voluntario]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

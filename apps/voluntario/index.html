@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Ainda não é oficial (não está ligado aos líderes nem ao Painel Pastoral): fora dos motores de busca. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0019be">
+<title>Onde vais servir? — igrejaonda</title>
+<meta name="description" content="Um teste rápido para descobrires em que base da Igreja Onda vais servir.">
+<meta property="og:title" content="Onde vais servir?">
+<meta property="og:description" content="Um teste rápido para descobrires em que base da Igreja Onda vais servir.">
+<meta property="og:image" content="https://voluntario.igrejaonda.pt/og-image.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
+<style>
+/* Layout: uma coluna de telemóvel (máx. 480px), cabeçalho azul do Portal com a curva, cartões de resposta tocáveis.
+   Tema único de propósito: é o visual claro do Portal do Voluntário (global.css), que não tem modo escuro. */
+:root {
+  --azul: #0019be;
+  --grad: linear-gradient(118deg, #001ed1 0%, #0019be 52%, #001594 100%);
+  --lima: #d8f24b;
+  --agua: #eaeeff;
+  --tinta: #0a0f2e;
+  --cinza: #6a7192;
+  --fio: rgba(10, 15, 46, 0.11);
+  --fundo: #ffffff;
+  --papel: #f6f7fc;
+  --o: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); color: var(--tinta); font-family: var(--o); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--lima); outline-offset: 2px; }
+
+.app { max-width: 480px; margin: 0 auto; min-height: 100%; }
+
+/* ── cabeçalho (a .crista do Portal) ── */
+.crista { background: var(--grad); color: #fff; padding: 20px 20px 0; position: relative; overflow: hidden; }
+.crista::before { content: ""; position: absolute; left: -60px; top: -90px; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, rgba(120,150,255,.34), transparent 68%); }
+.crista > * { position: relative; z-index: 1; }
+.lin { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.logo { font-size: 20px; letter-spacing: -.02em; }
+.logo i { font-style: normal; font-weight: 300; }
+.logo b { font-weight: 800; }
+.previa { background: var(--lima); color: var(--tinta); font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 3px 9px; border-radius: 99px; }
+.crista h1 { font-size: clamp(34px, 10.5vw, 46px); font-weight: 800; letter-spacing: -.045em; line-height: .98; margin: 22px 0 0; text-wrap: balance; }
+.crista h1 em { font-style: normal; color: var(--lima); }
+.crista .sob { font-size: 14.5px; opacity: .88; margin: 10px 0 0; line-height: 1.4; }
+.curva { display: block; width: 100%; height: 40px; margin-top: 18px; }
+
+/* abas: fazer o teste / rever as perguntas (só para esta prévia) */
+.abas { display: flex; gap: 6px; background: rgba(255,255,255,.14); padding: 4px; border-radius: 99px; margin-top: 16px; }
+.abas button { flex: 1; border: 0; background: none; color: #fff; padding: 9px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.abas button[aria-selected="true"] { background: #fff; color: var(--azul); }
+
+.corpo { padding: 4px 16px 48px; }
+
+/* ── botões ── */
+.btn { display: block; width: 100%; border: 0; border-radius: 100px; padding: 15px 22px; font-size: 15.5px; font-weight: 700; background: var(--azul); color: #fff; cursor: pointer; transition: transform .12s; text-align: center; }
+.btn:active { transform: scale(.97); }
+.btn.sec { background: var(--agua); color: var(--azul); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+/* ── início ── */
+.pontos { list-style: none; padding: 0; margin: 8px 0 22px; display: grid; gap: 10px; }
+.pontos li { display: flex; gap: 12px; align-items: flex-start; background: var(--papel); border-radius: 16px; padding: 13px 14px; font-size: 14.5px; line-height: 1.4; }
+.pontos li b.n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--azul); color: #fff; font-size: 12.5px; display: grid; place-items: center; }
+.nota { font-size: 12.5px; color: var(--cinza); text-align: center; margin: 12px 0 0; line-height: 1.45; }
+
+/* ── pergunta ── */
+.progresso { display: flex; align-items: center; gap: 12px; margin: 6px 0 18px; }
+.progresso .barra { flex: 1; height: 8px; background: var(--agua); border-radius: 99px; overflow: hidden; }
+.progresso .barra i { display: block; height: 100%; background: var(--azul); border-radius: 99px; transition: width .35s cubic-bezier(.2,.9,.3,1); }
+.progresso span { font-size: 12.5px; font-weight: 700; color: var(--cinza); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.voltar { border: 0; background: var(--agua); color: var(--azul); width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; flex: none; }
+.voltar:disabled { opacity: .35; }
+.pergunta { font-size: 23px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; margin: 0; text-wrap: balance; }
+.dica { font-size: 13.5px; color: var(--cinza); margin: 6px 0 0; }
+.opcoes { display: grid; gap: 10px; margin-top: 18px; }
+.opcao { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1.5px solid var(--fio); border-radius: 18px; padding: 15px 16px; font-size: 15.5px; font-weight: 600; line-height: 1.3; cursor: pointer; transition: border-color .15s, background .15s; }
+.opcao:hover { border-color: rgba(0,25,190,.35); }
+.opcao[aria-pressed="true"] { border-color: var(--azul); background: var(--agua); }
+.opcao .emo { font-size: 22px; flex: none; width: 28px; text-align: center; }
+.opcao .txt { min-width: 0; }
+
+/* ── resultado ── */
+.res-topo { text-align: center; margin: 8px 0 4px; }
+.res-topo p { margin: 0; font-size: 13px; font-weight: 700; color: var(--cinza); letter-spacing: .06em; text-transform: uppercase; }
+.base-card { border-radius: 24px; padding: 20px; color: #fff; margin-top: 12px; position: relative; overflow: hidden; }
+.base-card .sig { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,.2); display: grid; place-items: center; font-weight: 800; font-size: 15px; letter-spacing: .02em; }
+.base-card .rot { font-size: 12px; font-weight: 700; opacity: .85; letter-spacing: .06em; text-transform: uppercase; margin: 14px 0 0; }
+.base-card h2 { font-size: 30px; font-weight: 800; letter-spacing: -.035em; margin: 4px 0 0; line-height: 1.05; }
+.base-card .desc { font-size: 14.5px; line-height: 1.45; opacity: .95; margin: 10px 0 0; }
+.base-card .afin { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 13px; font-weight: 700; }
+.base-card .afin .barra { flex: 1; height: 7px; background: rgba(255,255,255,.25); border-radius: 99px; overflow: hidden; }
+.base-card .afin .barra i { display: block; height: 100%; background: var(--lima); border-radius: 99px; }
+.segunda { display: flex; gap: 14px; align-items: center; border: 1.5px solid var(--fio); border-radius: 20px; padding: 16px; margin-top: 12px; }
+.segunda .sig { width: 44px; height: 44px; border-radius: 14px; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+.segunda .rot { font-size: 11.5px; font-weight: 700; color: var(--cinza); letter-spacing: .06em; text-transform: uppercase; margin: 0; }
+.segunda h3 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; margin: 2px 0 0; }
+.segunda p.d { font-size: 13px; color: var(--cinza); margin: 3px 0 0; line-height: 1.4; }
+.segunda .pc { margin-left: auto; font-weight: 800; color: var(--azul); font-variant-numeric: tabular-nums; font-size: 15px; flex: none; }
+.porque { background: var(--papel); border-radius: 18px; padding: 14px 16px; margin-top: 14px; }
+.porque h4 { margin: 0; font-size: 13px; font-weight: 700; color: var(--cinza); letter-spacing: .04em; text-transform: uppercase; }
+.porque ul { margin: 8px 0 0; padding: 0 0 0 18px; font-size: 14px; line-height: 1.5; }
+.outras { margin-top: 14px; }
+.outras summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--azul); padding: 6px 0; }
+.ranking { display: grid; gap: 7px; margin-top: 8px; }
+.ranking div { display: grid; grid-template-columns: 110px 1fr 38px; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.ranking .barra { height: 7px; background: var(--agua); border-radius: 99px; overflow: hidden; }
+.ranking .barra i { display: block; height: 100%; border-radius: 99px; }
+.ranking b { text-align: right; font-variant-numeric: tabular-nums; color: var(--cinza); }
+.enviar { border: 1.5px solid var(--fio); border-radius: 22px; padding: 18px 16px; margin-top: 18px; }
+.enviar h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.enviar p { margin: 4px 0 0; font-size: 13.5px; color: var(--cinza); line-height: 1.4; }
+.enviar label { display: block; font-size: 12.5px; font-weight: 700; color: var(--cinza); margin: 14px 0 6px; }
+.enviar input { width: 100%; border: 1px solid var(--fio); border-radius: 14px; padding: 13px 15px; font: inherit; font-size: 15.5px; background: #fff; color: var(--tinta); }
+.enviar .btn { margin-top: 14px; }
+.feito { text-align: center; background: var(--agua); border-radius: 18px; padding: 16px; margin-top: 14px; font-size: 14px; line-height: 1.45; }
+
+/* ── rever as perguntas (só para esta prévia) ── */
+.rev-intro { font-size: 14px; color: var(--cinza); line-height: 1.5; margin: 6px 0 14px; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 4px 8px 4px 5px; border-radius: 99px; background: var(--papel); color: var(--tinta); white-space: nowrap; }
+.chip i { width: 18px; height: 18px; border-radius: 6px; display: grid; place-items: center; font-style: normal; color: #fff; font-size: 8.5px; font-weight: 800; }
+.rev-q { border-top: 1px solid var(--fio); padding: 16px 0; }
+.rev-q h3 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.02em; line-height: 1.3; display: flex; gap: 10px; }
+.rev-q h3 b { color: var(--azul); font-variant-numeric: tabular-nums; flex: none; }
+.rev-q .porq { font-size: 12.5px; color: var(--cinza); margin: 4px 0 0 28px; line-height: 1.4; }
+.rev-op { margin: 10px 0 0 28px; }
+.rev-op p { margin: 0; font-size: 14px; font-weight: 600; }
+.rev-op .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.rev-op .nada { font-size: 12px; color: var(--cinza); font-weight: 500; }
+.regra { background: #fff8e6; border-radius: 16px; padding: 12px 14px; font-size: 13px; line-height: 1.45; margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ── identificação ── */
+.campo-rot { display: block; font-size: 12.5px; font-weight: 700; color: var(--cinza); margin: 16px 0 6px; }
+.campo { width: 100%; border: 1px solid var(--fio); border-radius: 14px; padding: 13px 15px; font: inherit; font-size: 16px; background: #fff; color: var(--tinta); }
+.chips-escolha { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips-escolha button { border: 1.5px solid var(--fio); background: #fff; border-radius: 99px; padding: 10px 16px; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.chips-escolha button[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
+.erro { color: #c4005f; font-size: 13px; font-weight: 600; margin: 10px 0 0; min-height: 1em; }
+.parte { display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--azul); background: var(--agua); padding: 4px 10px; border-radius: 99px; margin-bottom: 10px; }
+.cat { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; background: rgba(255,255,255,.2); padding: 6px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 700; }
+.segunda .cat2 { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--azul); background: var(--agua); padding: 3px 9px; border-radius: 99px; }
+/* matriz de equilíbrio (rever) */
+.matriz-wrap { overflow-x: auto; margin: 10px 0 4px; }
+.matriz { border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.matriz th, .matriz td { padding: 5px 6px; text-align: center; border-bottom: 1px solid var(--fio); white-space: nowrap; }
+.matriz th:first-child, .matriz td:first-child { text-align: left; font-weight: 700; }
+.matriz td.x { color: var(--azul); font-weight: 800; }
+.matriz td.v { color: var(--cinza); }
+.caixa-ok { background: #e6f7f4; color: #00614f; border-radius: 16px; padding: 12px 14px; font-size: 13px; line-height: 1.45; margin-top: 12px; }
+</style>
+<style>
+/* o que o Artifact punha à volta da prévia: margens seguras do telemóvel */
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="crista">
+    <div class="lin">
+      <span class="logo"><i>igreja</i><b>onda</b></span>
+      <span class="previa">PRÉVIA</span>
+    </div>
+    <h1 id="titulo">Onde é que <em>vais servir?</em></h1>
+    <p class="sob" id="sub">Para quem esteve na reunião de novos voluntários.</p>
+    <svg class="curva" viewBox="0 0 400 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0,46 C110,4 290,4 400,46 L400,46 L0,46 Z" fill="#fff"/></svg>
+  </header>
+  <main class="corpo" id="corpo"></main>
+</div>
+
+<style>
+.pergunta-final { border: 1.5px solid var(--azul); border-radius: 22px; padding: 18px 16px; margin-top: 16px; background: var(--agua); }
+.pergunta-final h3 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.pergunta-final p { margin: 6px 0 14px; font-size: 14px; color: var(--cinza); line-height: 1.45; }
+.edit-lista { display: grid; gap: 6px; }
+.edit-linha { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 14px; }
+.edit-linha.on { background: var(--agua); }
+.edit-sig { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 11px; font-weight: 800; flex: none; }
+.edit-nome { flex: 1; min-width: 0; font-weight: 700; font-size: 14.5px; }
+.edit-nome small { display: block; font-weight: 500; font-size: 12px; color: var(--cinza); }
+.edit-pos { border: 1.5px solid var(--fio); background: #fff; border-radius: 99px; padding: 7px 11px; font-size: 13px; font-weight: 700; cursor: pointer; flex: none; }
+.edit-pos[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
+.pontos-meus { margin-top: 14px; border: 1.5px solid var(--fio); border-radius: 20px; padding: 14px 16px; }
+.pontos-meus h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--cinza); letter-spacing: .04em; text-transform: uppercase; }
+</style>
+<script>
+/* ════════════════════════════════════════════════════════════════
+ * As 10 bases que o teste compara. SHIFT (pré-adolescentes, ~9–14)
+ * e New (adolescentes, 14+) são bases diferentes. Financeiro,
+ * Pastoral e Onda Tech Hub ficam de fora. Cores aproximadas às do
+ * Portal (lá há bases com a mesma cor; aqui separam-se).
+ * ════════════════════════════════════════════════════════════════ */
+const BASES = {
+  apoio:       { nome: "Base de Apoio", sig: "AP",  cor: "#0019be", desc: "Prepara a Casa do Povo antes de toda a gente chegar: salas, casas de banho, auditório, entrada. Chegada às 8h." },
+  tecnica:     { nome: "Base Técnica",  sig: "TEC", cor: "#7b5cff", desc: "Som, luz e projeção do culto. Chegada às 8h." },
+  backstage:   { nome: "Backstage",     sig: "BS",  cor: "#f5a300", desc: "Faz o culto acontecer: portas, púlpito, rádios, blackout, chamar a banda na hora certa." },
+  comunicacao: { nome: "Comunicação",   sig: "COM", cor: "#0092d4", desc: "Fotografia, vídeo, design e redes sociais. Ao domingo e com pedidos durante a semana." },
+  pessoal:     { nome: "Base Pessoal",  sig: "PE",  cor: "#00a88f", desc: "Recebe quem chega, acomoda no auditório, faz o café e acolhe os visitantes." },
+  louvor:      { nome: "Louvor",        sig: "LV",  cor: "#c8f02e", desc: "A banda e os cantores do culto. Ensaio durante a semana e passagem de som às 7h." },
+  louvorkinder:{ nome: "Louvor Kinder", sig: "LK",  cor: "#ff7a59", desc: "O louvor do culto das crianças." },
+  kinder:      { nome: "Kinder",        sig: "KI",  cor: "#9b7bff", desc: "O ministério infantil, em três salas: Baby, Fun e Júnior. Cuidar e ensinar. Chegada às 8h30." },
+  shift:       { nome: "SHIFT",         sig: "SH",  cor: "#d35ce0", desc: "Os pré-adolescentes (mais ou menos dos 9 aos 14 anos): receção, jogos, dinâmicas, ensino e acompanhamento." },
+  new:         { nome: "Base New",      sig: "NEW", cor: "#e07b00", desc: "Os adolescentes, a partir dos 14: conversas mais sérias, ensino, GD e acompanhamento de perto." },
+};
+const IDS = Object.keys(BASES);
+
+/* texto claro ou escuro por cima da cor da base (o lima do Louvor e
+ * o laranja da Backstage não aguentam texto branco) */
+function tintaSobre(hex) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#0a0f2e" : "#ffffff";
+}
+
+/* ════════════════════════════════════════════════════════════════
+ * PARTE 1 — 8 perguntas objetivas, de entrevista: uma qualidade, um
+ * hobby, uma profissão, um elogio… 5 respostas cada, cada resposta =
+ * 1 ponto para 1 base. Sem idades: Kinder são "as crianças
+ * pequenas", SHIFT "os miúdos", New "os jovens".
+ *
+ * Porquê 5 respostas e não 4: com 10 bases e 8 perguntas, só com 5
+ * respostas é que cada base aparece EXATAMENTE o mesmo número de
+ * vezes (8 × 5 = 40 = 10 bases × 4). Com 4 seriam 32 lugares, e umas
+ * bases apareciam 3 vezes e outras 4.
+ *
+ * Cada base aparece exatamente 4 vezes. Quase todos os pares de bases
+ * aparecem juntos 2 vezes (36 pares), alguns 1 vez (8) — e só um par
+ * nunca se cruza: Backstage e Louvor Kinder, as duas mais diferentes
+ * (um 8 × 5 perfeito não existe; este foi o melhor encontrado).
+ * ════════════════════════════════════════════════════════════════ */
+const TEMAS = {
+  qualidade: { q: "Qual destas qualidades é mais tua?", op: {
+    apoio: ["🧹", "Prestável: vejo o que falta e faço"],
+    tecnica: ["🧠", "Lógico(a), com jeito para a técnica"],
+    backstage: ["⏱️", "Organizado(a) e pontual"],
+    comunicacao: ["🎨", "Criativo(a), com sentido estético"],
+    pessoal: ["🤗", "Simpático(a) e acolhedor(a)"],
+    louvor: ["🎵", "Musical, com bom ouvido"],
+    louvorkinder: ["🎶", "Alegre e musical"],
+    kinder: ["🧸", "Paciente e carinhoso(a)"],
+    shift: ["⚡", "Enérgico(a) e brincalhão (brincalhona)"],
+    new: ["👂", "Bom (boa) ouvinte e conselheiro(a)"] } },
+  hobby: { q: "Qual destes hobbies tens (ou gostavas de ter)?", op: {
+    apoio: ["🛠️", "Bricolage, arrumar e decorar a casa"],
+    tecnica: ["💻", "Mexer em computadores, som ou gadgets"],
+    backstage: ["🗺️", "Planear viagens e eventos ao pormenor"],
+    comunicacao: ["📷", "Fotografia, vídeo ou design"],
+    pessoal: ["🍽️", "Receber amigos em casa"],
+    louvor: ["🎸", "Tocar um instrumento ou cantar"],
+    louvorkinder: ["🎤", "Cantar e tocar com crianças"],
+    kinder: ["🖍️", "Fazer atividades com crianças pequenas"],
+    shift: ["⚽", "Desporto e jogos em grupo com miúdos"],
+    new: ["💬", "Conversas longas sobre a vida e a fé"] } },
+  profissao: { q: "Em que profissão te imaginas?", op: {
+    apoio: ["🏢", "Gestão e manutenção de espaços"],
+    tecnica: ["🎛️", "Técnico de som, luz ou informática"],
+    backstage: ["📻", "Produção de eventos"],
+    comunicacao: ["🎬", "Fotografia, vídeo ou design"],
+    pessoal: ["🛎️", "Receção e hotelaria"],
+    louvor: ["🎹", "Músico ou cantor"],
+    louvorkinder: ["🎼", "Professor de música para crianças"],
+    kinder: ["🧒", "Educador de infância"],
+    shift: ["🏅", "Animador ou treinador de miúdos"],
+    new: ["🫂", "Psicólogo ou mentor de jovens"] } },
+  elogio: { q: "Que elogio ouves mais vezes?", op: {
+    apoio: ["✨", "“Deixaste tudo impecável.”"],
+    tecnica: ["🔌", "“Resolveste o problema do som (ou do computador).”"],
+    backstage: ["📋", "“Correu tudo à hora certa.”"],
+    comunicacao: ["📸", "“As tuas fotos estão incríveis.”"],
+    pessoal: ["☕", "“Senti-me mesmo bem recebido.”"],
+    louvor: ["🎤", "“Cantas (ou tocas) muito bem.”"],
+    louvorkinder: ["🪇", "“As crianças adoram cantar contigo.”"],
+    kinder: ["🍼", "“Os pequenos adoram estar contigo.”"],
+    shift: ["📣", "“Os miúdos não te largam.”"],
+    new: ["🤝", "“Obrigado pela conversa, ajudou-me muito.”"] } },
+  papel: { q: "Numa equipa, qual é o teu papel?", op: {
+    apoio: ["💪", "Faço o trabalho que ninguém vê"],
+    tecnica: ["🛠️", "Resolvo os problemas técnicos"],
+    backstage: ["🗂️", "Coordeno e controlo o tempo"],
+    comunicacao: ["🖼️", "Mostro o resultado ao mundo"],
+    pessoal: ["🤝", "Acolho e junto as pessoas"],
+    louvor: ["🎶", "Trago a música"],
+    louvorkinder: ["🎈", "Animo os mais pequenos com música"],
+    kinder: ["🧸", "Cuido dos mais pequenos"],
+    shift: ["🏃", "Ponho toda a gente a mexer"],
+    new: ["🧭", "Ouço e aconselho"] } },
+  ferramenta: { q: "Com que ferramenta te dás melhor?", op: {
+    apoio: ["🧰", "Berbequim, vassoura e fita-cola"],
+    tecnica: ["🎚️", "Mesa de mistura ou computador"],
+    backstage: ["⏰", "Rádio, relógio e o plano do dia"],
+    comunicacao: ["📱", "Câmara ou app de edição"],
+    pessoal: ["😊", "Um sorriso e uma chávena de café"],
+    louvor: ["🎙️", "Um instrumento ou um microfone"],
+    louvorkinder: ["🪕", "Um violão e uma roda de crianças"],
+    kinder: ["📚", "Livros de histórias, lápis e plasticina"],
+    shift: ["🥅", "Uma bola, um apito e muita energia"],
+    new: ["❓", "Uma boa pergunta e tempo para ouvir"] } },
+  energia: { q: "O que te dá mais energia?", op: {
+    apoio: ["🧺", "Ver tudo arrumado e pronto"],
+    tecnica: ["⚙️", "Pôr tudo a funcionar sem falhas"],
+    backstage: ["✅", "Um plano que corre na perfeição"],
+    comunicacao: ["🌟", "Criar algo que as pessoas partilham"],
+    pessoal: ["👋", "Conhecer pessoas novas"],
+    louvor: ["🎧", "Fazer música com outros"],
+    louvorkinder: ["🎵", "Ver crianças a cantar"],
+    kinder: ["🌱", "Ver uma criança pequena feliz"],
+    shift: ["🎉", "Um grupo de miúdos entusiasmados"],
+    new: ["🔥", "Ver um jovem a encontrar o seu caminho"] } },
+  curso: { q: "Que formação farias com gosto?", op: {
+    apoio: ["🔧", "Manutenção e pequenas reparações"],
+    tecnica: ["🔊", "Som, iluminação ou informática"],
+    backstage: ["📆", "Organização de eventos"],
+    comunicacao: ["✏️", "Fotografia, vídeo ou design gráfico"],
+    pessoal: ["🏨", "Atendimento e hospitalidade"],
+    louvor: ["🎹", "Canto ou um instrumento"],
+    louvorkinder: ["🎶", "Música para crianças"],
+    kinder: ["🧩", "Educação de infância"],
+    shift: ["🎯", "Animação de grupos e jogos"],
+    new: ["📖", "Aconselhamento de jovens"] } },
+};
+/* quem aparece em cada pergunta (o desenho equilibrado) */
+const DESENHO = [
+  ["qualidade",  ["pessoal", "louvor", "kinder", "backstage", "new"]],
+  ["hobby",      ["comunicacao", "kinder", "shift", "louvorkinder", "new"]],
+  ["profissao",  ["apoio", "tecnica", "comunicacao", "backstage", "new"]],
+  ["elogio",     ["tecnica", "louvor", "kinder", "shift", "backstage"]],
+  ["papel",      ["apoio", "louvor", "shift", "louvorkinder", "new"]],
+  ["ferramenta", ["tecnica", "comunicacao", "pessoal", "louvor", "louvorkinder"]],
+  ["energia",    ["apoio", "comunicacao", "pessoal", "shift", "backstage"]],
+  ["curso",      ["apoio", "tecnica", "pessoal", "kinder", "louvorkinder"]],
+];
+const PERGUNTAS = DESENHO.map(([tema, bases]) => ({
+  q: TEMAS[tema].q, op: Object.fromEntries(bases.map((b) => [b, TEMAS[tema].op[b]])),
+}));
+const MAX_PERGUNTAS = 10;
+
+/* Pergunta de desempate (só se houver empate em 1.º, no máximo uma):
+ * 5 respostas — as bases empatadas e, se faltarem, as seguintes. */
+const RESERVA = {
+  apoio: "Sou de confiança: o que me pedem fica feito", tecnica: "Aprendo aparelhos e programas sozinho(a)",
+  backstage: "Mantenho a calma sob pressão", comunicacao: "Tenho olho para imagem e design",
+  pessoal: "Faço as pessoas sentirem-se em casa", louvor: "Tenho ouvido musical",
+  louvorkinder: "As crianças gostam de cantar comigo", kinder: "Tenho muita paciência com os mais pequenos",
+  shift: "Sou bom (boa) a animar grupos de miúdos", new: "Os jovens confiam em mim",
+};
+const EMO_RESERVA = { apoio: "🧹", tecnica: "🔧", backstage: "📋", comunicacao: "📸", pessoal: "🤗", louvor: "🎵", louvorkinder: "🎶", kinder: "🧸", shift: "🧩", new: "💬" };
+
+/* ════════════════════════════════════════════════════════════════
+ * PARTE 2 — 2 perguntas sobre a área, só da 1.ª base (as áreas reais
+ * do Portal), também com 5 respostas. A área sai da 1.ª pergunta; se
+ * aí a pessoa não escolheu uma área, sai da 2.ª. Na Louvor e no
+ * Louvor Kinder a 2.ª é a experiência (útil ao líder).
+ * Apoio, Backstage, SHIFT e New não têm áreas: o teste acaba nas 8.
+ * ════════════════════════════════════════════════════════════════ */
+const EXPERIENCIA = { q: "Há quanto tempo cantas ou tocas?", op: [
+  [null, "🌱", "Estou a começar"], [null, "📅", "1 a 2 anos"], [null, "🎯", "3 a 5 anos"],
+  [null, "🏆", "Mais de 5 anos"], [null, "⛪", "Já servi numa banda de igreja"] ] };
+const CATEGORIAS = {
+  tecnica: [
+    { q: "O que é mais contigo?", op: [
+      ["Áudio", "🎧", "Tenho bom ouvido para o som"], ["Iluminação", "💡", "Tenho olho para luz e ambiente"],
+      ["Projeção", "💻", "Mexo bem no computador"], [null, "🔀", "Um pouco de tudo"], [null, "🌱", "Ainda não sei"] ] },
+    { q: "O que gostavas de aprender primeiro?", op: [
+      ["Áudio", "🎚️", "Misturar o som da banda"], ["Iluminação", "🌈", "Criar o ambiente de luz"],
+      ["Projeção", "🖥️", "Pôr as letras e os vídeos no ecrã"], [null, "🔀", "Tudo"], [null, "🌱", "Ainda não sei"] ] } ],
+  comunicacao: [
+    { q: "O que fazes melhor?", op: [
+      ["Fotografia", "📷", "Fotografar"], ["Captação e Edição", "🎬", "Filmar e editar vídeo"],
+      ["Redação e Design", "✏️", "Escrever e fazer design"], ["Social Media", "📅", "Planear as redes sociais"],
+      ["Storymaker", "⚡", "Stories em direto"] ] },
+    { q: "Com que ferramenta preferes trabalhar?", op: [
+      ["Fotografia", "📸", "Câmara fotográfica"], ["Captação e Edição", "🎞️", "Câmara de vídeo e editor"],
+      ["Redação e Design", "🖋️", "Canva ou um bom texto"], ["Social Media", "🗓️", "Calendário de publicações"],
+      ["Storymaker", "📱", "Telemóvel, ao vivo"] ] } ],
+  pessoal: [
+    { q: "Onde és mais útil?", op: [
+      ["Receção e Hall", "🚪", "À entrada, a receber"], ["Acomodação", "🪑", "Na sala, a sentar as pessoas"],
+      ["Café e Cozinha", "☕", "Na cozinha, com o café"], ["Visitantes", "🤝", "Com quem vem pela primeira vez"],
+      [null, "🔀", "Um pouco de tudo"] ] },
+    { q: "O que fazes melhor?", op: [
+      ["Receção e Hall", "🧭", "Orientar pessoas"], ["Acomodação", "🔢", "Organizar lugares e contar"],
+      ["Café e Cozinha", "🥐", "Preparar comida e bebida"], ["Visitantes", "💬", "Conhecer quem é novo"],
+      [null, "🔀", "Tudo isto"] ] } ],
+  louvor: [
+    { q: "O que fazes na música?", op: [
+      ["Voz", "🎤", "Canto"], ["Teclado", "🎹", "Teclado ou piano"], ["Guitarra", "🎸", "Guitarra"],
+      ["Baixo", "🎸", "Baixo"], ["Bateria", "🥁", "Bateria"] ] },
+    EXPERIENCIA ],
+  louvorkinder: [
+    { q: "O que fazes na música?", op: [
+      ["Voz", "🎤", "Canto"], ["Violão", "🎸", "Violão"], ["Cajón", "🪘", "Cajón ou percussão"],
+      [null, "🎹", "Outro instrumento"], [null, "🌱", "Estou a aprender"] ] },
+    EXPERIENCIA ],
+  kinder: [
+    { q: "Com que idades te dás melhor?", op: [
+      ["Baby", "🍼", "Bebés (0–3)"], ["Fun", "🎨", "Dos 4 aos 7"], ["Júnior", "📚", "Dos 8 aos 11"],
+      [null, "🔀", "Tanto faz"], [null, "🌱", "Ainda não sei"] ] },
+    { q: "Que tipo de atividade preferes?", op: [
+      ["Baby", "🤱", "Colo, cuidados e rotinas"], ["Fun", "🧩", "Brincadeiras e histórias"],
+      ["Júnior", "📖", "Ensinar e explicar"], [null, "🔀", "Um pouco de tudo"], [null, "🌱", "Ainda não sei"] ] } ],
+};
+
+/* ════════════════════════════════════════════════════════════════
+ * Estado
+ * ════════════════════════════════════════════════════════════════ */
+const GUARDA = "onda.teste-bases.v7"; // telemóvel → resultado (prévia: só neste browser)
+const lerFeitos = () => { try { return JSON.parse(localStorage.getItem(GUARDA) || "{}"); } catch { return {}; } };
+const gravarFeito = (tel, r) => { try { const f = lerFeitos(); f[tel] = r; localStorage.setItem(GUARDA, JSON.stringify(f)); } catch { /* sem storage */ } };
+const soDigitos = (t) => String(t).replace(/\D/g, "").replace(/^351(?=\d{9}$)/, "");
+
+let passo = "id";          // id | parte1 | desempate | categoria | resultado | jafez
+let pessoa = { nome: "", tel: "" };
+let r1 = [];               // base escolhida em cada pergunta da parte 1
+let atual = 0;
+let desempates = [];       // [{ opcoes:[ids], escolha }]  (no máximo 1)
+let cats = [];             // [{ i, escolha }] — perguntas de área da 1.ª base
+let final = null;
+let ordem = [];
+let semente = 1;
+
+function baralhar(arr, s0) {
+  const a = [...arr]; let s = s0;
+  for (let i = a.length - 1; i > 0; i--) { s = (s * 9301 + 49297) % 233280; const j = Math.floor((s / 233280) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+/* 1 ponto por resposta; o desempate vale meio ponto */
+function contagem() {
+  const c = Object.fromEntries(IDS.map((b) => [b, 0]));
+  r1.forEach((b) => { if (b) c[b]++; });
+  desempates.forEach((d) => { if (d.escolha) c[d.escolha] += 0.5; });
+  return c;
+}
+/* empate que sobre (no 1.º ou no 2.º lugar) decide-se por sorteio só
+ * entre as empatadas — uma fração minúscula, diferente para cada
+ * pessoa, nunca a ordem da lista */
+let sorteio = {};
+function prepararSorteio(s0) { const o = baralhar(IDS, s0 * 7 + 13); sorteio = Object.fromEntries(o.map((b, i) => [b, i / 1000])); }
+const ordenadas = (c) => [...IDS].sort((a, b) => (c[b] - c[a]) || (sorteio[b] - sorteio[a]));
+function empateNoTopo() {
+  const c = contagem(), ord = [...IDS].sort((a, b) => c[b] - c[a]);
+  const topo = ord.filter((b) => c[b] === c[ord[0]]);
+  return topo.length > 1 ? topo : null;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ * Ecrãs
+ * ════════════════════════════════════════════════════════════════ */
+const corpo = document.getElementById("corpo");
+const titulo = document.getElementById("titulo");
+const sub = document.getElementById("sub");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const topo = () => scrollTo(0, 0);
+
+function render() {
+  ({ id: renderId, parte1: renderParte1, desempate: renderDesempate, categoria: renderCategoria, resultado: renderResultado, jafez: renderJaFez })[passo]();
+}
+
+function renderId() {
+  titulo.innerHTML = "Onde é que <em>vais servir?</em>";
+  sub.textContent = "Para quem esteve na reunião de novos voluntários.";
+  corpo.innerHTML = `
+    <ul class="pontos">
+      <li><b class="n">1</b><span><b>10 perguntas rápidas</b>, no máximo, sobre as tuas qualidades e talentos. Uns 2 minutos.</span></li>
+      <li><b class="n">2</b><span>No fim sugerimos <b>as duas bases que mais combinam contigo</b>. Aceitas ou escolhes outras.</span></li>
+      <li><b class="n">3</b><span>Só quando confirmas é que <b>vai para o pastor</b>. Não precisas de dizer nada em voz alta.</span></li>
+    </ul>
+    <form id="f-id" novalidate>
+      <label class="campo-rot" for="nome">O teu nome</label>
+      <input class="campo" id="nome" autocomplete="name" placeholder="Nome e apelido" value="${esc(pessoa.nome)}">
+      <label class="campo-rot" for="tel">Telemóvel</label>
+      <input class="campo" id="tel" inputmode="tel" autocomplete="tel" placeholder="9xx xxx xxx" value="${esc(pessoa.tel)}">
+      <p class="erro" id="erro" role="alert"></p>
+      <button class="btn" type="submit" style="margin-top:8px">Começar</button>
+    </form>
+    <p class="nota">Só dá para responder uma vez com cada telemóvel. Não há respostas certas: pensa no que és mesmo bom (boa), não no que achas que devias ser.</p>`;
+  document.getElementById("f-id").onsubmit = (e) => {
+    e.preventDefault();
+    pessoa.nome = document.getElementById("nome").value.trim();
+    pessoa.tel = document.getElementById("tel").value.trim();
+    const erro = document.getElementById("erro");
+    if (pessoa.nome.split(/\s+/).length < 2) { erro.textContent = "Escreve o nome e o apelido."; return; }
+    if (soDigitos(pessoa.tel).length !== 9) { erro.textContent = "O telemóvel tem de ter 9 números."; return; }
+    const ja = lerFeitos()[soDigitos(pessoa.tel)];
+    if (ja) { final = ja; passo = "jafez"; render(); topo(); return; }
+    semente = Number(soDigitos(pessoa.tel).slice(-6)) || 1;
+    prepararSorteio(semente);
+    ordem = PERGUNTAS.map((pg, i) => baralhar(Object.keys(pg.op), semente + i * 17));
+    r1 = Array(PERGUNTAS.length).fill(null); atual = 0; desempates = []; cats = [];
+    passo = "parte1"; render(); topo();
+  };
+}
+
+function barra(n, total) {
+  return `<div class="progresso">
+      <button class="voltar" id="voltar" aria-label="Voltar">‹</button>
+      <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${n}"><i style="width:${(n / total) * 100}%"></i></div>
+      <span>${n + 1} / ${total}</span>
+    </div>`;
+}
+function opcoesHtml(lista, escolhida) {
+  return `<div class="opcoes">${lista.map(({ v, e, t }) => `<button class="opcao" data-v="${esc(v)}" aria-pressed="${escolhida === v}"><span class="emo" aria-hidden="true">${e}</span><span class="txt">${esc(t)}</span></button>`).join("")}</div>`;
+}
+function ligarOpcoes(fn) {
+  corpo.querySelectorAll(".opcao").forEach((b) => b.onclick = () => {
+    corpo.querySelectorAll(".opcao").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    setTimeout(() => fn(b.dataset.v), 200);
+  });
+}
+
+function renderParte1() {
+  const pg = PERGUNTAS[atual];
+  titulo.innerHTML = `Pergunta <em>${atual + 1}</em>`;
+  sub.textContent = "Escolhe a que é mais parecida contigo.";
+  const lista = ordem[atual].map((b) => ({ v: b, e: pg.op[b][0], t: pg.op[b][1] }));
+  corpo.innerHTML = `${barra(atual, PERGUNTAS.length + 2)}<h2 class="pergunta">${esc(pg.q)}</h2>${opcoesHtml(lista, r1[atual])}`;
+  document.getElementById("voltar").onclick = () => { if (atual === 0) passo = "id"; else atual--; render(); };
+  ligarOpcoes((v) => {
+    r1[atual] = v;
+    if (atual < PERGUNTAS.length - 1) { atual++; render(); topo(); return; }
+    depoisParte1();
+  });
+}
+
+function depoisParte1() {
+  const grupo = empateNoTopo();
+  if (grupo && !desempates.length) {
+    // uma pergunta extra, também com 5 respostas: as empatadas e, se
+    // faltarem, as seguintes na pontuação
+    const c = contagem();
+    const empatadas = baralhar(grupo, semente + 31).slice(0, 5);
+    const resto = ordenadas(c).filter((b) => !empatadas.includes(b)).slice(0, 5 - empatadas.length);
+    desempates.push({ opcoes: baralhar([...empatadas, ...resto], semente + 7), escolha: null });
+    passo = "desempate"; render(); topo(); return;
+  }
+  const c = contagem(), ord = ordenadas(c);
+  final = { primeira: ord[0], segunda: ord[1], contagem: c };
+  // as perguntas de área da 1.ª base, sem passar das 10 no total
+  const livres = MAX_PERGUNTAS - PERGUNTAS.length - desempates.length;
+  cats = (CATEGORIAS[ord[0]] || []).slice(0, livres).map((_, i) => ({ i, escolha: null }));
+  if (cats.length) { passo = "categoria"; atual = 0; render(); topo(); return; }
+  concluir();
+}
+
+function renderDesempate() {
+  const d = desempates[0];
+  titulo.innerHTML = "Só mais <em>uma</em>";
+  sub.textContent = "Para desempatar.";
+  const lista = d.opcoes.map((b) => ({ v: b, e: EMO_RESERVA[b], t: RESERVA[b] }));
+  corpo.innerHTML = `<h2 class="pergunta">Qual destas frases é mais tu?</h2>${opcoesHtml(lista, d.escolha)}`;
+  ligarOpcoes((v) => { d.escolha = v; depoisParte1(); });
+}
+
+function renderCategoria() {
+  const c = cats[atual], def = CATEGORIAS[final.primeira][c.i];
+  const n = PERGUNTAS.length + desempates.length + atual;
+  titulo.innerHTML = `Pergunta <em>${n + 1}</em>`;
+  sub.textContent = `Sobre a tua área na ${BASES[final.primeira].nome}`;
+  const lista = def.op.map(([area, e, t], i) => ({ v: String(i), e, t }));
+  corpo.innerHTML = `${barra(n, PERGUNTAS.length + desempates.length + cats.length)}<h2 class="pergunta">${esc(def.q)}</h2>${opcoesHtml(lista, c.escolha)}`;
+  document.getElementById("voltar").onclick = () => { if (atual > 0) { atual--; render(); } else { passo = "parte1"; atual = PERGUNTAS.length - 1; desempates = []; render(); } };
+  ligarOpcoes((v) => {
+    c.escolha = v;
+    if (atual < cats.length - 1) { atual++; render(); topo(); return; }
+    concluir();
+  });
+}
+
+function concluir() {
+  const defs = CATEGORIAS[final.primeira] || [];
+  const escolhas = cats.map((c) => defs[c.i].op[Number(c.escolha)]);
+  const area = escolhas.map((o) => o[0]).find(Boolean) || null;
+  // na Louvor e no Louvor Kinder a 2.ª pergunta é a experiência
+  const exp = defs[1] === EXPERIENCIA && escolhas[1] ? escolhas[1][2] : null;
+  final = {
+    ...final, areaDe: final.primeira,
+    area: area ? area + (exp ? ` · ${exp.toLowerCase()}` : "") : (exp || null),
+    nome: pessoa.nome, em: new Date().toLocaleDateString("pt-PT"),
+    // a sugestão; a pessoa pode aceitar, trocar uma, ou mudar a ordem
+    escolha: { p1: final.primeira, p2: final.segunda }, enviado: false,
+  };
+  // guarda já (um teste por telemóvel), mas ainda "por enviar"
+  gravarFeito(soDigitos(pessoa.tel), final);
+  passo = "resultado"; render(); topo();
+}
+
+/* ── o resultado: uma SUGESTÃO que a pessoa confirma ou muda ── */
+let editar = false;
+const areaDe = (f, b) => (b === f.areaDe ? f.area : null);
+
+function cartaoBase(f, b, n) {
+  const B = BASES[b], t = tintaSobre(B.cor), area = areaDe(f, b);
+  if (n === 1) return `
+    <div class="base-card" style="background:${B.cor};color:${t}">
+      <div class="sig" style="background:rgba(${t === "#ffffff" ? "255,255,255" : "10,15,46"},.16)">${B.sig}</div>
+      <p class="rot">1.ª opção</p>
+      <h2>${esc(B.nome)}</h2>
+      ${area ? `<span class="cat">Área: ${esc(area)}</span>` : ""}
+      <p class="desc">${esc(B.desc)}</p>
+    </div>`;
+  return `
+    <div class="segunda">
+      <div class="sig" style="background:${B.cor};color:${tintaSobre(B.cor)}">${B.sig}</div>
+      <div style="min-width:0"><p class="rot">2.ª opção</p><h3>${esc(B.nome)}</h3>
+        ${area ? `<span class="cat2">${esc(area)}</span>` : ""}
+        <p class="d">${esc(B.desc)}</p></div>
+    </div>`;
+}
+
+/* a lista de todas as bases, pela pontuação DESTA pessoa, para escolher
+ * a 1.ª e a 2.ª — nunca a tabela das perguntas (essa é só do pastor) */
+function listaEditar(f) {
+  const c = f.contagem, ord = ordenadas(c);
+  return `<div class="pontos-meus">
+    <h4>Escolhe as tuas duas bases</h4>
+    <p class="nota" style="text-align:left;margin:-4px 0 10px">Estão por ordem dos teus pontos. Toca em <b>1.ª</b> ou <b>2.ª</b> em qualquer base.</p>
+    <div class="edit-lista">${ord.map((b) => {
+      const B = BASES[b], pts = Math.floor(c[b]);
+      const e1 = f.escolha.p1 === b, e2 = f.escolha.p2 === b;
+      return `<div class="edit-linha${e1 || e2 ? " on" : ""}">
+        <span class="edit-sig" style="background:${B.cor};color:${tintaSobre(B.cor)}">${B.sig}</span>
+        <span class="edit-nome">${esc(B.nome)}<small>${pts} ponto${pts === 1 ? "" : "s"}</small></span>
+        <button class="edit-pos" data-b="${b}" data-n="1" aria-pressed="${e1}">1.ª</button>
+        <button class="edit-pos" data-b="${b}" data-n="2" aria-pressed="${e2}">2.ª</button>
+      </div>`;
+    }).join("")}</div>
+  </div>`;
+}
+
+function escolher(f, b, n) {
+  const e = f.escolha;
+  if (n === 1) { if (e.p2 === b) e.p2 = e.p1; e.p1 = b; }
+  else { if (e.p1 === b) e.p1 = e.p2; e.p2 = b; }
+}
+
+function renderResultado() {
+  const f = final, e = f.escolha;
+  const mudou = e.p1 !== f.primeira || e.p2 !== f.segunda;
+  titulo.innerHTML = f.enviado ? "Enviado ao <em>pastor</em>" : (mudou ? "As tuas <em>escolhas</em>" : `Sugerimos <em>${esc(BASES[e.p1].nome.replace(/^Base (de )?/, ""))}</em>`);
+  sub.textContent = f.enviado ? "Obrigado! Agora é com os líderes." : (mudou ? "Confirma e envia ao pastor." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
+  let html = cartaoBase(f, e.p1, 1) + cartaoBase(f, e.p2, 2);
+  if (f.enviado) {
+    html += `<div class="feito" style="margin-top:14px">✅ <b>Enviado em ${esc(f.enviadoEm)}.</b><br>O líder da ${esc(BASES[e.p1].nome)} vai falar contigo pelo WhatsApp. A ${esc(BASES[e.p2].nome)} fica como segunda opção.</div>`;
+  } else if (editar) {
+    html += `<button class="btn sec" id="trocar-ordem" style="margin-top:12px">⇅ Trocar a ordem</button>` + listaEditar(f) +
+      `<button class="btn" id="enviar" style="margin-top:14px">Enviar ao pastor</button>
+       <button class="btn sec" id="repor" style="margin-top:9px">Voltar à sugestão</button>`;
+  } else {
+    html += `<div class="pergunta-final">
+        <h3>Queres servir nestas duas bases?</h3>
+        <p>Podes aceitar a sugestão, trocar uma delas ou mudar a ordem. Só depois é que vai para o pastor.</p>
+        <button class="btn" id="enviar">Sim, enviar ao pastor</button>
+        <button class="btn sec" id="mudar" style="margin-top:9px">Quero mudar</button>
+      </div>`;
+  }
+  html += `<button class="btn sec" id="limpar" style="margin-top:14px;background:none;color:var(--cinza)">Apagar e repetir (só nesta prévia)</button>`;
+  corpo.innerHTML = html;
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on("mudar", () => { editar = true; render(); });
+  on("repor", () => { f.escolha = { p1: f.primeira, p2: f.segunda }; editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); });
+  on("trocar-ordem", () => { f.escolha = { p1: e.p2, p2: e.p1 }; gravarFeito(soDigitos(pessoa.tel), f); render(); });
+  on("enviar", () => { f.enviado = true; f.enviadoEm = new Date().toLocaleDateString("pt-PT"); editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); topo(); });
+  on("limpar", limparPrevia);
+  corpo.querySelectorAll(".edit-pos").forEach((btn) => btn.onclick = () => { escolher(f, btn.dataset.b, Number(btn.dataset.n)); gravarFeito(soDigitos(pessoa.tel), f); render(); });
+}
+
+/* o mesmo telemóvel outra vez: não repete o teste — volta ao resultado
+ * (por enviar, se ainda não enviou; ou o que enviou) */
+function renderJaFez() { passo = "resultado"; renderResultado(); }
+
+function limparPrevia() {
+  try { const f = lerFeitos(); delete f[soDigitos(pessoa.tel)]; localStorage.setItem(GUARDA, JSON.stringify(f)); } catch { /* nada */ }
+  passo = "id"; final = null; editar = false; render(); topo();
+}
+
+render();
+</script>
+
+</body>
+</html>
