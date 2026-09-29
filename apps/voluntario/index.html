@@ -280,66 +280,64 @@ function tintaSobre(hex) {
 }
 
 /* ════════════════════════════════════════════════════════════════
- * PARTE 1 — "Akinator": perguntas de 2 respostas que vão afunilando.
- * Cada resposta aponta para um grupo de bases (+1 ponto a cada uma);
- * as bases que não estão em nenhum dos lados ficam neutras (+0,5 — o
- * mesmo que valeria ao acaso). A pergunta seguinte é escolhida entre as
- * que melhor dividem as bases que vão à frente, e o teste PARA assim
- * que só uma vai à frente — sem perguntas "de confirmação" (o dono do
- * produto achou-as repetidas: "já disse que prefiro tarefas, e depois
- * pergunta se prefiro estar à frente ou atrás"). A 2.ª base é a que
- * ficou mais perto: mais pontos e, em empate, a última a sair da frente.
+ * PARTE 1 — "Akinator": 8 perguntas de 2 respostas, que afunilam e
+ * depois confirmam. Cada resposta aponta para um grupo de bases (+1
+ * ponto a cada uma); as bases que não estão em nenhum dos lados ficam
+ * neutras (+0,5 — o mesmo que valeria ao acaso).
  *
- * Desenho simétrico, para cada base ter exatamente as mesmas hipóteses:
- * a 1.ª pergunta divide 5 | 5 (tarefa | pessoas); dentro de cada grupo
- * há 5 perguntas 2 | 3 "em ciclo" (cada base fica 2 vezes do lado dos
- * 2, e cada par de bases fica em lados opostos pelo menos 2 vezes).
- *   tarefa:  Louvor · Comunicação · Técnica · Apoio · Backstage
- *   pessoas: Louvor Kinder · Kinder · SHIFT · New · Pessoal
- * Simulado com todos os caminhos: respostas ao acaso dão 10,0% a cada
- * base; quem responde sempre como a sua base acerta 100% em 3 ou 4
- * perguntas; com 1 resposta em cada 10 "trocada" acerta 70%. Mexer
- * numa pergunta é mexer nisto: node scripts/simularTesteVoluntario.mjs
+ * A 1.ª divide tarefa | pessoas. Em cada grupo de 5 há 10 perguntas,
+ * UMA POR CADA PAR de bases (o par de um lado, as outras 3 do outro),
+ * cada uma sobre um tema diferente — para confirmar sem repetir a mesma
+ * pergunta por outras palavras (o dono do produto achou repetido "já
+ * disse que prefiro tarefas e depois pergunta se prefiro estar à frente
+ * ou atrás"; e depois achou 3 perguntas pouco: "põe umas 8, para
+ * confirmar"). Cada pessoa responde a 7 das 10 do seu grupo.
+ *
+ * A pergunta seguinte: primeiro a que separa as bases que vão à frente;
+ * depois a que separa as que estão perto; depois uma que envolva a da
+ * frente (as de confirmação). A 2.ª base é a que ficou mais perto: mais
+ * pontos e, em empate, a última a sair da frente.
+ *
+ * Desenho simétrico (todos os pares de cada grupo, uma vez cada): ao
+ * acaso cada base sai EXATAMENTE 10%; quem responde sempre como a sua
+ * base acerta 100%; com 1 resposta em cada 10 "trocada" acerta ~85%
+ * (igual para todas). Mexer numa pergunta é mexer nisto:
+ *   node scripts/simularTesteVoluntario.mjs
  * ════════════════════════════════════════════════════════════════ */
+const TAREFA = ["louvor", "comunicacao", "tecnica", "apoio", "backstage"];
+const PESSOAS = ["louvorkinder", "kinder", "shift", "new", "pessoal"];
+/* uma pergunta de um grupo: `par` na resposta a, as outras 3 na b */
+const doGrupo = (grupo) => (id, q, a, b, par) => ({ id, q, a: [...a, par], b: [...b, grupo.filter((x) => !par.includes(x))] });
+const T = doGrupo(TAREFA), P = doGrupo(PESSOAS);
 const BANCO = [
   { id: "pessoas", q: "Num dia de serviço, o que te sabe melhor?",
-    a: ["🤝", "Estar com as pessoas, cara a cara", ["pessoal", "kinder", "shift", "new", "louvorkinder"]],
-    b: ["🛠️", "Pôr as mãos (ou o talento) numa tarefa", ["apoio", "tecnica", "backstage", "comunicacao", "louvor"]] },
-  // ── grupo tarefa
-  { id: "artista", q: "Qual destas te descreve melhor?",
-    a: ["🎨", "Criativo(a): invento, componho, desenho", ["louvor", "comunicacao"]],
-    b: ["📋", "Organizado(a): sigo o plano à risca", ["tecnica", "apoio", "backstage"]] },
-  { id: "ecras", q: "Onde passas horas sem dar por elas?",
-    a: ["💻", "Ao computador, com câmaras ou cabos", ["comunicacao", "tecnica"]],
-    b: ["🚶", "Longe dos ecrãs", ["louvor", "apoio", "backstage"]] },
-  { id: "cedo", q: "Chegas cedo à igreja. O que fazes primeiro?",
-    a: ["🪑", "Monto: cadeiras, cabos, material", ["tecnica", "apoio"]],
-    b: ["📝", "Preparo o que vai acontecer: ensaio, fotos, alinhamento", ["louvor", "comunicacao", "backstage"]] },
-  { id: "incomoda", q: "O que te incomoda mais?",
-    a: ["⏰", "Atrasos e coisas fora do sítio", ["apoio", "backstage"]],
-    b: ["🎧", "Um som, uma imagem ou uma música mal feitos", ["louvor", "comunicacao", "tecnica"]] },
-  { id: "pressao", q: "E a pressão do último minuto?",
-    a: ["⚡", "Dá-me energia: é quando rendo mais", ["backstage", "louvor"]],
-    b: ["🗓️", "Prefiro ter tudo pronto com tempo", ["comunicacao", "tecnica", "apoio"]] },
-  // ── grupo pessoas
-  { id: "paciencia", q: "Com quem tens mais paciência?",
-    a: ["🧸", "Com os mais pequenos", ["louvorkinder", "kinder"]],
-    b: ["🗣️", "Com quem já conversa a sério", ["shift", "new", "pessoal"]] },
-  { id: "preparar", q: "O que preparas com mais gosto?",
-    a: ["🧩", "Uma atividade ou um jogo", ["kinder", "shift"]],
-    b: ["🎉", "Um momento especial para alguém", ["louvorkinder", "new", "pessoal"]] },
-  { id: "adolescentes", q: "Um grupo de adolescentes. Para ti é…",
-    a: ["🔥", "Um desafio, e eu adoro", ["shift", "new"]],
-    b: ["😬", "Prefiro outro público", ["louvorkinder", "kinder", "pessoal"]] },
-  { id: "conversa", q: "Que conversa preferes?",
-    a: ["☕", "A fundo, com calma e um café", ["new", "pessoal"]],
-    b: ["🏃", "Rápida e cheia de energia", ["louvorkinder", "kinder", "shift"]] },
-  { id: "superpoder", q: "Qual é o teu superpoder?",
-    a: ["😁", "Pôr toda a gente a sorrir", ["pessoal", "louvorkinder"]],
-    b: ["🌱", "Acompanhar alguém ao longo do tempo", ["kinder", "shift", "new"]] },
+    a: ["🤝", "Estar com as pessoas, cara a cara", PESSOAS],
+    b: ["🛠️", "Pôr as mãos (ou o talento) numa tarefa", TAREFA] },
+  // ── tarefa: os 10 pares de Louvor · Comunicação · Técnica · Apoio · Backstage
+  T("artista", "Qual destas te descreve melhor?", ["🎨", "Criativo(a): invento, componho, desenho"], ["📋", "Organizado(a): sigo o plano à risca"], ["louvor", "comunicacao"]),
+  T("ouvido", "Qual é o teu sentido mais apurado?", ["👂", "O ouvido: noto logo uma nota ou um som fora do sítio"], ["👀", "O olhar: imagens, espaços, pormenores"], ["louvor", "tecnica"]),
+  T("rotina", "Que tipo de tarefa preferes?", ["🔁", "Uma que se repete e aperfeiçoo com a prática"], ["🆕", "Uma diferente todas as semanas"], ["louvor", "apoio"]),
+  T("pressao", "E a pressão do último minuto?", ["⚡", "Dá-me energia: é quando rendo mais"], ["🗓️", "Prefiro ter tudo pronto com tempo"], ["louvor", "backstage"]),
+  T("ecras", "Onde passas horas sem dar por elas?", ["💻", "Ao computador, com câmaras ou cabos"], ["🚶", "Longe dos ecrãs"], ["comunicacao", "tecnica"]),
+  T("autonomia", "Como trabalhas melhor?", ["🧭", "Ao meu ritmo, com autonomia"], ["🤜", "Em sintonia com uma equipa, todos ao mesmo tempo"], ["comunicacao", "apoio"]),
+  T("posto", "Num evento, preferes…", ["🏃", "Andar por todo o lado"], ["📍", "Ter o meu posto e cuidar dele"], ["comunicacao", "backstage"]),
+  T("cedo", "Chegas cedo à igreja. O que fazes primeiro?", ["🪑", "Monto: cadeiras, cabos, material"], ["📝", "Preparo o que vai acontecer: ensaio, fotos, alinhamento"], ["tecnica", "apoio"]),
+  T("avaria", "Algo falha a meio do culto. Tu…", ["🧯", "Resolvo, sem ninguém dar por isso"], ["🙏", "Prefiro que alguém trate disso"], ["tecnica", "backstage"]),
+  T("incomoda", "O que te incomoda mais?", ["⏰", "Atrasos e coisas fora do sítio"], ["🎧", "Um som, uma imagem ou uma música mal feitos"], ["apoio", "backstage"]),
+  // ── pessoas: os 10 pares de Louvor Kinder · Kinder · SHIFT · New · Pessoal
+  P("paciencia", "Com quem tens mais paciência?", ["🧸", "Com os mais pequenos"], ["🗣️", "Com quem já conversa a sério"], ["louvorkinder", "kinder"]),
+  P("animar", "Onde estás mais à vontade?", ["📣", "A animar um grupo inteiro"], ["🫂", "Com uma pessoa de cada vez"], ["louvorkinder", "shift"]),
+  P("microfone", "Microfone na mão, à frente de um grupo?", ["🎤", "Adoro"], ["🙈", "Prefiro não"], ["louvorkinder", "new"]),
+  P("superpoder", "Qual é o teu superpoder?", ["😁", "Pôr toda a gente a sorrir"], ["🌱", "Acompanhar alguém ao longo do tempo"], ["louvorkinder", "pessoal"]),
+  P("preparar", "O que preparas com mais gosto?", ["🧩", "Uma atividade ou um jogo"], ["🎉", "Um momento especial para alguém"], ["kinder", "shift"]),
+  P("ensinar", "O que gostavas mais de fazer?", ["📖", "Explicar uma história da Bíblia"], ["🎈", "Receber, animar ou jogar"], ["kinder", "new"]),
+  P("dom", "O teu dom é mais…", ["🩹", "Cuidar: reparo no que falta a alguém"], ["🚀", "Inspirar: ponho os outros a crescer"], ["kinder", "pessoal"]),
+  P("adolescentes", "Um grupo de adolescentes. Para ti é…", ["🔥", "Um desafio, e eu adoro"], ["😬", "Prefiro outro público"], ["shift", "new"]),
+  P("mexer", "Num domingo, preferes…", ["🏃", "Andar de um lado para o outro"], ["🪑", "Ficar num sítio, com o mesmo grupo"], ["shift", "pessoal"]),
+  P("conversa", "Que conversa preferes?", ["☕", "A fundo, com calma e um café"], ["⚡", "Rápida e cheia de energia"], ["new", "pessoal"]),
 ];
-const MAX_GERAIS = 8;      // perguntas de 2 respostas: rede de segurança (o desenho acaba em 3–4)
-const FOLGA = 1;           // em jogo = a 1 ponto (ou menos) da que vai à frente
+const MAX_GERAIS = 8;      // perguntas de 2 respostas: sempre 8
+const FOLGA = 1;           // perto = a 1 ponto (ou menos) da que vai à frente
 const MAX_PERGUNTAS = 10;  // com as de área
 
 const ladoDe = (pg, b) => (pg.a[2].includes(b) ? "a" : pg.b[2].includes(b) ? "b" : null);
@@ -432,22 +430,22 @@ function contagem(lista = resps) {
 const emJogo = (c) => { const m = Math.max(...Object.values(c)); return IDS.filter((b) => c[b] >= m - FOLGA); };
 const aFrente = (c) => { const m = Math.max(...Object.values(c)); return IDS.filter((b) => c[b] === m); };
 
-/* a próxima pergunta: a que divide mais ao meio as bases que vão à
- * frente (e, entre essas, as que ainda estão em jogo); entre as
- * igualmente boas, sorteio desta pessoa. null = já dá para decidir:
- * só uma vai à frente. Olhar para as da frente é também o que impede de
- * perguntar sobre miúdos a quem acabou de dizer "tarefa". */
+/* a próxima pergunta (null = já foram as 8): a que divide mais ao meio
+ * as bases que vão à frente; depois a que divide as que estão perto;
+ * depois uma que envolva a da frente (confirmar). Entre as igualmente
+ * boas, sorteio desta pessoa. Olhar para as da frente é também o que
+ * impede de perguntar sobre miúdos a quem acabou de dizer "tarefa". */
 function proximaPergunta() {
   if (resps.length >= MAX_GERAIS) return null;
   const c = contagem(), jogo = emJogo(c), frente = aFrente(c);
-  if (frente.length === 1) return null;
   const divide = (pg, grupo) => Math.min(grupo.filter((b) => ladoDe(pg, b) === "a").length, grupo.filter((b) => ladoDe(pg, b) === "b").length);
+  const envolve = (pg, grupo) => grupo.filter((b) => ladoDe(pg, b) !== null).length;
   const feitas = new Set(resps.map((x) => x.id));
   let melhores = [], nota = 0;
   BANCO.forEach((pg) => {
     if (feitas.has(pg.id)) return;
-    if (!divide(pg, frente)) return;
-    const n = divide(pg, frente) * 100 + divide(pg, jogo);
+    const n = divide(pg, frente) * 10000 + divide(pg, jogo) * 100 + envolve(pg, frente);
+    if (!n) return;
     if (n > nota) { nota = n; melhores = [pg]; } else if (n === nota) melhores.push(pg);
   });
   return melhores.length ? baralhar(melhores, semente + resps.length * 31)[0] : null;
@@ -487,7 +485,7 @@ function renderId() {
   sub.textContent = "Para quem esteve na reunião de novos voluntários.";
   corpo.innerHTML = `<div class="inicio"><div>
     <ul class="pontos">
-      <li><b class="n">1</b><span><b>Poucas perguntas de duas respostas</b>, que vão afunilando até à tua base. Menos de 2 minutos.</span></li>
+      <li><b class="n">1</b><span><b>8 perguntas de duas respostas</b>, que vão afunilando até à tua base. Uns 2 minutos.</span></li>
       <li><b class="n">2</b><span>No fim sugerimos <b>as duas bases que mais combinam contigo</b>. Aceitas ou escolhes outras.</span></li>
       <li><b class="n">3</b><span>Só quando confirmas é que <b>vai para o pastor</b>. Não precisas de dizer nada em voz alta.</span></li>
     </ul></div><div class="inicio-form">
@@ -519,11 +517,11 @@ function renderId() {
 /* o "funil": 10 pontos, acesos os das bases que vão à frente — sem nomes
  * nem cores (não é para a pessoa ir atrás de uma base, é para ver o
  * teste a afunilar) */
-function funil(acesas) {
+function funil(acesas, achada = false) {
   return `<div class="progresso">
       <button class="voltar" id="voltar" aria-label="Voltar">‹</button>
       <div class="funil" role="img" aria-label="${acesas} de 10 bases ainda em jogo">${IDS.map((_, i) => `<i class="${i < acesas ? "on" : ""}"></i>`).join("")}</div>
-      <span>${acesas === 1 ? "encontrada" : `restam ${acesas}`}</span>
+      <span>${achada ? "encontrada" : acesas === 1 ? "a confirmar" : `restam ${acesas}`}</span>
     </div>`;
 }
 function opcoesHtml(lista, escolhida) {
@@ -540,7 +538,7 @@ function renderFunil() {
   const pg = BANCO.find((x) => x.id === resps[atual]?.id) || proximaPergunta();
   const antes = contagem(resps.slice(0, atual));
   titulo.innerHTML = `Pergunta <em>${atual + 1}</em>`;
-  sub.textContent = atual === 0 ? "Só duas respostas. Escolhe a que é mais tu." : "Vamos afunilando.";
+  sub.textContent = atual === 0 ? "Só duas respostas. Escolhe a que é mais tu." : aFrente(antes).length === 1 ? "Só a confirmar." : "Vamos afunilando.";
   // a ordem das 2 respostas também muda de pessoa para pessoa
   const ordemAB = baralhar(["a", "b"], semente + atual * 17);
   const lista = ordemAB.map((l) => ({ v: l, e: pg[l][0], t: pg[l][1] }));
@@ -573,7 +571,7 @@ function renderCategoria() {
   titulo.innerHTML = `Pergunta <em>${n + 1}</em>`;
   sub.textContent = `Sobre a tua área na ${BASES[final.primeira].nome}`;
   const lista = def.op.map(([area, e, t], i) => ({ v: String(i), e, t }));
-  corpo.innerHTML = `${funil(1)}<h2 class="pergunta">${esc(def.q)}</h2>${opcoesHtml(lista, c.escolha)}`;
+  corpo.innerHTML = `${funil(1, true)}<h2 class="pergunta">${esc(def.q)}</h2>${opcoesHtml(lista, c.escolha)}`;
   document.getElementById("voltar").onclick = () => { if (atual > 0) { atual--; render(); } else { passo = "funil"; atual = resps.length - 1; render(); } };
   ligarOpcoes((v) => {
     c.escolha = v;
