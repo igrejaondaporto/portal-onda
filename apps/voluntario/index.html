@@ -18,7 +18,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
 <style>
-/* Layout: uma coluna de telemóvel (máx. 480px), cabeçalho azul do Portal com a curva, cartões de resposta tocáveis.
+/* Layout: telemóvel primeiro (uma coluna), e a partir de 760px um ecrã de computador a sério (ver o fim deste bloco);
+   cabeçalho azul do Portal com a curva, cartões de resposta tocáveis.
    Tema único de propósito: é o visual claro do Portal do Voluntário (global.css), que não tem modo escuro. */
 :root {
   --azul: #0019be;
@@ -48,7 +49,6 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .logo { font-size: 20px; letter-spacing: -.02em; }
 .logo i { font-style: normal; font-weight: 300; }
 .logo b { font-weight: 800; }
-.previa { background: var(--lima); color: var(--tinta); font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 3px 9px; border-radius: 99px; }
 .crista h1 { font-size: clamp(34px, 10.5vw, 46px); font-weight: 800; letter-spacing: -.045em; line-height: .98; margin: 22px 0 0; text-wrap: balance; }
 .crista h1 em { font-style: normal; color: var(--lima); }
 .crista .sob { font-size: 14.5px; opacity: .88; margin: 10px 0 0; line-height: 1.4; }
@@ -165,6 +165,50 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
+
+.pergunta-final .acoes { display: grid; gap: 9px; }
+
+/* ── computador (≥ 760px): o cabeçalho ocupa a largura toda e o
+   conteúdo abre, em vez de uma coluna de telemóvel no meio do ecrã ── */
+@media (min-width: 760px) {
+  .app { max-width: none; }
+  .crista { padding: 28px max(40px, calc((100% - 960px) / 2)) 0; }
+  .crista::before { left: 0; top: -160px; width: 520px; height: 520px; }
+  .logo { font-size: 24px; }
+  .crista h1 { font-size: clamp(48px, 5.4vw, 72px); margin-top: 44px; max-width: 16ch; }
+  .crista .sob { font-size: 18px; margin-top: 14px; max-width: 52ch; }
+  .curva { height: 64px; margin-top: 34px; }
+  .corpo { max-width: 1040px; margin: 0 auto; padding: 8px 40px 80px; }
+
+  /* início: o que vai acontecer à esquerda, o formulário à direita */
+  .inicio { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: start; }
+  .pontos { margin: 18px 0 0; gap: 12px; }
+  .pontos li { font-size: 16px; padding: 18px 20px; }
+  .inicio-form { border: 1.5px solid var(--fio); border-radius: 24px; padding: 6px 24px 22px; margin-top: 18px; }
+  .inicio-form .nota { text-align: left; }
+
+  /* perguntas: respostas em duas colunas */
+  .progresso { margin-top: 18px; }
+  .pergunta { font-size: 30px; }
+  .opcoes { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+  .opcoes .opcao:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .opcao { padding: 18px 18px; font-size: 16px; height: 100%; }
+
+  /* resultado: as duas bases lado a lado */
+  .duas { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; align-items: stretch; margin-top: 12px; }
+  .duas .base-card, .duas .segunda { margin-top: 0; }
+  .duas .segunda { flex-direction: column; align-items: flex-start; padding: 20px; }
+  .duas .segunda .sig { width: 52px; height: 52px; border-radius: 16px; font-size: 15px; }
+  .duas .segunda .rot { font-size: 12px; margin-top: 2px; }
+  .duas .segunda h3 { font-size: 26px; letter-spacing: -.03em; }
+  .duas .segunda p.d { font-size: 14.5px; margin-top: 8px; }
+  .base-card h2 { font-size: 38px; }
+  .pergunta-final { display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: center; padding: 24px 26px; margin-top: 18px; }
+  .pergunta-final p { margin-bottom: 0; }
+  .edit-lista { grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  #trocar-ordem, #enviar, #repor { max-width: 360px; }
+  .feito { text-align: left; padding: 18px 22px; }
+}
 </style>
 </head>
 <body>
@@ -173,7 +217,6 @@ img { max-width: 100%; }
   <header class="crista">
     <div class="lin">
       <span class="logo"><i>igreja</i><b>onda</b></span>
-      <span class="previa">PRÉVIA</span>
     </div>
     <h1 id="titulo">Onde é que <em>vais servir?</em></h1>
     <p class="sob" id="sub">Para quem esteve na reunião de novos voluntários.</p>
@@ -416,7 +459,7 @@ const CATEGORIAS = {
 /* ════════════════════════════════════════════════════════════════
  * Estado
  * ════════════════════════════════════════════════════════════════ */
-const GUARDA = "onda.teste-bases.v7"; // telemóvel → resultado (prévia: só neste browser)
+const GUARDA = "onda.teste-bases.v7"; // telemóvel → resultado (por agora só neste browser: ainda não há servidor)
 const lerFeitos = () => { try { return JSON.parse(localStorage.getItem(GUARDA) || "{}"); } catch { return {}; } };
 const gravarFeito = (tel, r) => { try { const f = lerFeitos(); f[tel] = r; localStorage.setItem(GUARDA, JSON.stringify(f)); } catch { /* sem storage */ } };
 const soDigitos = (t) => String(t).replace(/\D/g, "").replace(/^351(?=\d{9}$)/, "");
@@ -471,12 +514,12 @@ function render() {
 function renderId() {
   titulo.innerHTML = "Onde é que <em>vais servir?</em>";
   sub.textContent = "Para quem esteve na reunião de novos voluntários.";
-  corpo.innerHTML = `
+  corpo.innerHTML = `<div class="inicio"><div>
     <ul class="pontos">
       <li><b class="n">1</b><span><b>10 perguntas rápidas</b>, no máximo, sobre as tuas qualidades e talentos. Uns 2 minutos.</span></li>
       <li><b class="n">2</b><span>No fim sugerimos <b>as duas bases que mais combinam contigo</b>. Aceitas ou escolhes outras.</span></li>
       <li><b class="n">3</b><span>Só quando confirmas é que <b>vai para o pastor</b>. Não precisas de dizer nada em voz alta.</span></li>
-    </ul>
+    </ul></div><div class="inicio-form">
     <form id="f-id" novalidate>
       <label class="campo-rot" for="nome">O teu nome</label>
       <input class="campo" id="nome" autocomplete="name" placeholder="Nome e apelido" value="${esc(pessoa.nome)}">
@@ -485,7 +528,7 @@ function renderId() {
       <p class="erro" id="erro" role="alert"></p>
       <button class="btn" type="submit" style="margin-top:8px">Começar</button>
     </form>
-    <p class="nota">Só dá para responder uma vez com cada telemóvel. Não há respostas certas: pensa no que és mesmo bom (boa), não no que achas que devias ser.</p>`;
+    <p class="nota">Só dá para responder uma vez com cada telemóvel. Não há respostas certas: pensa no que és mesmo bom (boa), não no que achas que devias ser.</p></div></div>`;
   document.getElementById("f-id").onsubmit = (e) => {
     e.preventDefault();
     pessoa.nome = document.getElementById("nome").value.trim();
@@ -650,7 +693,7 @@ function renderResultado() {
   const mudou = e.p1 !== f.primeira || e.p2 !== f.segunda;
   titulo.innerHTML = f.enviado ? "Enviado ao <em>pastor</em>" : (mudou ? "As tuas <em>escolhas</em>" : `Sugerimos <em>${esc(BASES[e.p1].nome.replace(/^Base (de )?/, ""))}</em>`);
   sub.textContent = f.enviado ? "Obrigado! Agora é com os líderes." : (mudou ? "Confirma e envia ao pastor." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
-  let html = cartaoBase(f, e.p1, 1) + cartaoBase(f, e.p2, 2);
+  let html = `<div class="duas">${cartaoBase(f, e.p1, 1)}${cartaoBase(f, e.p2, 2)}</div>`;
   if (f.enviado) {
     html += `<div class="feito" style="margin-top:14px">✅ <b>Enviado em ${esc(f.enviadoEm)}.</b><br>O líder da ${esc(BASES[e.p1].nome)} vai falar contigo pelo WhatsApp. A ${esc(BASES[e.p2].nome)} fica como segunda opção.</div>`;
   } else if (editar) {
@@ -659,20 +702,18 @@ function renderResultado() {
        <button class="btn sec" id="repor" style="margin-top:9px">Voltar à sugestão</button>`;
   } else {
     html += `<div class="pergunta-final">
-        <h3>Queres servir nestas duas bases?</h3>
-        <p>Podes aceitar a sugestão, trocar uma delas ou mudar a ordem. Só depois é que vai para o pastor.</p>
-        <button class="btn" id="enviar">Sim, enviar ao pastor</button>
-        <button class="btn sec" id="mudar" style="margin-top:9px">Quero mudar</button>
+        <div><h3>Queres servir nestas duas bases?</h3>
+        <p>Podes aceitar a sugestão, trocar uma delas ou mudar a ordem. Só depois é que vai para o pastor.</p></div>
+        <div class="acoes"><button class="btn" id="enviar">Sim, enviar ao pastor</button>
+        <button class="btn sec" id="mudar">Quero mudar</button></div>
       </div>`;
   }
-  html += `<button class="btn sec" id="limpar" style="margin-top:14px;background:none;color:var(--cinza)">Apagar e repetir (só nesta prévia)</button>`;
   corpo.innerHTML = html;
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   on("mudar", () => { editar = true; render(); });
   on("repor", () => { f.escolha = { p1: f.primeira, p2: f.segunda }; editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); });
   on("trocar-ordem", () => { f.escolha = { p1: e.p2, p2: e.p1 }; gravarFeito(soDigitos(pessoa.tel), f); render(); });
   on("enviar", () => { f.enviado = true; f.enviadoEm = new Date().toLocaleDateString("pt-PT"); editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); topo(); });
-  on("limpar", limparPrevia);
   corpo.querySelectorAll(".edit-pos").forEach((btn) => btn.onclick = () => { escolher(f, btn.dataset.b, Number(btn.dataset.n)); gravarFeito(soDigitos(pessoa.tel), f); render(); });
 }
 
@@ -680,10 +721,6 @@ function renderResultado() {
  * (por enviar, se ainda não enviou; ou o que enviou) */
 function renderJaFez() { passo = "resultado"; renderResultado(); }
 
-function limparPrevia() {
-  try { const f = lerFeitos(); delete f[soDigitos(pessoa.tel)]; localStorage.setItem(GUARDA, JSON.stringify(f)); } catch { /* nada */ }
-  passo = "id"; final = null; editar = false; render(); topo();
-}
 
 render();
 </script>

@@ -35,15 +35,20 @@ nada. Hoje é **um `index.html` estático** (Vite só copia; sem React,
 sem Firebase):
 
 - "Enviar ao pastor" **não envia nada** — grava só no `localStorage`
-  do telemóvel da pessoa (`onda.teste-bases.v7`). Por isso ainda tem o
-  selo "PRÉVIA" e o botão "Apagar e repetir".
+  do telemóvel da pessoa (`onda.teste-bases.v7`). O selo "PRÉVIA" e o
+  botão "Apagar e repetir" da prévia saíram a pedido do dono do
+  produto: a página já se apresenta como a versão final.
 - "Um teste por telemóvel" é só neste browser.
+- Telemóvel primeiro, mas **não só**: a partir de 760px abre para um
+  ecrã de computador (cabeçalho a toda a largura, início em duas
+  colunas, respostas em duas colunas, as duas bases lado a lado) —
+  o bloco `@media (min-width: 760px)` no fim do CSS. Uma coluna de
+  480px no meio do ecrã parecia "uma vista de telemóvel".
 
 Para ligar a sério (quando for pedido): uma Cloud Function pública
 (sem login) que grava o resultado, garante um teste por telemóvel no
 servidor e cria as candidaturas nas duas bases escolhidas
-(`functions/candidaturas.js`), com a revisão no Painel Pastoral — e
-tirar o "PRÉVIA"/"Apagar e repetir". A Function vai em PR à parte
+(`functions/candidaturas.js`), com a revisão no Painel Pastoral. A Function vai em PR à parte
 (CLAUDE.md raiz, "Trabalhar numa base sem mexer nas outras").
 
 ## Deploy
