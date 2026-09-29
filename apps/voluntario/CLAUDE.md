@@ -88,7 +88,8 @@ Decisão do dono do produto: publicar no domínio, mas ainda sem ligar a
 nada. Hoje é **um `index.html` estático** (Vite só copia; sem React,
 sem Firebase):
 
-- "Enviar ao pastor" **não envia nada** — grava só no `localStorage`
+- "Enviar" (antes "Enviar ao pastor" — o dono do produto: "vai direto
+  para os líderes") **ainda não envia nada** — grava só no `localStorage`
   do telemóvel da pessoa (`onda.teste-bases.v8`). O selo "PRÉVIA" e o
   botão "Apagar e repetir" da prévia saíram a pedido do dono do
   produto: a página já se apresenta como a versão final.
