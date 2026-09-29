@@ -10,13 +10,25 @@ novos voluntários**: o pastor mostra o link/QR
 responde a 10 perguntas no máximo. **Não é uma base** (como o Mural):
 não há login, nem PIN, nem `bases/voluntario`.
 
-- 8 perguntas objetivas, estilo entrevista (uma qualidade, um hobby,
-  uma profissão…), **5 respostas cada**, cada resposta vale 1 ponto
-  para uma só base. Cada base aparece **exatamente 4 vezes** — nenhuma
-  tem mais hipóteses do que outra (`DESENHO` no `index.html`).
-- Empate em 1.º lugar: uma pergunta extra; se ainda sobrar, um
-  sorteio **por pessoa** (semente = telemóvel), nunca a ordem da lista
-  — já deu viés para a Apoio uma vez, por desempatar pela ordem.
+- **Funil tipo "Akinator"** (2026-09, pedido do dono do produto — o
+  desenho anterior, 8 perguntas de 5 respostas, deixava cada base de
+  fora de metade das perguntas): perguntas de **2 respostas**, cada
+  resposta aponta para um grupo de bases (+1), as bases fora dos dois
+  lados ficam neutras (+0,5). A pergunta seguinte é a que melhor divide
+  as bases que vão à frente (`proximaPergunta`); para quando só sobra
+  uma a 1,5 pontos das outras (mín. 4, máx. 8 perguntas). Os 10 pontos
+  por cima da pergunta apagam-se à medida que afunila — sem nomes nem
+  cores, para ninguém ir atrás de uma base.
+- **Desenho simétrico** (`BANCO`): a 1.ª pergunta divide 5 | 5
+  (tarefa | pessoas) e cada grupo tem 5 perguntas 2 | 3 em ciclo. Por
+  isso, respondendo ao acaso, cada base sai **exatamente 10%** das
+  vezes, e quem responde sempre como a sua base acerta 100% em 5–6
+  perguntas. Qualquer mudança ao `BANCO` tem de manter isto:
+  `node scripts/simularTesteVoluntario.mjs` antes de publicar (corre o
+  código da própria página por todos os caminhos; sai com erro se
+  desequilibrar).
+- Empate que sobre: sorteio **por pessoa** (semente = telemóvel), nunca
+  a ordem da lista — já deu viés para a Apoio uma vez.
 - Até 2 perguntas sobre a **área** da 1.ª base (Técnica, Comunicação,
   Pessoal, Louvor, Louvor Kinder, Kinder). As idades da Kinder
   (Baby/Fun/Júnior) só aparecem aqui, nunca nas 8 gerais; SHIFT
