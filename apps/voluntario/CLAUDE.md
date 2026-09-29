@@ -68,6 +68,13 @@ não há login, nem PIN, nem `bases/voluntario`.
   Pessoal, Louvor, Louvor Kinder, Kinder). As idades da Kinder
   (Baby/Fun/Júnior) só aparecem aqui, nunca no funil; SHIFT
   (pré-adolescentes) e New (adolescentes) são bases diferentes.
+- **Saltar o teste** (pedido do dono do produto: "nem todos vão querer
+  fazer o teste"): no ecrã inicial, "Já sei onde quero servir" pede o
+  mesmo nome e telemóvel e abre a lista das 10 bases (por ordem
+  alfabética, com a descrição de cada uma) para escolher a 1.ª e, se
+  quiser, a 2.ª (`renderEscolher`). Fica gravado como os outros, com
+  `direto: true` e sem pontos. "Afinal, quero fazer o teste" volta ao
+  funil.
 - No fim é uma **sugestão**: a pessoa aceita as duas bases, ou abre a
   lista com os pontos dela e escolhe outra/troca a ordem. Só depois
   "envia".

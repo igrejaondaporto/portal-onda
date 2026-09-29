@@ -208,6 +208,7 @@ img { max-width: 100%; }
   /* resultado: as duas bases lado a lado */
   .duas { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; align-items: stretch; margin-top: 12px; }
   .duas .base-card, .duas .segunda { margin-top: 0; }
+  .duas.so1 { grid-template-columns: 1fr; }
   .duas .segunda { flex-direction: column; align-items: flex-start; padding: 20px; }
   .duas .segunda .sig { width: 52px; height: 52px; border-radius: 16px; font-size: 15px; }
   .duas .segunda .rot { font-size: 12px; margin-top: 2px; }
@@ -217,6 +218,7 @@ img { max-width: 100%; }
   .pergunta-final { display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: center; padding: 24px 26px; margin-top: 18px; }
   .pergunta-final p { margin-bottom: 0; }
   .edit-lista { grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  #enviar-direto, #fazer-teste { max-width: 420px; }
   #trocar-ordem, #enviar, #repor { max-width: 360px; }
   .feito { text-align: left; padding: 18px 22px; }
 }
@@ -512,7 +514,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const topo = () => scrollTo(0, 0);
 
 function render() {
-  ({ id: renderId, funil: renderFunil, categoria: renderCategoria, resultado: renderResultado, jafez: renderJaFez })[passo]();
+  ({ id: renderId, escolher: renderEscolher, funil: renderFunil, categoria: renderCategoria, resultado: renderResultado, jafez: renderJaFez })[passo]();
 }
 
 function renderId() {
@@ -523,6 +525,7 @@ function renderId() {
       <li><b class="n">1</b><span><b>8 perguntas de duas respostas</b>, que vão afunilando até à tua base. Uns 2 minutos.</span></li>
       <li><b class="n">2</b><span>No fim sugerimos <b>as duas bases que mais combinam contigo</b>. Aceitas ou escolhes outras.</span></li>
       <li><b class="n">3</b><span>Só quando confirmas é que <b>vai para o pastor</b>. Não precisas de dizer nada em voz alta.</span></li>
+      <li><b class="n">→</b><span>Já sabes onde queres servir? <b>Salta o teste</b> e escolhe as bases diretamente.</span></li>
     </ul></div><div class="inicio-form">
     <form id="f-id" novalidate>
       <label class="campo-rot" for="nome">O teu nome</label>
@@ -530,9 +533,15 @@ function renderId() {
       <label class="campo-rot" for="tel">Telemóvel</label>
       <input class="campo" id="tel" inputmode="tel" autocomplete="tel" placeholder="9xx xxx xxx" value="${esc(pessoa.tel)}">
       <p class="erro" id="erro" role="alert"></p>
-      <button class="btn" type="submit" style="margin-top:8px">Começar</button>
+      <button class="btn" type="submit" data-modo="teste" style="margin-top:8px">Começar o teste</button>
+      <button class="btn sec" type="submit" data-modo="direto" style="margin-top:9px">Já sei onde quero servir</button>
     </form>
     <p class="nota">Só dá para responder uma vez com cada telemóvel. Não há respostas certas: pensa no que és mesmo bom (boa), não no que achas que devias ser.</p></div></div>`;
+  // dois botões no mesmo formulário: fazer o teste, ou saltá-lo e escolher
+  // as bases diretamente (pedido do dono do produto: "nem todos vão
+  // querer fazer o teste") — nome e telemóvel pedem-se nos dois casos
+  let modo = "teste";
+  corpo.querySelectorAll("#f-id [data-modo]").forEach((b) => b.addEventListener("click", () => { modo = b.dataset.modo; }));
   document.getElementById("f-id").onsubmit = (e) => {
     e.preventDefault();
     pessoa.nome = document.getElementById("nome").value.trim();
@@ -545,7 +554,49 @@ function renderId() {
     semente = Number(soDigitos(pessoa.tel).slice(-6)) || 1;
     prepararSorteio(semente);
     resps = []; atual = 0; cats = [];
+    if (modo === "direto") { direta = { p1: null, p2: null }; passo = "escolher"; render(); topo(); return; }
     passo = "funil"; render(); topo();
+  };
+}
+
+/* ── sem teste: a pessoa escolhe a 1.ª (e, se quiser, a 2.ª) diretamente ── */
+let direta = { p1: null, p2: null };
+function renderEscolher() {
+  titulo.innerHTML = "Escolhe as tuas <em>bases</em>";
+  sub.textContent = "Toca em 1.ª na base onde queres servir. A 2.ª é opcional.";
+  const ord = [...IDS].sort((a, b) => BASES[a].nome.replace(/^Base (de )?/, "").localeCompare(BASES[b].nome.replace(/^Base (de )?/, ""), "pt"));
+  const f = { escolha: direta };
+  corpo.innerHTML = `
+    <div class="edit-lista direta">${ord.map((b) => {
+      const B = BASES[b], e1 = direta.p1 === b, e2 = direta.p2 === b;
+      return `<div class="edit-linha${e1 || e2 ? " on" : ""}">
+        <span class="edit-sig" style="background:${B.cor};color:${tintaSobre(B.cor)}">${B.sig}</span>
+        <span class="edit-nome">${esc(B.nome)}<small>${esc(B.desc)}</small></span>
+        <button class="edit-pos" data-b="${b}" data-n="1" aria-pressed="${e1}">1.ª</button>
+        <button class="edit-pos" data-b="${b}" data-n="2" aria-pressed="${e2}">2.ª</button>
+      </div>`;
+    }).join("")}</div>
+    <button class="btn" id="enviar-direto" style="margin-top:16px" ${direta.p1 ? "" : "disabled"}>${direta.p1 ? `Enviar ao pastor: ${esc(BASES[direta.p1].nome)}${direta.p2 ? ` e ${esc(BASES[direta.p2].nome)}` : ""}` : "Escolhe a 1.ª base"}</button>
+    <button class="btn sec" id="fazer-teste" style="margin-top:9px">Afinal, quero fazer o teste</button>`;
+  corpo.querySelectorAll(".edit-pos").forEach((btn) => btn.onclick = () => {
+    const b = btn.dataset.b, n = Number(btn.dataset.n);
+    // tocar outra vez na mesma tira-a (a 2.ª é opcional)
+    if (n === 2 && direta.p2 === b) direta.p2 = null;
+    else if (n === 1 && direta.p1 === b) direta.p1 = null;
+    else escolher(f, b, n);
+    if (direta.p1 === direta.p2) direta.p2 = null;
+    render();
+  });
+  document.getElementById("fazer-teste").onclick = () => { passo = "funil"; render(); topo(); };
+  document.getElementById("enviar-direto").onclick = () => {
+    if (!direta.p1) return;
+    final = {
+      direto: true, primeira: direta.p1, segunda: direta.p2, contagem: null,
+      nome: pessoa.nome, em: new Date().toLocaleDateString("pt-PT"),
+      escolha: { p1: direta.p1, p2: direta.p2 }, enviado: true, enviadoEm: new Date().toLocaleDateString("pt-PT"),
+    };
+    gravarFeito(soDigitos(pessoa.tel), final);
+    passo = "resultado"; render(); topo();
   };
 }
 
@@ -687,9 +738,9 @@ function renderResultado() {
   const mudou = e.p1 !== f.primeira || e.p2 !== f.segunda;
   titulo.innerHTML = f.enviado ? "Enviado ao <em>pastor</em>" : (mudou ? "As tuas <em>escolhas</em>" : `Sugerimos <em>${esc(BASES[e.p1].nome.replace(/^Base (de )?/, ""))}</em>`);
   sub.textContent = f.enviado ? "Obrigado! Agora é com os líderes." : (mudou ? "Confirma e envia ao pastor." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
-  let html = `<div class="duas">${cartaoBase(f, e.p1, 1)}${cartaoBase(f, e.p2, 2)}</div>`;
+  let html = `<div class="duas${e.p2 ? "" : " so1"}">${cartaoBase(f, e.p1, 1)}${e.p2 ? cartaoBase(f, e.p2, 2) : ""}</div>`;
   if (f.enviado) {
-    html += `<div class="feito" style="margin-top:14px">✅ <b>Enviado em ${esc(f.enviadoEm)}.</b><br>O líder da ${esc(BASES[e.p1].nome)} vai falar contigo pelo WhatsApp. A ${esc(BASES[e.p2].nome)} fica como segunda opção.</div>`;
+    html += `<div class="feito" style="margin-top:14px">✅ <b>Enviado em ${esc(f.enviadoEm)}.</b><br>O líder da ${esc(BASES[e.p1].nome)} vai falar contigo pelo WhatsApp.${e.p2 ? ` A ${esc(BASES[e.p2].nome)} fica como segunda opção.` : ""}</div>`;
   } else if (editar) {
     html += `<button class="btn sec" id="trocar-ordem" style="margin-top:12px">⇅ Trocar a ordem</button>` + listaEditar(f) +
       `<button class="btn" id="enviar" style="margin-top:14px">Enviar ao pastor</button>
