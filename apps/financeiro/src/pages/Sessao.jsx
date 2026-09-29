@@ -6,7 +6,6 @@ import { TourProvider, TourAutoStart } from "@portal/shared/lib/TourContext.jsx"
 import Tour from "@portal/shared/components/Tour.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
-import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import Inicio from "./Inicio";
@@ -62,7 +61,6 @@ export default function Sessao({ uid, baseId, papel, mostrarTourAoEntrar }) {
       <Tour />
       <div className="app">
         <AvisoOffline />
-        <AvisoInstalarPWA />
         <AvisoNotificacoes />
         {/* "qual é o teu e-mail?" — trava o ecrã até responder (packages/shared) */}
         <PedirEmail />

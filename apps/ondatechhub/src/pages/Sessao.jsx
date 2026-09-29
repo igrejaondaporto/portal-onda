@@ -7,7 +7,6 @@ import Tour from "@portal/shared/components/Tour.jsx";
 import MenuEu from "@portal/shared/components/MenuEu.jsx";
 import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
-import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import Relatos from "./Relatos";
@@ -62,7 +61,6 @@ export default function Sessao({ uid, papel, baseId, mostrarTourAoEntrar }) {
       <Tour />
       <div className="app">
         <AvisoOffline />
-        <AvisoInstalarPWA />
         <AvisoNotificacoes />
         <PedirEmail />
         <div className="crista topo" style={{ paddingBottom: 0 }}>

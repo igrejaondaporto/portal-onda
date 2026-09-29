@@ -11,7 +11,6 @@ import BotaoTrocarBase from "@portal/shared/components/BotaoTrocarBase.jsx";
 import NavBar from "@portal/shared/components/NavBar.jsx";
 import BotaoReportarFlutuante from "@portal/shared/components/BotaoReportarFlutuante.jsx";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
-import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import AvisoNotificacoes from "@portal/shared/components/AvisoNotificacoes.jsx";
 import PedirEmail from "@portal/shared/components/PedirEmail.jsx";
 import PainelLider from "./PainelLider";
@@ -157,7 +156,6 @@ export default function Sessao({ uid, papel, baseId, podePublicarCulto, mostrarT
       <Tour />
       <div className="app">
         <AvisoOffline />
-        <AvisoInstalarPWA />
         <AvisoNotificacoes />
         {/* "qual é o teu e-mail?" — trava o ecrã até responder (packages/shared) */}
         <PedirEmail />
