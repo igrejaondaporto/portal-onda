@@ -7,19 +7,43 @@ Lê primeiro o `CLAUDE.md` da raiz. Isto é o que é diferente aqui.
 Um teste de vocação curto para quem acabou de sair da **reunião de
 novos voluntários**: o pastor mostra o link/QR
 (`voluntario.igrejaonda.pt`), a pessoa escreve nome e telemóvel e
-responde a 10 perguntas no máximo. **Não é uma base** (como o Mural):
+responde a 8 perguntas de duas respostas (mais até 2 sobre a área da
+base). **Não é uma base** (como o Mural):
 não há login, nem PIN, nem `bases/voluntario`.
 
-- 8 perguntas objetivas, estilo entrevista (uma qualidade, um hobby,
-  uma profissão…), **5 respostas cada**, cada resposta vale 1 ponto
-  para uma só base. Cada base aparece **exatamente 4 vezes** — nenhuma
-  tem mais hipóteses do que outra (`DESENHO` no `index.html`).
-- Empate em 1.º lugar: uma pergunta extra; se ainda sobrar, um
-  sorteio **por pessoa** (semente = telemóvel), nunca a ordem da lista
-  — já deu viés para a Apoio uma vez, por desempatar pela ordem.
+- **Funil tipo "Akinator"** (2026-09, pedido do dono do produto — o
+  desenho anterior, 8 perguntas de 5 respostas, deixava cada base de
+  fora de metade das perguntas): **8 perguntas de 2 respostas**, cada
+  resposta aponta para um grupo de bases (+1), as bases fora dos dois
+  lados ficam neutras (+0,5). A pergunta seguinte (`proximaPergunta`) é
+  primeiro a que separa as bases que vão à frente, depois a que separa
+  as que estão perto, e depois uma que envolva a da frente — as de
+  **confirmação**. Histórico das decisões: uma versão parava em 3–4
+  perguntas ("pouco, põe umas 8 para confirmar"); outra confirmava com
+  perguntas parecidas às anteriores ("já disse que prefiro tarefas e
+  depois pergunta se prefiro estar à frente ou atrás"). Por isso **cada
+  pergunta é um tema diferente** — nunca a mesma ideia por outras
+  palavras.
+- A **2.ª base** é a que ficou mais perto — mais pontos e, em empate, a
+  última a sair da frente (`ordemFinal`). Os 10 pontos por cima da
+  pergunta apagam-se à medida que afunila ("restam 5", "a confirmar")
+  — sem nomes nem cores, para ninguém ir atrás de uma base.
+- **Desenho simétrico** (`BANCO`): a 1.ª pergunta divide tarefa |
+  pessoas; em cada grupo de 5 há 10 perguntas, **uma por cada par** de
+  bases (o par de um lado, as outras 3 do outro); cada pessoa responde a
+  7 das 10 do seu grupo. Por isso, ao acaso, cada base sai **exatamente
+  10%** das vezes; quem responde sempre como a sua base acerta 100%; com
+  1 resposta em cada 10 "trocada" acerta ~85%, igual para todas.
+  Qualquer mudança ao `BANCO` tem de manter isto:
+  `node scripts/simularTesteVoluntario.mjs` antes de publicar (corre o
+  código da própria página por todos os caminhos; sai com erro se
+  desequilibrar). Uma pergunta nova entra sempre como um PAR que ainda
+  não tem pergunta — ou troca o texto de uma que já existe.
+- Empate que sobre: sorteio **por pessoa** (semente = telemóvel), nunca
+  a ordem da lista — já deu viés para a Apoio uma vez.
 - Até 2 perguntas sobre a **área** da 1.ª base (Técnica, Comunicação,
   Pessoal, Louvor, Louvor Kinder, Kinder). As idades da Kinder
-  (Baby/Fun/Júnior) só aparecem aqui, nunca nas 8 gerais; SHIFT
+  (Baby/Fun/Júnior) só aparecem aqui, nunca no funil; SHIFT
   (pré-adolescentes) e New (adolescentes) são bases diferentes.
 - No fim é uma **sugestão**: a pessoa aceita as duas bases, ou abre a
   lista com os pontos dela e escolhe outra/troca a ordem. Só depois
@@ -35,7 +59,7 @@ nada. Hoje é **um `index.html` estático** (Vite só copia; sem React,
 sem Firebase):
 
 - "Enviar ao pastor" **não envia nada** — grava só no `localStorage`
-  do telemóvel da pessoa (`onda.teste-bases.v7`). O selo "PRÉVIA" e o
+  do telemóvel da pessoa (`onda.teste-bases.v8`). O selo "PRÉVIA" e o
   botão "Apagar e repetir" da prévia saíram a pedido do dono do
   produto: a página já se apresenta como a versão final.
 - "Um teste por telemóvel" é só neste browser.
