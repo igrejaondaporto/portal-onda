@@ -567,6 +567,9 @@ function resumirContagem(c) {
     // nos domingos de antes do Mapa (ver MAPA_DESDE em
     // apps/pastoral/src/lib/presenca.js)
     mensagem: valor("mensagem"),
+    // pessoas em pé ao lado do auditório (pedido 2026-09) — marcadas
+    // por baixo do Mapa da Pessoal; o painel soma-as ao auditório
+    emPe: valor("emPe"),
   };
 }
 
