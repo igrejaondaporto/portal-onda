@@ -210,9 +210,13 @@
   border-color: var(--tinta);
   color: #fff;
 }
+/* "+" do lado ESQUERDO no telemóvel: o botão "Melhorias" (partilhado,
+   .botao-flutuante) vive no canto inferior direito e ficava por cima
+   deste (reportado 2026-09). No computador a NavBar vira barra lateral
+   à esquerda e o "Melhorias" desce — aí o "+" volta para a direita. */
 .bib-fab {
   position: fixed;
-  right: 20px;
+  left: 20px;
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   z-index: 11;
   width: 56px;
@@ -228,6 +232,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+@media (min-width: 900px) {
+  .bib-fab { left: auto; right: 20px; }
 }
 
 .link-favicon,
