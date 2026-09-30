@@ -4,6 +4,7 @@ import { useTorrada } from "../lib/TorradaContext.jsx";
 import SheetReportarProblema from "./SheetReportarProblema.jsx";
 import SheetAbrirRelato from "./SheetAbrirRelato.jsx";
 import SheetDetalheRelato from "./SheetDetalheRelato.jsx";
+import { EVENTO_ABRIR_MELHORIAS } from "./NavBar.jsx";
 
 /** Sempre visível, em qualquer ecrã — pedido do líder depois de já ter
  *  estado escondido dentro do menu (MenuEu) e continuar sem ser
@@ -25,15 +26,23 @@ export default function BotaoReportarFlutuante({ uid, paginaAtual = null }) {
     return ouvirMeusRelatos(uid, setMeusRelatos);
   }, [uid]);
 
+  // "Melhorias" no menu lateral (NavBar) abre a mesma lista
+  useEffect(() => {
+    const abrir = () => setSheet({ tipo: "lista" });
+    window.addEventListener(EVENTO_ABRIR_MELHORIAS, abrir);
+    return () => window.removeEventListener(EVENTO_ABRIR_MELHORIAS, abrir);
+  }, []);
+
   const emAberto = meusRelatos.filter((r) => r.status !== "resolvido" && r.status !== "recusado").length;
 
   return (
     <>
-      <button className="botao-flutuante" onClick={() => setSheet({ tipo: "lista" })} aria-label="Reportar problema">
+      <button className="botao-flutuante" onClick={() => setSheet({ tipo: "lista" })} aria-label="Melhorias — reportar um problema ou sugerir uma melhoria">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 21V3" />
           <path d="M4 4h13l-2.5 4L17 12H4" />
         </svg>
+        <span className="botao-flutuante-txt">Melhorias</span>
         {emAberto > 0 && <span className="botao-flutuante-conta">{emAberto}</span>}
       </button>
       {sheet?.tipo === "lista" && (

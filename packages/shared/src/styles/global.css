@@ -1512,9 +1512,12 @@ textarea.campo {
   right: 16px;
   bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   z-index: 13;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+  /* pílula com "Melhorias" escrito — só o ícone de bandeira não era
+     achado por ninguém (reportado 2026-09) */
+  height: 48px;
+  padding: 0 18px 0 14px;
+  gap: 8px;
+  border-radius: 100px;
   border: 0;
   cursor: pointer;
   display: flex;
@@ -1522,7 +1525,15 @@ textarea.campo {
   justify-content: center;
   background: var(--grad);
   color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
   box-shadow: 0 6px 20px rgba(0, 20, 120, 0.32);
+}
+/* "Melhorias" no menu: só no computador (menu lateral, ver lá em
+   baixo) — no telemóvel roubaria uma coluna à barra inferior. */
+.navb .navb-melhorias {
+  display: none;
 }
 .botao-flutuante-conta {
   position: absolute;
@@ -1595,6 +1606,10 @@ textarea.campo {
   }
   .botao-flutuante {
     bottom: 24px; /* a NavBar vira sidebar à esquerda aqui — o canto fica livre */
+  }
+  /* com menu lateral, "Melhorias" já está lá por extenso */
+  body:has(.navb.on) .botao-flutuante {
+    display: none;
   }
   .crista.entrada {
     padding: 46px 46px 0;
@@ -1723,6 +1738,11 @@ textarea.campo {
   .navb button:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #fff;
+  }
+  .navb .navb-melhorias {
+    display: flex;
+    margin-top: auto;
+    border: 1px solid rgba(255, 255, 255, 0.22);
   }
   .navb button[data-on="1"] {
     background: rgba(255, 255, 255, 0.14);
