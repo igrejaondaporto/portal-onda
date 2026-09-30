@@ -15,9 +15,13 @@ import { db, storage, BASE_ID, chamar } from "@portal/shared/lib/firebase.js";
 import { cInventario, cListasCompras, cListaCompras } from "./modelo";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 
+/** Só o material de consumo — os equipamentos (impressora, cadeiras…)
+ *  vivem na mesma coleção com `estado`, e têm o seu separador próprio
+ *  (ver lib/equipamentos.js). Sem este filtro apareciam aqui sem mínimo
+ *  e contavam como "no mínimo" no Início. */
 export function ouvirInventario(cb) {
   const q = query(cInventario(), where("ativo", "==", true));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((i) => typeof i.estado !== "string")));
 }
 
 /** Id gerado no cliente — precisamos dele antes de gravar, para a foto

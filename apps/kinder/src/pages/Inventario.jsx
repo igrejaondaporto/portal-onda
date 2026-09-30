@@ -8,6 +8,8 @@ import { singularizar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import SheetItemInventario from "../components/painel/SheetItemInventario";
+import SheetEquipamento from "../components/painel/SheetEquipamento";
+import { ouvirEquipamentos, nomeTipo } from "../lib/equipamentos";
 import ListasComprasSalvas from "../components/ListasComprasSalvas";
 import SeletorCategoria from "../components/SeletorCategoria";
 import { categoriaInicial, minhaSalaRestrita, nomeCategoria, souLider, varsCategoria } from "../lib/modelo";
@@ -35,6 +37,10 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   const [aConfirmarExcluir, setAConfirmarExcluir] = useState(false);
   const [sala, setSala] = useState(null);
   const [salaDefinida, setSalaDefinida] = useState(false);
+  // "Material" (consumível, com mínimo e lista de compras) ou
+  // "Equipamentos" (impressora, cadeiras, mesas — pedido 2026-09)
+  const [aba, setAba] = useState("material");
+  const [equipamentos, setEquipamentos] = useState([]);
 
   useEffect(() => {
     if (salaDefinida || !pessoa) return;
@@ -44,6 +50,7 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   useEffect(() => { if (restrita) setSala(restrita); }, [restrita]);
 
   useEffect(() => ouvirInventario(setItens), []);
+  useEffect(() => ouvirEquipamentos(setEquipamentos), []);
   useEffect(() => ouvirListaCompraAberta(setListaAberta), []);
 
   // itens (criar/editar/remover) são de qualquer voluntário — pedido da
@@ -54,16 +61,20 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
   const itensDaSala = sala ? itens.filter((i) => !i.sala || i.sala === sala || i.sala === "partilhado") : itens;
   const falta = itensDaSala.filter((i) => i.quantidade <= i.minimo);
   const categorias = [...new Set(itensDaSala.map((i) => i.categoria))];
+  const equipamentosDaSala = sala ? equipamentos.filter((i) => !i.local || i.local === sala || i.local === "partilhado") : equipamentos;
+  const tiposEquip = [...new Set(equipamentosDaSala.map((i) => i.tipo || "equipamento"))];
 
   useEffect(() => {
     if (!ativo) return;
     definirCabecalho({
       titulo: <em>Inventário</em>,
       subtitulo: podeGerirCompras ? "O material de cada sala e a lista de compras, sempre atualizados" : "O material de cada sala, sempre atualizado",
-      chips: [`${itensDaSala.length} itens`, falta.length ? `${falta.length} no mínimo ou esgotados` : "Tudo em ordem"],
+      chips: aba === "equipamentos"
+        ? [`${equipamentosDaSala.length} equipamento${equipamentosDaSala.length === 1 ? "" : "s"}`]
+        : [`${itensDaSala.length} itens`, falta.length ? `${falta.length} no mínimo ou esgotados` : "Tudo em ordem"],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, itensDaSala.length, falta.length]);
+  }, [ativo, aba, itensDaSala.length, falta.length, equipamentosDaSala.length]);
 
   async function mexer(item, delta) {
     try {
@@ -159,6 +170,54 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
           <SeletorCategoria valor={sala} onMudar={setSala} rotuloTodas="Todas as salas" />
         )}
       </div>
+      <div className="subtabs kin-subtabs" style={{ marginTop: 12 }}>
+        <button data-on={aba === "material" ? 1 : 0} onClick={() => setAba("material")}>Material</button>
+        <button data-on={aba === "equipamentos" ? 1 : 0} onClick={() => setAba("equipamentos")}>Equipamentos</button>
+      </div>
+      {aba === "equipamentos" ? (
+        <>
+          {souLiderBase && (
+            <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "equipamento", item: null, sala })}>
+              Adicionar equipamento
+            </button>
+          )}
+          {equipamentosDaSala.length === 0 && (
+            <div className="vaz" style={{ marginTop: 14 }}>
+              Ainda sem equipamentos{sala ? ` na ${nomeCategoria(sala)}` : ""}. Impressora, cadeiras, mesas…{souLiderBase ? " Adiciona-os aqui." : " A líder adiciona-os aqui."}
+            </div>
+          )}
+          {tiposEquip.map((t) => (
+            <div className="sect" key={t}>
+              <div className="cabecalho"><h3>{nomeTipo(t)}</h3></div>
+              {equipamentosDaSala.filter((i) => (i.tipo || "equipamento") === t).map((i) => (
+                <div className="linha" key={i.id}>
+                  {i.foto && (
+                    <span
+                      className="bola avfoto" style={{ width: 42, height: 42, backgroundImage: `url(${i.foto})`, cursor: "pointer" }}
+                      onClick={() => setExpandida(i)}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="nmt">{i.nome}</p>
+                    {i.modelo && <p className="ds">{i.modelo}</p>}
+                    {i.local && i.local !== "partilhado" && <span className="kin-tagcat" style={{ marginTop: 4, display: "inline-block", ...varsCategoria(i.local) }}>{nomeCategoria(i.local)}</span>}
+                    {souLiderBase && (
+                      <button
+                        className="btn sec" style={{ marginTop: 8, padding: "6px 12px", fontSize: 12, display: "block" }}
+                        onClick={() => setSheet({ tipo: "equipamento", item: i })}
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </div>
+                  <span className="qn" style={{ fontWeight: 800, fontSize: 18 }} aria-label={`${i.quantidade ?? 1} unidades`}>×{i.quantidade ?? 1}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      ) : (
+      <>
       <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setSheet({ tipo: "item", item: null, sala })}>
         Adicionar item
       </button>
@@ -320,6 +379,8 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
           <ListasComprasSalvas podeGerir={podeGerirCompras} />
         </>
       )}
+      </>
+      )}
 
       <div className="convite" onClick={onIrReembolsos} style={{ marginTop: 22 }}>
         <p className="cap">Compraste alguma coisa para a base?</p>
@@ -330,6 +391,15 @@ export default function Inventario({ uid, papel, pessoa, ativo, definirCabecalho
 
       {expandida && (
         <ImagemExpandida src={expandida.foto} alt={expandida.nome} onFechar={() => setExpandida(null)} />
+      )}
+      {sheet?.tipo === "equipamento" && (
+        <SheetEquipamento
+          item={sheet.item}
+          salaInicial={sheet.sala}
+          restrita={restrita}
+          onFechar={() => setSheet(null)}
+          onGuardado={(msg) => { setSheet(null); torrada(msg); }}
+        />
       )}
       {sheet?.tipo === "item" && (
         <SheetItemInventario
