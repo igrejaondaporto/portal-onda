@@ -24,6 +24,9 @@ const ITENS_PADRAO = [
   ["inventario", "Inventário"],
 ];
 
+/** Ouvido pelo BotaoReportarFlutuante. */
+export const EVENTO_ABRIR_MELHORIAS = "portal:abrir-melhorias";
+
 function Icone({ chave, svg }) {
   return (
     <svg
@@ -63,6 +66,16 @@ export default function NavBar({ pagina, onIr, itens = ITENS_PADRAO, alertas = [
           <span className="navb-txt">{t}</span>
         </button>
       ))}
+      {/* "Melhorias" fixo no fundo do menu lateral, em todas as bases —
+        * o botão flutuante sozinho (só um ícone) não era achado
+        * (reportado 2026-09). Não abre nada daqui: avisa o
+        * BotaoReportarFlutuante, que já tem as sheets e os relatos. No
+        * telemóvel fica escondido (global.css) — lá o flutuante já diz
+        * "Melhorias" por extenso, e aqui roubaria uma coluna da grelha. */}
+      <button className="navb-melhorias" onClick={() => window.dispatchEvent(new Event(EVENTO_ABRIR_MELHORIAS))}>
+        <Icone svg={'<path d="M4 21V3"/><path d="M4 4h13l-2.5 4L17 12H4"/>'} />
+        <span className="navb-txt">Melhorias</span>
+      </button>
     </nav>
   );
 }
