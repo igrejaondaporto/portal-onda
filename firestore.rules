@@ -649,9 +649,12 @@ service cloud.firestore {
                     && request.resource.data.etapa == 'visita'
                     && request.resource.data.criadoPor == request.auth.uid
                     && request.resource.data.rgpd.aceite == true;
+      // `observacoes` (2026-09): texto livre do Formulário ("quantas
+      // pessoas tinham, se tem algo mais a dizer") — corrigível como os
+      // outros campos que a Pessoal preenche.
       allow update: if minhaBase('pessoal')
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['nome', 'telemovel', 'telemovelDigitos', 'email', 'concelho', 'freguesia', 'gdSugerido', 'enviadoPastorEm', 'arquivado']);
+                         .hasOnly(['nome', 'telemovel', 'telemovelDigitos', 'email', 'concelho', 'freguesia', 'gdSugerido', 'observacoes', 'enviadoPastorEm', 'arquivado']);
       allow delete: if false;
     }
 
