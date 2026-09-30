@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { mudarStatusRelato, nomeBase } from "../lib/relatos.js";
+import { useEffect, useState } from "react";
+import { atribuirRelato, membrosTechHub, mudarStatusRelato, nomeBase } from "../lib/relatos.js";
+import { auth } from "@portal/shared/lib/firebase.js";
 import { ROTULO_TIPO_RELATO, ROTULO_STATUS_RELATO, COR_STATUS_RELATO } from "@portal/shared/lib/relatos.js";
 import { haAtras } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
@@ -14,6 +15,26 @@ export default function SheetRelatoAdmin({ relato, onFechar }) {
   const torrada = useTorrada();
   const [nota, setNota] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
+  const [membros, setMembros] = useState(null); // null = "passar" fechado
+  const eu = auth.currentUser?.uid;
+  const fechado = relato.status === "resolvido" || relato.status === "recusado";
+
+  useEffect(() => {
+    if (membros !== null && !membros.length) membrosTechHub().then(setMembros).catch(() => setMembros(null));
+  }, [membros]);
+
+  async function atribuir(paraUid) {
+    setAEnviar(true);
+    try {
+      await atribuirRelato({ id: relato.id, ...(paraUid ? { paraUid } : {}) });
+      setMembros(null);
+      torrada(paraUid ? "Passado" : "É teu — estás a cuidar dele");
+    } catch (e) {
+      torrada(e.message || "Não foi possível atribuir.");
+    } finally {
+      setAEnviar(false);
+    }
+  }
 
   async function mudar(novoStatus) {
     setAEnviar(true);
@@ -52,8 +73,35 @@ export default function SheetRelatoAdmin({ relato, onFechar }) {
           <span className="tag" style={{ background: COR_STATUS_RELATO[relato.status] }}>
             {ROTULO_STATUS_RELATO[relato.status]}
           </span>
-          {relato.responsavelNome && <span style={{ marginLeft: 8 }}>· {relato.responsavelNome}</span>}
         </p>
+
+        <label className="rot" style={{ marginTop: 14 }}>Responsável</label>
+        <p className="ds">
+          {relato.responsavelNome
+            ? <><b>{relato.responsavelId === eu ? "Tu" : relato.responsavelNome}</b> {relato.responsavelId === eu ? "estás" : "está"} a cuidar disto</>
+            : "Ninguém puxou esta tarefa ainda"}
+        </p>
+        {!fechado && (
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            {relato.responsavelId !== eu && (
+              <button className="btn" style={{ flex: 1, fontSize: 13 }} disabled={aEnviar} onClick={() => atribuir(null)}>
+                Assumir
+              </button>
+            )}
+            <button className="btn sec" style={{ flex: 1, fontSize: 13 }} disabled={aEnviar} onClick={() => setMembros(membros === null ? [] : null)}>
+              Passar a outra pessoa
+            </button>
+          </div>
+        )}
+        {membros?.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {membros.filter((p) => p.id !== relato.responsavelId).map((p) => (
+              <button key={p.id} className="btn sec" style={{ flex: "1 1 auto", fontSize: 13 }} disabled={aEnviar} onClick={() => atribuir(p.id)}>
+                {p.nome}
+              </button>
+            ))}
+          </div>
+        )}
 
         <label className="rot" style={{ marginTop: 14 }}>Nota (opcional)</label>
         <textarea className="campo" rows={2} value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Fica no histórico deste relato" />
@@ -74,7 +122,9 @@ export default function SheetRelatoAdmin({ relato, onFechar }) {
             <label className="rot" style={{ marginTop: 18 }}>Histórico</label>
             {[...relato.historico].reverse().map((h, i) => (
               <p className="ds" key={i} style={{ marginTop: 6 }}>
-                {ROTULO_STATUS_RELATO[h.para] ?? h.para} por {h.porNome ?? "…"}
+                {h.responsavel
+                  ? (h.responsavel.para === h.porNome ? `Assumido por ${h.porNome ?? "…"}` : `Passado a ${h.responsavel.para ?? "…"} por ${h.porNome ?? "…"}`)
+                  : `${ROTULO_STATUS_RELATO[h.para] ?? h.para} por ${h.porNome ?? "…"}`}
                 {h.nota ? ` — "${h.nota}"` : ""}
               </p>
             ))}

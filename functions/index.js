@@ -105,7 +105,7 @@ export {
 // Onda Tech Hub triar — ficheiro próprio, mesmo motivo de
 // kinder.js/mural.js/pastoral.js (ver o comentário no topo de
 // relatos.js).
-export { abrirRelato, mudarStatusRelato, excluirMeuRelato } from "./relatos.js";
+export { abrirRelato, mudarStatusRelato, excluirMeuRelato, atribuirRelato } from "./relatos.js";
 
 admin.initializeApp();
 const db = admin.firestore();

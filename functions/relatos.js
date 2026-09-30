@@ -148,3 +148,41 @@ export const excluirMeuRelato = onCall(async (req) => {
   await ref.set({ ativo: false }, { merge: true });
   return { ok: true };
 });
+
+// "Quem puxar a tarefa fica como responsável até fechar, e pode
+// passá-la a outra pessoa" (pedido do líder, 2026-09). Sem `paraUid`
+// é "assumir" (fica quem chama); com ele, é "passar" — só a alguém
+// ativo no Onda Tech Hub. Assumir um relato ainda "aberto" põe-no em
+// andamento: quem o puxou já está a olhar para ele.
+export const atribuirRelato = onCall(async (req) => {
+  const uid = exigeOndaTechHub(req);
+  const { id, paraUid = uid } = req.data || {};
+  if (!id) throw new HttpsError("invalid-argument", "Falta o relato.");
+
+  const ref = refRelato(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Relato não encontrado.");
+  const r = snap.data();
+  if (r.status === "resolvido" || r.status === "recusado") {
+    throw new HttpsError("failed-precondition", "Este relato já está fechado.");
+  }
+  if (r.responsavelId === paraUid) throw new HttpsError("failed-precondition", "Já é o responsável.");
+
+  const destino = await db().doc(`bases/ondatechhub/pessoas/${paraUid}`).get();
+  if (!destino.exists || destino.data().ativo === false) {
+    throw new HttpsError("invalid-argument", "Essa pessoa não está no Onda Tech Hub.");
+  }
+  const paraNome = destino.data().nome ?? null;
+  const porNome = paraUid === uid ? paraNome : await nomeDaPessoa("ondatechhub", uid);
+  const novoStatus = r.status === "aberto" ? "em_andamento" : r.status;
+
+  await ref.set({
+    responsavelId: paraUid, responsavelNome: paraNome, status: novoStatus,
+    historico: [...(r.historico || []), {
+      de: r.status, para: novoStatus, porId: uid, porNome,
+      em: admin.firestore.Timestamp.now(),
+      responsavel: { de: r.responsavelNome ?? null, para: paraNome },
+    }],
+  }, { merge: true });
+  return { ok: true };
+});
