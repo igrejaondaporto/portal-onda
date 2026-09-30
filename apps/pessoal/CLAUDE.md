@@ -281,6 +281,13 @@ já há GD próprio (Póvoa de Varzim, Vila do Conde, Barcelos, São João
 da Madeira, Lisboa, Sines) — mais "Outro", que troca a Freguesia para
 texto livre (placeholder "Qual?"), sem sugestão de GD (sem concelho
 conhecido, não há como estimar distância nenhuma).
+
+**Observações** (2026-09, opcional, até 500 caracteres —
+"quantas pessoas tinham, se tem algo mais a dizer"): também na
+edição, na mensagem ao pastor e na folha do contacto do Painel
+Pastoral. A edição só manda `observacoes` quando o texto mudou — a
+regra de update (`firestore.rules`) só o aceita desde um PR à parte.
+
 Duplicados por telemóvel: avisa (compara pelo campo `telemovelDigitos`,
 só números), nunca bloqueia. RGPD: checkbox obrigatório de que a
 pessoa foi informada — grava `rgpd.aceite`/`baseLegal`/`em`; campo

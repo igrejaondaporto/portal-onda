@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
-import { atualizarContacto } from "../lib/contactos";
+import { atualizarContacto, MAX_OBSERVACOES } from "../lib/contactos";
 import CamposLocalizacaoGD from "./CamposLocalizacaoGD";
 
 export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardado }) {
@@ -11,6 +11,7 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
   const [concelho, setConcelho] = useState(contacto.concelho);
   const [freguesia, setFreguesia] = useState(contacto.freguesia);
   const [gdSugerido, setGdSugerido] = useState(contacto.gdSugerido ?? "");
+  const [observacoes, setObservacoes] = useState(contacto.observacoes ?? "");
   const [aGuardar, setAGuardar] = useState(false);
 
   async function guardar() {
@@ -20,7 +21,9 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
     if (!freguesia) return torrada("Escolhe a freguesia.");
     setAGuardar(true);
     try {
-      await atualizarContacto(contacto.id, { nome, telemovel, email, concelho, freguesia, gdSugerido });
+      await atualizarContacto(contacto.id, {
+        nome, telemovel, email, concelho, freguesia, gdSugerido, observacoes, observacoesAntes: contacto.observacoes,
+      });
       onGuardado("Contacto atualizado");
     } catch (e) {
       torrada(e.message || "Não foi possível guardar.");
@@ -55,6 +58,14 @@ export default function SheetEditarContacto({ contacto, gds, onFechar, onGuardad
           freguesia={freguesia} setFreguesia={setFreguesia}
           gdSugerido={gdSugerido} setGdSugerido={setGdSugerido}
           gds={gds}
+        />
+
+        <label className="rot">Observações (opcional)</label>
+        <textarea
+          className="campo" rows={3} maxLength={MAX_OBSERVACOES} value={observacoes}
+          onChange={(e) => setObservacoes(e.target.value)}
+          placeholder="Ex.: veio com a mulher e dois filhos; pediu oração"
+          style={{ resize: "vertical" }}
         />
 
         <button className="btn full" style={{ marginTop: 16 }} disabled={aGuardar} onClick={guardar}>

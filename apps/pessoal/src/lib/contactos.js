@@ -260,13 +260,19 @@ export async function verificarTelefoneDuplicado(telemovel) {
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
 
-export async function criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, eventoId, uid }) {
+/** Limite do campo "Observações" (pedido 2026-09: "quantas pessoas
+ *  tinham, se tem algo mais a dizer") — umas linhas, não uma ficha. */
+export const MAX_OBSERVACOES = 500;
+const limparObservacoes = (t) => String(t ?? "").trim().slice(0, MAX_OBSERVACOES) || null;
+
+export async function criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, observacoes, eventoId, uid }) {
   const digitos = telemovel.replace(/\D/g, "");
   const ref = doc(cContactos());
   await setDoc(ref, {
     nome: nome.trim(), telemovel: telemovel.trim(), telemovelDigitos: digitos,
     email: email?.trim() || null,
     concelho, freguesia, gdSugerido: gdSugerido || null,
+    observacoes: limparObservacoes(observacoes),
     eventoId, baseOrigemId: "pessoal", etapa: "visita",
     criadoPor: uid, criadoEm: serverTimestamp(),
     rgpd: { aceite: true, baseLegal: "consentimento", em: serverTimestamp() },
@@ -279,13 +285,21 @@ export const marcarEnviadoPastor = (id) => updateDoc(cContacto(id), { enviadoPas
 
 /** Corrige um contacto já guardado — mesmos campos do formulário de
  *  criação, exceto os automáticos (eventoId, etapa, RGPD…), que as
- *  regras nem deixam tocar. */
-export async function atualizarContacto(id, { nome, telemovel, email, concelho, freguesia, gdSugerido }) {
-  await updateDoc(cContacto(id), {
+ *  regras nem deixam tocar.
+ *
+ *  `observacoes` só vai na escrita quando MUDOU (`observacoesAntes` é
+ *  o que lá estava): a regra que deixa editar este campo entrou em
+ *  `firestore.rules` num PR à parte, e sem isto corrigir o nome de um
+ *  contacto falhava inteiro enquanto essa regra não estivesse no ar. */
+export async function atualizarContacto(id, { nome, telemovel, email, concelho, freguesia, gdSugerido, observacoes, observacoesAntes }) {
+  const dados = {
     nome: nome.trim(), telemovel: telemovel.trim(), telemovelDigitos: telemovel.replace(/\D/g, ""),
     email: email?.trim() || null,
     concelho, freguesia, gdSugerido: gdSugerido || null,
-  });
+  };
+  const obs = limparObservacoes(observacoes);
+  if (obs !== (observacoesAntes ?? null)) dados.observacoes = obs;
+  await updateDoc(cContacto(id), dados);
 }
 
 /** "Excluir" é sempre arquivado:true, nunca um delete a sério —
@@ -306,6 +320,7 @@ export function textoParaPastor(contacto, eventoId) {
     linkLead ? `Falar com ${contacto.nome.split(" ")[0]}: ${linkLead}` : null,
     `Concelho: ${contacto.concelho} (${contacto.freguesia})`,
     `GD sugerido: ${contacto.gdSugerido || "—"}`,
+    contacto.observacoes ? `Observações: ${contacto.observacoes}` : null,
   ].filter(Boolean).join("\n");
 }
 

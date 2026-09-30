@@ -4,7 +4,7 @@ import { dataPorExtenso, haAtras, MESES } from "@portal/shared/lib/data.js";
 import { obterMeuEvento } from "../lib/culto";
 import {
   ouvirContactosDoMes, ouvirGDs, verificarTelefoneDuplicado,
-  criarContacto, marcarEnviadoPastor, arquivarContacto, linkParaPastor, ouvirContactoPastor,
+  criarContacto, marcarEnviadoPastor, arquivarContacto, linkParaPastor, ouvirContactoPastor, MAX_OBSERVACOES,
 } from "../lib/contactos";
 import CamposLocalizacaoGD from "../components/CamposLocalizacaoGD";
 import SheetEditarContacto from "../components/SheetEditarContacto";
@@ -47,6 +47,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
   const [concelho, setConcelho] = useState("");
   const [freguesia, setFreguesia] = useState("");
   const [gdSugerido, setGdSugerido] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [aceiteRgpd, setAceiteRgpd] = useState(false);
   const [avisoDuplicado, setAvisoDuplicado] = useState(null);
   const [aGuardar, setAGuardar] = useState(false);
@@ -94,7 +95,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
 
   function limpar() {
     setNome(""); setTelemovel(""); setEmail(""); setConcelho(""); setFreguesia("");
-    setGdSugerido(""); setAceiteRgpd(false); setAvisoDuplicado(null);
+    setGdSugerido(""); setObservacoes(""); setAceiteRgpd(false); setAvisoDuplicado(null);
   }
 
   async function guardar(e) {
@@ -107,7 +108,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
     if (!meuEvento) return torrada("Sem culto associado ainda.");
     setAGuardar(true);
     try {
-      await criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, eventoId: meuEvento.id, uid });
+      await criarContacto({ nome, telemovel, email, concelho, freguesia, gdSugerido, observacoes, eventoId: meuEvento.id, uid });
       torrada("Contacto guardado");
       limpar();
     } catch (err) {
@@ -164,6 +165,17 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
           freguesia={freguesia} setFreguesia={setFreguesia}
           gdSugerido={gdSugerido} setGdSugerido={setGdSugerido}
           gds={gds}
+        />
+
+        {/* pedido 2026-09: "quantas pessoas tinham, se tem algo mais a
+            dizer" — texto livre, opcional; vai também na mensagem ao
+            pastor e aparece na folha do contacto no Painel Pastoral */}
+        <label className="rot">Observações (opcional)</label>
+        <textarea
+          className="campo" rows={3} maxLength={MAX_OBSERVACOES} value={observacoes}
+          onChange={(e) => setObservacoes(e.target.value)}
+          placeholder="Ex.: veio com a mulher e dois filhos; já foi a outra igreja; pediu oração"
+          style={{ resize: "vertical" }}
         />
 
         <div className="linha" style={{ marginTop: 14, cursor: "pointer" }} onClick={() => setAceiteRgpd((a) => !a)}>
@@ -227,6 +239,7 @@ export default function Formulario({ uid, papel, ativo, definirCabecalho }) {
             {c.email && <p className="ds">{c.email}</p>}
             <p className="ds">{c.concelho} ({c.freguesia})</p>
             {c.gdSugerido && <p className="ds">GD sugerido: {c.gdSugerido}</p>}
+            {c.observacoes && <p className="ds" style={{ whiteSpace: "pre-line" }}>Obs.: {c.observacoes}</p>}
             <p className="ds" style={{ marginTop: 4 }}>{haAtras(c.criadoEm)}</p>
 
             {idAConfirmarExcluir === c.id && (
