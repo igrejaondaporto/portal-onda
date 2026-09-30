@@ -61,10 +61,10 @@ A aba **Culto** (`pages/Culto.jsx`) agrupa tudo o que gira à volta do
 próprio domingo — antes espalhado (Contagem vivia no Início,
 Inventário tinha aba própria, Ordem do culto nem tinha interface).
 Reorganizado a pedido do dono do produto: menu principal mais curto,
-cada subaba continua com a lógica exata que já tinha — Inventário e
-Contagem são os mesmos componentes de sempre
-(`pages/Inventario.jsx`, `components/ContagemCulto.jsx`), só
-embrulhados numa subaba em vez de página própria.
+cada subaba continua com a lógica exata que já tinha — Inventário é o
+mesmo componente de sempre (`pages/Inventario.jsx`), só embrulhado
+numa subaba. A subaba Contagem saiu em 2026-09 (ver "Voluntários
+presentes e pessoas em pé" abaixo).
 
 ## Vocabulário — usa exatamente estes termos
 
@@ -234,7 +234,7 @@ visitantes, apelo) — pelo MAPA. Estado de cada categoria:
 | Categoria | Fonte sem a Contagem manual | Estado |
 |---|---|---|
 | Visitantes | Mapa (`visitante` + `apeloVisitante`) | já usado pelo Painel Pastoral desde 27/9 |
-| Voluntários | escalas publicadas das dez bases (`historicoPastoral`) | já usado |
+| Voluntários | presentes: marcados por baixo do Mapa (`voluntarios`); previstos: escalas das dez bases | desde 2026-09 (ver acima) |
 | Mensagem | Mapa: todos os lugares marcados (+ reservados/bloqueados) | já usado desde 27/9 |
 | Apelo | Mapa (manter o dedo) | a partir deste PR |
 | New / Shift / Júnior / Fun / Baby | contador no Início de cada sala | já (`origem: "automatica"`) |
