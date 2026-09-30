@@ -680,9 +680,14 @@
   /* duas folhas vivem montadas ao mesmo tempo (a ordem do culto e o
      relatório de Números) — cada impressão mostra só uma. O relatório
      só sai com body[data-imprimir="numeros"], que `exportarNumeros()`
-     põe durante a impressão; com essa marca a ordem fica de fora. */
-  body:not([data-imprimir="numeros"]) .pa-print-rel,
-  body[data-imprimir="numeros"] .pa-print:not(.pa-print-rel) {
+     põe durante a impressão; com essa marca a ordem fica de fora.
+     Desde 2026-09 há um terceiro, o de visitantes (Pessoas →
+     Visitantes, `.pa-print-vis`, `data-imprimir="visitantes"`): cada
+     relatório só sai com a sua marca, e a ordem só sem marca nenhuma. */
+  body:not([data-imprimir]) .pa-print-rel,
+  body[data-imprimir] .pa-print:not(.pa-print-rel),
+  body[data-imprimir="numeros"] .pa-print-vis,
+  body[data-imprimir="visitantes"] .pa-print-rel:not(.pa-print-vis) {
     display: none !important;
   }
   .pa-print-num td,
@@ -1308,4 +1313,41 @@
 .destaque.pa-aguardam {
   background: var(--laranja);
   color: var(--tinta);
+}
+
+/* ── Números: o que entra na média (pedido 2026-09) ──────────
+ * Dentro do cartão-herói (fundo em gradiente azul): escolhido =
+ * branco cheio com tinta escura e ✓; por escolher = contorno
+ * translúcido. O quadradinho leva a cor da série, a mesma do gráfico
+ * — nunca só a cor: o ✓ e o fundo dizem o estado. */
+.nm-partes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.nm-partes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: #fff;
+  border-radius: 100px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nm-partes button[data-on="1"] {
+  background: #fff;
+  border-color: #fff;
+  color: var(--tinta);
+}
+.nm-partes i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
 }

@@ -232,3 +232,62 @@ export function aguardandoLideres(contactos) {
     .map((c) => ({ ...c, diasEspera: diasAEspera(c) ?? 0 }))
     .sort((a, b) => b.diasEspera - a.diasEspera);
 }
+
+/* ── Relatório de visitantes por período (pedido 2026-09: "filtrado
+ * por período — último mês, último culto, 3 meses, etc.") ── */
+
+/** "Tudo" fica no fim e é o omisso: o separador Visitantes abria
+ *  sempre com toda a gente, e continua a abrir assim. */
+export const PERIODOS_VISITA = [
+  ["ultimo", "Último culto"],
+  ["mes", "Último mês"],
+  ["3m", "3 meses"],
+  ["6m", "6 meses"],
+  ["ano", "Este ano"],
+  ["tudo", "Tudo"],
+];
+
+/** O primeiro ano com contactos neste sistema (mesmo de Números). */
+export const PRIMEIRO_ANO_VISITAS = 2026;
+
+const isoLocal = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** A data (AAAA-MM-DD) do culto em que a pessoa apareceu. `eventoId`
+ *  é essa data (ou `AAAA-MM-DD-HHMM` num segundo evento no mesmo dia,
+ *  regra 7 do CLAUDE.md) — é a mesma chave com que Números conta os
+ *  "Cadastrados". Sem ele (contactos antigos), a data em que foi
+ *  criado. */
+export function dataDaVisita(c) {
+  if (c.eventoId) return String(c.eventoId).slice(0, 10);
+  const d = c.criadoEm?.toDate?.();
+  return d ? isoLocal(d) : null;
+}
+
+/** `[desde, ate]` do período, em AAAA-MM-DD. "Último culto" pede as
+ *  últimas três semanas — o bastante para apanhar o domingo passado
+ *  mesmo quando o de hoje ainda não teve nada; o culto em si escolhe-
+ *  se depois (`escolherUltimoCulto`). "Tudo" começa no primeiro ano. */
+export function intervaloDoPeriodo(periodo, hoje = new Date()) {
+  const ate = isoLocal(hoje);
+  const menosMeses = (m) => isoLocal(new Date(hoje.getFullYear(), hoje.getMonth() - m, hoje.getDate()));
+  switch (periodo) {
+    case "ultimo": return [isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 21)), ate];
+    case "mes": return [menosMeses(1), ate];
+    case "3m": return [menosMeses(3), ate];
+    case "6m": return [menosMeses(6), ate];
+    case "ano": return [`${hoje.getFullYear()}-01-01`, ate];
+    default: return [`${PRIMEIRO_ANO_VISITAS}-01-01`, ate];
+  }
+}
+
+/** O "último culto": o mais recente até hoje que tenha alguma coisa
+ *  de visitantes (o Mapa aberto ou alguém cadastrado). Um domingo sem
+ *  nada — hoje de manhã, antes de abrir as portas — não é o culto que
+ *  se quer ver, é o anterior. Sem nenhum com dados, o mais recente. */
+export function escolherUltimoCulto(cultos, contactos) {
+  const comContacto = new Set(contactos.map((c) => c.eventoId).filter(Boolean));
+  const ordenados = cultos.slice().sort((a, b) => b.data.localeCompare(a.data));
+  return ordenados.find((c) => c.acomodacao || c.visitantesCadastrados > 0 || comContacto.has(c.eventoId))
+    ?? ordenados[0] ?? null;
+}

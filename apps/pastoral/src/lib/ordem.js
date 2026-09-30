@@ -33,8 +33,16 @@ export const chave = () => `l${Date.now()}_${contador++}`;
 
 export const momentoVazio = () => ({
   _k: chave(), hora: "", momento: "", minutos: 5,
-  responsavel: "", projecao: "", detalhe: "",
+  responsavel: "", projecao: "", detalhe: "", iluminacao: "",
 });
+
+/** Iluminação de cada momento (pedido 2026-09) — lista fixa, gravada
+ *  já com o texto que se lê ("Média alta"), para a Técnica e a folha
+ *  impressa o mostrarem sem tabela de tradução. Vai em
+ *  `eventos/{e}.ordem.momentos[].iluminacao` pela mesma
+ *  `publicarOrdemCulto` (que grava os momentos tal como chegam — as
+ *  bases que não o conhecem ignoram-no). */
+export const NIVEIS_ILUMINACAO = ["Baixa", "Média baixa", "Média", "Média alta", "Alta"];
 
 export const avisoVazio = () => ({ _k: chave(), nome: "", data: "", info: "", criarCulto: false });
 
@@ -106,6 +114,7 @@ export function limparMomentos(momentos) {
       projecao: m.projecao?.trim() || null,
       responsavel: m.responsavel?.trim() || null,
       detalhe: m.detalhe?.trim() || null,
+      iluminacao: NIVEIS_ILUMINACAO.includes(m.iluminacao) ? m.iluminacao : null,
     }));
 }
 
@@ -128,7 +137,7 @@ export function ordemParaFormulario(ordem) {
   if (!ordem) return { momentos: [momentoVazio()], avisos: [] };
   return {
     momentos: (ordem.momentos?.length ? ordem.momentos : [momentoVazio()]).map((m) => ({
-      _k: chave(), projecao: "", detalhe: "", responsavel: "", ...m, minutos: m.minutos ?? 5,
+      _k: chave(), projecao: "", detalhe: "", responsavel: "", ...m, iluminacao: m.iluminacao ?? "", minutos: m.minutos ?? 5,
     })),
     avisos: (ordem.avisos ?? []).map((a) => ({ _k: chave(), criarCulto: false, ...a })),
   };

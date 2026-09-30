@@ -26,6 +26,12 @@
 /** As cinco salas. O `juniorFun` antigo (Júnior e Fun contados juntos,
  *  até 13/9) já não entra em conta nenhuma — pedido 2026-09: "pode
  *  tirar o campo junto, na Contagem já coloquei os dados separados". */
+/** Domingos que ficam de fora das contas do painel — testes, não
+ *  cultos (pedido 2026-09: "30 ago era só um teste"). Os dados
+ *  continuam no Firestore; só não entram nos Números nem no relatório
+ *  de visitantes (Pessoas → Visitantes). */
+export const DOMINGOS_IGNORADOS = new Set(["2026-08-30"]);
+
 export const SALAS_CRIANCAS = ["baby", "fun", "junior", "shift", "new"];
 
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);

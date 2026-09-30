@@ -158,6 +158,15 @@ export default function SheetContacto({ contacto, onFechar }) {
           {contacto.eventoId ? ` · no culto de ${contacto.eventoId}` : ""}
         </p>
 
+        {/* o que a Base Pessoal escreveu no Formulário (pedido 2026-09:
+            "quantas pessoas tinham, se tem algo mais a dizer") */}
+        {contacto.observacoes && (
+          <>
+            <label className="rot" style={{ marginTop: 12 }}>Observações</label>
+            <p className="ds" style={{ whiteSpace: "pre-line" }}>{contacto.observacoes}</p>
+          </>
+        )}
+
         {contacto.telemovel && (
           <>
             <label className="rot" style={{ marginTop: 12 }}>Contacto</label>

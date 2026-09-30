@@ -66,6 +66,7 @@ export default function OrdemImprimivel({ evento, momentos, avisos, horas }) {
             <th>Min</th>
             <th>Quem</th>
             <th>Projeção</th>
+            <th>Luz</th>
           </tr>
         </thead>
         <tbody>
@@ -79,6 +80,7 @@ export default function OrdemImprimivel({ evento, momentos, avisos, horas }) {
               <td className="pa-print-min">{m.minutos}</td>
               <td>{m.responsavel || ""}</td>
               <td>{m.projecao || ""}</td>
+              <td>{m.iluminacao || ""}</td>
             </tr>
           ))}
         </tbody>

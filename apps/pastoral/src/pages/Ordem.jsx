@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ouvirEventos, proximoCulto } from "../lib/culto";
 import { definirTipoCulto, limparOrdemCulto, publicarOrdemCulto } from "../lib/pastoral";
-import {
+import { NIVEIS_ILUMINACAO,
   apagarModelo, avisoVazio, duracaoTotal, encadearHoras, guardarModelo, horasDaOrdem,
   limparAvisos, limparMomentos, modeloParaFormulario, momentoVazio, ordemParaFormulario, ouvirModelos,
 } from "../lib/ordem";
@@ -398,6 +398,16 @@ export default function Ordem({ ativo, definirCabecalho, podePublicarCulto }) {
                 onChange={(e) => atualizar(i, "projecao", e.target.value)} aria-label="Projeção"
               />
               <p className="cap" style={{ marginTop: 4 }}>O que entra no telão (opcional)</p>
+            </div>
+            <div>
+              <select
+                className="campo" value={m.iluminacao ?? ""} aria-label="Iluminação"
+                onChange={(e) => atualizar(i, "iluminacao", e.target.value)}
+              >
+                <option value="">Iluminação (opcional)</option>
+                {NIVEIS_ILUMINACAO.map((n) => <option key={n} value={n}>💡 {n}</option>)}
+              </select>
+              <p className="cap" style={{ marginTop: 4 }}>A luz da sala neste momento (opcional)</p>
             </div>
             <div>
               <input
