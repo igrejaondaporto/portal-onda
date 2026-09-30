@@ -138,6 +138,19 @@ da sala, um divisor por bloco (`salasQuadro` em `Escala.jsx`) — e o
 nome de quem serve fica sempre em branco, nunca tingido pela sala
 (a cor já está no fundo do bloco; só quem és tu fica sublinhado).
 
+**Equipamentos (2026-09).** O Inventário tem duas abas: "Material"
+(o consumível de sempre, com mínimo e lista de compras) e
+"Equipamentos" (impressora, cadeiras, mesas… — tipo, sala, quantidade,
+marca/modelo e foto). Vivem na MESMA coleção `bases/kinder/inventario`,
+separados pelo campo `estado` (só o equipamento o tem — é o "modo
+património" da Técnica/Louvor, com as mesmas Cloud Functions
+`criarEquipamento`/`guardarEquipamento`/`desativarEquipamento`, que
+pedem líder ou auxiliar). Por isso, ao contrário do material, **só as
+líderes** adicionam e editam equipamentos; os voluntários veem.
+`ouvirInventario` exclui os que têm `estado`, `ouvirEquipamentos`
+(`lib/equipamentos.js`) só os lê. Aparecem sozinhos no Património do
+Painel Pastoral.
+
 **Inventário aberto a qualquer voluntário (2026-09).** Criar, editar
 e remover itens deixou de ser só das líderes — `exigeGestorInventario`
 (`functions/index.js`, `BASES_INVENTARIO_ABERTO`) deixa passar
