@@ -570,9 +570,9 @@ do dono do produto, 2026-09):
 
 | Parte | Fonte |
 |---|---|
-| Auditório | Mapa: ocupados + visitantes |
+| Auditório | Mapa: ocupados + visitantes, **+ pessoas em pé** (`contagem.emPe`, marcadas por baixo do Mapa — 2026-09) |
 | Visitantes | Mapa, `visitantes` |
-| Voluntários | escalas publicadas das dez bases (`c.voluntarios`) |
+| Voluntários | os **presentes** (`contagem.voluntarios`, marcados por baixo do Mapa — número principal, pedido 2026-09); ao lado os **previstos** = escalas publicadas das dez bases (`c.voluntarios`). Sem presentes marcados, conta o previsto |
 | Crianças | Contagem: baby/fun/junior/shift/new (o contador no Início de cada sala) |
 
 Um domingo sem nenhum lugar marcado no mapa fica fora do gráfico

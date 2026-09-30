@@ -5,6 +5,7 @@ import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import EditorMapaAuditorio from "../components/acomodacao/EditorMapaAuditorio";
 import ResumosAcomodacao from "../components/acomodacao/ResumosAcomodacao";
 import MapasPorFechar from "../components/acomodacao/MapasPorFechar";
+import ContagemJuntoAoMapa from "../components/acomodacao/ContagemJuntoAoMapa";
 
 /** "AAAA-MM-DD" de hoje, no fuso do próprio telemóvel — quem usa isto
  *  já está na igreja, por isso é sempre a data certa. Componentes
@@ -71,6 +72,9 @@ export default function Acomodacao({ uid, papel, ativo, definirCabecalho }) {
         onFechar={fecharCulto} onReabrir={reabrirCulto}
         onSouDriveChange={onSouDriveChange}
       />
+      {/* voluntários presentes e pessoas em pé — qualquer pessoa da
+          base marca, com ou sem a função Mapa (pedido 2026-09) */}
+      <ContagemJuntoAoMapa eventoId={eventoId} uid={uid} />
 
       <ResumosAcomodacao
         souLiderBase={papel === "lider_base"} uid={uid} papel={papel} hojeId={eventoId}

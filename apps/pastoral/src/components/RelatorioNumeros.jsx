@@ -75,12 +75,14 @@ export default function RelatorioNumeros({ titulo, intervalo, resumo, porAno, do
       {domingos.length === 0 ? <p className="pa-print-sub">Nenhum culto com números neste período.</p> : (
         <table className="pa-print-tab pa-print-num">
           <thead>
-            <tr><th>Culto</th><th>Auditório</th><th>Voluntários</th><th>Crianças</th><th>Total</th><th>Visitantes</th><th>Apelo</th><th>Cadastrados</th></tr>
+            <tr><th>Culto</th><th>Auditório</th><th>Voluntários</th><th>Previstos</th><th>Em pé</th><th>Crianças</th><th>Total</th><th>Visitantes</th><th>Apelo</th><th>Cadastrados</th></tr>
           </thead>
           <tbody>
             {domingos.map((d) => (
               <tr key={d.chave}>
-                <td>{dataPt(d.data)}</td><td>{ou(d.auditorio)}</td><td>{d.voluntarios || "—"}</td><td>{ou(d.criancas)}</td>
+                <td>{dataPt(d.data)}</td><td>{ou(d.auditorio)}</td><td>{d.voluntarios || "—"}</td>
+                <td>{d.voluntariosPresentes !== null && d.voluntariosPrevistos ? d.voluntariosPrevistos : "—"}</td>
+                <td>{ou(d.emPe)}</td><td>{ou(d.criancas)}</td>
                 <td><b>{ou(d.total)}</b></td><td>{ou(d.visitantes)}</td><td>{ou(d.apelo)}</td><td>{d.cadastrados || "—"}</td>
               </tr>
             ))}
@@ -135,7 +137,8 @@ export default function RelatorioNumeros({ titulo, intervalo, resumo, porAno, do
       )}
 
       <p className="pa-print-rodape">
-        Auditório e visitantes: Mapa (Base Pessoal). Apelo: Mapa desde 27/09/2026, Contagem antes. Voluntários: escalas publicadas das bases. Crianças: contador
+        Auditório: Mapa + pessoas em pé (Base Pessoal). Voluntários: presentes (marcados por baixo do Mapa;
+        sem eles, os escalados); Previstos: escalas publicadas. Visitantes: Mapa. Apelo: Mapa desde 27/09/2026, Contagem antes. Crianças: contador
         de cada sala. Ofertas: Financeiro. "—" quer dizer que não foi contado, nunca zero.
       </p>
     </div>,

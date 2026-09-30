@@ -471,7 +471,7 @@ const TOURS = {
       {
         chave: "nav-culto",
         titulo: "Culto",
-        texto: "Em Culto encontras a ordem que o pastor envia, o inventário do café e a contagem do domingo — tudo o que gira à volta do próprio culto.",
+        texto: "Em Culto encontras a ordem que o pastor envia, o inventário do café e os feedbacks — tudo o que gira à volta do próprio culto. Os voluntários presentes e as pessoas em pé marcam-se por baixo do Mapa.",
         alvo: "nav-culto", pagina: "inicio",
       },
       {

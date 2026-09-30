@@ -52,7 +52,7 @@ fim deste ficheiro.
 | Início | todos | Escala pessoal + avisos do líder |
 | Escala | todos | Escala do mês por função |
 | Funções | todos (edita a líder) | Café, Mapa, Acomodação, Recepção |
-| Culto | todos | Quatro subabas: Ordem do culto, Feedbacks, Inventário, Contagem — ver abaixo |
+| Culto | todos | Três subabas: Ordem do culto, Feedbacks, Inventário — ver abaixo (a Contagem saiu, 2026-09) |
 | Formulário | todos | Novo contacto + lista do culto |
 | Mapa | todos leem, escreve quem tem a função Mapa | Mapa do auditório |
 | Enquetes | **só a líder** | Disponibilidade mensal |
@@ -61,10 +61,10 @@ A aba **Culto** (`pages/Culto.jsx`) agrupa tudo o que gira à volta do
 próprio domingo — antes espalhado (Contagem vivia no Início,
 Inventário tinha aba própria, Ordem do culto nem tinha interface).
 Reorganizado a pedido do dono do produto: menu principal mais curto,
-cada subaba continua com a lógica exata que já tinha — Inventário e
-Contagem são os mesmos componentes de sempre
-(`pages/Inventario.jsx`, `components/ContagemCulto.jsx`), só
-embrulhados numa subaba em vez de página própria.
+cada subaba continua com a lógica exata que já tinha — Inventário é o
+mesmo componente de sempre (`pages/Inventario.jsx`), só embrulhado
+numa subaba. A subaba Contagem saiu em 2026-09 (ver "Voluntários
+presentes e pessoas em pé" abaixo).
 
 ## Vocabulário — usa exatamente estes termos
 
@@ -206,6 +206,25 @@ já existente em `lib/culto.js`) — quem escreve é o líder de escala
 DESSE culto (ou a líder da base), a mesma regra de `podeDistribuir`.
 Nada de específico da Pessoal aqui.
 
+### Voluntários presentes e pessoas em pé — debaixo do Mapa (2026-09)
+
+Pedido do dono do produto: "os voluntários sempre marcam quantos
+vieram, que é diferente dos escalados — às vezes faltam; e ao lado do
+auditório ficam sempre pessoas em pé, que também têm de ser contadas.
+Depois disso, pode tirar a Contagem de Culto." Dois campos (−/número/+)
+logo abaixo do Mapa, em `pages/Acomodacao.jsx` e também em
+`SheetEditarMapa` (domingos antigos): `components/acomodacao/
+ContagemJuntoAoMapa.jsx`. Gravam na Contagem de sempre
+(`eventos/{e}/contagem/geral`, `categorias.voluntarios` e
+`categorias.emPe`) — **qualquer pessoa da Pessoal** marca (as regras
+já o deixavam; não precisa da função Mapa), e funciona sem rede.
+
+O Painel Pastoral soma as pessoas em pé ao auditório (Mapa + em pé) e
+usa os voluntários PRESENTES como número principal, com os escalados
+("previstos") ao lado. **A subaba Contagem de Culto saiu**
+(`ContagemCulto.jsx`/`HistoricoContagem.jsx` apagados): o resto já vinha
+do Mapa (auditório, visitantes, apelo) ou dos contadores das salas.
+
 ### Contagem manual — de onde já vem cada número (levantamento 2026-09)
 
 Objetivo do dono do produto: acabar com a Contagem manual, deixando
@@ -215,7 +234,7 @@ visitantes, apelo) — pelo MAPA. Estado de cada categoria:
 | Categoria | Fonte sem a Contagem manual | Estado |
 |---|---|---|
 | Visitantes | Mapa (`visitante` + `apeloVisitante`) | já usado pelo Painel Pastoral desde 27/9 |
-| Voluntários | escalas publicadas das dez bases (`historicoPastoral`) | já usado |
+| Voluntários | presentes: marcados por baixo do Mapa (`voluntarios`); previstos: escalas das dez bases | desde 2026-09 (ver acima) |
 | Mensagem | Mapa: todos os lugares marcados (+ reservados/bloqueados) | já usado desde 27/9 |
 | Apelo | Mapa (manter o dedo) | a partir deste PR |
 | New / Shift / Júnior / Fun / Baby | contador no Início de cada sala | já (`origem: "automatica"`) |
@@ -228,7 +247,7 @@ frase "A contagem deste culto está/não está fechada" do Domingo
 (`finalizadoEm`). O Mapa conta lugares marcados, por isso tem de estar
 atualizado até à mensagem para "Mensagem" valer o mesmo que valia à mão.
 
-### Contagem — subaba de Culto — categorias que não somam entre si
+### Contagem — o documento (a subaba saiu em 2026-09, ver acima) — categorias que não somam entre si
 
 `visitantes`, `voluntarios`, `mensagem`, `apelo` (manuais); `new`,
 `shift`, `junior`, `fun`, `baby` (`origem: "automatica"`, escritas

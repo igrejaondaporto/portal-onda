@@ -2,6 +2,11 @@ import { getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore"
 import { cContagem } from "./modelo";
 
 /**
+ * Desde 2026-09 não há ecrã de Contagem: só "voluntarios" e "emPe" se
+ * marcam à mão, debaixo do Mapa (`ContagemJuntoAoMapa.jsx`); as salas
+ * vêm dos painéis delas. As outras (visitantes, mensagem, apelo) ficam
+ * no catálogo pelos domingos antigos, que o Painel Pastoral ainda lê.
+ *
  * As categorias não formam um total. Cada uma é guardada separadamente
  * para preservar o significado que já tem no relatório do culto.
  *
@@ -15,7 +20,8 @@ import { cContagem } from "./modelo";
  */
 export const CATEGORIAS_CONTAGEM = [
   { id: "visitantes", nome: "Visitantes", grupo: "Auditório", descricao: "Quem visita pela primeira vez" },
-  { id: "voluntarios", nome: "Voluntários", grupo: "Auditório", descricao: "Equipa a servir neste culto" },
+  { id: "voluntarios", nome: "Voluntários presentes", grupo: "Auditório", descricao: "Quem veio mesmo servir — não os escalados" },
+  { id: "emPe", nome: "Pessoas em pé", grupo: "Auditório", descricao: "Ao lado do auditório, fora dos lugares do Mapa" },
   { id: "mensagem", nome: "Mensagem", grupo: "Resposta", descricao: "Pessoas que estavam presentes durante a mensagem" },
   { id: "apelo", nome: "Apelo", grupo: "Resposta", descricao: "Pessoas que responderam ao apelo" },
   { id: "new", nome: "New", grupo: "Salas", descricao: "Preenchido pelo painel da New" },

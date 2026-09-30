@@ -237,6 +237,19 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
     return marcados ? { visitantes: n("visitante", "apeloVisitante"), apelo: n("apelo", "apeloVisitante") } : null;
   }, [mapa]);
   const visitantesCulto = doMapa?.visitantes ?? null;
+
+  // marcados por baixo do Mapa da Pessoal (pedido 2026-09), na mesma
+  // Contagem que já se ouve ao vivo: as pessoas em pé somam ao
+  // auditório; os voluntários PRESENTES são o número principal, com os
+  // escalados (previstos) ao lado — mesma regra de `lib/presenca.js`
+  const numContagem = (id) => {
+    const v = contagem?.categorias?.[id]?.valor;
+    return typeof v === "number" ? v : null;
+  };
+  const emPe = numContagem("emPe");
+  const voluntariosPresentes = numContagem("voluntarios");
+  const auditorioComEmPe = noAuditorio ? noAuditorio + (emPe ?? 0) : null;
+  const voluntariosCulto = voluntariosPresentes ?? totalEscalados;
   const apeloCulto = doMapa?.apelo ?? null;
 
   /* ── o resumo, depois do culto ───────────────────────────── */
@@ -267,12 +280,12 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
       .map(([id, rotulo]) => ({ id, rotulo, valor: contagem?.categorias?.[id]?.valor }))
       .filter((s) => typeof s.valor === "number");
     const criancas = salas.length ? salas.reduce((t, s) => t + s.valor, 0) : null;
-    const auditorio = noAuditorio || null;
+    const auditorio = auditorioComEmPe;
     return {
       auditorio, capacidade, salas, criancas,
-      total: auditorio === null ? null : auditorio + totalEscalados + (criancas ?? 0),
+      total: auditorio === null ? null : auditorio + voluntariosCulto + (criancas ?? 0),
     };
-  }, [passou, mapa, contagem, noAuditorio, totalEscalados]);
+  }, [passou, mapa, contagem, auditorioComEmPe, voluntariosCulto]);
 
   /* ── o pop-up "domingo sem escala" ───────────────────────── */
 
@@ -351,14 +364,24 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
             <li>
               <span>Auditório</span>
               <b>{resumo.auditorio ?? "—"}</b>
-              {resumo.auditorio !== null && resumo.capacidade > 0 && (
-                <small>de {resumo.capacidade} lugares · {Math.round((resumo.auditorio / resumo.capacidade) * 100)}%</small>
+              {/* a ocupação é dos LUGARES — por isso sem os que estão em pé */}
+              {noAuditorio > 0 && resumo.capacidade > 0 && (
+                <small>
+                  {noAuditorio} de {resumo.capacidade} lugares · {Math.round((noAuditorio / resumo.capacidade) * 100)}%
+                  {emPe ? ` · ${emPe} em pé` : ""}
+                </small>
               )}
             </li>
             <li>
               <span>Voluntários</span>
-              <b>{totalEscalados || "—"}</b>
-              {totalEscalados > 0 && <small>em {porBase.filter((b) => b.tipo !== "vazio").length} bases</small>}
+              <b>{voluntariosCulto || "—"}</b>
+              {totalEscalados > 0 && (
+                <small>
+                  {voluntariosPresentes !== null
+                    ? `presentes · previstos: ${totalEscalados}`
+                    : `previstos · presentes por marcar`}
+                </small>
+              )}
             </li>
             <li>
               <span>Crianças</span>
@@ -369,7 +392,7 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
             <li><span>Apelo</span><b>{apeloCulto ?? "—"}</b></li>
           </ul>
           <p className="pa-resumo-rodape">
-            Auditório, visitantes e apelo: Mapa (Base Pessoal) · crianças: contador de cada sala · "—" é não contado
+            Auditório (Mapa + em pé), voluntários presentes, visitantes e apelo: Base Pessoal · crianças: contador de cada sala · "—" é não contado
           </p>
         </div>
       )}
@@ -379,13 +402,17 @@ export default function Domingo({ uid, ativo, definirCabecalho, onAoVivo, irPara
       <div className="dupla" style={{ marginTop: 12 }}>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
           <p className="ds" style={{ marginTop: 0 }}>A servir</p>
-          <p className="pa-num">{totalEscalados}</p>
-          <p className="ds" style={{ marginTop: 2 }}>em {porBase.filter((b) => b.tipo !== "vazio").length} bases</p>
+          <p className="pa-num">{voluntariosCulto}</p>
+          <p className="ds" style={{ marginTop: 2 }}>
+            {voluntariosPresentes !== null
+              ? `presentes · previstos: ${totalEscalados}`
+              : `escalados em ${porBase.filter((b) => b.tipo !== "vazio").length} bases`}
+          </p>
         </div>
         <div className="caixa" style={{ background: "var(--agua)", borderColor: "transparent", marginTop: 0 }}>
           <p className="ds" style={{ marginTop: 0 }}>No auditório</p>
-          <p className="pa-num">{noAuditorio ?? "—"}</p>
-          <p className="ds" style={{ marginTop: 2 }}>pessoas no auditório</p>
+          <p className="pa-num">{auditorioComEmPe ?? "—"}</p>
+          <p className="ds" style={{ marginTop: 2 }}>{emPe ? `${noAuditorio} sentadas + ${emPe} em pé` : "pessoas no auditório"}</p>
         </div>
       </div>
       )}
