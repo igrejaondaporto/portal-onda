@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe, textoOndeServe } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
@@ -11,6 +12,8 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  */
 export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  // onde cada pessoa já serve neste culto, noutra base
+  const ondeServe = useOndeServe(evento?.id);
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [estatisticas, setEstatisticas] = useState({});
@@ -114,6 +117,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                   <Avatar pessoa={p} tamanho={38} fonte={15} />
                   <span style={{ flex: 1 }}>
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+                    {ondeServe[p.id] && <span className="onde-serve">{textoOndeServe(ondeServe[p.id])}</span>}
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
                       {dentro ? (lid ? "líder de escala" : "na escala") : "fora deste culto"}
                     </span>

@@ -3,6 +3,7 @@ import { guardarEscala, dispensarBaseDeEvento, reincluirBaseEmEvento, obterEstat
 import { obterRespostas } from "../../lib/enquetes";
 import { sugerirLugares, indisponiveisNoCulto, ministeriosDaEscala, ministeriosComGente } from "../../lib/sugestor";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 
@@ -32,6 +33,17 @@ import { nomeEvento } from "@portal/shared/lib/data.js";
  *  aparecem NESTA folha. */
 export default function SheetEscalaMinisterios({ evento, todosMinisterios, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  // quem já está escalado noutra base neste culto aparece na lista mas
+  // não dá para escolher — com a base, para o líder saber porquê
+  const ondeServe = useOndeServe(evento?.id);
+  const opcao = (p, escolhidoAqui) => {
+    const noutra = ondeServe[p.id];
+    return (
+      <option key={p.id} value={p.id} disabled={!!noutra && p.id !== escolhidoAqui}>
+        {p.nome}{noutra ? ` — já escalado(a) na ${noutra.join(" e ")}` : ""}
+      </option>
+    );
+  };
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
 
@@ -203,7 +215,7 @@ export default function SheetEscalaMinisterios({ evento, todosMinisterios, volun
                     onChange={(e) => definirPessoa(m.id, i, e.target.value)}
                   >
                     <option value="">Por definir</option>
-                    {candidatos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    {candidatos.map((p) => opcao(p, pessoaId))}
                   </select>
                   {lugar.pessoas.length > 1 && (
                     <button

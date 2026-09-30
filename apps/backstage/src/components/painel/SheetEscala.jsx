@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe, textoOndeServe, podeEscalarMesmoAssim } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta, concordar } from "@portal/shared/lib/data.js";
@@ -11,6 +12,13 @@ import { nomeEvento, dataCurta, concordar } from "@portal/shared/lib/data.js";
  */
 export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  // onde cada pessoa já serve neste culto, noutra base
+  const ondeServe = useOndeServe(evento?.id);
+  const bloqueado = (id) => {
+    if (podeEscalarMesmoAssim || !ondeServe[id]) return false;
+    torrada(textoOndeServe(ondeServe[id]));
+    return true;
+  };
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
   const [estatisticas, setEstatisticas] = useState({});
@@ -46,6 +54,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   const aprendizAtual = pessoas.find((id) => nivelDe(id) === "aprendiz") ?? null;
 
   function escolher(id) {
+    if (!pessoas.includes(id) && bloqueado(id)) return;
     const anterior = { pessoas, liderEscala };
     const ehAprendiz = nivelDe(id) === "aprendiz";
     let novasPessoas, novoLider;
@@ -137,6 +146,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
                     <b style={{ fontSize: 15.5, fontWeight: 700 }}>
                       {p.nome}{p.nivel === "aprendiz" ? " · aprendiz" : ""}
                     </b>
+                    {ondeServe[p.id] && <span className="onde-serve">{textoOndeServe(ondeServe[p.id])}</span>}
                     <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
                       {dentro
                         ? (p.id === aprendizAtual ? "escalado como aprendiz" : concordar(p, "escalado", "escalada"))

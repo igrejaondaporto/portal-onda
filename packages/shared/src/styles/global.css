@@ -2934,3 +2934,13 @@ button.tb-base:active {
   margin-top: 8px;
   opacity: 0.85;
 }
+
+/* "Servirá na Técnica neste dia" / "Já escalado(a) na …" por baixo do
+ * nome, ao montar a escala (useOndeServe, lib/ondeServe.js) */
+.onde-serve {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--laranja);
+}
