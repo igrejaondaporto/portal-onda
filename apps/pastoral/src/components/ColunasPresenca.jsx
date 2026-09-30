@@ -41,7 +41,10 @@ function passoAgradavel(bruto) {
 
 /** `pontos`: `[{ chave, rotulo, data, auditorio, voluntarios, criancas,
  *  total, visitantes, fonte }]`, já filtrados aos que têm total. */
-export default function ColunasPresenca({ pontos, vazio }) {
+/** `series`: que partes desenhar (Números deixa escolher — pedido
+ *  2026-09); por omissão as três. Cada série mantém sempre a SUA cor,
+ *  escolha-se quais se escolher (a cor segue a parte, nunca a posição). */
+export default function ColunasPresenca({ pontos, vazio, series = SERIES }) {
   const [foco, setFoco] = useState(null);
   const scroll = useRef(null);
   const [cabem, setCabem] = useState(true);
@@ -79,7 +82,7 @@ export default function ColunasPresenca({ pontos, vazio }) {
   return (
     <div className="pc">
       <div className="pc-legenda">
-        {SERIES.map((s) => (
+        {series.map((s) => (
           <span key={s.chave}><i style={{ background: s.cor }} />{s.rotulo}</span>
         ))}
       </div>
@@ -100,13 +103,13 @@ export default function ColunasPresenca({ pontos, vazio }) {
               ))}
               {pontos.map((p, i) => {
                 const on = i === iSel;
-                const partes = SERIES.map((s) => ({ ...s, valor: p[s.chave] ?? 0 })).filter((s) => s.valor > 0);
+                const partes = series.map((s) => ({ ...s, valor: p[s.chave] ?? 0 })).filter((s) => s.valor > 0);
                 return (
                   <button
                     key={p.chave}
                     className={`pc-col${on ? " on" : ""}`}
                     onClick={() => setFoco(i)}
-                    aria-label={`${p.rotulo}: ${p.total} pessoas — ${SERIES.map((s) => `${s.rotulo} ${p[s.chave] ?? 0}`).join(", ")}`}
+                    aria-label={`${p.rotulo}: ${p.total} pessoas — ${series.map((s) => `${s.rotulo} ${p[s.chave] ?? 0}`).join(", ")}`}
                     aria-pressed={on}
                   >
                     <span className="pc-pilha" style={{ height: `${(p.total / topo) * 100}%` }}>
@@ -141,7 +144,7 @@ export default function ColunasPresenca({ pontos, vazio }) {
           <span className="pc-fonte">fonte: Mapa (Base Pessoal)</span>
         </div>
         <ul className="pc-partes">
-          {SERIES.map((s) => (
+          {series.map((s) => (
             <li key={s.chave}>
               <i style={{ background: s.cor }} />
               <span>{s.rotulo}</span>

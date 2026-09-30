@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { desgastePastoral, pessoasPastoral } from "../lib/pastoral";
+import { desgastePastoral, historicoPastoral, pessoasPastoral } from "../lib/pastoral";
 import {
-  DIAS_PARADO, contarPorEtapa, conversaoFunil, corTextoEtapa, diasParado, esquecidos, estadoServir, nomeGD, ouvirContactos,
+  DIAS_PARADO, PERIODOS_VISITA, contarPorEtapa, conversaoFunil, corTextoEtapa, dataDaVisita, diasParado, escolherUltimoCulto,
+  esquecidos, estadoServir, intervaloDoPeriodo, nomeGD, ouvirContactos,
 } from "../lib/contactos";
+import { DOMINGOS_IGNORADOS } from "../lib/presenca";
 import { dataCurta, haAtras, linkWhatsApp } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import LinhaPessoaContacto from "@portal/shared/components/LinhaPessoaContacto.jsx";
 import Funil from "../components/Funil";
 import Barras from "../components/Barras";
 import SheetContacto from "../components/SheetContacto";
+import RelatorioVisitantes from "../components/RelatorioVisitantes";
 
 /** As três salas fixas da Kinder — mesma cópia pequena de Domingo.jsx
  *  (ver o comentário lá: cada app carrega só o seu bundle, três linhas
@@ -83,14 +86,17 @@ const ABAS = [
   ["funil", "Visitantes"],
 ];
 
-/** Filtro por quando a visita chegou — não por etapa (essa já é o
- *  Funil) nem por nome (esse já é a busca). "Todos" fica primeiro e é
- *  o omisso: a maior parte das vezes quer-se ver toda a gente. */
-const PERIODOS_CHEGADA = [
-  ["todos", "Todos"],
-  ["30d", "Últimos 30 dias"],
-  ["90d", "Últimos 90 dias"],
-];
+/** O histórico dos cultos do período, para os visitantes do Mapa —
+ *  `historicoPastoral` aceita no máximo 3 anos por chamada, por isso
+ *  "Tudo" pede um ano de cada vez (mesmo que Números). */
+async function carregarCultosDoPeriodo([desde, ate]) {
+  const janelas = [];
+  for (let a = Number(desde.slice(0, 4)); a <= Number(ate.slice(0, 4)); a++) {
+    janelas.push([a === Number(desde.slice(0, 4)) ? desde : `${a}-01-01`, a === Number(ate.slice(0, 4)) ? ate : `${a}-12-31`]);
+  }
+  const partes = await Promise.all(janelas.map(([d, a]) => historicoPastoral(d, a)));
+  return partes.flatMap((p) => p.cultos).filter((c) => !DOMINGOS_IGNORADOS.has(c.data));
+}
 
 /** A janela do desgaste: os últimos dois meses. É o período que
  *  interessa para equilibrar quem serve agora — quem esteve sobrecarregado
@@ -119,7 +125,11 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   const [contactos, setContactos] = useState([]);
   const [etapaFiltro, setEtapaFiltro] = useState(null);
   const [busca, setBusca] = useState("");
-  const [periodoChegada, setPeriodoChegada] = useState("todos");
+  // o período do relatório de visitantes — filtra também o funil e a
+  // lista por baixo dele (antes era só a lista: Todos/30/90 dias)
+  const [periodoVisita, setPeriodoVisita] = useState("tudo");
+  const [cultosVisita, setCultosVisita] = useState(null);  // null = a carregar
+  const [erroCultosVisita, setErroCultosVisita] = useState(null);
   const [contactoAberto, setContactoAberto] = useState(null);
   const [desgaste, setDesgaste] = useState(null);
   const [erro, setErro] = useState(null);
@@ -159,6 +169,19 @@ export default function Pessoas({ ativo, definirCabecalho }) {
   }, [aba, desgaste]);
 
   useEffect(() => ouvirContactos(setContactos), []);
+
+  // os cultos do período (para os visitantes do Mapa) — só com o
+  // separador aberto, como o desgaste: é uma chamada pesada
+  const intervaloVisita = useMemo(() => intervaloDoPeriodo(periodoVisita), [periodoVisita]);
+  useEffect(() => {
+    if (aba !== "funil") return;
+    let vivo = true;
+    setCultosVisita(null); setErroCultosVisita(null);
+    carregarCultosDoPeriodo(intervaloVisita)
+      .then((c) => { if (vivo) setCultosVisita(c); })
+      .catch((e) => { if (vivo) { setCultosVisita([]); setErroCultosVisita(e.message || "erro"); } });
+    return () => { vivo = false; };
+  }, [aba, intervaloVisita]);
 
   /* ── quem serve ──────────────────────────────────────────── */
 
@@ -204,21 +227,48 @@ export default function Pessoas({ ativo, definirCabecalho }) {
 
   /* ── o funil ─────────────────────────────────────────────── */
 
-  const etapas = useMemo(() => contarPorEtapa(contactos), [contactos]);
-  const conversao = useMemo(() => conversaoFunil(contactos), [contactos]);
-  const parados = useMemo(() => esquecidos(contactos), [contactos]);
+  /** "Último culto": o do histórico (o mais recente com visitantes,
+   *  ver `escolherUltimoCulto`); enquanto não chega, o culto mais
+   *  recente em que alguém deixou contacto. */
+  const ultimoCulto = useMemo(() => {
+    if (periodoVisita !== "ultimo") return null;
+    const doHistorico = cultosVisita ? escolherUltimoCulto(cultosVisita, contactos) : null;
+    if (doHistorico) return { eventoId: doHistorico.eventoId, data: doHistorico.data };
+    const ids = contactos.map((c) => c.eventoId).filter(Boolean).sort();
+    return ids.length ? { eventoId: ids.at(-1), data: ids.at(-1).slice(0, 10) } : null;
+  }, [periodoVisita, cultosVisita, contactos]);
+
+  /** Os contactos do período, pela data do culto em que apareceram
+   *  (`dataDaVisita`) — tudo o que está no separador Visitantes parte
+   *  daqui: o relatório, a conversão, o caminho e a lista. */
+  const contactosPeriodo = useMemo(() => {
+    if (periodoVisita === "tudo") return contactos;
+    if (periodoVisita === "ultimo") return ultimoCulto ? contactos.filter((c) => c.eventoId === ultimoCulto.eventoId) : [];
+    const [desde, ate] = intervaloVisita;
+    return contactos.filter((c) => {
+      const d = dataDaVisita(c);
+      return d && d >= desde && d <= ate;
+    });
+  }, [contactos, periodoVisita, intervaloVisita, ultimoCulto]);
+
+  const cultosDoRelatorio = useMemo(() => {
+    if (!cultosVisita) return [];
+    if (periodoVisita === "ultimo") return ultimoCulto ? cultosVisita.filter((c) => c.eventoId === ultimoCulto.eventoId) : [];
+    return cultosVisita;
+  }, [cultosVisita, periodoVisita, ultimoCulto]);
+
+  const etapas = useMemo(() => contarPorEtapa(contactosPeriodo), [contactosPeriodo]);
+  const conversao = useMemo(() => conversaoFunil(contactosPeriodo), [contactosPeriodo]);
+  const parados = useMemo(() => esquecidos(contactosPeriodo), [contactosPeriodo]);
   const idsParados = useMemo(() => new Set(parados.map((c) => c.id)), [parados]);
 
   const listaFunil = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const dias = periodoChegada === "30d" ? 30 : periodoChegada === "90d" ? 90 : null;
-    const limite = dias ? Date.now() - dias * 86400000 : null;
-    return contactos
+    return contactosPeriodo
       .filter((c) => (soParados ? idsParados.has(c.id) : true))
       .filter((c) => (etapaFiltro ? c.etapa === etapaFiltro : true))
-      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true))
-      .filter((c) => (limite ? (c.criadoEm?.toDate?.().getTime() ?? 0) >= limite : true));
-  }, [contactos, etapaFiltro, busca, periodoChegada, soParados, idsParados]);
+      .filter((c) => (termo ? (c.nome ?? "").toLowerCase().includes(termo) : true));
+  }, [contactosPeriodo, etapaFiltro, busca, soParados, idsParados]);
 
   /** Quem serviu em metade ou mais dos domingos do período. Metade não
    *  é um número mágico nem um limite de alarme — é onde "serve às
@@ -275,10 +325,13 @@ export default function Pessoas({ ativo, definirCabecalho }) {
       desgaste: desgaste
         ? [`${desgaste.totalCultos} cultos`, gastos.length ? `${gastos.length} em metade ou mais` : "ninguém acima de metade"]
         : [],
-      funil: [`${contactos.length} no funil`, parados.length ? `${parados.length} parados` : "nenhum parado"],
+      funil: [
+        periodoVisita === "tudo" ? `${contactos.length} no funil` : `${contactosPeriodo.length} de ${contactos.length} no período`,
+        parados.length ? `${parados.length} parados` : "nenhum parado",
+      ],
     };
     definirCabecalho({ titulo: "Pessoas", subtitulo: subtitulos[aba], chips: chips[aba] });
-  }, [ativo, definirCabecalho, aba, dados, ativos, multiBase, contactos, parados, desgaste, gastos]);
+  }, [ativo, definirCabecalho, aba, dados, ativos, multiBase, contactos, contactosPeriodo, periodoVisita, parados, desgaste, gastos]);
 
   return (
     <>
@@ -460,6 +513,25 @@ export default function Pessoas({ ativo, definirCabecalho }) {
         )
       ) : (
         <>
+          {/* o período manda em todo o separador (pedido 2026-09:
+              "relatório de visitante filtrado por período") */}
+          <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
+            {PERIODOS_VISITA.map(([id, rotulo]) => (
+              <button key={id} data-on={periodoVisita === id ? "1" : "0"} onClick={() => setPeriodoVisita(id)}>{rotulo}</button>
+            ))}
+          </div>
+
+          <RelatorioVisitantes
+            titulo={PERIODOS_VISITA.find(([id]) => id === periodoVisita)[1]}
+            intervalo={periodoVisita === "ultimo"
+              ? [ultimoCulto?.data ?? intervaloVisita[1], ultimoCulto?.data ?? intervaloVisita[1]]
+              : intervaloVisita}
+            cultos={cultosDoRelatorio}
+            contactos={contactosPeriodo}
+            carregando={cultosVisita === null}
+            erro={erroCultosVisita}
+          />
+
           {/* a conversão, etapa a etapa (pedido 2026-09) — ver
               `conversaoFunil`: quantos estão em cada uma agora, e dos
               que lá chegaram, quantos % passaram à seguinte */}
@@ -501,12 +573,6 @@ export default function Pessoas({ ativo, definirCabecalho }) {
             className="campo" type="search" value={busca} placeholder="Procurar por nome"
             onChange={(e) => setBusca(e.target.value)} style={{ marginTop: 12 }}
           />
-
-          <div className="menu" style={{ position: "static", border: 0, padding: "10px 0 0", background: "none", backdropFilter: "none" }}>
-            {PERIODOS_CHEGADA.map(([id, rotulo]) => (
-              <button key={id} data-on={periodoChegada === id ? "1" : "0"} onClick={() => setPeriodoChegada(id)}>{rotulo}</button>
-            ))}
-          </div>
 
           <div className="sect">
             <div className="cabecalho">
@@ -552,8 +618,10 @@ export default function Pessoas({ ativo, definirCabecalho }) {
               );
             }) : (
               <div className="vaz">
-                {contactos.length
+                {contactosPeriodo.length
                   ? "Ninguém nesta etapa com esse nome."
+                  : contactos.length
+                  ? "Ninguém deixou contacto neste período."
                   : "Ainda não há contactos — a Base Pessoal é quem os recolhe, no Formulário."}
               </div>
             )}

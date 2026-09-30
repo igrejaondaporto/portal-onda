@@ -299,7 +299,9 @@ export default function OrdemCultoTimeline({ ordem, chegada, hoje, eventoId, aoV
                     </button>
                   )}
                 </p>
-                <p className="meta">{[l.responsavel, l.projecao].filter(Boolean).join(" · ") || "—"}</p>
+                {/* iluminação: escolhida pelo pastor na Ordem do Painel Pastoral
+                    (2026-09) — só aparece quando vem na ordem */}
+                <p className="meta">{[l.responsavel, l.projecao, l.iluminacao && `💡 Luz ${l.iluminacao.toLowerCase()}`].filter(Boolean).join(" · ") || "—"}</p>
                 {l.detalhe && /volunt/i.test(l.detalhe) && <span className="oc-marca">{l.detalhe}</span>}
 
                 {(l.extra || l.real?.reassociado) && aReassociar === l.real?.idFreeshow && (

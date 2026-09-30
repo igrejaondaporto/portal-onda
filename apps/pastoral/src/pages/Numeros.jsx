@@ -4,7 +4,7 @@ import { dataCurta, eur } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import LinhaTempo from "../components/LinhaTempo";
 import ColunasPresenca, { SERIES } from "../components/ColunasPresenca";
-import { apeloDoCulto, criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
+import { DOMINGOS_IGNORADOS, apeloDoCulto, criancasDoCulto, media, presencaDoCulto } from "../lib/presenca";
 import RelatorioNumeros, { exportarNumeros } from "../components/RelatorioNumeros";
 import { Download } from "lucide-react";
 import Barras from "../components/Barras";
@@ -25,10 +25,6 @@ const PERIODOS = [
  *  ano" precisa). */
 const PRIMEIRO_ANO = 2026;
 
-/** Domingos que ficam de fora de Números — testes, não cultos (pedido
- *  2026-09: "30 ago era só um teste"). Os dados continuam no
- *  Firestore; só não entram nas contas nem nos gráficos daqui. */
-const DOMINGOS_IGNORADOS = new Set(["2026-08-30"]);
 
 /** Domingos de antes do Formulário da Base Pessoal, contados na
  *  planilha antiga (pedido 2026-09: "só para ter algo ali"). Um número
@@ -54,6 +50,25 @@ const BLOCOS = [
   ["apelo", "Apelo", /apelo/i],
 ];
 const blocoDe = (momento) => BLOCOS.find(([, , re]) => re.test(momento))?.[0] ?? null;
+
+/** A soma das partes escolhidas num domingo, ou `null` se não se
+ *  sabe. Com o auditório na escolha, segue a regra de sempre da
+ *  "Presença na igreja" (`presencaDoCulto`): sem Mapa, o domingo fica
+ *  de fora, e uma parte que falte conta zero. Sem o auditório, entra
+ *  o domingo em que se sabe pelo menos uma das partes escolhidas —
+ *  voluntários só com escala publicada (zero aí é "ninguém publicou",
+ *  não zero pessoas), crianças só com alguma sala contada. */
+function somaDasPartes(p, partes) {
+  if (partes.has("auditorio") && p.auditorio === null) return null;
+  const conhecido = {
+    auditorio: p.auditorio,
+    voluntarios: p.voluntarios > 0 ? p.voluntarios : null,
+    criancas: p.criancas,
+  };
+  const escolhidos = [...partes].map((k) => conhecido[k]);
+  if (escolhidos.every((v) => v === null)) return null;
+  return escolhidos.reduce((t, v) => t + (v ?? 0), 0);
+}
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -126,6 +141,16 @@ export default function Numeros({ ativo, definirCabecalho }) {
   // a tabela de presença começa nos 3 mais recentes (pedido 2026-09:
   // "só os três últimos já está bom")
   const [verTodaPresenca, setVerTodaPresenca] = useState(false);
+  // que partes entram na "Presença na igreja" (pedido 2026-09: "filtrar
+  // a média de auditório só, de voluntários, de crianças, e juntos —
+  // auditório + voluntários, auditório + crianças…"). As três por
+  // omissão, que é a presença de sempre; nunca menos de uma.
+  const [partes, setPartes] = useState(() => new Set(SERIES.map((s) => s.chave)));
+  const alternarParte = (chave) => setPartes((atual) => {
+    const nova = new Set(atual);
+    if (nova.has(chave)) { if (nova.size > 1) nova.delete(chave); } else nova.add(chave);
+    return nova;
+  });
 
   useEffect(() => {
     let vivo = true;
@@ -182,7 +207,24 @@ export default function Numeros({ ativo, definirCabecalho }) {
   }, [dados]);
 
   const mediaPresenca = media(presencaIgreja.map((p) => p.total));
-  const ultimaPresenca = presencaIgreja.at(-1) ?? null;
+
+  /** A presença só com as partes escolhidas (ver `somaDasPartes`).
+   *  Com as três, é exatamente `presencaIgreja` — os mesmos domingos,
+   *  os mesmos totais. */
+  const todasPartes = partes.size === SERIES.length;
+  const seriesEscolhidas = SERIES.filter((s) => partes.has(s.chave));
+  const rotuloPartes = todasPartes ? "Presença na igreja" : seriesEscolhidas.map((s) => s.rotulo).join(" + ");
+  const presencaFiltrada = useMemo(() => {
+    if (!dados) return [];
+    return dados.cultos
+      .map((c) => {
+        const p = presencaDoCulto(c);
+        return { chave: c.eventoId, rotulo: dataCurta(c.data), data: c.data, ...p, total: somaDasPartes(p, partes) };
+      })
+      .filter((p) => p.total !== null);
+  }, [dados, partes]);
+  const mediaFiltrada = media(presencaFiltrada.map((p) => p.total));
+  const ultimaPresenca = presencaFiltrada.at(-1) ?? null;
   const medias = {
     auditorio: media(presencaIgreja.map((p) => p.auditorio)),
     voluntarios: media(presencaIgreja.map((p) => p.voluntarios)),
@@ -443,13 +485,25 @@ export default function Numeros({ ativo, definirCabecalho }) {
           {/* o número que se procura primeiro, e as três partes dele
               com a mesma cor do gráfico logo abaixo */}
           <div className="nm-heroi">
-            <p className="rotulo">Presença na igreja</p>
-            <p className="valor">{mediaPresenca ?? "—"}</p>
+            <p className="rotulo">{rotuloPartes}</p>
+            <p className="valor">{mediaFiltrada ?? "—"}</p>
             <p className="sub">
-              {mediaPresenca === null
+              {mediaFiltrada === null
                 ? "Ainda nenhum domingo contado neste período."
                 : <>em média por domingo · <b>{ultimaPresenca.total}</b> no último <span style={{ whiteSpace: "nowrap" }}>({ultimaPresenca.rotulo})</span></>}
             </p>
+            {/* o que entra na conta — toca para tirar ou pôr; o gráfico
+                e a tabela por baixo seguem a mesma escolha */}
+            <div className="nm-partes" role="group" aria-label="O que entra na média">
+              {SERIES.map((s) => (
+                <button
+                  key={s.chave} type="button" aria-pressed={partes.has(s.chave)}
+                  data-on={partes.has(s.chave) ? "1" : "0"} onClick={() => alternarParte(s.chave)}
+                >
+                  <i style={{ background: s.cor }} />{s.rotulo}{partes.has(s.chave) && <span aria-hidden="true"> ✓</span>}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="nm-quatro">
             {SERIES.map((s) => (
@@ -495,25 +549,28 @@ export default function Numeros({ ativo, definirCabecalho }) {
               de cada sala.
             </p>
             <ColunasPresenca
-              pontos={presencaIgreja}
-              vazio="Ainda não há nenhum domingo com o auditório contado neste período."
+              pontos={presencaFiltrada}
+              series={seriesEscolhidas}
+              vazio={partes.has("auditorio")
+                ? "Ainda não há nenhum domingo com o auditório contado neste período."
+                : "Ainda não há nenhum domingo com estes números neste período."}
             />
 
-            {presencaIgreja.length > 0 && (
+            {presencaFiltrada.length > 0 && (
               <div style={{ borderTop: "1px solid var(--fio)", marginTop: 18, paddingTop: 14 }}>
                 <p className="cap" style={{ marginTop: 0 }}>Domingo a domingo</p>
                 <div className="tabwrap" style={{ marginTop: 8 }}>
                   <table className="tab nm-criancas">
                     <thead>
                       <tr>
-                        <th>Culto</th><th>Audit.</th><th>Volunt.</th><th>Crianças</th><th>Total</th><th>Visit.</th>
+                        <th>Culto</th><th>Audit.</th><th>Volunt.</th><th>Crianças</th><th>{todasPartes ? "Total" : "Soma"}</th><th>Visit.</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {presencaIgreja.slice().reverse().slice(0, verTodaPresenca ? undefined : 3).map((p) => (
+                      {presencaFiltrada.slice().reverse().slice(0, verTodaPresenca ? undefined : 3).map((p) => (
                         <tr key={p.chave}>
                           <td>{p.rotulo}</td>
-                          <td>{p.auditorio}</td>
+                          <td>{p.auditorio ?? "—"}</td>
                           <td>{p.voluntarios || "—"}</td>
                           <td>{p.criancas ?? "—"}</td>
                           <td><b>{p.total}</b></td>
@@ -523,9 +580,9 @@ export default function Numeros({ ativo, definirCabecalho }) {
                     </tbody>
                   </table>
                 </div>
-                {presencaIgreja.length > 3 && (
+                {presencaFiltrada.length > 3 && (
                   <button className="btn sec full" style={{ marginTop: 10 }} onClick={() => setVerTodaPresenca((v) => !v)}>
-                    {verTodaPresenca ? "Ver menos" : `Ver mais (${presencaIgreja.length - 3})`}
+                    {verTodaPresenca ? "Ver menos" : `Ver mais (${presencaFiltrada.length - 3})`}
                   </button>
                 )}
               </div>
@@ -779,6 +836,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
             resumo={[
               ["Cultos com números", relatorio.domingos.length],
               ["Presença média por domingo", mediaPresenca],
+              ...(todasPartes ? [] : [[`Média só de ${rotuloPartes}`, mediaFiltrada]]),
               ["Auditório (média)", medias.auditorio],
               ["Voluntários (média)", medias.voluntarios],
               ["Crianças (média)", medias.criancas],

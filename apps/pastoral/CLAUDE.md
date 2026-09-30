@@ -298,6 +298,16 @@ Sem catálogo próprio de tipos aqui: `TIPOS_CULTO_PADRAO`
 (`packages/shared`) é só o valor de arranque, gravado uma vez por
 `scripts/seedTiposCulto.mjs`.
 
+### Iluminação
+
+Cada momento tem um campo opcional **Iluminação** (Baixa / Média
+baixa / Média / Média alta / Alta — `NIVEIS_ILUMINACAO`,
+`lib/ordem.js`; um valor fora da lista é gravado como `null`). Vai
+dentro de `momentos[]`, que `publicarOrdemCulto` guarda como vem —
+nenhuma function mudou. Sai na folha impressa (coluna "Luz") e na
+cronologia da Técnica (`OrdemCultoTimeline.jsx`, "💡 Luz média");
+as outras bases não o mostram (como a projeção).
+
 ### Modelos
 
 `bases/pastoral/modelosOrdem/{id}`, escrita direta (regra nova, no
@@ -587,6 +597,31 @@ da categoria `apelo` da Contagem antes. Nunca as duas no mesmo culto.
 **Tabela "Domingo a domingo" da presença** por baixo das colunas: os
 números exatos (auditório, voluntários, crianças, total, visitantes),
 só os 3 mais recentes + "Ver mais" (pedido 2026-09).
+
+**O que entra na "Presença na igreja"** (pedido 2026-09: "filtrar a
+média de auditório só, de voluntários, de crianças, e juntos"): três
+botões dentro do cartão-herói (`.nm-partes`) — as três por omissão,
+nunca menos de uma. O número, as colunas e a tabela "Domingo a
+domingo" seguem a escolha (`somaDasPartes`, `Numeros.jsx`); os quatro
+cartões de baixo e o "Por ano" ficam sempre com a presença inteira.
+Com o auditório escolhido, a regra de sempre (sem Mapa, o domingo fica
+de fora); sem ele, entra o domingo com pelo menos uma parte conhecida.
+Cada série mantém a sua cor. O PDF ganha uma linha "Média só de …".
+
+**Relatório de visitantes** (Pessoas → Visitantes, pedido 2026-09):
+um período no topo (Último culto, Último mês, 3 meses, 6 meses, Este
+ano, Tudo — omissão Tudo) que filtra TUDO o separador: o relatório, a
+conversão, o caminho e a lista (substituiu o filtro Todos/30/90 dias,
+que era só da lista). O período conta pela data do culto em que a
+pessoa apareceu (`dataDaVisita`, `eventoId`). O relatório
+(`RelatorioVisitantes.jsx`) põe lado a lado, sem somar, os visitantes
+**no auditório** (Mapa, `historicoPastoral` — só pedido com o
+separador aberto) e os que **deixaram contacto**, culto a culto, com
+"Já contactados" e "De onde vêm" (concelho). "Último culto" é o mais
+recente até hoje com alguma coisa (`escolherUltimoCulto`). Exporta
+para PDF (`body[data-imprimir="visitantes"]`, `.pa-print-vis`) — com
+nomes, ao contrário de Números, mas nunca telefone nem e-mail.
+`DOMINGOS_IGNORADOS` mudou para `lib/presenca.js` (usado pelos dois).
 
 **Exportar** (botão por baixo dos períodos): o período escolhido (3
 meses, 12 meses ou tempo todo) em papel/"Guardar como PDF" —
