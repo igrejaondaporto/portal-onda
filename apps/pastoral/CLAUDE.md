@@ -113,6 +113,13 @@ Cloud Function nova.
 | **Números** | `pages/Numeros.jsx` | Está a melhorar ou a piorar? |
 | **Ordem** | `pages/Ordem.jsx` | Montar e publicar a ordem do culto |
 
+**Trocar de painel** (2026-09): o botão redondo ao lado da foto
+(`components/TrocarPainel.jsx`, mesmo aspeto do `BotaoTrocarBase`)
+abre um menu com o **Presença GD** (`gds.igrejaonda.pt`, repositório
+`igrejaondaporto/gd-management`) — outra app, com outro login
+(Supabase + Google), por isso é só um atalho para o endereço, sem
+sessão partilhada.
+
 Perfil não é aba — entra-se tocando na foto (mesmo padrão do `MenuEu`
 das outras bases). **Se uma coisa nova não cabe numa destas cinco
 perguntas, provavelmente não pertence a esta app** — é a mesma vara de
