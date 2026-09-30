@@ -101,7 +101,13 @@ bases, nunca no mesmo commit que uma correção local.
 Onda Tech Hub não serve num domingo (é a equipa que cuida do Portal
 em si) mas é uma base como outra qualquer na arquitetura — login por
 PIN, `bases/ondatechhub`, multi-base — por isso entra na tabela,
-diferente do Mural abaixo.
+diferente do Mural abaixo. **Mas não conta como equipa da igreja**
+(2026-09, "é só a página das melhorias, não precisa de aparecer nas
+estatísticas"): `bases/ondatechhub.interna = true` tira-a de
+`basesDaIgreja` (todo o Painel Pastoral), de `escalasCrossBase`/
+`checklistCrossBase` e de `listarBasesMural`; `semEscalaDeCulto` tira-a
+do "sem escala" e da agenda (`scripts/marcarOndaTechHubInterna.mjs`).
+Uma ferramenta interna nova leva o mesmo `interna: true`.
 
 Fora desta tabela de propósito — não é uma base, é da igreja toda
 (mesma lógica de `eventos/`): **Mural Onda**, `apps/mural`,

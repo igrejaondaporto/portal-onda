@@ -1819,9 +1819,10 @@ export const escalasCrossBase = onCall(async (req) => {
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
   const basesSnap = await db.collection("bases").get();
+  // `interna` = ferramenta nossa (Onda Tech Hub), não uma equipa do culto
   const bases = basesSnap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((b) => b.ativa !== false)
+    .filter((b) => b.ativa !== false && b.interna !== true)
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
 
   const resultado = await Promise.all(bases.map(async (b) => {
@@ -1937,9 +1938,10 @@ export const checklistCrossBase = onCall(async (req) => {
   if (!eventoId) throw new HttpsError("invalid-argument", "Falta o culto.");
 
   const basesSnap = await db.collection("bases").get();
+  // `interna` = ferramenta nossa (Onda Tech Hub), não uma equipa do culto
   const bases = basesSnap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((b) => b.ativa !== false)
+    .filter((b) => b.ativa !== false && b.interna !== true)
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
 
   const resultado = await Promise.all(bases.map(async (b) => {

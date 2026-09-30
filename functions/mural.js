@@ -151,7 +151,8 @@ export const listarBasesMural = onCall(async () => {
   // `ativa` ausente conta como ativa — mesma leitura defensiva de
   // `dadosEntrada` em index.js (só `false` explícito desativa).
   const bases = snap.docs
-    .filter((d) => d.data().ativa !== false)
+    // `interna` (Onda Tech Hub) não é uma equipa da igreja
+    .filter((d) => d.data().ativa !== false && d.data().interna !== true)
     .map((d) => ({ id: d.id, nome: d.data().nome || d.id }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt"));
   return { bases };

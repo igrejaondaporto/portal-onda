@@ -71,9 +71,13 @@ function exigeVisaoPastoral(req) {
  *  linha permanentemente vazia em todos os ecrãs. */
 async function basesDaIgreja() {
   const snap = await db().collection("bases").get();
+  // `interna` (2026-09): uma "base" que é só uma ferramenta nossa — hoje
+  // a Onda Tech Hub, a página das melhorias — e não uma equipa que
+  // serve no culto. Fica fora de tudo o que conta a igreja (pedido do
+  // dono do produto: "não precisa aparecer nas estatísticas").
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((b) => b.ativa !== false && b.visaoPastoral !== true)
+    .filter((b) => b.ativa !== false && b.visaoPastoral !== true && b.interna !== true)
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
 }
 
