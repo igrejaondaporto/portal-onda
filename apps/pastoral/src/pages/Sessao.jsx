@@ -15,6 +15,7 @@ import Pessoas from "./Pessoas";
 import Numeros from "./Numeros";
 import Ordem from "./Ordem";
 import Perfil from "./Perfil";
+import TrocarPainel from "../components/TrocarPainel";
 
 // ícones que não existem no ICO padrão do NavBar (packages/shared só
 // conhece o menu de hoje da Apoio) — mesmo padrão de ICONE_ENQUETES/
@@ -101,6 +102,8 @@ export default function Sessao({ uid, baseId, podePublicarCulto, mostrarTourAoEn
                 <b>{pessoa?.nome ?? "…"}</b>
                 <p>Pastoral</p>
               </div>
+              {/* atalho para o Presença GD (gds.igrejaonda.pt), pedido 2026-09 */}
+              <TrocarPainel />
               <span
                 className="av"
                 style={{
