@@ -15,9 +15,17 @@
  *   somados — as duas coisas foram desfeitas a pedido. Um mapa sem
  *   nenhum lugar marcado conta como "não há mapa" (fica de fora do
  *   gráfico), nunca como zero.
- * - **Voluntários: as escalas publicadas das dez bases** (`c.voluntarios`,
- *   somado em `historicoPastoral`) — nunca a categoria "voluntários"
- *   digitada na Contagem.
+ * - **Auditório inclui as PESSOAS EM PÉ** (pedido 2026-09): marcadas por
+ *   baixo do Mapa da Pessoal (`contagem.emPe`), somadas ao que o Mapa
+ *   conta nos lugares. Só com Mapa — em pé sem Mapa não faz auditório.
+ * - **Voluntários: os PRESENTES** (pedido 2026-09 — "é o número
+ *   principal; ao lado, os previstos, para ver a diferença"). Presentes
+ *   = `contagem.voluntarios`, marcado por baixo do Mapa (antes, na
+ *   Contagem manual — é a mesma categoria, por isso os domingos antigos
+ *   que a tinham também contam). Previstos = as escalas publicadas das
+ *   dez bases (`c.voluntarios`, somado em `historicoPastoral`). Sem
+ *   presentes marcados, conta o previsto (e `voluntariosPresentes` fica
+ *   `null`, para o ecrã dizer que é o previsto).
  * - **Crianças: as salas da Contagem** (Baby/Fun/Júnior da Kinder,
  *   SHIFT, New) — o contador no Início de cada uma dessas bases grava
  *   lá (`registarContagemSala`).
@@ -41,26 +49,36 @@ export function criancasDoCulto(c) {
   return vals.length ? vals.reduce((t, n) => t + n, 0) : null;
 }
 
-/** `{ auditorio, visitantes, voluntarios, criancas, total, fonte }`.
+/** `{ auditorio, noMapa, emPe, visitantes, voluntarios,
+ *  voluntariosPresentes, voluntariosPrevistos, criancas, total, fonte }`.
  *  `auditorio`/`visitantes`/`criancas` são `null` quando não se sabe
  *  (≠ zero); `total` só existe quando o auditório existe — é a maior
  *  parte, e um total sem ela seria um domingo "fraco" que não foi. */
 export function presencaDoCulto(c) {
   const a = c.acomodacao;
   const pessoasMapa = a ? a.ocupados + a.visitantes : 0;
-  const auditorio = pessoasMapa > 0 ? pessoasMapa : null;
+  const noMapa = pessoasMapa > 0 ? pessoasMapa : null;
+  const emPe = num(c.contagem?.emPe);
+  const auditorio = noMapa === null ? null : noMapa + (emPe ?? 0);
   const visitantes = auditorio === null ? null : a.visitantes;
-  const voluntarios = c.voluntarios ?? 0;
+  const voluntariosPrevistos = c.voluntarios ?? 0;
+  const voluntariosPresentes = num(c.contagem?.voluntarios);
+  const voluntarios = voluntariosPresentes ?? voluntariosPrevistos;
   const criancas = criancasDoCulto(c);
   const total = auditorio === null ? null : auditorio + voluntarios + (criancas ?? 0);
-  return { auditorio, visitantes, voluntarios, criancas, total, fonte: "mapa" };
+  return {
+    auditorio, noMapa, emPe, visitantes,
+    voluntarios, voluntariosPresentes, voluntariosPrevistos,
+    criancas, total, fonte: "mapa",
+  };
 }
 
 /** Ocupação do auditório: pessoas no auditório (ocupados +
  *  visitantes, do mapa) / capacidade do auditório (os lugares úteis —
  *  sem os reservados e os bloqueados). Pedido 2026-09: "Pessoas no
- *  auditório: 90 de 144". As pessoas são o MESMO número do auditório
- *  da "Presença na igreja" (`presencaDoCulto`). */
+ *  auditório: 90 de 144". É a ocupação dos LUGARES — por isso sem as
+ *  pessoas em pé, que a "Presença na igreja" (`presencaDoCulto`) já
+ *  soma ao auditório. */
 export function ocupacaoDoCulto(c) {
   const a = c.acomodacao;
   if (!a) return null;
@@ -90,3 +108,16 @@ export const media = (vals) => {
   const v = vals.filter((n) => typeof n === "number");
   return v.length ? Math.round(v.reduce((t, n) => t + n, 0) / v.length) : null;
 };
+
+/** A linha pequena por baixo de uma parte da presença, num domingo:
+ *  de onde vem o auditório (Mapa + em pé) e os voluntários previstos
+ *  ao lado dos presentes (pedido 2026-09: "para sempre ver a
+ *  diferença"). `null` quando não há nada a acrescentar. */
+export function notaParte(p, chave) {
+  if (chave === "auditorio" && p.emPe) return `${p.noMapa} no Mapa + ${p.emPe} em pé`;
+  if (chave === "voluntarios") {
+    if (p.voluntariosPresentes === null) return p.voluntariosPrevistos ? "previstos (presentes por marcar)" : null;
+    return p.voluntariosPrevistos ? `previstos: ${p.voluntariosPrevistos}` : null;
+  }
+  return null;
+}

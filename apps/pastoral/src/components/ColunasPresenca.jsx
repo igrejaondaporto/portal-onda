@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { notaParte } from "../lib/presenca";
 
 /**
  * "Presença na igreja", domingo a domingo — colunas empilhadas
@@ -149,6 +150,7 @@ export default function ColunasPresenca({ pontos, vazio, series = SERIES }) {
               <i style={{ background: s.cor }} />
               <span>{s.rotulo}</span>
               <b>{sel[s.chave] ?? "—"}</b>
+              {notaParte(sel, s.chave) && <small>{notaParte(sel, s.chave)}</small>}
             </li>
           ))}
         </ul>

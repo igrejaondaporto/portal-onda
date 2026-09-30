@@ -230,6 +230,19 @@ export default function Numeros({ ativo, definirCabecalho }) {
     voluntarios: media(presencaIgreja.map((p) => p.voluntarios)),
     criancas: media(presencaIgreja.map((p) => p.criancas)),
   };
+  // ao lado dos voluntários presentes, os previstos (as escalas) — só
+  // dos domingos em que alguém marcou os presentes, para a diferença
+  // comparar a mesma coisa (pedido 2026-09)
+  const comPresentes = presencaIgreja.filter((p) => p.voluntariosPresentes !== null);
+  const mediaPresentes = media(comPresentes.map((p) => p.voluntariosPresentes));
+  const mediaPrevistos = media(comPresentes.map((p) => p.voluntariosPrevistos || null));
+  const mediaEmPe = media(presencaIgreja.map((p) => p.emPe));
+  const notaMedia = {
+    auditorio: mediaEmPe ? `média · ${mediaEmPe} em pé` : "média por domingo",
+    voluntarios: mediaPresentes !== null && mediaPrevistos !== null
+      ? `presentes · previstos: ${mediaPrevistos}` : "média por domingo",
+    criancas: "média por domingo",
+  };
   const totalVisitantes = visitantes.reduce((t, v) => t + v.valor, 0);
 
   /** Quantos visitantes ficaram CADASTRADOS no Formulário da Base
@@ -272,9 +285,11 @@ export default function Numeros({ ativo, definirCabecalho }) {
    *  anda a equipa agora", não uma tendência longa. */
   const voluntariosPorCulto = useMemo(() => {
     if (!dados) return [];
+    // os presentes (pedido 2026-09); sem eles marcados, os escalados
     return dados.cultos
-      .filter((c) => c.voluntarios > 0)
-      .map((c) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: c.voluntarios }))
+      .map((c) => ({ c, v: presencaDoCulto(c).voluntarios }))
+      .filter(({ v }) => v > 0)
+      .map(({ c, v }) => ({ chave: c.eventoId, rotulo: dataCurta(c.data), valor: v }))
       .slice(-10);
   }, [dados]);
 
@@ -510,7 +525,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
               <div key={s.chave}>
                 <p><i style={{ background: s.cor }} />{s.rotulo}</p>
                 <b>{medias[s.chave] ?? "—"}</b>
-                <small>média por domingo</small>
+                <small>{notaMedia[s.chave]}</small>
               </div>
             ))}
             <div>
@@ -545,8 +560,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
               {presencaIgreja.length > 0 && <span className="cap">toca numa coluna</span>}
             </div>
             <p className="ds" style={{ marginTop: 0 }}>
-              Auditório e visitantes: Mapa (Base Pessoal). Voluntários: escalas das bases. Crianças: contador
-              de cada sala.
+              Auditório: Mapa + pessoas em pé (Base Pessoal). Voluntários: os presentes, marcados por baixo do
+              Mapa (sem eles, os escalados). Crianças: contador de cada sala.
             </p>
             <ColunasPresenca
               pontos={presencaFiltrada}
@@ -558,7 +573,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
             {presencaFiltrada.length > 0 && (
               <div style={{ borderTop: "1px solid var(--fio)", marginTop: 18, paddingTop: 14 }}>
-                <p className="cap" style={{ marginTop: 0 }}>Domingo a domingo</p>
+                <p className="cap" style={{ marginTop: 0 }}>Domingo a domingo · voluntários presentes / previstos</p>
                 <div className="tabwrap" style={{ marginTop: 8 }}>
                   <table className="tab nm-criancas">
                     <thead>
@@ -571,7 +586,13 @@ export default function Numeros({ ativo, definirCabecalho }) {
                         <tr key={p.chave}>
                           <td>{p.rotulo}</td>
                           <td>{p.auditorio ?? "—"}</td>
-                          <td>{p.voluntarios || "—"}</td>
+                          {/* presentes / previstos quando se sabem os dois */}
+                          <td>
+                            {p.voluntarios || "—"}
+                            {p.voluntariosPresentes !== null && p.voluntariosPrevistos > 0 && (
+                              <small style={{ color: "var(--cinza)" }}> / {p.voluntariosPrevistos}</small>
+                            )}
+                          </td>
                           <td>{p.criancas ?? "—"}</td>
                           <td><b>{p.total}</b></td>
                           <td>{p.visitantes ?? "—"}</td>
@@ -635,7 +656,7 @@ export default function Numeros({ ativo, definirCabecalho }) {
 
           <p className="nm-grupo">Equipa e crianças</p>
           <div className="sect" style={{ paddingTop: 10 }}>
-            <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">nas dez bases</span></div>
+            <div className="cabecalho"><h3>Voluntários por culto</h3><span className="cap">presentes · escalados se não marcado</span></div>
             <LinhaTempo pontos={voluntariosPorCulto} todosRotulados vazio="Ainda não há escalas publicadas neste período." />
           </div>
 
@@ -839,6 +860,8 @@ export default function Numeros({ ativo, definirCabecalho }) {
               ...(todasPartes ? [] : [[`Média só de ${rotuloPartes}`, mediaFiltrada]]),
               ["Auditório (média)", medias.auditorio],
               ["Voluntários (média)", medias.voluntarios],
+              ["Voluntários previstos (média, domingos com presentes)", mediaPrevistos],
+              ["Pessoas em pé (média)", mediaEmPe],
               ["Crianças (média)", medias.criancas],
               ["Visitantes no auditório (total)", visitantes.length ? totalVisitantes : null],
               ["Visitantes cadastrados (total)", relatorio.cadastrados || null],

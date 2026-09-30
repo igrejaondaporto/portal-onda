@@ -6,8 +6,6 @@ import { MESES, dataPorExtenso, hojeISO } from "@portal/shared/lib/data.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import OrdemCultoCard from "../components/culto/OrdemCultoCard";
 import SheetFeedback from "../components/culto/SheetFeedback";
-import ContagemCulto from "../components/ContagemCulto";
-import HistoricoContagem from "../components/HistoricoContagem";
 import Inventario from "./Inventario";
 
 const SEM_CABECALHO = () => {};
@@ -16,19 +14,23 @@ const SUBTITULOS = {
   ordem: "A ordem do culto que o pastor envia",
   feedbacks: "O que ficou registado de cada domingo",
   inventario: "O material da base, sempre atualizado",
-  contagem: "Cada número tem o seu próprio significado",
 };
 
 /**
- * Quatro coisas que giram à volta do próprio domingo, antes vivendo
- * espalhadas (Contagem no Início, Inventário na sua própria aba,
- * Ordem do culto e Feedbacks nem tinham interface): agrupadas aqui, a
- * pedido do dono do produto — o menu principal fica mais curto e cada
- * uma continua exatamente com a lógica que já tinha (Inventário e
- * Contagem são os mesmos componentes de sempre, só que embrulhados
- * numa subaba em vez de página própria; Ordem do culto e Feedbacks
- * são cópia direta dos componentes de Apoio/Técnica/Backstage/
- * Comunicação, já genéricos por evento).
+ * As coisas que giram à volta do próprio domingo, antes vivendo
+ * espalhadas (Inventário na sua própria aba, Ordem do culto e
+ * Feedbacks nem tinham interface): agrupadas aqui, a pedido do dono do
+ * produto — o menu principal fica mais curto e cada uma continua
+ * exatamente com a lógica que já tinha (Inventário é o mesmo
+ * componente de sempre, embrulhado numa subaba; Ordem do culto e
+ * Feedbacks são cópia direta dos componentes de Apoio/Técnica/
+ * Backstage/Comunicação, já genéricos por evento).
+ *
+ * A subaba Contagem saiu (pedido 2026-09): o auditório, os visitantes
+ * e o apelo já vêm do Mapa, as crianças dos contadores das salas, e os
+ * dois números que faltavam (voluntários presentes e pessoas em pé)
+ * passaram para debaixo do Mapa (`ContagemJuntoAoMapa.jsx`). O
+ * documento `eventos/{e}/contagem/geral` continua o mesmo.
  */
 export default function Culto({
   uid, papel, mes, ano, mudarMes, abaInicial, ativo, definirCabecalho,
@@ -44,14 +46,6 @@ export default function Culto({
   const [cardAberto, setCardAberto] = useState(null);
   const [filtroCulto, setFiltroCulto] = useState(null);
   const [sheetFeedback, setSheetFeedback] = useState(null);
-  // qual culto a Contagem está a mostrar — a Contagem precisa de
-  // poder voltar a um domingo já passado que ainda não foi marcado
-  // (pedido 2026-09: "hoje é dia 23/09 e o culto de 20/09 não foi
-  // marcado, eu quero marcar essa data"), por isso não usa "quando
-  // sirvo a seguir" como as outras subabas — escolhe dentro do
-  // próprio mês carregado (eventosMes), com setas para andar entre
-  // cultos.
-  const [contagemEventoId, setContagemEventoId] = useState(null);
 
   useEffect(() => ouvirBase(setBase), []);
   useEffect(() => ouvirVoluntarios(setVoluntarios), []);
@@ -78,26 +72,6 @@ export default function Culto({
     setCardAberto((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
   }, [eventosMes]);
 
-  // mesmo padrão de omissão do cardAberto acima (próximo culto do
-  // mês, ou o último se já não houver nenhum por vir), só na primeira
-  // vez que o mês carrega — depois disso é a seta ‹ › que manda.
-  const contagemEscolheuPadrao = useRef(false);
-  useEffect(() => { contagemEscolheuPadrao.current = false; }, [mes, ano]);
-  useEffect(() => {
-    if (contagemEscolheuPadrao.current || !eventosMes.length) return;
-    contagemEscolheuPadrao.current = true;
-    const hoje = hojeISO();
-    setContagemEventoId((eventosMes.find((e) => e.data >= hoje) ?? eventosMes.at(-1)).id);
-  }, [eventosMes]);
-
-  // anda para trás/frente dentro dos cultos do mês carregado — troca
-  // de mês continua a ser a seta lá em cima (MESES[mes] ‹ ›), esta é
-  // só dentro do que já está na lista.
-  function moverContagem(delta) {
-    const i = eventosMes.findIndex((e) => e.id === contagemEventoId);
-    const proximo = eventosMes[i + delta];
-    if (proximo) setContagemEventoId(proximo.id);
-  }
 
   useEffect(() => {
     if (!ativo) return;
@@ -140,7 +114,6 @@ export default function Culto({
           Ordem do culto
           {aoVivoGravando && <span className="oc-subtab-alerta" />}
         </button>
-        <button data-on={aba === "contagem" ? 1 : 0} onClick={() => setAba("contagem")}>Contagem</button>
         <button data-on={aba === "inventario" ? 1 : 0} onClick={() => setAba("inventario")}>Inventário</button>
         <button data-on={aba === "feedbacks" ? 1 : 0} onClick={() => setAba("feedbacks")}>Feedbacks</button>
       </div>
@@ -239,32 +212,6 @@ export default function Culto({
         </div>
       )}
 
-      {aba === "contagem" && (
-        <div style={{ marginTop: 16 }}>
-          {(() => {
-            const i = eventosMes.findIndex((e) => e.id === contagemEventoId);
-            const eventoContagem = i >= 0 ? eventosMes[i] : null;
-            if (!eventoContagem) return <div className="vaz">Sem culto para contar ainda.</div>;
-            return (
-              <>
-                <div className="cabecalho" style={{ marginTop: 0 }}>
-                  <button className="calbt" disabled={i <= 0} onClick={() => moverContagem(-1)}>‹</button>
-                  <h3 style={{ textAlign: "center", flex: 1 }}>
-                    {dataPorExtenso(eventoContagem.data)}
-                    {eventoContagem.data === hoje && <span className="tag lim" style={{ verticalAlign: "middle", marginLeft: 8 }}>hoje</span>}
-                  </h3>
-                  <button className="calbt" disabled={i >= eventosMes.length - 1} onClick={() => moverContagem(1)}>›</button>
-                </div>
-                <p className="ds" style={{ textAlign: "center", marginTop: -6, marginBottom: 14 }}>
-                  A marcar a contagem deste domingo — usa as setas para voltar a um culto ainda por contar.
-                </p>
-                <ContagemCulto eventoId={eventoContagem.id} uid={uid} voluntarios={voluntarios} />
-              </>
-            );
-          })()}
-          <HistoricoContagem uid={uid} voluntarios={voluntarios} />
-        </div>
-      )}
 
       {sheetFeedback && (
         <SheetFeedback

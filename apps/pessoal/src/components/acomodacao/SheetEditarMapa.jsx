@@ -1,5 +1,6 @@
 import { dataPorExtenso } from "@portal/shared/lib/data.js";
 import EditorMapaAuditorio from "./EditorMapaAuditorio";
+import ContagemJuntoAoMapa from "./ContagemJuntoAoMapa";
 
 /**
  * Editar um mapa AO VIVO de um domingo já passado, sem fechar nem
@@ -25,6 +26,7 @@ export default function SheetEditarMapa({ eventoId, uid, papel, onFechar }) {
         <p className="ds" style={{ marginTop: 4 }}>A editar o mapa deste domingo — as marcações gravam ao vivo, como sempre.</p>
         <div style={{ marginTop: 14 }}>
           <EditorMapaAuditorio eventoId={eventoId} uid={uid} papel={papel} />
+          <ContagemJuntoAoMapa eventoId={eventoId} uid={uid} />
         </div>
         <button className="btn sec full" style={{ marginTop: 6 }} onClick={onFechar}>Fechar</button>
       </div>
