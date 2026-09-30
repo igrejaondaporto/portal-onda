@@ -198,7 +198,14 @@ const refIndisponibilidade = (eventoId, uid) => db.doc(`eventos/${eventoId}/indi
  *  essa marca para acinzentar pessoas — ficam sem mudar) e a checagem
  *  ignora-as. Entradas antigas foram limpas por
  *  scripts/limparIndisponibilidadesLouvorKinder.mjs. */
-const BASES_SEM_CONFLITO_CROSS_BASE = new Set(["louvorkinder"]);
+/*  A Apoio também (pedido 2026-10): quem serve lá costuma fazê-lo no
+ *  começo e no fim do culto, e pode servir noutra base no mesmo dia.
+ *  O líder da Apoio vê "servirá na Técnica" ao montar a escala (ler
+ *  `useOndeServe`, packages/shared) mas nada o impede; e estar na
+ *  Apoio não impede nenhuma outra base. Entre as restantes, a regra
+ *  continua igual. A mesma lista vive no cliente
+ *  (BASES_SEM_CONFLITO, packages/shared/src/lib/ondeServe.js). */
+const BASES_SEM_CONFLITO_CROSS_BASE = new Set(["louvorkinder", "apoio"]);
 
 async function basesDaPessoa(uid) {
   const g = await refGlobal(uid).get();
@@ -243,7 +250,7 @@ async function garantirSemConflitoCrossBase(eventoId, baseId, uid) {
     const nome = g.exists ? g.data().nome : "Esta pessoa";
     const nomeBase = b.exists ? b.data().nome : outraBase;
     throw new HttpsError("failed-precondition",
-      `${nome} já está escalado(a) na ${nomeBase} nesse dia.`);
+      `${nome} já está escalado(a) na ${nomeBase} nesse dia — não pode servir em duas bases no mesmo culto.`);
   }
 }
 
