@@ -5,7 +5,7 @@ import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
 
 const OUTRA = "__outra__";
 
-export default function Publicar({ onPublicado }) {
+export default function Publicar({ onPublicado, souAdmin = false }) {
   const [meus, setMeus] = useState([]);
   // três toques (2026-09): Produto ou Serviço → Ofereço ou Procuro →
   // a categoria desse quadrado; o resto do formulário só aparece depois
@@ -28,6 +28,12 @@ export default function Publicar({ onPublicado }) {
   // uma placa de arrendamento na rua e quero ajudar". O contacto de
   // outra pessoa nunca fica no anúncio público (ver functions/mural.js).
   const [deOutro, setDeOutro] = useState(false);
+  // moderação (2026-10): publicar EM NOME de alguém que pôs o anúncio no
+  // grupo do WhatsApp e não no Mural — sai com o nome e o contacto dessa
+  // pessoa, não conta para o limite (ver criarAnuncio em functions/mural.js)
+  const [emNome, setEmNome] = useState(false);
+  const [emNomeNome, setEmNomeNome] = useState("");
+  const [emNomeTelefone, setEmNomeTelefone] = useState("");
   const [contactoNome, setContactoNome] = useState("");
   const [contactoTelefone, setContactoTelefone] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
@@ -55,12 +61,15 @@ export default function Publicar({ onPublicado }) {
       return setErro("No preço escreve só o valor (ex.: 15 € ou 15 €/hora) — o resto vai na descrição.");
     }
     const regiao = cidade === OUTRA ? regiaoOutra : CIDADES[cidade].regiao;
-    if (deOutro && contactoTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel de quem trata.");
+    if (emNome && !emNomeNome.trim()) return setErro("Escreve o nome da pessoa.");
+    if (emNome && emNomeTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel da pessoa.");
+    if (!emNome && deOutro && contactoTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel de quem trata.");
     setErro("");
     setAEnviar(true);
     try {
-      const contactoOutro = deOutro ? { nome: contactoNome.trim(), telefone: contactoTelefone } : undefined;
-      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, cidade: cidadeFinal, freguesia: freguesia.trim(), contactoOutro });
+      const contactoOutro = !emNome && deOutro ? { nome: contactoNome.trim(), telefone: contactoTelefone } : undefined;
+      const emNomeDe = emNome ? { nome: emNomeNome.trim(), telefone: emNomeTelefone } : undefined;
+      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, cidade: cidadeFinal, freguesia: freguesia.trim(), contactoOutro, emNomeDe });
       if (ficheiros.length) await subirFotosAnuncio(id, ficheiros);
       onPublicado?.();
     } catch (e) {
@@ -71,6 +80,27 @@ export default function Publicar({ onPublicado }) {
 
   return (
     <>
+      {souAdmin && (
+        <div className={`caixa emNome${emNome ? " on" : ""}`}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 14.5 }}>
+            <input type="checkbox" checked={emNome} onChange={(e) => setEmNome(e.target.checked)} />
+            Publicar em nome de outra pessoa
+          </label>
+          <p className="ds" style={{ marginTop: 4 }}>
+            Só a moderação vê isto. Para quem pôs o anúncio no grupo do WhatsApp e não no Mural — sai com o nome
+            e o contacto dessa pessoa, e não conta para o teu limite.
+          </p>
+          {emNome && (
+            <>
+              <label className="rot" htmlFor="emNomeNome">Nome da pessoa</label>
+              <input id="emNomeNome" className="campo" value={emNomeNome} onChange={(e) => setEmNomeNome(e.target.value)} maxLength={60} placeholder="Como aparece no anúncio" />
+              <label className="rot" htmlFor="emNomeTelefone">Telemóvel dela</label>
+              <input id="emNomeTelefone" className="campo" type="tel" inputMode="tel" value={emNomeTelefone} onChange={(e) => setEmNomeTelefone(e.target.value)} placeholder="912 345 678" />
+            </>
+          )}
+        </div>
+      )}
+
       <div className="limite">
         <b>{ativos} de {MAX_ATIVOS} no ar</b>
         <span className="trilho"><i style={{ width: `${Math.min(100, (ativos / MAX_ATIVOS) * 100)}%` }} /></span>
@@ -166,6 +196,7 @@ export default function Publicar({ onPublicado }) {
       <label className="rot" htmlFor="descricao">Descrição</label>
       <textarea id="descricao" className="campo" rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={600} placeholder="Estado, onde entregas, o que precisas saber" />
 
+      {!emNome && (<>
       <span className="rot">Quem atende os interessados?</span>
       <div className="natureza" role="group" aria-label="Quem atende os interessados">
         <button type="button" aria-pressed={!deOutro} onClick={() => setDeOutro(false)}>
@@ -188,6 +219,7 @@ export default function Publicar({ onPublicado }) {
           </p>
         </>
       )}
+      </>)}
 
       <div className="caixa caixaFoto">
         <h4 style={{ fontSize: 15, fontWeight: 700 }}>Fotografias</h4>
@@ -203,7 +235,7 @@ export default function Publicar({ onPublicado }) {
       </div>
 
       {erro && <p className="aviso">{erro}</p>}
-      <button className="btn full" disabled={aEnviar || noLimite} onClick={publicar}>
+      <button className="btn full" disabled={aEnviar || (noLimite && !emNome)} onClick={publicar}>
         {aEnviar ? "A publicar…" : "Publicar anúncio"}
       </button>
       </>

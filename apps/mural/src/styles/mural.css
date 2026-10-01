@@ -604,3 +604,11 @@
   margin-left: 2px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Publicar em nome de outra pessoa — só a moderação vê (2026-10) */
+.caixa.emNome {
+  border: 1.5px solid var(--violeta);
+}
+.caixa.emNome.on {
+  background: rgba(124, 58, 237, 0.06);
+}

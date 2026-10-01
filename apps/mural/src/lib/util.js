@@ -12,13 +12,13 @@ export function inicial(nome) {
   return (nome || "?").trim()[0]?.toUpperCase() || "?";
 }
 
-/** "Apoio" → "Base Apoio"; "Base Louvor" → "Base Louvor" (sem
- *  duplicar). O campo `bases/{id}.nome` não é consistente entre
- *  bases — algumas já gravam o nome com "Base" pela frente, outras
- *  não — por isso nunca se pode simplesmente prefixar às cegas. */
+/** O nome da base SEM "Base" (2026-10, pedido: "tirar o nome Base de
+ *  todas as bases" no login): "Base de Apoio" → "Apoio", "Base Louvor"
+ *  → "Louvor", "Comunicação" → "Comunicação". O campo
+ *  `bases/{id}.nome` não é consistente entre bases — umas gravam com
+ *  "Base" à frente, outras não — por isso tira-se, nunca se prefixa. */
 export function nomeBase(nome) {
-  const n = String(nome || "").trim();
-  return /^base\b/i.test(n) ? n : `Base ${n}`;
+  return String(nome || "").trim().replace(/^base\s+(de\s+|da\s+|do\s+)?/i, "");
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000;

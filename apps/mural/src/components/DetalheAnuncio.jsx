@@ -25,7 +25,10 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
   const ehMeu = anuncio.autorId === meuUid;
   // "Disponível" deixou de aparecer (2026-10) — só o que diz alguma coisa
   const est = anuncio.estado && anuncio.estado !== "disponivel" ? ESTADOS[anuncio.estado] : null;
-  const deOutro = !!anuncio.contactoDeOutro;
+  // em nome de alguém (moderação, 2026-10): o contacto é dessa pessoa —
+  // mostra-se como um anúncio normal dela, sem a nota "publicou para ajudar"
+  const emNomeDe = !!anuncio.emNomeDe;
+  const deOutro = !!anuncio.contactoDeOutro && !emNomeDe;
 
   async function falarNoWhatsapp() {
     setAPedirContacto(true);
@@ -101,7 +104,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
           <span>
             <span className="nmt" style={{ fontSize: 15, display: "block" }}>{anuncio.autorNome}</span>
             <span className="ds" style={{ display: "block", marginTop: 4 }}>
-              — {anuncio.autorLocal || "Igreja Onda"} · publicou {relativo(anuncio.criadoEm)}
+              — {anuncio.autorLocal || "Igreja Onda"} · {emNomeDe ? "publicado pela moderação" : "publicou"} {relativo(anuncio.criadoEm)}
             </span>
           </span>
         </div>
