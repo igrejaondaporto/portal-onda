@@ -3,7 +3,10 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import SheetPinBase from "../components/adaptados/SheetPinBase.jsx";
 import TecladoNumerico from "@portal/shared/components/TecladoNumerico.jsx";
-import { listarBasesMural, dadosEntradaBase, definirBaseEmCurso, pedirEntradaMural, entrarComPinMural, registarMural } from "../lib/auth.js";
+import {
+  aquecerEntrar, aquecerEntrarMural, basesGuardadas, dadosEntradaBase, definirBaseEmCurso, definirPessoaEmCurso,
+  entrarComPinMural, pedirEntradaMural, pessoasGuardadas, preCarregarEntrada, registarMural,
+} from "../lib/auth.js";
 import { listarGDs } from "../lib/gds.js";
 import { corPara, inicial, nomeBase } from "../lib/util.js";
 
@@ -24,9 +27,9 @@ import { corPara, inicial, nomeBase } from "../lib/util.js";
  */
 export default function Entrada() {
   const [passo, setPasso] = useState("escolha");
-  const [bases, setBases] = useState(null);
+  const [bases, setBases] = useState(basesGuardadas);
   const [baseEscolhida, setBaseEscolhida] = useState(null);
-  const [pessoas, setPessoas] = useState([]);
+  const [pessoas, setPessoas] = useState(null);
   const [alvo, setAlvo] = useState(null);
   const [erro, setErro] = useState("");
 
@@ -42,8 +45,12 @@ export default function Entrada() {
   // sirvo numa base"; sem isto, era o próprio passo que disparava o
   // pedido, e via-se a lista vazia/a carregar até a resposta chegar
   // (2026-09, reportado como "demora a carregar").
+  // 2026-10: e já as pessoas de TODAS as bases, em paralelo, com o
+  // que ficou guardado da última visita mostrado logo (lib/auth.js).
   useEffect(() => {
-    listarBasesMural().then(setBases).catch(() => setErro("Não foi possível carregar as bases."));
+    preCarregarEntrada().then(setBases).catch(() => {
+      if (!basesGuardadas()) setErro("Não foi possível carregar as bases.");
+    });
     listarGDs().then(setGds).catch(() => setGds([]));
   }, []);
 
@@ -51,9 +58,13 @@ export default function Entrada() {
     setBaseEscolhida(b);
     setErro("");
     definirBaseEmCurso(b.id);
+    aquecerEntrar(); // acorda o `entrar` enquanto a pessoa procura o nome
+    setPessoas(pessoasGuardadas(b.id));
     dadosEntradaBase(b.id)
       .then((d) => setPessoas(d.pessoas))
-      .catch(() => setErro("Não foi possível carregar essa base."));
+      .catch(() => {
+        if (!pessoasGuardadas(b.id)) setErro("Não foi possível carregar essa base.");
+      });
     setPasso("rostos");
   }
 
@@ -64,6 +75,8 @@ export default function Entrada() {
     const r = await pedirEntradaMural(limpo).catch(() => null);
     if (!r) return setErro("Não foi possível verificar o telemóvel. Tenta outra vez.");
     if (r.existe) {
+      aquecerEntrarMural();
+      definirPessoaEmCurso(null);
       setDigitosExistente(r.digitos);
       setPasso("pinExistente");
     } else {
@@ -91,10 +104,10 @@ export default function Entrada() {
               </h1>
               <p className="sob">O que a igreja oferece e o que a igreja procura, num sítio só.</p>
               <div className="chips">
-                <span className="chip">Vendas</span>
-                <span className="chip">Doações</span>
-                <span className="chip">Arrendamento</span>
-                <span className="chip">Pedidos</span>
+                <span className="chip">Serviços</span>
+                <span className="chip">Produtos</span>
+                <span className="chip">Ofereço</span>
+                <span className="chip">Procuro</span>
               </div>
             </div>
             <svg className="curva" viewBox="0 0 400 46" preserveAspectRatio="none">
@@ -135,6 +148,7 @@ export default function Entrada() {
             <h2>Em que base serves?</h2>
           </div>
           {erro && <p className="aviso" style={{ textAlign: "left", paddingTop: 0 }}>{erro}</p>}
+          {bases === null && !erro && <p className="ds" style={{ padding: "8px 0" }}>A carregar as bases…</p>}
           {(bases ?? []).map((b) => (
             <button key={b.id} className="opcao" onClick={() => escolherBase(b)}>
               <span className="bola" style={{ background: corPara(b.nome) }}>{inicial(b.nome)}</span>
@@ -155,9 +169,13 @@ export default function Entrada() {
             <span className="cap">{baseEscolhida ? nomeBase(baseEscolhida.nome) : ""}</span>
           </div>
           {erro && <p className="aviso" style={{ textAlign: "left", paddingTop: 0 }}>{erro}</p>}
+          {pessoas === null && !erro && <p className="ds" style={{ padding: "8px 0" }}>A carregar a equipa…</p>}
           <div className="g">
-            {pessoas.map((p, i) => (
-              <button key={p.id} className="p" style={{ animationDelay: `${i * 20}ms` }} onClick={() => setAlvo(p)}>
+            {(pessoas ?? []).map((p, i) => (
+              <button
+                key={p.id} className="p" style={{ animationDelay: `${i * 20}ms` }}
+                onClick={() => { definirPessoaEmCurso({ nome: p.nome, foto: p.foto ?? null }); setAlvo(p); }}
+              >
                 <span className="av" style={p.foto ? { backgroundImage: `url(${p.foto})` } : { background: corPara(p.nome) }}>
                   {p.foto ? "" : p.nome[0]}
                 </span>
@@ -242,6 +260,7 @@ export default function Entrada() {
         <PinNovo
           erro={erro}
           onCriar={async (pin) => {
+            definirPessoaEmCurso({ nome: nome.trim(), foto: null });
             const r = await registarMural({ telefone: telefone.replace(/\D/g, ""), pin, nome: nome.trim(), gdId: gdEscolhido ?? null });
             if (!r.ok) setErro(r.mensagem || "Não foi possível criar a conta.");
             return r.ok;

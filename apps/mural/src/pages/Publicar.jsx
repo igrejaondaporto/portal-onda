@@ -57,7 +57,7 @@ export default function Publicar({ onPublicado }) {
       <span className="rot">1 · É um produto ou um serviço?</span>
       <div className="natureza" role="group" aria-label="Produto ou serviço">
         {NATUREZAS.map((n) => (
-          <button key={n.id} type="button" aria-pressed={natureza === n.id} onClick={() => trocarNatureza(n.id)}>
+          <button key={n.id} type="button" data-natureza={n.id} aria-pressed={natureza === n.id} onClick={() => trocarNatureza(n.id)}>
             <b>{n.id === "produto" ? "Produto" : "Serviço"}</b>
             <small>{n.id === "produto" ? "uma coisa, uma casa" : "trabalho, ajuda, boleia"}</small>
           </button>
