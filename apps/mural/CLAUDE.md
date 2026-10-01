@@ -121,6 +121,11 @@ Pedido do dono do produto:
     registou (RGPD), e é a única exceção consciente à regra 5 neste
     ficheiro.
 
+- **Etiqueta do tipo** (2026-10) por baixo do preço, na lista: Venda,
+  Doação, Arrendamento, Serviço, Vaga, Boleia, Compra, Emprego e Outros
+  (`etiquetaTipo` em `lib/util.js`). Leva a cor da natureza: azul em
+  Serviços, lima em Produtos.
+
 ### Ajustes logo a seguir (2026-10)
 
 - **A etiqueta é só preço.** O campo é texto livre, e havia anúncios
