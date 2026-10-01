@@ -541,7 +541,7 @@ export const criarAnuncio = onCall(async (req) => {
 export const editarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { id, titulo, descricao, preco, gratis, categoria, natureza } = req.data || {};
+  const { id, titulo, descricao, preco, gratis, categoria, natureza, cidade, freguesia, regiao } = req.data || {};
   const ref = db().doc(`anuncios/${id}`);
   const snap = await exigirDono(ref, uid);
   const tipo = snap.data().tipo;
@@ -561,6 +561,17 @@ export const editarAnuncio = onCall(async (req) => {
     alteracoes.categoria = categoria;
     alteracoes.natureza = naturezaDe(categoria, natureza);
   }
+  // onde (2026-10, "poder editar um anúncio criado"): mesmas regras do
+  // criarAnuncio — texto curto, freguesia só com cidade
+  if (cidade !== undefined) {
+    alteracoes.cidade = String(cidade || "").trim().slice(0, 60);
+    alteracoes.freguesia = alteracoes.cidade ? String(freguesia || "").trim().slice(0, 80) : "";
+  }
+  if (regiao !== undefined) {
+    if (!REGIOES.has(regiao)) throw new HttpsError("invalid-argument", "Região inválida.");
+    alteracoes.regiao = regiao;
+  }
+  if (preco !== undefined && String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
   if (gratis !== undefined) alteracoes.gratis = !!gratis;
   if (preco !== undefined) alteracoes.preco = alteracoes.gratis || snap.data().gratis ? "" : String(preco).trim();
 
