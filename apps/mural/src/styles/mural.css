@@ -441,13 +441,15 @@
 }
 
 /* "+" para publicar (2026-10) — o mesmo botão redondo lima da
- * Biblioteca da Louvor (.bib-fab), à direita: aqui não há o botão
- * "Melhorias" que obrigou a Louvor a pôr o dela à esquerda. Fica por
- * baixo dos véus (.veu é z-index 20), por isso some quando abre uma
- * folha. */
+ * Biblioteca da Louvor (.bib-fab). Fica por baixo dos véus (.veu é
+ * z-index 20), por isso some quando abre uma folha. */
+/* À esquerda no telemóvel (2026-10): com sessão aparece o "Melhorias"
+ * partilhado (.botao-flutuante) no canto direito — mesmo arranjo do "+"
+ * da Biblioteca da Louvor. No computador volta à direita (lá o
+ * "Melhorias" vive no menu lateral). */
 .mural-fab {
   position: fixed;
-  right: 20px;
+  left: 20px;
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   z-index: 11;
   width: 58px;
@@ -473,6 +475,8 @@
 @media (min-width: 900px) {
   .mural-fab {
     bottom: 28px;
+    left: auto;
+    right: 20px;
   }
 }
 .natureza button:focus-visible {

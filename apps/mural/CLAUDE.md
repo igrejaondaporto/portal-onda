@@ -67,9 +67,10 @@ em Produtos) — sem migração. O resumo semanal separa 🛒 Produtos e
     limpa se for do outro lado.
   - Os filtros escolhidos aparecem por baixo da busca, cada um com ×.
   - A busca também apanha o nome da categoria ("boleia").
-- **Botão "+" redondo, lima** (`.mural-fab`), em baixo à direita. É o
-  mesmo da Biblioteca da Louvor, mas à direita porque o Mural não tem o
-  "Melhorias" que obrigou a Louvor a pô-lo à esquerda.
+- **Botão "+" redondo, lima** (`.mural-fab`). É o mesmo da Biblioteca
+  da Louvor e, como ele, fica em baixo à **esquerda** no telemóvel: o
+  canto direito é do "Melhorias" partilhado. No computador fica à
+  direita.
   - Sem sessão, abre a Entrada; ao entrar segue sozinho para Publicar
     (`depoisDeEntrar` em `Sessao.jsx`, que vale também para
     Publicar/Os meus na barra de baixo).
@@ -188,6 +189,20 @@ Pedido do dono do produto:
   não há botão. Agora o "Eu" do Publicar mostra "no teu WhatsApp 9xx xxx
   xxx" (`obterMeuTelefone`). Voluntários guardam o telefone na base, que
   daqui não se lê, por isso fica o texto de sempre.
+
+### "Melhorias" — relatos ao Onda Tech Hub (2026-10)
+
+O botão "Melhorias" vinha no menu partilhado (`NavBar`), mas o Mural
+não montava o `BotaoReportarFlutuante` que o ouve, por isso não fazia
+nada.
+
+- **Com sessão:** o mesmo fluxo das bases (Casca em `Sessao.jsx`), com
+  `paginaAtual = "Mural Onda — <página>"`. É esse prefixo que diz ao
+  `abrirRelato` (`functions/relatos.js`) que o relato vem daqui: grava
+  `baseOrigemId: "mural"`, mesmo para membros, que não têm base no
+  token. O Tech Hub mostra-o como "Mural Onda" (`NOMES_BASE`).
+- **Sem sessão:** o botão abre a Entrada, porque relatar pede conta,
+  como publicar.
 
 ## Login rápido (2026-10)
 

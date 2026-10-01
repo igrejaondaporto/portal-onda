@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
-import NavBar from "@portal/shared/components/NavBar.jsx";
+import NavBar, { EVENTO_ABRIR_MELHORIAS } from "@portal/shared/components/NavBar.jsx";
+import BotaoReportarFlutuante from "@portal/shared/components/BotaoReportarFlutuante.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
@@ -56,6 +57,17 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
   const filtrosAtivos = (lugar !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
+
+  // "Melhorias" (2026-10): o botão já vinha no menu partilhado, mas sem
+  // o BotaoReportarFlutuante montado ninguém o ouvia. Com sessão, é o
+  // mesmo fluxo das bases (relatos → Onda Tech Hub, ver Casca); sem
+  // sessão, abre a Entrada — relatar pede conta, como publicar.
+  useEffect(() => {
+    if (eu) return undefined;
+    const pedir = () => onPedirEntrar();
+    window.addEventListener(EVENTO_ABRIR_MELHORIAS, pedir);
+    return () => window.removeEventListener(EVENTO_ABRIR_MELHORIAS, pedir);
+  }, [eu, onPedirEntrar]);
   // a categoria é por natureza; ao trocar Ofereço/Procuro só se perde
   // se for do outro lado ("ofereco:venda" continua a valer em Tudo)
   useEffect(() => setCategoria("todas"), [natureza]);
@@ -213,9 +225,8 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
 
       {/* "+" para publicar daqui mesmo (2026-10, como o da Biblioteca
           da Louvor) — sem sessão abre a Entrada e segue para Publicar
-          depois de entrar (ver depoisDeEntrar acima). À direita: o
-          Mural não tem o botão "Melhorias" que obrigou a Louvor a
-          pôr o dela à esquerda. */}
+          depois de entrar (ver depoisDeEntrar acima). À esquerda no
+          telemóvel, como o da Louvor: o canto direito é do "Melhorias". */}
       <button type="button" className="mural-fab" aria-label="Publicar um anúncio" onClick={() => irPara("publicar")}>
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
       </button>
@@ -300,6 +311,9 @@ function Casca({ children, pagina, onIr, itens, eu, onPedirEntrar, onAdminConced
       </div>
       <div className="corpo">{children}</div>
       <NavBar pagina={pagina} onIr={onIr} itens={itens} />
+      {/* "Mural Onda — …" é o que diz ao servidor que o relato vem daqui
+          (functions/relatos.js) — quem é membro não tem base no token */}
+      {eu && <BotaoReportarFlutuante uid={eu.uid} paginaAtual={`Mural Onda — ${pagina}`} />}
     </div>
   );
 }
