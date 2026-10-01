@@ -53,7 +53,7 @@ export {
 export {
   listarBasesMural, listarGDsMural, pedirEntradaMural, entrarMural, registarMural, trocarPinMural,
   souAdminMuralAgora, desbloquearModeracaoMural, pedirContactoAnuncio, criarAnuncio, editarAnuncio,
-  definirFotosAnuncio, alterarEstadoAnuncio,
+  definirFotosAnuncio, alterarEstadoAnuncio, listarMembrosMural,
   renovarAnuncio, removerAnuncio, reportarAnuncio, moderarAnuncio,
   resumoSemanalMural, manutencaoMural,
 } from "./mural.js";

@@ -335,6 +335,31 @@ export const souAdminMuralAgora = onCall(async (req) => {
   return { admin: uid ? await souAdminMural(uid) : false };
 });
 
+/** Para "Publicar em nome de outra pessoa" (2026-10): a moderação
+ *  escolhe a pessoa numa lista. Os voluntários vêm de `dadosEntrada`
+ *  (por base, já público); quem só se registou no Mural (sem base) só
+ *  sai daqui, e só para quem modera. Nome, GD e os últimos 3 dígitos do
+ *  telemóvel (para distinguir dois nomes iguais) — nunca o número. */
+export const listarMembrosMural = onCall(async (req) => {
+  await exigirAdminMural(req);
+  const snap = await db().collection("pessoas").where("origemMural", "==", true).get();
+  const gdsSnap = await db().collection("gds").get();
+  const nomeGD = Object.fromEntries(gdsSnap.docs.map((d) => [d.id, d.data().nome || d.id]));
+  const membros = snap.docs
+    .filter((d) => d.data().ativo !== false && !Object.values(d.data().bases || {}).some(Boolean))
+    .map((d) => {
+      const p = d.data();
+      return {
+        id: d.id,
+        nome: p.nome || "Sem nome",
+        local: p.gdId && nomeGD[p.gdId] ? `GD ${nomeGD[p.gdId]}` : null,
+        fimTelefone: p.telefone ? String(p.telefone).slice(-3) : null,
+      };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt"));
+  return { membros };
+});
+
 // "config/moderacaoMural/{uid}" não é um caminho de documento válido —
 // mesmo motivo de refAdminMural acima. 4 segmentos, mesmo padrão de
 // config/devAccess/privado/auth.
@@ -492,17 +517,32 @@ export const criarAnuncio = onCall(async (req) => {
   if (String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
   // Publicar EM NOME DE alguém (2026-10, pedido: "eu como admin poder
   // criar anúncios no nome de outras pessoas, que postaram no grupo do
-  // WhatsApp mas não no mural"). Só quem modera. O anúncio aparece com o
-  // nome dessa pessoa e o contacto é o dela (guardado como o "contacto
-  // de outra pessoa": privado, e apagado quando o anúncio sai do ar).
-  // Fica no `autorId` de quem modera — é quem o gere em "Os meus" — e
-  // não conta para o limite de 5 dessa pessoa.
+  // WhatsApp mas não no mural"). Só quem modera. Dois casos:
+  //  - `{ pessoaId }` — alguém que já existe (voluntário de uma base ou
+  //    membro registado no Mural), escolhido numa lista. O anúncio nasce
+  //    no perfil DELA (`autorId` = ela): aparece nos "Os meus" dela, é
+  //    ela que o gere, e o WhatsApp é o dela (telefoneDoAutor). Fica
+  //    `publicadoPor` = quem moderou, para poder pôr as fotos a seguir.
+  //  - `{ nome, telefone }` — quem não está registado. O anúncio leva
+  //    esse nome; o contacto fica como o "contacto de outra pessoa"
+  //    (privado, apagado quando o anúncio sai do ar) e o anúncio fica no
+  //    `autorId` de quem modera, que o gere em "Os meus".
+  // Nenhum dos dois conta para o limite de 5 (é a moderação a publicar).
   let porOutro = null;
+  let autorPessoa = null;
   if (emNomeDe) {
     if (!(await souAdminMural(uid))) throw new HttpsError("permission-denied", "Só a moderação publica em nome de outra pessoa.");
-    const nomeOutro = String(emNomeDe.nome || "").trim().slice(0, 60);
-    if (!nomeOutro) throw new HttpsError("invalid-argument", "Falta o nome da pessoa.");
-    porOutro = { nome: nomeOutro, ...validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro }) };
+    if (emNomeDe.pessoaId) {
+      const id = String(emNomeDe.pessoaId);
+      if (id.includes("/")) throw new HttpsError("invalid-argument", "Pessoa inválida.");
+      const pSnap = await refGlobal(id).get();
+      if (!pSnap.exists || pSnap.data().ativo === false) throw new HttpsError("not-found", "Pessoa não encontrada.");
+      autorPessoa = id;
+    } else {
+      const nomeOutro = String(emNomeDe.nome || "").trim().slice(0, 60);
+      if (!nomeOutro) throw new HttpsError("invalid-argument", "Falta o nome da pessoa.");
+      porOutro = { nome: nomeOutro, ...validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro }) };
+    }
   }
   const outro = porOutro ? { nome: porOutro.nome, telefone: porOutro.telefone } : validarContactoOutro(contactoOutro);
   // cidade e freguesia (2026-10): texto curto, escolhido de uma lista no
@@ -514,12 +554,13 @@ export const criarAnuncio = onCall(async (req) => {
 
   const ativosSnap = await db().collection("anuncios")
     .where("autorId", "==", uid).where("ativo", "==", true).get();
-  if (!porOutro && ativosSnap.size >= MAX_ATIVOS_POR_PESSOA) {
+  if (!emNomeDe && ativosSnap.size >= MAX_ATIVOS_POR_PESSOA) {
     throw new HttpsError("resource-exhausted", "limite",
       { limite: MAX_ATIVOS_POR_PESSOA, ativos: ativosSnap.size });
   }
 
-  const { nome, foto, local } = porOutro ? { nome: porOutro.nome, foto: null, local: null } : await autorInfo(uid);
+  const autorId = autorPessoa || uid;
+  const { nome, foto, local } = porOutro ? { nome: porOutro.nome, foto: null, local: null } : await autorInfo(autorId);
   const agora = admin.firestore.FieldValue.serverTimestamp();
   const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + DIAS_ATE_EXPIRAR * 24 * 60 * 60 * 1000);
 
@@ -527,10 +568,11 @@ export const criarAnuncio = onCall(async (req) => {
     tipo, categoria, natureza: naturezaDe(categoria, natureza), titulo: t, descricao: String(descricao).trim(),
     regiao, preco: gratis ? "" : String(preco).trim(), gratis: !!gratis,
     fotos: [], estado: "disponivel", ativo: true,
-    autorId: uid, autorNome: nome, autorFoto: foto, autorLocal: local,
+    autorId, autorNome: nome, autorFoto: foto, autorLocal: local,
     numReports: 0, reportadoPor: [], ultimosReports: [], lembreteEnviado: false, pedirConfirmacao: false,
     contactoDeOutro: !!outro,
-    emNomeDe: !!porOutro,
+    emNomeDe: !!emNomeDe,
+    ...(emNomeDe ? { publicadoPor: uid } : {}),
     cidade: c, freguesia: f,
     criadoEm: agora, atualizadoEm: agora, expiraEm,
   });
@@ -588,12 +630,23 @@ export const definirFotosAnuncio = onCall(async (req) => {
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { id, fotos } = req.data || {};
   const ref = db().doc(`anuncios/${id}`);
-  await exigirDono(ref, uid);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Anúncio não encontrado.");
+  // o dono, ou quem moderou e o publicou em nome dele (publicadoPor, ver
+  // criarAnuncio) — é quem sobe as fotos logo a seguir a publicar.
+  if (snap.data().autorId !== uid && snap.data().publicadoPor !== uid) {
+    throw new HttpsError("permission-denied", "Este anúncio não é teu.");
+  }
   if (!Array.isArray(fotos) || fotos.length > 4) {
     throw new HttpsError("invalid-argument", "No máximo 4 fotos.");
   }
+  // Fotos novas só da pasta de quem chama (storage.rules: cada um só
+  // escreve na sua). As que o anúncio já tem podem ficar, mesmo que
+  // estejam na pasta de outra pessoa — é o caso de um anúncio publicado
+  // pela moderação e depois editado pela dona.
   const prefixo = `anuncios%2F${uid}%2F${id}%2F`;
-  const validas = fotos.every((f) => typeof f === "string" && f.includes(prefixo));
+  const atuais = snap.data().fotos || [];
+  const validas = fotos.every((f) => typeof f === "string" && (f.includes(prefixo) || atuais.includes(f)));
   if (!validas) throw new HttpsError("invalid-argument", "Foto inválida.");
   await ref.update({ fotos, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() });
   return { ok: true };
