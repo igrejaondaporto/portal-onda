@@ -481,7 +481,7 @@ export const pedirContactoAnuncio = onCall(async (req) => {
 export const criarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false, contactoOutro, cidade = "", freguesia = "" } = req.data || {};
+  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false, contactoOutro, cidade = "", freguesia = "", emNomeDe } = req.data || {};
 
   if (!TIPOS.has(tipo)) throw new HttpsError("invalid-argument", "Tipo inválido.");
   if (!CATEGORIAS[tipo].has(categoria)) throw new HttpsError("invalid-argument", "Categoria inválida.");
@@ -490,7 +490,21 @@ export const criarAnuncio = onCall(async (req) => {
   if (!t || t.length > 80) throw new HttpsError("invalid-argument", "Título inválido.");
   if (String(descricao).length > 600) throw new HttpsError("invalid-argument", "Descrição demasiado longa.");
   if (String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
-  const outro = validarContactoOutro(contactoOutro);
+  // Publicar EM NOME DE alguém (2026-10, pedido: "eu como admin poder
+  // criar anúncios no nome de outras pessoas, que postaram no grupo do
+  // WhatsApp mas não no mural"). Só quem modera. O anúncio aparece com o
+  // nome dessa pessoa e o contacto é o dela (guardado como o "contacto
+  // de outra pessoa": privado, e apagado quando o anúncio sai do ar).
+  // Fica no `autorId` de quem modera — é quem o gere em "Os meus" — e
+  // não conta para o limite de 5 dessa pessoa.
+  let porOutro = null;
+  if (emNomeDe) {
+    if (!(await souAdminMural(uid))) throw new HttpsError("permission-denied", "Só a moderação publica em nome de outra pessoa.");
+    const nomeOutro = String(emNomeDe.nome || "").trim().slice(0, 60);
+    if (!nomeOutro) throw new HttpsError("invalid-argument", "Falta o nome da pessoa.");
+    porOutro = { nome: nomeOutro, ...validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro }) };
+  }
+  const outro = porOutro ? { nome: porOutro.nome, telefone: porOutro.telefone } : validarContactoOutro(contactoOutro);
   // cidade e freguesia (2026-10): texto curto, escolhido de uma lista no
   // Publicar ou escrito à mão em "Outra cidade" — o filtro "Onde" do
   // mural cresce sozinho a partir do que os anúncios trazem. A região
@@ -500,12 +514,12 @@ export const criarAnuncio = onCall(async (req) => {
 
   const ativosSnap = await db().collection("anuncios")
     .where("autorId", "==", uid).where("ativo", "==", true).get();
-  if (ativosSnap.size >= MAX_ATIVOS_POR_PESSOA) {
+  if (!porOutro && ativosSnap.size >= MAX_ATIVOS_POR_PESSOA) {
     throw new HttpsError("resource-exhausted", "limite",
       { limite: MAX_ATIVOS_POR_PESSOA, ativos: ativosSnap.size });
   }
 
-  const { nome, foto, local } = await autorInfo(uid);
+  const { nome, foto, local } = porOutro ? { nome: porOutro.nome, foto: null, local: null } : await autorInfo(uid);
   const agora = admin.firestore.FieldValue.serverTimestamp();
   const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + DIAS_ATE_EXPIRAR * 24 * 60 * 60 * 1000);
 
@@ -516,6 +530,7 @@ export const criarAnuncio = onCall(async (req) => {
     autorId: uid, autorNome: nome, autorFoto: foto, autorLocal: local,
     numReports: 0, reportadoPor: [], ultimosReports: [], lembreteEnviado: false, pedirConfirmacao: false,
     contactoDeOutro: !!outro,
+    emNomeDe: !!porOutro,
     cidade: c, freguesia: f,
     criadoEm: agora, atualizadoEm: agora, expiraEm,
   });
@@ -526,7 +541,7 @@ export const criarAnuncio = onCall(async (req) => {
 export const editarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { id, titulo, descricao, preco, gratis, categoria, natureza } = req.data || {};
+  const { id, titulo, descricao, preco, gratis, categoria, natureza, cidade, freguesia, regiao } = req.data || {};
   const ref = db().doc(`anuncios/${id}`);
   const snap = await exigirDono(ref, uid);
   const tipo = snap.data().tipo;
@@ -546,6 +561,17 @@ export const editarAnuncio = onCall(async (req) => {
     alteracoes.categoria = categoria;
     alteracoes.natureza = naturezaDe(categoria, natureza);
   }
+  // onde (2026-10, "poder editar um anúncio criado"): mesmas regras do
+  // criarAnuncio — texto curto, freguesia só com cidade
+  if (cidade !== undefined) {
+    alteracoes.cidade = String(cidade || "").trim().slice(0, 60);
+    alteracoes.freguesia = alteracoes.cidade ? String(freguesia || "").trim().slice(0, 80) : "";
+  }
+  if (regiao !== undefined) {
+    if (!REGIOES.has(regiao)) throw new HttpsError("invalid-argument", "Região inválida.");
+    alteracoes.regiao = regiao;
+  }
+  if (preco !== undefined && String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
   if (gratis !== undefined) alteracoes.gratis = !!gratis;
   if (preco !== undefined) alteracoes.preco = alteracoes.gratis || snap.data().gratis ? "" : String(preco).trim();
 
