@@ -59,7 +59,10 @@ function naturezaDe(categoria, pedida) {
   return CATEGORIAS_SERVICO.has(categoria) ? "servico" : "produto";
 }
 const REGIOES = new Set(["norte", "lisboa", "sines"]);
-const ESTADOS = new Set(["disponivel", "reservado", "vendido"]);
+// "pausado" (2026-10): o dono tira-o do mural sem o apagar e volta a
+// pô-lo quando quiser — sai do feed público (filtrado no cliente) e do
+// resumo semanal, mas continua a contar para o limite de 5.
+const ESTADOS = new Set(["disponivel", "reservado", "vendido", "pausado"]);
 
 /* ── hash do PIN — mesmo scrypt do `entrar` em functions/index.js
  * (duplicado aqui, não importado: mural.js fica lido de ponta a
@@ -434,6 +437,26 @@ async function limitarPedidoContacto(req) {
   });
 }
 
+/* ── CONTACTO DE OUTRA PESSOA (2026-10) ─────────────────────────
+ * "Vi um anúncio de arrendamento na rua e quero pô-lo no mural para
+ * ajudar — o contacto é do senhorio, não meu." O telefone de quem
+ * trata vive em `anuncios/{id}/privado/contacto`, que NENHUMA regra
+ * abre (o `match /anuncios/{anuncio}` do firestore.rules não desce a
+ * subcoleções) — mesmo raciocínio de telefoneDoAutor: o número só sai
+ * por pedirContactoAnuncio, com o mesmo limite por IP. No anúncio fica
+ * só `contactoDeOutro: true`, para o detalhe dizer "fala com quem trata".
+ * É de alguém que não se registou: apaga-se assim que o anúncio sai do
+ * ar (removido, moderado ou expirado) — RGPD, não fica a acumular. */
+const refContactoOutro = (id) => db().doc(`anuncios/${id}/privado/contacto`);
+function validarContactoOutro(c) {
+  if (!c) return null;
+  const telefone = normalizarTelefone(c.telefone);
+  if (telefone.length < 9 || telefone.length > 15) throw new HttpsError("invalid-argument", "Telemóvel do contacto inválido.");
+  const nome = String(c.nome || "").trim().slice(0, 60);
+  return { telefone, nome };
+}
+const apagarContactoOutro = (id) => refContactoOutro(id).delete().catch(() => {});
+
 /** Botão "Falar no WhatsApp" do detalhe do anúncio — público de
  *  propósito (2026-09): ver quem vende e chamar no WhatsApp NUNCA
  *  pede conta (só publicar pede). O único travão contra colheita em
@@ -444,6 +467,11 @@ export const pedirContactoAnuncio = onCall(async (req) => {
   const { id } = req.data || {};
   const snap = await db().doc(`anuncios/${id}`).get();
   if (!snap.exists) throw new HttpsError("not-found", "Anúncio não encontrado.");
+  if (snap.data().contactoDeOutro) {
+    const c = await refContactoOutro(id).get();
+    if (!c.exists) throw new HttpsError("not-found", "Sem contacto disponível para este anúncio.");
+    return { telefone: c.data().telefone, nome: c.data().nome || null, deOutro: true };
+  }
   const telefone = await telefoneDoAutor(snap.data().autorId);
   if (!telefone) throw new HttpsError("not-found", "Sem contacto disponível para este anúncio.");
   return { telefone };
@@ -453,7 +481,7 @@ export const pedirContactoAnuncio = onCall(async (req) => {
 export const criarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false } = req.data || {};
+  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false, contactoOutro } = req.data || {};
 
   if (!TIPOS.has(tipo)) throw new HttpsError("invalid-argument", "Tipo inválido.");
   if (!CATEGORIAS[tipo].has(categoria)) throw new HttpsError("invalid-argument", "Categoria inválida.");
@@ -462,6 +490,7 @@ export const criarAnuncio = onCall(async (req) => {
   if (!t || t.length > 80) throw new HttpsError("invalid-argument", "Título inválido.");
   if (String(descricao).length > 600) throw new HttpsError("invalid-argument", "Descrição demasiado longa.");
   if (String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
+  const outro = validarContactoOutro(contactoOutro);
 
   const ativosSnap = await db().collection("anuncios")
     .where("autorId", "==", uid).where("ativo", "==", true).get();
@@ -480,8 +509,10 @@ export const criarAnuncio = onCall(async (req) => {
     fotos: [], estado: "disponivel", ativo: true,
     autorId: uid, autorNome: nome, autorFoto: foto, autorLocal: local,
     numReports: 0, reportadoPor: [], ultimosReports: [], lembreteEnviado: false, pedirConfirmacao: false,
+    contactoDeOutro: !!outro,
     criadoEm: agora, atualizadoEm: agora, expiraEm,
   });
+  if (outro) await refContactoOutro(ref.id).set({ ...outro, porUid: uid, em: agora });
   return { id: ref.id };
 });
 
@@ -577,6 +608,7 @@ export const removerAnuncio = onCall(async (req) => {
     throw new HttpsError("permission-denied", "Este anúncio não é teu.");
   }
   await ref.update({ ativo: false, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() });
+  await apagarContactoOutro(id);
   return { ok: true };
 });
 
@@ -614,6 +646,7 @@ export const moderarAnuncio = onCall(async (req) => {
 
   if (acao === "remover") {
     await ref.update({ ativo: false, atualizadoEm: admin.firestore.FieldValue.serverTimestamp() });
+    await apagarContactoOutro(id);
   } else if (acao === "manter") {
     await ref.update({ numReports: 0, reportadoPor: [], ultimosReports: [] });
   } else {
@@ -638,7 +671,7 @@ export const resumoSemanalMural = onCall(async (req) => {
   await exigirAdminMural(req);
   const desde = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const snap = await db().collection("anuncios").where("criadoEm", ">=", desde).get();
-  const anuncios = snap.docs.map((d) => d.data()).filter((a) => a.ativo);
+  const anuncios = snap.docs.map((d) => d.data()).filter((a) => a.ativo && a.estado !== "pausado");
 
   const ofertas = anuncios.filter((a) => a.tipo === "ofereco");
   const pedidos = anuncios.filter((a) => a.tipo === "procuro");
@@ -684,5 +717,8 @@ export const manutencaoMural = onSchedule({ schedule: "every day 06:00", timeZon
 
   const paraExpirar = await db().collection("anuncios")
     .where("ativo", "==", true).where("expiraEm", "<=", jaPassou).get();
-  await Promise.all(paraExpirar.docs.map((d) => d.ref.update({ ativo: false })));
+  await Promise.all(paraExpirar.docs.map(async (d) => {
+    await d.ref.update({ ativo: false });
+    if (d.data().contactoDeOutro) await apagarContactoOutro(d.id);
+  }));
 });
