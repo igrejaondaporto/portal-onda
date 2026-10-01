@@ -160,7 +160,8 @@ async function encontrarPorTelefone(telefone) {
  * nada (de propósito). `bases/{id}` não tem nada sensível (nome/
  * horas/cor — mesmo comentário do firestore.rules), por isso dá para
  * devolver aqui sem risco nenhum. */
-export const listarBasesMural = onCall(async () => {
+export const listarBasesMural = onCall(async (req) => {
+  if (req.data?.aquecer) return { quente: true }; // aquecer.js
   const snap = await db().collection("bases").get();
   // `ativa` ausente conta como ativa — mesma leitura defensiva de
   // `dadosEntrada` em index.js (só `false` explícito desativa).
@@ -190,6 +191,7 @@ export const listarGDsMural = onCall(async () => {
 /* Sem sessão (como `dadosEntrada`) — diz só se o telefone já existe
  * e quantos dígitos tem o PIN, nunca nome nem foto. */
 export const pedirEntradaMural = onCall(async (req) => {
+  if (req.data?.aquecer) return { quente: true }; // aquecer.js
   const telefone = normalizarTelefone(req.data?.telefone);
   if (telefone.length < 9) throw new HttpsError("invalid-argument", "Telemóvel inválido.");
 
@@ -202,6 +204,7 @@ export const pedirEntradaMural = onCall(async (req) => {
 });
 
 export const entrarMural = onCall(async (req) => {
+  if (req.data?.aquecer) return { quente: true }; // aquecer.js
   const telefone = normalizarTelefone(req.data?.telefone);
   const pin = String(req.data?.pin || "");
   if (telefone.length < 9 || !/^\d{4,6}$/.test(pin)) {

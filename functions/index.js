@@ -15,16 +15,26 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import admin from "firebase-admin";
-import sharp from "sharp";
-import decodeAudio from "audio-decode";
-import essentiaLib from "essentia.js";
 import { equipamentoEmBaixo } from "./estadoEquipamento.js";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { linhasDoPdf, analisar } from "./ordemCultoPdf.js";
 import { logger } from "firebase-functions";
 import { sondarUmaVez, normalizarNome } from "./freeshow.js";
 import { CATEGORIAS_KINDER } from "./kinder.js";
+
+/* ── DEPENDÊNCIAS PESADAS SÓ QUANDO SÃO PRECISAS (2026-10) ────────
+ * Cada Cloud Function de 2.ª geração arranca este ficheiro INTEIRO —
+ * até o `entrar` (PIN) carregava o leitor de PDF, o sharp, o
+ * Essentia (WASM) e o decoder de áudio, que só três funções usam.
+ * Num arranque a frio isso eram segundos a mais em CADA função, e o
+ * login do Mural encadeava três frias (lista de pessoas → PIN →
+ * admin) — "30, 40 segundos depois de pôr o código", reportado
+ * 2026-10. `import()` dinâmico: carrega na primeira chamada que
+ * precisa, e fica em cache do Node para as seguintes (instância
+ * quente). Ao acrescentar uma dependência pesada, segue o mesmo
+ * padrão em vez de um `import` no topo. */
+const carregarSharp = () => import("sharp").then((m) => m.default);
+const carregarPdfjs = () => import("pdfjs-dist/legacy/build/pdf.mjs");
 
 // Base Kinder: famílias, crianças e check-in — ficheiro próprio para
 // não afogar este (ver o comentário no topo de kinder.js).
@@ -100,6 +110,10 @@ export {
   pedirParaServir, cancelarPedidoServir, enviarContactoParaServir,
   decidirCandidatura, notificarCandidatura,
 } from "./candidaturas.js";
+
+// Mantém acordadas as funções do caminho do login (aquecer.js) — o
+// login do Mural chegava a 30-40 s por causa de arranques a frio.
+export { manterLoginQuente } from "./aquecer.js";
 
 // Reportar bugs/erros/melhorias do painel, de qualquer base, para o
 // Onda Tech Hub triar — ficheiro próprio, mesmo motivo de
@@ -282,6 +296,7 @@ async function desmarcarIndisponivel(eventoId, baseId, uid) {
  * a olho nu à porta — nome, papel, foto. Nunca telefone, nunca o
  * hash do PIN. */
 export const dadosEntrada = onCall(async (req) => {
+  if (req.data?.aquecer) return { quente: true }; // aquecer.js
   const { baseId } = req.data || {};
   if (!baseId) throw new HttpsError("invalid-argument", "Falta a base.");
 
@@ -318,6 +333,7 @@ export const dadosEntrada = onCall(async (req) => {
 
 /* ── ENTRAR ───────────────────────────────────────────────── */
 export const entrar = onCall(async (req) => {
+  if (req.data?.aquecer) return { quente: true }; // aquecer.js
   const { baseId, pessoaId, pin } = req.data || {};
   if (!baseId || !pessoaId || !/^\d{4,6}$/.test(String(pin || ""))) {
     throw new HttpsError("invalid-argument", "Dados de entrada inválidos.");
@@ -2352,6 +2368,7 @@ export const lerOrdemCulto = onCall(async (req) => {
     const [buffer] = await admin.storage().bucket().file(caminhoStorage).download();
     // pdfjs-dist exige um Uint8Array "puro" — um Buffer do Node, mesmo
     // sendo tecnicamente um Uint8Array, é rejeitado pelo teste interno dele
+    const { getDocument } = await carregarPdfjs();
     const r = analisar(await linhasDoPdf(new Uint8Array(buffer), getDocument));
     if (!r.momentos.length) return { momentos: [], avisos: [], falhou: true };
     return { ...r, falhou: false };
@@ -4290,6 +4307,7 @@ export const processarCapaMusica = onCall(async (req) => {
   const imgResp = await fetch(capaOrigemUrl);
   if (!imgResp.ok) throw new HttpsError("unavailable", "Não foi possível baixar a capa.");
   const buffer = Buffer.from(await imgResp.arrayBuffer());
+  const sharp = await carregarSharp();
   const webp = await sharp(buffer).resize(250, 250, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
 
   const token = randomUUID();
@@ -4631,8 +4649,11 @@ export const resolverVideoMusica = onCall({
  *  (mesma ideia do token do Spotify/LouveApp em memória). Nunca
  *  chamar .delete() nela: isso destruía a instância partilhada. */
 let essentiaInstancia = null;
-function obterEssentia() {
-  if (!essentiaInstancia) essentiaInstancia = new essentiaLib.Essentia(essentiaLib.EssentiaWASM);
+async function obterEssentia() {
+  if (!essentiaInstancia) {
+    const essentiaLib = (await import("essentia.js")).default;
+    essentiaInstancia = new essentiaLib.Essentia(essentiaLib.EssentiaWASM);
+  }
   return essentiaInstancia;
 }
 
@@ -4657,10 +4678,11 @@ async function analisarAudioDeezer(deezerId) {
   const audioResp = await fetch(track.preview);
   if (!audioResp.ok) return { tom: null, bpm: null };
 
+  const decodeAudio = (await import("audio-decode")).default;
   const { channelData, sampleRate } = await decodeAudio(await audioResp.arrayBuffer());
   if (!channelData?.[0]?.length) return { tom: null, bpm: null };
 
-  const essentia = obterEssentia();
+  const essentia = await obterEssentia();
   const vetor = essentia.arrayToVector(channelData[0]);
   try {
     const { key, scale } = essentia.KeyExtractor(

@@ -22,7 +22,6 @@ import "./opcoes.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import admin from "firebase-admin";
-import sharp from "sharp";
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 
 const BASE = "kinder";
@@ -190,6 +189,8 @@ async function guardarFotoPessoa(caminho, base64) {
   if (!m) throw new HttpsError("invalid-argument", "Foto inválida — tenta outra imagem.");
   const entrada = Buffer.from(m[2], "base64");
   if (entrada.length > TAMANHO_MAX_FOTO) throw new HttpsError("invalid-argument", "A foto é grande demais.");
+  // sharp só aqui (import dinâmico) — ver o comentário em index.js
+  const sharp = (await import("sharp")).default;
   const webp = await sharp(entrada).rotate().resize(480, 480, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
   const token = randomUUID();
   const bucket = admin.storage().bucket();
