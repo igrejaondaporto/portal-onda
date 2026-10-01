@@ -8,6 +8,7 @@ import { obterMeusProximosDomingos } from "../lib/culto";
 import { ouvirReembolsos } from "../lib/reembolsos";
 import { ouvirCapacitacoes, ouvirCapacitacoesDe, estadoCapacitacao } from "../lib/kinder";
 import { rotuloPapel, souLider, nomeCategoria } from "../lib/modelo";
+import EmailNoPerfil from "@portal/shared/components/EmailNoPerfil.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -126,6 +127,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
             <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} />
             <label className="rot">Telemóvel</label>
             <input className="campo" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="9xx xxx xxx" />
+            <EmailNoPerfil />
             <p className="ds" style={{ marginTop: 8 }}>A tua sala ({pessoa?.categoria ? nomeCategoria(pessoa.categoria) : "nenhuma"}) muda-se no Painel das líderes.</p>
             <button className="btn full" style={{ marginTop: 16 }} disabled={aGuardar} onClick={guardar}>Guardar</button>
           </div>
