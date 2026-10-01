@@ -181,8 +181,9 @@ Pedido do dono do produto:
     mural, porque o anúncio não está nos "Os meus" de quem modera.
   - As pessoas de cada base vêm do `dadosEntrada` (a mesma cache da
     Entrada). Os membros sem base vêm de `listarMembrosMural`, só para
-    quem modera: nome, GD e os últimos 3 dígitos do telemóvel, para
-    distinguir nomes iguais.
+    quem modera. A lista mostra o nome e o GD. Os últimos dígitos do
+    telemóvel deixaram de aparecer (pedido de 2026-10), embora a função
+    ainda os devolva.
   - **Não está registada**: `emNomeDe: {nome, telefone}`.
     - Se o número já tem conta no Mural, é igual ao caso acima: vai logo
       para o perfil dela.
