@@ -15,6 +15,12 @@ export default function Publicar({ onPublicado }) {
   const [preco, setPreco] = useState("");
   const [gratis, setGratis] = useState(false);
   const [ficheiros, setFicheiros] = useState([]);
+  // quem atende os interessados (2026-10): eu, ou outra pessoa — "vi
+  // uma placa de arrendamento na rua e quero ajudar". O contacto de
+  // outra pessoa nunca fica no anúncio público (ver functions/mural.js).
+  const [deOutro, setDeOutro] = useState(false);
+  const [contactoNome, setContactoNome] = useState("");
+  const [contactoTelefone, setContactoTelefone] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
   const [erro, setErro] = useState("");
   const inputFoto = useRef(null);
@@ -34,10 +40,12 @@ export default function Publicar({ onPublicado }) {
 
   async function publicar() {
     if (!titulo.trim()) return setErro("Escreve um título.");
+    if (deOutro && contactoTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel de quem trata.");
     setErro("");
     setAEnviar(true);
     try {
-      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao });
+      const contactoOutro = deOutro ? { nome: contactoNome.trim(), telefone: contactoTelefone } : undefined;
+      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, contactoOutro });
       if (ficheiros.length) await subirFotosAnuncio(id, ficheiros);
       onPublicado?.();
     } catch (e) {
@@ -93,6 +101,7 @@ export default function Publicar({ onPublicado }) {
 
       {categoria && (
       <>
+      <p className="dicaFoto">📷 Anúncios <b>com foto</b> aparecem primeiro no mural — junta uma no fim.</p>
       <label className="rot" htmlFor="titulo">Título</label>
       <input
         id="titulo" className="campo" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={80}
@@ -113,9 +122,35 @@ export default function Publicar({ onPublicado }) {
       <label className="rot" htmlFor="descricao">Descrição</label>
       <textarea id="descricao" className="campo" rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={600} placeholder="Estado, onde entregas, o que precisas saber" />
 
-      <div className="caixa">
+      <span className="rot">Quem atende os interessados?</span>
+      <div className="natureza" role="group" aria-label="Quem atende os interessados">
+        <button type="button" aria-pressed={!deOutro} onClick={() => setDeOutro(false)}>
+          <b>Eu</b>
+          <small>falam contigo no WhatsApp</small>
+        </button>
+        <button type="button" aria-pressed={deOutro} onClick={() => setDeOutro(true)}>
+          <b>Outra pessoa</b>
+          <small>vi e quero ajudar a divulgar</small>
+        </button>
+      </div>
+      {deOutro && (
+        <>
+          <label className="rot" htmlFor="contactoNome">Nome de quem trata <span style={{ fontWeight: 400 }}>— opcional</span></label>
+          <input id="contactoNome" className="campo" value={contactoNome} onChange={(e) => setContactoNome(e.target.value)} maxLength={60} placeholder="Ex.: Sr. Manuel (senhorio)" />
+          <label className="rot" htmlFor="contactoTelefone">Telemóvel de quem trata</label>
+          <input id="contactoTelefone" className="campo" type="tel" inputMode="tel" value={contactoTelefone} onChange={(e) => setContactoTelefone(e.target.value)} placeholder="912 345 678" />
+          <p className="ds" style={{ marginTop: 6 }}>
+            Não aparece no anúncio — só a quem tocar em "Falar com quem trata". Sai do sistema assim que o anúncio sair do ar.
+          </p>
+        </>
+      )}
+
+      <div className="caixa caixaFoto">
         <h4 style={{ fontSize: 15, fontWeight: 700 }}>Fotografias</h4>
-        <p className="ds">Até 4. Comprimimos antes de enviar — não gasta os teus dados.</p>
+        <p className="ds">
+          <b style={{ color: "var(--azul)" }}>Anúncios com foto aparecem primeiro no mural</b> e recebem mais
+          contactos. Até 4 — comprimimos antes de enviar, não gasta os teus dados.
+        </p>
         <input ref={inputFoto} type="file" accept="image/*" multiple hidden
           onChange={(e) => setFicheiros(Array.from(e.target.files || []).slice(0, 4))} />
         <button className="btn sec" style={{ marginTop: 10 }} onClick={() => inputFoto.current?.click()}>

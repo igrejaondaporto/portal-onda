@@ -5,7 +5,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { ESTADOS, NATUREZAS, REGIOES, bateCategoria, naturezaDe, nomeCategoria, nomeDaChave, relativo } from "../lib/util.js";
+import { NATUREZAS, ORDENS, REGIOES, bateCategoria, naturezaDe, nomeCategoria, nomeDaChave, ordenar, relativo, textoPreco } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
@@ -43,11 +43,14 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
   // sem a pessoa perceber porquê).
   const [regiao, setRegiao] = useState("todas");
   const [categoria, setCategoria] = useState("todas");
+  // 2026-10: "Mais recentes" | "Mais baratos" (grátis primeiro) | "Mais
+  // caros" — e em qualquer uma, com foto primeiro (ordenar, lib/util.js)
+  const [ordem, setOrdem] = useState("recentes");
   const [busca, setBusca] = useState("");
   const [aberto, setAberto] = useState(null);
   const [imagemExpandida, setImagemExpandida] = useState(null);
   const [filtroAberto, setFiltroAberto] = useState(false);
-  const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0);
+  const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
   // a categoria é por natureza; ao trocar Ofereço/Procuro só se perde
@@ -72,13 +75,14 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return anuncios
+    return ordenar(anuncios
+      .filter((a) => a.estado !== "pausado") // o dono tirou-o do ar (Os meus)
       .filter((a) => naturezaDe(a) === natureza)
       .filter((a) => tipo === "tudo" || a.tipo === tipo)
       .filter((a) => regiao === "todas" || a.regiao === regiao)
       .filter((a) => bateCategoria(a, categoria))
-      .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal} ${nomeCategoria(a.tipo, a.categoria)}`.toLowerCase().includes(q));
-  }, [anuncios, natureza, tipo, regiao, categoria, busca]);
+      .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal} ${nomeCategoria(a.tipo, a.categoria)}`.toLowerCase().includes(q)), ordem);
+  }, [anuncios, natureza, tipo, regiao, categoria, busca, ordem]);
 
   function irPara(destino) {
     if (PAGINAS_COM_SESSAO.has(destino) && !eu) {
@@ -151,6 +155,11 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
               {nomeDaChave(categoria)} <span aria-hidden>×</span>
             </button>
           )}
+          {ordem !== "recentes" && (
+            <button type="button" onClick={() => setOrdem("recentes")} aria-label="Voltar a ordenar por mais recentes">
+              {ORDENS.find((o) => o.id === ordem)?.nome} <span aria-hidden>×</span>
+            </button>
+          )}
           {regiao !== "todas" && (
             <button type="button" onClick={() => setRegiao("todas")} aria-label="Tirar o filtro de região">
               {REGIOES.find((r) => r.id === regiao)?.nome} <span aria-hidden>×</span>
@@ -161,7 +170,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
 
       {filtroAberto && (
         <FiltroSheet
-          natureza={natureza} tipo={tipo} regiao={regiao} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
+          natureza={natureza} tipo={tipo} regiao={regiao} ordem={ordem} setOrdem={setOrdem} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
           onFechar={() => setFiltroAberto(false)}
         />
       )}
@@ -188,16 +197,17 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
           <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} onExpandir={setImagemExpandida} />
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
-            <span className={`preco${a.gratis ? " gratis" : ""}`} style={{ display: "block" }}>
-              {a.gratis ? "Grátis" : a.preco || "A combinar"}
-            </span>
             <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
               <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
               {a.autorNome} · {tipo === "tudo" && a.categoria === "outros" ? (a.tipo === "procuro" ? "Procuro · " : "Ofereço · ") : ""}{nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
             </span>
           </span>
-          <span className="tag" style={{ background: ESTADOS[a.estado]?.classe === "disp" ? "var(--verde)" : ESTADOS[a.estado]?.classe === "res" ? "var(--laranja)" : "var(--agua)", color: ESTADOS[a.estado]?.classe === "vend" ? "var(--cinza)" : "#fff" }}>
-            {ESTADOS[a.estado]?.nome}
+          {/* à direita o PREÇO (2026-10 — "Disponível" em todos não dizia
+              nada); o estado só aparece quando diz alguma coisa */}
+          <span className="ladoPreco">
+            <span className={`precoTag${a.gratis ? " gratis" : valorPrecoVazio(a) ? " combinar" : ""}`}>{textoPreco(a)}</span>
+            {a.estado === "reservado" && <span className="seloEstado res">Reservado</span>}
+            {a.estado === "vendido" && <span className="seloEstado vend">Vendido</span>}
           </span>
         </button>
       ))}
@@ -214,6 +224,8 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
     </>
   );
 }
+
+const valorPrecoVazio = (a) => !a.gratis && !a.preco;
 
 function Casca({ children, pagina, onIr, itens, eu, onPedirEntrar, onAdminConcedido }) {
   return (

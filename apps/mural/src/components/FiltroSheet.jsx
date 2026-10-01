@@ -1,4 +1,4 @@
-import { REGIOES, categoriasDe, chaveCategoria } from "../lib/util.js";
+import { ORDENS, REGIOES, categoriasDe, chaveCategoria } from "../lib/util.js";
 
 const GRUPOS = [
   { tipo: "ofereco", titulo: "Ofereço" },
@@ -16,7 +16,7 @@ const GRUPOS = [
  *  "Faço serviços" e "Preciso de um serviço" são o mesmo id com
  *  sentidos opostos. Por isso a escolha guarda o tipo junto
  *  (`chaveCategoria`, lib/util.js). */
-export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categoria, setCategoria, onFechar }) {
+export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categoria, setCategoria, ordem, setOrdem, onFechar }) {
   const grupos = GRUPOS
     .filter((g) => tipo === "tudo" || g.tipo === tipo)
     .map((g) => ({ ...g, categorias: categoriasDe(natureza, g.tipo) }));
@@ -27,12 +27,24 @@ export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categor
         <div className="pux" />
         <h2 style={{ textAlign: "left" }}>Filtrar {natureza === "servico" ? "serviços" : "produtos"}</h2>
 
+        {/* Ordenar (2026-10): "Mais baratos" = grátis primeiro, depois
+            do menor para o maior valor. Com foto sobe sempre (ver
+            ordenar em lib/util.js). */}
+        <span className="rot" style={{ marginTop: 6 }}>Ordenar</span>
+        <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
+          {ORDENS.map((o) => (
+            <button key={o.id} data-on={ordem === o.id ? 1 : 0} onClick={() => setOrdem(o.id)}>{o.nome}</button>
+          ))}
+        </div>
+        <p className="ds" style={{ margin: "2px 0 4px" }}>Os anúncios com foto aparecem sempre primeiro.</p>
+
+        <span className="rot">Categoria</span>
         <div className="menu" style={{ padding: "8px 0 0", position: "static" }}>
           <button data-on={categoria === "todas" ? 1 : 0} onClick={() => setCategoria("todas")}>Todas as categorias</button>
         </div>
         {grupos.map((g) => (
           <div key={g.tipo}>
-            <span className="rot" style={{ marginTop: 6 }}>{grupos.length > 1 ? g.titulo : "Categoria"}</span>
+            {grupos.length > 1 && <span className="rot" style={{ marginTop: 6 }}>{g.titulo}</span>}
             <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
               {g.categorias.map((c) => {
                 const chave = chaveCategoria(g.tipo, c.id);

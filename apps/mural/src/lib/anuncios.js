@@ -63,7 +63,9 @@ export async function desbloquearModeracaoMural(senha) {
     return { ok: false, restam: d.restam ?? null };
   }
 }
-export const pedirContactoAnuncio = (id) => chamar("pedirContactoAnuncio")({ id }).then((r) => r.data.telefone);
+/** `{ telefone, nome?, deOutro? }` — `deOutro` quando quem publicou
+ *  deixou o contacto de outra pessoa (ver functions/mural.js). */
+export const pedirContactoAnuncio = (id) => chamar("pedirContactoAnuncio")({ id }).then((r) => r.data);
 
 /** Sobe até 4 fotos para `anuncios/{uid}/{anuncioId}/` (ver
  *  storage.rules) e grava a lista de URLs no anúncio — a mesma

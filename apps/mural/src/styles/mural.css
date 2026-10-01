@@ -496,3 +496,100 @@
   flex-wrap: wrap;
   overflow: visible;
 }
+
+/* ── Preço à direita no feed (2026-10) ────────────────────────────
+ * Substitui a etiqueta "Disponível" (estava em todos e não dizia
+ * nada). O estado só aparece quando diz alguma coisa: Reservado
+ * (laranja) ou Vendido, sempre por extenso. */
+.ladoPreco {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  max-width: 42%;
+}
+.precoTag {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--azul);
+  background: var(--agua);
+  padding: 5px 11px;
+  border-radius: 100px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.precoTag.gratis {
+  color: #fff;
+  background: var(--verde);
+}
+.precoTag.combinar {
+  color: var(--cinza);
+  font-weight: 700;
+  font-size: 12px;
+}
+.seloEstado {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+}
+.seloEstado.res {
+  background: var(--laranja);
+  color: #fff;
+}
+.seloEstado.vend {
+  background: var(--agua);
+  color: var(--cinza);
+}
+.vendido .precoTag {
+  opacity: 0.45;
+}
+
+/* a caixa das fotos no Publicar puxa o olho (2026-10): com foto, o
+ * anúncio sobe para o topo do mural — é a razão para a pôr */
+.caixa.caixaFoto {
+  border: 1.5px dashed var(--azul);
+  background: rgba(0, 25, 190, 0.035);
+}
+
+.dicaFoto {
+  font-size: 13px;
+  color: var(--azul);
+  background: var(--agua);
+  border-radius: 12px;
+  padding: 9px 12px;
+  margin: 14px 0 0;
+}
+
+/* Os meus — Reservado / Pausar / Excluir (2026-10) */
+.acoesDono {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.acoesDono button {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid var(--fio);
+  background: #fff;
+  color: var(--tinta);
+  border-radius: 100px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.acoesDono button[aria-pressed="true"] {
+  background: var(--laranja);
+  border-color: var(--laranja);
+  color: #fff;
+}
+.acoesDono button.perigo {
+  color: var(--magenta);
+}
+.acoesDono button:disabled {
+  opacity: 0.5;
+}

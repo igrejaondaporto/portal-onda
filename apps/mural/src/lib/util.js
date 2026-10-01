@@ -93,7 +93,50 @@ export const ESTADOS = {
   disponivel: { classe: "disp", nome: "Disponível" },
   reservado: { classe: "res", nome: "Reservado" },
   vendido: { classe: "vend", nome: "Vendido" },
+  // 2026-10: o dono tira-o do mural sem o apagar (e retoma quando quiser)
+  pausado: { classe: "paus", nome: "Pausado" },
 };
+
+/** O texto do preço, como aparece na etiqueta do feed e no detalhe. */
+export const textoPreco = (a) => (a.gratis ? "Grátis" : a.preco || "A combinar");
+
+/** O preço é texto livre ("120 €", "320 €/mês", "1.200€", "15,50 €/h"),
+ *  por isso para ordenar lê-se o primeiro número que lá estiver.
+ *  Ponto seguido de 3 algarismos é separador de milhares (1.200),
+ *  vírgula é decimal. Grátis = 0; sem número ("A combinar") = null. */
+export function valorPreco(a) {
+  if (a.gratis) return 0;
+  const m = String(a.preco || "").match(/\d[\d.\s]*(,\d+)?/);
+  if (!m) return null;
+  const limpo = m[0].trim().replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = parseFloat(limpo);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Ordenar (2026-10, pedido): "Mais baratos" põe os grátis primeiro e
+ *  depois do menor para o maior valor; "A combinar" vai sempre para o
+ *  fim. E em QUALQUER ordem os anúncios com foto vêm primeiro — é o
+ *  incentivo a pôr foto (o Publicar diz isto a quem publica). */
+export const ORDENS = [
+  { id: "recentes", nome: "Mais recentes" },
+  { id: "baratos", nome: "Mais baratos" },
+  { id: "caros", nome: "Mais caros" },
+];
+export function ordenar(lista, ordem) {
+  const temFoto = (a) => (a.fotos?.length ? 1 : 0);
+  const quando = (a) => a.criadoEm?.toMillis?.() ?? (a.criadoEm?.seconds ? a.criadoEm.seconds * 1000 : 0);
+  const porPreco = (a, b, sentido) => {
+    const va = valorPreco(a), vb = valorPreco(b);
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return sentido * (va - vb);
+  };
+  return [...lista].sort((a, b) =>
+    temFoto(b) - temFoto(a)
+    || (ordem === "baratos" ? porPreco(a, b, 1) : ordem === "caros" ? porPreco(a, b, -1) : 0)
+    || quando(b) - quando(a));
+}
 
 /** O filtro de categoria guarda o TIPO junto ("ofereco:venda") —
  *  "servicos"/"emprego"/"boleias"/"outros" existem dos dois lados
