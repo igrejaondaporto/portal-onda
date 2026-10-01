@@ -616,6 +616,57 @@
 .caixa.emNome.on {
   background: rgba(124, 58, 237, 0.06);
 }
+/* escolher a pessoa (base → nome) — lista curta que desliza por dentro */
+.caixa.emNome .menu {
+  background: none;
+  border: 0;
+}
+.emNomeLista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.emNomeLista button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.emNomeLista button:hover,
+.emNomeLista button:focus-visible {
+  background: rgba(124, 58, 237, 0.1);
+}
+.emNomeLista small,
+.emNomeEscolhida small {
+  color: var(--cinza);
+  font-size: 12px;
+}
+.emNomeEscolhida {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.1);
+}
+.emNomeEscolhida small {
+  display: block;
+}
+.emNomeEscolhida .sair {
+  flex: none;
+}
 
 /* Editar anúncio (2026-10) — a folha é comprida, desliza por dentro */
 .pin.editarAnuncio {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, obterMeuTelefone, MAX_ATIVOS } from "../lib/anuncios.js";
 import { NATUREZAS, REGIOES, categoriasDe, precoValido } from "../lib/util.js";
 import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
+import EscolherPessoaEmNome, { SEM_REGISTO } from "../components/EscolherPessoaEmNome.jsx";
 
 const OUTRA = "__outra__";
 const formatarTelefone = (t) => String(t).replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3");
@@ -30,9 +31,13 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   // outra pessoa nunca fica no anúncio público (ver functions/mural.js).
   const [deOutro, setDeOutro] = useState(false);
   // moderação (2026-10): publicar EM NOME de alguém que pôs o anúncio no
-  // grupo do WhatsApp e não no Mural — sai com o nome e o contacto dessa
-  // pessoa, não conta para o limite (ver criarAnuncio em functions/mural.js)
+  // grupo do WhatsApp e não no Mural. Escolhe-se a pessoa numa lista (base
+  // → nome, ou Membros) e o anúncio fica no perfil dela; quem não está
+  // registado vai por nome + telemóvel. Conta para os 5 DESSA pessoa (ver
+  // criarAnuncio em functions/mural.js e EscolherPessoaEmNome.jsx).
   const [emNome, setEmNome] = useState(false);
+  const [emNomeOnde, setEmNomeOnde] = useState("");
+  const [emNomePessoa, setEmNomePessoa] = useState(null);
   const [emNomeNome, setEmNomeNome] = useState("");
   const [emNomeTelefone, setEmNomeTelefone] = useState("");
   const [contactoNome, setContactoNome] = useState("");
@@ -46,7 +51,9 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   // (2026-10) — mostra-se no "Eu", para não haver dúvida de qual é
   const [meuTelefone, setMeuTelefone] = useState(null);
   useEffect(() => { obterMeuTelefone().then(setMeuTelefone); }, []);
-  const ativos = meus.filter((a) => a.ativo).length;
+  // os anúncios em nome de quem ainda não se registou (emNomeDe) são
+  // dessa pessoa, não contam para os teus 5
+  const ativos = meus.filter((a) => a.ativo && !a.emNomeDe).length;
   const noLimite = ativos >= MAX_ATIVOS;
 
   function trocarNatureza(n) {
@@ -66,19 +73,27 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
       return setErro("No preço escreve só o valor (ex.: 15 € ou 15 €/hora) — o resto vai na descrição.");
     }
     const regiao = cidade === OUTRA ? regiaoOutra : CIDADES[cidade].regiao;
-    if (emNome && !emNomeNome.trim()) return setErro("Escreve o nome da pessoa.");
-    if (emNome && emNomeTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel da pessoa.");
+    const semRegisto = emNome && emNomeOnde === SEM_REGISTO;
+    if (emNome && !semRegisto && !emNomePessoa) return setErro("Escolhe a pessoa em nome de quem publicas.");
+    if (semRegisto && !emNomeNome.trim()) return setErro("Escreve o nome da pessoa.");
+    if (semRegisto && emNomeTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel da pessoa.");
     if (!emNome && deOutro && contactoTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel de quem trata.");
     setErro("");
     setAEnviar(true);
     try {
       const contactoOutro = !emNome && deOutro ? { nome: contactoNome.trim(), telefone: contactoTelefone } : undefined;
-      const emNomeDe = emNome ? { nome: emNomeNome.trim(), telefone: emNomeTelefone } : undefined;
+      const emNomeDe = !emNome ? undefined
+        : semRegisto ? { nome: emNomeNome.trim(), telefone: emNomeTelefone }
+        : { pessoaId: emNomePessoa.id };
       const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, cidade: cidadeFinal, freguesia: freguesia.trim(), contactoOutro, emNomeDe });
       if (ficheiros.length) await subirFotosAnuncio(id, ficheiros);
-      onPublicado?.();
+      // em nome de alguém registado, o anúncio fica nos "Os meus" DELA —
+      // volta-se ao mural, onde já aparece
+      onPublicado?.({ paraOutra: emNome && !semRegisto });
     } catch (e) {
-      setErro(e.message === "limite" ? `Já tens ${MAX_ATIVOS} anúncios no ar — marca um como vendido para abrir espaço.` : "Não foi possível publicar. Tenta outra vez.");
+      setErro(e.message !== "limite" ? "Não foi possível publicar. Tenta outra vez."
+        : emNome ? `Essa pessoa já tem ${MAX_ATIVOS} anúncios no ar — tem de tirar um antes deste.`
+        : `Já tens ${MAX_ATIVOS} anúncios no ar — marca um como vendido para abrir espaço.`);
     }
     setAEnviar(false);
   }
@@ -92,25 +107,25 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
             Publicar em nome de outra pessoa
           </label>
           <p className="ds" style={{ marginTop: 4 }}>
-            Só a moderação vê isto. Para quem pôs o anúncio no grupo do WhatsApp e não no Mural — sai com o nome
-            e o contacto dessa pessoa, e não conta para o teu limite.
+            Só a moderação vê isto. Para quem pôs o anúncio no grupo do WhatsApp e não no Mural. Conta para
+            os {MAX_ATIVOS} anúncios dessa pessoa, não para os teus.
           </p>
           {emNome && (
-            <>
-              <label className="rot" htmlFor="emNomeNome">Nome da pessoa</label>
-              <input id="emNomeNome" className="campo" value={emNomeNome} onChange={(e) => setEmNomeNome(e.target.value)} maxLength={60} placeholder="Como aparece no anúncio" />
-              <label className="rot" htmlFor="emNomeTelefone">Telemóvel dela</label>
-              <input id="emNomeTelefone" className="campo" type="tel" inputMode="tel" value={emNomeTelefone} onChange={(e) => setEmNomeTelefone(e.target.value)} placeholder="912 345 678" />
-            </>
+            <EscolherPessoaEmNome
+              onde={emNomeOnde} setOnde={setEmNomeOnde}
+              pessoa={emNomePessoa} setPessoa={setEmNomePessoa}
+              nome={emNomeNome} setNome={setEmNomeNome}
+              telefone={emNomeTelefone} setTelefone={setEmNomeTelefone}
+            />
           )}
         </div>
       )}
 
-      <div className="limite">
+      {!emNome && <div className="limite">
         <b>{ativos} de {MAX_ATIVOS} no ar</b>
         <span className="trilho"><i style={{ width: `${Math.min(100, (ativos / MAX_ATIVOS) * 100)}%` }} /></span>
         <span className="ds" style={{ flex: "none" }}>{noLimite ? "no limite" : `restam ${MAX_ATIVOS - ativos}`}</span>
-      </div>
+      </div>}
 
       <span className="rot">1 · É um produto ou um serviço?</span>
       <div className="natureza" role="group" aria-label="Produto ou serviço">
