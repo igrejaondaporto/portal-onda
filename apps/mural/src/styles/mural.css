@@ -368,7 +368,131 @@
 .natureza button[aria-pressed="true"] b {
   color: var(--azul);
 }
+
+/* Cores próprias (2026-10, pedido: "o verde do título em Onda e o
+ * azul padrão"): Serviços azul, Produtos lima. Por escolher = um tom
+ * claro da cor; escolhido = a cor cheia, com sombra — a diferença
+ * lê-se pela cor E pelo peso, nunca só por um contorno. */
+.natureza button[data-natureza="servico"] {
+  border-color: rgba(0, 25, 190, 0.28);
+  background: rgba(0, 25, 190, 0.06);
+}
+.natureza button[data-natureza="servico"] b {
+  color: var(--azul);
+}
+.natureza button[data-natureza="servico"][aria-pressed="true"] {
+  border-color: var(--azul);
+  background: var(--azul);
+  box-shadow: 0 6px 18px rgba(0, 25, 190, 0.32);
+}
+.natureza button[data-natureza="servico"][aria-pressed="true"] b {
+  color: #fff;
+}
+.natureza button[data-natureza="servico"][aria-pressed="true"] small {
+  color: rgba(255, 255, 255, 0.82);
+}
+.natureza button[data-natureza="produto"] {
+  border-color: rgba(160, 190, 20, 0.55);
+  background: rgba(216, 242, 75, 0.2);
+}
+.natureza button[data-natureza="produto"] b {
+  color: var(--tinta);
+}
+.natureza button[data-natureza="produto"][aria-pressed="true"] {
+  border-color: var(--lima);
+  background: var(--lima);
+  box-shadow: 0 6px 18px rgba(216, 242, 75, 0.55);
+}
+.natureza button[data-natureza="produto"][aria-pressed="true"] small {
+  color: rgba(0, 0, 0, 0.62);
+}
+.natureza button[data-natureza="servico"]:focus-visible {
+  outline-color: var(--lima);
+}
+.natureza button[data-natureza="produto"]:focus-visible {
+  outline-color: var(--azul);
+}
+
+/* Os filtros escolhidos à vista, cada um com × para tirar (2026-10) —
+ * antes só se via um número no botão "Filtro". */
+.filtrosAtivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+.filtrosAtivos button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border: 0;
+  border-radius: 100px;
+  padding: 6px 12px;
+  background: var(--agua);
+  color: var(--azul);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.filtrosAtivos button span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* "+" para publicar (2026-10) — o mesmo botão redondo lima da
+ * Biblioteca da Louvor (.bib-fab), à direita: aqui não há o botão
+ * "Melhorias" que obrigou a Louvor a pôr o dela à esquerda. Fica por
+ * baixo dos véus (.veu é z-index 20), por isso some quando abre uma
+ * folha. */
+.mural-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: 11;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--lima);
+  color: var(--tinta);
+  box-shadow: 0 10px 26px rgba(160, 190, 20, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+.mural-fab:active {
+  transform: scale(0.94);
+}
+.mural-fab:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: 3px;
+}
+@media (min-width: 900px) {
+  .mural-fab {
+    bottom: 28px;
+  }
+}
 .natureza button:focus-visible {
   outline: 3px solid var(--lima);
   outline-offset: 2px;
+}
+
+/* o último anúncio nunca fica escondido por baixo do "+" */
+.corpo:has(.mural-fab) {
+  padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 900px) {
+  .corpo:has(.mural-fab) {
+    padding-bottom: 110px;
+  }
+}
+
+/* na folha do Filtro as categorias quebram linha em vez de deslizar
+ * — com Ofereço e Procuro juntos, a deslizar ficavam escondidas */
+.menu.quebra {
+  flex-wrap: wrap;
+  overflow: visible;
 }

@@ -5,7 +5,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { CATEGORIAS, ESTADOS, NATUREZAS, REGIOES, naturezaDe, nomeCategoria, relativo } from "../lib/util.js";
+import { ESTADOS, NATUREZAS, REGIOES, bateCategoria, naturezaDe, nomeCategoria, nomeDaChave, relativo } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
@@ -30,11 +30,12 @@ const PAGINAS_COM_SESSAO = new Set(["publicar", "meus", "painel"]);
  *  QUALQUER PESSOA sem conta (2026-09, pedido explícito); só
  *  publicar/gerir pede sessão. `onPedirEntrar` abre o overlay de
  *  Entrada (ver App.jsx). */
-export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
+export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido }) {
   const [pagina, setPagina] = useState("mural");
   const [anuncios, setAnuncios] = useState([]);
-  // Produtos | Serviços, e por baixo Tudo · Ofereço · Procuro (2026-09)
-  const [natureza, setNatureza] = useState("produto");
+  // Serviços | Produtos, e por baixo Tudo · Ofereço · Procuro (2026-09;
+  // Serviços primeiro e aberto por omissão desde 2026-10)
+  const [natureza, setNatureza] = useState("servico");
   const [tipo, setTipo] = useState("tudo");
   // "todas" por omissão — a região é um filtro como outro qualquer,
   // só se aplica se a pessoa a escolher (pedido explícito, 2026-09:
@@ -49,7 +50,25 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
   const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
-  useEffect(() => setCategoria("todas"), [tipo, natureza]);
+  // a categoria é por natureza; ao trocar Ofereço/Procuro só se perde
+  // se for do outro lado ("ofereco:venda" continua a valer em Tudo)
+  useEffect(() => setCategoria("todas"), [natureza]);
+  useEffect(() => {
+    setCategoria((c) => (c === "todas" || tipo === "tudo" || c.startsWith(`${tipo}:`) ? c : "todas"));
+  }, [tipo]);
+
+  // Publicar/Os meus sem sessão abre a Entrada; ao entrar, segue para
+  // onde a pessoa ia (2026-10, com o botão "+"). Fechar a Entrada sem
+  // entrar esquece o destino.
+  const [depoisDeEntrar, setDepoisDeEntrar] = useState(null);
+  useEffect(() => {
+    if (eu && depoisDeEntrar) {
+      setPagina(depoisDeEntrar);
+      setDepoisDeEntrar(null);
+    } else if (!eu && !aEntrar && depoisDeEntrar) {
+      setDepoisDeEntrar(null);
+    }
+  }, [eu, aEntrar, depoisDeEntrar]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -57,12 +76,15 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
       .filter((a) => naturezaDe(a) === natureza)
       .filter((a) => tipo === "tudo" || a.tipo === tipo)
       .filter((a) => regiao === "todas" || a.regiao === regiao)
-      .filter((a) => categoria === "todas" || a.categoria === categoria)
-      .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal}`.toLowerCase().includes(q));
+      .filter((a) => bateCategoria(a, categoria))
+      .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal} ${nomeCategoria(a.tipo, a.categoria)}`.toLowerCase().includes(q));
   }, [anuncios, natureza, tipo, regiao, categoria, busca]);
 
   function irPara(destino) {
-    if (PAGINAS_COM_SESSAO.has(destino) && !eu) return onPedirEntrar();
+    if (PAGINAS_COM_SESSAO.has(destino) && !eu) {
+      setDepoisDeEntrar(destino);
+      return onPedirEntrar();
+    }
     setPagina(destino);
   }
 
@@ -87,7 +109,7 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
     <>
       <div className="natureza" role="group" aria-label="Produtos ou Serviços">
         {NATUREZAS.map((n) => (
-          <button key={n.id} type="button" aria-pressed={natureza === n.id} onClick={() => setNatureza(n.id)}>
+          <button key={n.id} type="button" data-natureza={n.id} aria-pressed={natureza === n.id} onClick={() => setNatureza(n.id)}>
             <b>{n.nome}</b>
             <small>{n.sub}</small>
           </button>
@@ -119,8 +141,23 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
       <p className="ds" style={{ padding: "14px 0 2px" }}>
         {filtrados.length} {tipo === "procuro" ? "pedidos" : "anúncios"} de {natureza === "servico" ? "serviços" : "produtos"}
         {regiao !== "todas" && <> na região {REGIOES.find((r) => r.id === regiao)?.nome}</>}
-        {categoria !== "todas" && tipo !== "tudo" && <> · {CATEGORIAS[tipo].find((c) => c.id === categoria)?.nome}</>}
+        {categoria !== "todas" && <> · {nomeDaChave(categoria)}</>}
       </p>
+
+      {filtrosAtivos > 0 && (
+        <div className="filtrosAtivos">
+          {categoria !== "todas" && (
+            <button type="button" onClick={() => setCategoria("todas")} aria-label={`Tirar o filtro ${nomeDaChave(categoria)}`}>
+              {nomeDaChave(categoria)} <span aria-hidden>×</span>
+            </button>
+          )}
+          {regiao !== "todas" && (
+            <button type="button" onClick={() => setRegiao("todas")} aria-label="Tirar o filtro de região">
+              {REGIOES.find((r) => r.id === regiao)?.nome} <span aria-hidden>×</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {filtroAberto && (
         <FiltroSheet
@@ -133,9 +170,18 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
         <p className="vaz">
           {busca
             ? <>Nada encontrado para “{busca}”. Se é disto que precisas, publica em <b>Procuro</b> — alguém pode ter.</>
-            : "Ainda não há nada nesta categoria. Sê o primeiro."}
+            : <>Ainda não há nada aqui. Toca no <b>+</b> e sê o primeiro.</>}
         </p>
       )}
+
+      {/* "+" para publicar daqui mesmo (2026-10, como o da Biblioteca
+          da Louvor) — sem sessão abre a Entrada e segue para Publicar
+          depois de entrar (ver depoisDeEntrar acima). À direita: o
+          Mural não tem o botão "Melhorias" que obrigou a Louvor a
+          pôr o dela à esquerda. */}
+      <button type="button" className="mural-fab" aria-label="Publicar um anúncio" onClick={() => irPara("publicar")}>
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
 
       {filtrados.map((a, i) => (
         <button key={a.id} className={`linha${a.estado === "vendido" ? " vendido" : ""}`} style={{ width: "100%", background: "none", border: 0, borderBottom: "1px solid var(--fio)", textAlign: "left", cursor: "pointer", alignItems: "flex-start", gap: 14, animationDelay: `${i * 20}ms` }} onClick={() => setAberto(a)}>

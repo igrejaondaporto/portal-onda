@@ -48,9 +48,63 @@ no Procuro nasceram aqui. `anuncios/{id}.natureza` (`produto`/
 (`naturezaDe`, nos dois lados — `functions/mural.js` e `lib/util.js`);
 só "outros" usa a natureza escolhida. Os anúncios de antes não têm o
 campo e caem no sítio certo pela categoria (os "outros" antigos ficam
-em Produtos) — sem migração. Em "Tudo" o Filtro mostra só a região
-(as categorias de Ofereço e Procuro não são as mesmas). O resumo
-semanal separa 🛒 Produtos e 🛠️ Serviços.
+em Produtos) — sem migração. O resumo semanal separa 🛒 Produtos e
+🛠️ Serviços.
+
+**Ajustes de 2026-10** (pedido do dono do produto):
+
+- **Serviços primeiro** e aberto por omissão (`NATUREZAS`).
+- **Cada natureza tem a sua cor** (`data-natureza`): Serviços o azul
+  de sempre, Produtos o lima do "Onda" do título. Por escolher fica um
+  tom claro; escolhido fica a cor cheia.
+- **Filtros revistos:** o Filtro só mostra as categorias da natureza
+  aberta. Em "Tudo" mostra os dois grupos, Ofereço e Procuro, em vez
+  de os esconder. A escolha guarda o tipo junto (`"procuro:servicos"`,
+  `chaveCategoria`/`bateCategoria` em `lib/util.js`), porque
+  `servicos`/`emprego`/`boleias`/`outros` existem dos dois lados com
+  sentidos opostos.
+  - Trocar de natureza limpa a categoria; trocar Ofereço/Procuro só a
+    limpa se for do outro lado.
+  - Os filtros escolhidos aparecem por baixo da busca, cada um com ×.
+  - A busca também apanha o nome da categoria ("boleia").
+- **Botão "+" redondo, lima** (`.mural-fab`), em baixo à direita. É o
+  mesmo da Biblioteca da Louvor, mas à direita porque o Mural não tem o
+  "Melhorias" que obrigou a Louvor a pô-lo à esquerda.
+  - Sem sessão, abre a Entrada; ao entrar segue sozinho para Publicar
+    (`depoisDeEntrar` em `Sessao.jsx`, que vale também para
+    Publicar/Os meus na barra de baixo).
+  - Fechar a Entrada sem entrar esquece o destino.
+
+## Login rápido (2026-10)
+
+Reportado: "3 s para aparecer a lista de pessoas" e "30, 40 s para
+entrar depois de pôr o código". O PIN não era o problema: é uma
+leitura por id. Somavam-se arranques a frio das Cloud Functions,
+encadeados uns atrás dos outros. Quatro coisas:
+
+1. **Functions** (`functions/aquecer.js`, PR à parte). O `index.js` já
+   não carrega PDF/sharp/áudio no topo, e `manterLoginQuente` mantém
+   acordadas, de 5 em 5 min, `entrar`, `dadosEntrada`,
+   `listarBasesMural`, `pedirEntradaMural` e `entrarMural`.
+2. **Lista pré-carregada e guardada** (`lib/auth.js`).
+   - Ao abrir a Entrada, `preCarregarEntrada` pede as bases e as
+     pessoas de TODAS as bases em paralelo, enquanto a pessoa ainda lê
+     "Já serves numa base?".
+   - Tudo fica no `localStorage`, por isso na visita seguinte a lista
+     aparece logo e a nova chega em fundo.
+   - São os mesmos nomes/fotos que `dadosEntrada` já dá sem sessão.
+   - Storage em try/catch: sem ele, só fica mais lento.
+3. **`entrar` acordado antes do PIN.** Escolher a base dispara
+   `aquecerEntrar()`, e o telemóvel existente dispara
+   `aquecerEntrarMural()`.
+4. **O overlay fecha assim que o token chega** (`App.jsx`).
+   - Antes esperava pelo perfil (Firestore) E por `souAdminMuralAgora`
+     (mais uma função fria).
+   - Agora mostra logo o nome do rosto tocado (`definirPessoaEmCurso`)
+     ou o da última visita (`mural.eu` no localStorage), e completa o
+     resto em fundo.
+   - Vale também para quem volta com sessão aberta: o Mural já não
+     espera por nada para aparecer.
 
 
 

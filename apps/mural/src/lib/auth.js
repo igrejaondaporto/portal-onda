@@ -16,14 +16,73 @@ import { auth, chamar, signInWithCustomToken, signOut } from "@portal/shared/lib
 let baseEmCurso = null;
 export const definirBaseEmCurso = (baseId) => { baseEmCurso = baseId; };
 
+/* ── Login rápido (2026-10: "3 s para aparecer a lista de pessoas",
+ * "30, 40 s para entrar depois do código") ──────────────────────
+ * As bases e as pessoas de CADA base guardam-se no localStorage e
+ * mostram-se logo na visita seguinte, enquanto a versão nova chega
+ * em fundo (`preCarregarEntrada`, chamado ao abrir a Entrada — a
+ * pessoa ainda está a ler "Já serves numa base?" e as listas já vêm
+ * a caminho). São os mesmos nomes/fotos que `dadosEntrada` já
+ * devolve a qualquer um, sem sessão — nada que não fosse público.
+ * Storage em try/catch: sem ele (navegação privada) só fica mais
+ * lento, nunca parte. */
+const CHAVE_BASES = "mural.entrada.bases";
+const chavePessoas = (baseId) => `mural.entrada.pessoas.${baseId}`;
+function ler(chave) {
+  try {
+    return JSON.parse(localStorage.getItem(chave) || "null");
+  } catch {
+    return null;
+  }
+}
+function guardar(chave, valor) {
+  try {
+    localStorage.setItem(chave, JSON.stringify(valor));
+  } catch { /* sem storage, segue sem cache */ }
+}
+export const basesGuardadas = () => ler(CHAVE_BASES);
+export const pessoasGuardadas = (baseId) => ler(chavePessoas(baseId));
+
 export async function listarBasesMural() {
   const { data } = await chamar("listarBasesMural")();
+  guardar(CHAVE_BASES, data.bases);
   return data.bases;
 }
-export async function dadosEntradaBase(baseId) {
-  const { data } = await chamar("dadosEntrada")({ baseId });
-  return data;
+
+// um pedido por base de cada vez: se já vai a caminho, reaproveita-o
+const aCaminho = new Map();
+export function dadosEntradaBase(baseId) {
+  if (!aCaminho.has(baseId)) {
+    const p = chamar("dadosEntrada")({ baseId })
+      .then(({ data }) => {
+        guardar(chavePessoas(baseId), data.pessoas);
+        return data;
+      })
+      .finally(() => setTimeout(() => aCaminho.delete(baseId), 30_000));
+    aCaminho.set(baseId, p);
+  }
+  return aCaminho.get(baseId);
 }
+
+/** Bases + as pessoas de todas, em paralelo. Devolve as bases. */
+export async function preCarregarEntrada() {
+  const bases = await listarBasesMural();
+  bases.forEach((b) => dadosEntradaBase(b.id).catch(() => {}));
+  return bases;
+}
+
+/** Acorda a função `entrar` enquanto a pessoa ainda escreve o PIN —
+ *  o servidor responde `{quente:true}` sem ler nada (functions/
+ *  aquecer.js). Erros ignorados: é só uma ajuda. */
+export const aquecerEntrar = () => chamar("entrar")({ aquecer: true }).catch(() => {});
+export const aquecerEntrarMural = () => chamar("entrarMural")({ aquecer: true }).catch(() => {});
+
+/** Quem está a entrar (nome/foto já conhecidos da lista de rostos ou
+ *  do registo) — App.jsx mostra-o logo, sem esperar pelo Firestore. */
+let pessoaEmCurso = null;
+export const definirPessoaEmCurso = (p) => { pessoaEmCurso = p; };
+export const pessoaQueEntrou = () => pessoaEmCurso;
+
 export async function entrarComPin(pessoaId, pin) {
   try {
     const { data } = await chamar("entrar")({ baseId: baseEmCurso, pessoaId, pin });

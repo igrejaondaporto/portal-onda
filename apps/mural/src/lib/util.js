@@ -42,10 +42,13 @@ export const REGIOES = [
 ];
 
 /** Produtos e Serviços (2026-09, pedido do dono do produto): o mural é
- *  uma grelha 2×2 — natureza × tipo (Ofereço/Procuro). */
+ *  uma grelha 2×2 — natureza × tipo (Ofereço/Procuro). Serviços
+ *  primeiro e aberto por omissão (2026-10, pedido). Cada um com a sua
+ *  cor (mural.css, `data-natureza`): Serviços o azul de sempre,
+ *  Produtos o lima do "Onda" do título. */
 export const NATUREZAS = [
-  { id: "produto", nome: "Produtos", sub: "coisas: vender, dar, arrendar" },
   { id: "servico", nome: "Serviços", sub: "trabalho, ajuda, boleias" },
+  { id: "produto", nome: "Produtos", sub: "coisas: vender, dar, arrendar" },
 ];
 
 /** As categorias de cada tipo, com a natureza a que pertencem. Os ids
@@ -91,6 +94,20 @@ export const ESTADOS = {
   reservado: { classe: "res", nome: "Reservado" },
   vendido: { classe: "vend", nome: "Vendido" },
 };
+
+/** O filtro de categoria guarda o TIPO junto ("ofereco:venda") —
+ *  "servicos"/"emprego"/"boleias"/"outros" existem dos dois lados
+ *  com sentidos opostos ("Faço serviços" ≠ "Preciso de um serviço"),
+ *  e em "Tudo" a folha do filtro mostra os dois grupos de uma vez. */
+export const chaveCategoria = (tipo, categoriaId) => `${tipo}:${categoriaId}`;
+export function bateCategoria(anuncio, chave) {
+  return chave === "todas" || chave === chaveCategoria(anuncio.tipo, anuncio.categoria);
+}
+export function nomeDaChave(chave) {
+  const [tipo, id] = String(chave).split(":");
+  if (id === "outros") return tipo === "procuro" ? "Procuro · Outros" : "Ofereço · Outros";
+  return nomeCategoria(tipo, id);
+}
 
 export function nomeCategoria(tipo, categoriaId) {
   return CATEGORIAS[tipo]?.find((c) => c.id === categoriaId)?.nome || categoriaId;
