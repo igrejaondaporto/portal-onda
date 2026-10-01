@@ -24,6 +24,7 @@ import ContagemCriancas from "../components/ContagemCriancas";
 import RepertorioLouvorKinder from "../components/licao/RepertorioLouvorKinder";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 
 function Destaque({ rotulo, titulo, detalhe, onClick, cor }) {
   return (
@@ -297,14 +298,17 @@ export default function Inicio({
             {[
               ["checklist", "Checklist da sala", "Pré-culto, durante e pós-culto", () => onIrCulto?.("checklist"), null],
               ["inventario", "Inventário", lider ? "Materiais e lista de compras" : "Material da sala", () => onIrInventario?.(), faltaInventario ? `${faltaInventario} em falta` : null],
-              ["reembolsos", "Reembolsos", "Nota e valor", onIrReembolsos, null],
-              ...(lider ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), null]] : []),
             ].map(([k, t, d, ir, tag]) => (
               <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
                 <div style={{ flex: 1 }}><p className="nmt">{t}</p><p className="ds">{d}</p></div>
                 {tag ? <span className="tag" style={{ marginLeft: "auto" }}>{tag}</span> : <span className="seta">›</span>}
               </div>
             ))}
+            <CaixasAtalho
+              onReembolsos={onIrReembolsos}
+              onSolicitarBG={lider ? () => setSheetComunicacao({ tipo: "lista" }) : null}
+              emCurso={minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length}
+            />
           </div>
         </div>
 

@@ -20,6 +20,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 import ResumoDomingo from "../components/painel/ResumoDomingo";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
@@ -477,28 +478,26 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
         <div className="sect">
           <div className="cabecalho"><h3>A base</h3></div>
           {[
-            ["inventario", "Inventário", "Consumíveis do café", () => onIrCulto?.("inventario"), null],
-            ["acomodacao", "Acomodação", "Mapa do auditório ao vivo", () => onIrAcomodacao?.(), null],
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.(), "var(--azul)"],
-            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" }), "var(--laranja)"]] : []),
-          ].map(([k, t, d, ir, cor]) => {
+            ["inventario", "Inventário", "Consumíveis do café", () => onIrCulto?.("inventario")],
+            ["acomodacao", "Acomodação", "Mapa do auditório ao vivo", () => onIrAcomodacao?.()],
+          ].map(([k, t, d, ir]) => {
             const falta = k === "inventario" ? inventario.filter((i) => i.quantidade <= i.minimo).length : 0;
-            const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
             return (
-              <div
-                className="linha" style={{ cursor: "pointer", ...(cor ? { borderLeft: `3px solid ${cor}`, paddingLeft: 11 } : {}) }}
-                key={k} onClick={ir}
-              >
+              <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
                 <div style={{ flex: 1 }}>
-                  <p className="nmt" style={cor ? { color: cor } : undefined}>{t}</p>
+                  <p className="nmt">{t}</p>
                   <p className="ds">{d}</p>
                 </div>
                 {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span>
-                  : emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
                   : <span className="seta">›</span>}
               </div>
             );
           })}
+          <CaixasAtalho
+            onReembolsos={onIrReembolsos}
+            onSolicitarBG={souLiderBase ? () => setSheetComunicacao({ tipo: "lista" }) : null}
+            emCurso={minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length}
+          />
         </div>
       </div>
     </div>

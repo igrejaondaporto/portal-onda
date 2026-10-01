@@ -19,6 +19,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -427,11 +428,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           {[
             ["inventario", "Inventário", "Material de limpeza", () => onIrInventario?.()],
             ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
-            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
           ].map(([k, t, d, ir]) => {
             const falta = k === "inventario" ? inventario.filter((i) => i.quantidade < i.minimo).length : 0;
-            const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
             return (
               <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
                 <div style={{ flex: 1 }}>
@@ -439,11 +437,15 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
                   <p className="ds">{d}</p>
                 </div>
                 {falta ? <span className="tag" style={{ marginLeft: "auto" }}>{falta} em falta</span>
-                  : emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
                   : <span className="seta">›</span>}
               </div>
             );
           })}
+          <CaixasAtalho
+            onReembolsos={onIrReembolsos}
+            onSolicitarBG={souLiderBase ? () => setSheetComunicacao({ tipo: "lista" }) : null}
+            emCurso={minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length}
+          />
         </div>
       </div>
     </div>

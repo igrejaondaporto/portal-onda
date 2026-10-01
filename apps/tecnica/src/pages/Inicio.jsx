@@ -21,6 +21,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 
 /** A checklist é espelho de Funções/Checklists — mesma ordem (o líder
  *  reordena lá, com as setas ↑/↓), nunca outra. A lista já chega
@@ -487,22 +488,11 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
             * Culto e a Wiki saíram daqui: estavam repetidos, e a barra
             * é o caminho que a mão já conhece. Reembolsos e Solicitar BG
             * ficam porque este é o único sítio por onde se lá chega. */}
-          {[
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
-            ...(souLiderBase ? [["comunicacao", "Solicitar BG", "Peças gráficas, vídeo ou fotografia", () => setSheetComunicacao({ tipo: "lista" })]] : []),
-          ].map(([k, t, d, ir]) => {
-            const emCurso = k === "comunicacao" ? minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length : 0;
-            return (
-              <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
-                <div style={{ flex: 1 }}>
-                  <p className="nmt">{t}</p>
-                  <p className="ds">{d}</p>
-                </div>
-                {emCurso ? <span className="tag" style={{ marginLeft: "auto" }}>{emCurso} em curso</span>
-                  : <span className="seta">›</span>}
-              </div>
-            );
-          })}
+          <CaixasAtalho
+            onReembolsos={onIrReembolsos}
+            onSolicitarBG={souLiderBase ? () => setSheetComunicacao({ tipo: "lista" }) : null}
+            emCurso={minhasSolicitacoes.filter((s) => s.status !== "entregue" && s.status !== "recusada").length}
+          />
         </div>
       </div>
     </div>

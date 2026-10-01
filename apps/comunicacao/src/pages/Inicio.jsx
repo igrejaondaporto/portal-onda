@@ -15,6 +15,7 @@ import SheetPassarEquipamento from "../components/inicio/SheetPassarEquipamento"
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -409,7 +410,6 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
           <div className="cabecalho"><h3>A base</h3></div>
           {[
             ["culto", "Culto", "Ordem do domingo", () => onIrCulto?.("ordem")],
-            ["reembolsos", "Reembolsos", "Nota e valor", () => onIrReembolsos?.()],
           ].map(([k, t, d, ir]) => (
             <div className="linha" style={{ cursor: "pointer" }} key={k} onClick={ir}>
               <div style={{ flex: 1 }}>
@@ -419,6 +419,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               <span className="seta">›</span>
             </div>
           ))}
+          {/* Sem Solicitar BG: é a Comunicação quem recebe os pedidos. */}
+          <CaixasAtalho onReembolsos={onIrReembolsos} />
         </div>
       </div>
     </div>
