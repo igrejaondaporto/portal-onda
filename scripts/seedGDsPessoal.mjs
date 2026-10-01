@@ -43,12 +43,23 @@ const GDS = [
   ["sao-mamede", "São Mamede", "Norte", 41.1892, -8.6103],
   ["vila-do-conde", "Vila do Conde", "Norte", 41.3515, -8.7436],
   ["vila-do-conde-unvt", "Vila do Conde UNVT", "Norte", 41.3515, -8.7436],
+  // 2026-10 (pedido do dono do produto): seis GDs novos. Proença =
+  // Proença-a-Nova (ao lado da Sertã); Bresciadue é em Brescia (Itália);
+  // o Online não tem lugar, por isso fica sem coordenadas (escolhe-se à
+  // mão, nunca é sugerido por distância).
+  ["maia", "Maia", "Norte", 41.2357, -8.6199],
+  ["rio-tinto", "Rio Tinto", "Norte", 41.1800, -8.5700],
+  ["serta", "Sertã", "Centro", 39.8008, -8.0997],
+  ["proenca", "Proença", "Centro", 39.7531, -7.9247],
+  ["bresciadue", "Bresciadue", "Itália", 45.5416, 10.2118],
+  ["online", "Online", "Online", null, null],
 ];
 
 async function main() {
   console.log("A semear os GDs da Base Pessoal…\n");
   for (const [id, nome, regiao, lat, lng] of GDS) {
-    await db.doc(`gds/${id}`).set({ nome, regiao, lat, lng }, { merge: true });
+    const coords = lat == null ? {} : { lat, lng };
+    await db.doc(`gds/${id}`).set({ nome, regiao, ...coords }, { merge: true });
   }
   console.log(`${GDS.length} GDs`);
 }

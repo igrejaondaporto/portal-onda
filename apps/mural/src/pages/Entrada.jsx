@@ -18,7 +18,7 @@ import { corPara, inicial, nomeBase } from "../lib/util.js";
  *     do SheetPin partilhado — nunca o original: ver o LEIA-ME dessa
  *     pasta para o porquê (import relativo que quebrava a base
  *     escolhida).
- *   "Não, sou da igreja" → telemóvel + PIN, próprio deste app
+ *   "Não, mas sou membro" (era "Não, sou da igreja") → telemóvel + PIN, próprio deste app
  *     (functions/mural.js) — GD é opcional, "ainda não estou nem sei"
  *     nunca bloqueia ninguém.
  * Sem GatilhoDev aqui: o acesso de dev é por base (CLAUDE.md raiz,
@@ -133,7 +133,7 @@ export default function Entrada() {
             <button className="opcao" onClick={() => setPasso("telemovel")}>
               <span className="bola" style={{ background: "var(--violeta)" }}>N</span>
               <span>
-                <span className="nmt" style={{ display: "block" }}>Não, sou da igreja</span>
+                <span className="nmt" style={{ display: "block" }}>Não, mas sou membro</span>
                 <span className="ds" style={{ display: "block" }}>Entra pelo teu telemóvel</span>
               </span>
               <span className="seta">›</span>

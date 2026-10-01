@@ -146,6 +146,33 @@ Pedido do dono do produto:
     `lugarDe`.
 - **Mais espaço** entre a caixa das fotos e "Publicar anúncio".
 
+### Moderação, login e GDs (2026-10)
+
+- **Publicar em nome de outra pessoa** (só quem modera; caixa violeta no
+  topo do Publicar). Serve para quem pôs o anúncio no grupo do WhatsApp
+  e não no Mural.
+  - `criarAnuncio({ emNomeDe: {nome, telefone} })` grava `autorNome` =
+    essa pessoa, sem foto, e `emNomeDe: true`.
+  - O telefone dela vai para `anuncios/{id}/privado/contacto` (o mesmo
+    sítio do "contacto de outra pessoa"), que se apaga quando o anúncio
+    sai do ar.
+  - Fica no `autorId` de quem modera (é quem o gere em "Os meus") e não
+    conta para o limite de 5.
+  - O detalhe mostra-o como um anúncio normal dessa pessoa, com
+    "publicado pela moderação" ao lado da data.
+  - Se a pessoa se registar depois, o anúncio não passa para ela: fica
+    com a moderação.
+- **Login sem "Base"**: `nomeBase` tira o prefixo ("Base de Apoio" →
+  "Apoio", "Base Louvor" → "Louvor").
+- **Login**: a segunda opção passou a "Não, mas sou membro".
+- **GDs novos** no catálogo global `gds/{id}` (`scripts/seedGDsPessoal.mjs`,
+  corrido em produção): Maia, Rio Tinto, Sertã, Proença (Proença-a-Nova),
+  Bresciadue (Brescia) e Online.
+  - Regiões novas: Centro, Itália e Online.
+  - O Online não tem coordenadas, por isso nunca é sugerido por distância.
+  - Entram sozinhos no Mural, no Formulário da Pessoal e no funil do
+    Painel Pastoral, sem mudar código.
+
 ## Login rápido (2026-10)
 
 Reportado: "3 s para aparecer a lista de pessoas" e "30, 40 s para
