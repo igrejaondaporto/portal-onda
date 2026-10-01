@@ -188,6 +188,17 @@ que precisa do servidor para resolver) — serve para qualquer campo
 NÍVEL DE DOCUMENTO (fora de arrays) podem continuar a usar
 `serverTimestamp()`.
 
+**Arranque a frio: nada pesado no topo de `functions/index.js`.**
+Cada função de 2.ª geração carrega o ficheiro de entrada inteiro ao
+arrancar — até o `entrar` carregava PDF, sharp, Essentia e
+socket.io, e o login do Mural chegou a 30–40 s (2026-10). Uma
+dependência pesada nova entra por `import()` dinâmico dentro da
+função que a usa (padrão `carregarSharp`/`carregarPdfjs`). E o
+caminho do login fica acordado por `manterLoginQuente`
+(`functions/aquecer.js`, de 5 em 5 min, `{ aquecer: true }`) — uma
+função nova desse caminho entra na lista `AQUECER` e responde a
+`req.data?.aquecer` na primeira linha.
+
 ## Regras que não se negoceiam (valem em qualquer base)
 
 1. **O PIN nunca é verificado no cliente.** Só a Cloud Function `entrar`.

@@ -4,7 +4,6 @@
  * de tocar em Firestore. `sondarUmaVez` nunca escreve nada no FreeShow —
  * só `get_projects`/`get_output`.
  */
-import { io } from "socket.io-client";
 
 /** Um slide pertence à última secção que aparece antes dele no array. */
 export function seccaoDoIndice(shows, projectIndex) {
@@ -32,7 +31,11 @@ const TIMEOUT_MS = 6000;
  *  get_projects + get_output, calcula a secção atual e fecha a ligação
  *  sempre — sucesso, output vazio, ou timeout. Espelha o modelo de uma
  *  invocação de Cloud Function agendada: liga, pergunta, desliga. */
-export function sondarUmaVez(url) {
+export async function sondarUmaVez(url) {
+  // socket.io-client só aqui (import dinâmico): freeshow.js é importado
+  // pelo index.js, e sem isto TODAS as functions o carregavam ao
+  // arrancar a frio — ver o comentário no topo de index.js (2026-10)
+  const { io } = await import("socket.io-client");
   return new Promise((resolve) => {
     let socket;
     let dadosProjetos = null;
