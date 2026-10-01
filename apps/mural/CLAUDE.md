@@ -123,8 +123,8 @@ Pedido do dono do produto:
 
 - **Etiqueta do tipo** (2026-10) por baixo do preço, na lista: Venda,
   Doação, Arrendamento, Serviço, Vaga, Boleia, Compra, Emprego e Outros
-  (`etiquetaTipo` em `lib/util.js`). Leva a cor da natureza: azul em
-  Serviços, lima em Produtos.
+  (`etiquetaTipo` em `lib/util.js`). Leva a cor da natureza: azul claro
+  em Serviços; em Produtos, o lima cheio do "Tudo" escolhido.
 
 ### Ajustes logo a seguir (2026-10)
 
