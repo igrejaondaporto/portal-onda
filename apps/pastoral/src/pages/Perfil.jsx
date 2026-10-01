@@ -182,6 +182,9 @@ export default function Perfil({ uid, pessoa, definirCabecalho, onAtualizarPesso
         <ConfigEmail />
       </div>
       <div>
+        {/* Mural Onda (2026-10): nas outras bases está no menu da foto
+          * (MenuEu); aqui a foto abre logo o Perfil, por isso fica aqui */}
+        <a className="btn full mural-menu" style={{ marginTop: 18 }} href="https://mural.igrejaonda.pt">Mural Onda</a>
         <button className="sair" onClick={sair}>Terminar sessão</button>
       </div>
       {sheetMembro && (
