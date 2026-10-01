@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, MAX_ATIVOS } from "../lib/anuncios.js";
+import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, obterMeuTelefone, MAX_ATIVOS } from "../lib/anuncios.js";
 import { NATUREZAS, REGIOES, categoriasDe, precoValido } from "../lib/util.js";
 import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
 
 const OUTRA = "__outra__";
+const formatarTelefone = (t) => String(t).replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3");
 
 export default function Publicar({ onPublicado, souAdmin = false }) {
   const [meus, setMeus] = useState([]);
@@ -41,6 +42,10 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   const inputFoto = useRef(null);
 
   useEffect(() => ouvirMeusAnuncios(setMeus), []);
+  // o número com que a pessoa se registou é o WhatsApp dos anúncios dela
+  // (2026-10) — mostra-se no "Eu", para não haver dúvida de qual é
+  const [meuTelefone, setMeuTelefone] = useState(null);
+  useEffect(() => { obterMeuTelefone().then(setMeuTelefone); }, []);
   const ativos = meus.filter((a) => a.ativo).length;
   const noLimite = ativos >= MAX_ATIVOS;
 
@@ -201,7 +206,7 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
       <div className="natureza" role="group" aria-label="Quem atende os interessados">
         <button type="button" aria-pressed={!deOutro} onClick={() => setDeOutro(false)}>
           <b>Eu</b>
-          <small>falam contigo no WhatsApp</small>
+          <small>{meuTelefone ? `no teu WhatsApp ${formatarTelefone(meuTelefone)}` : "falam contigo no WhatsApp"}</small>
         </button>
         <button type="button" aria-pressed={deOutro} onClick={() => setDeOutro(true)}>
           <b>Outra pessoa</b>

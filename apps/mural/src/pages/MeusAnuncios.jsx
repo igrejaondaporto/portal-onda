@@ -3,11 +3,13 @@ import { ouvirMeusAnuncios, alterarEstadoAnuncio, renovarAnuncio, removerAnuncio
 import { nomeCategoria, textoPreco } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import SheetEditarAnuncio from "../components/SheetEditarAnuncio.jsx";
 
 export default function MeusAnuncios() {
   const [meus, setMeus] = useState([]);
   const [aTrabalhar, setATrabalhar] = useState(null);
   const [imagemExpandida, setImagemExpandida] = useState(null);
+  const [aEditar, setAEditar] = useState(null); // 2026-10: editar um anúncio já publicado
 
   useEffect(() => ouvirMeusAnuncios(setMeus), []);
   const ativos = meus.filter((a) => a.ativo);
@@ -61,6 +63,7 @@ export default function MeusAnuncios() {
                       desliga; Pausar tira-o do mural sem o perder; Excluir
                       tira-o de vez (ativo:false — nunca se apaga a sério). */}
                   <div className="acoesDono">
+                    <button type="button" disabled={aTrabalhar === a.id} onClick={() => setAEditar(a)}>✎ Editar</button>
                     {a.estado !== "pausado" && (
                       <button
                         type="button" aria-pressed={a.estado === "reservado"} disabled={aTrabalhar === a.id}
@@ -89,6 +92,7 @@ export default function MeusAnuncios() {
           </div>
         );
       })}
+      {aEditar && <SheetEditarAnuncio anuncio={aEditar} onFechar={() => setAEditar(null)} />}
       {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );

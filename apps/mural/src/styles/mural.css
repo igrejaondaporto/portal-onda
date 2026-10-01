@@ -612,3 +612,52 @@
 .caixa.emNome.on {
   background: rgba(124, 58, 237, 0.06);
 }
+
+/* Editar anúncio (2026-10) — a folha é comprida, desliza por dentro */
+.pin.editarAnuncio {
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.edFotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.edFoto {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  background: var(--agua) center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.edFoto.nova small {
+  font-size: 11px;
+  color: var(--azul);
+  font-weight: 700;
+}
+.edFoto button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--tinta);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.edFoto.juntar {
+  border: 1.5px dashed var(--azul);
+  color: var(--azul);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}

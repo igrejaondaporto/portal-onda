@@ -173,6 +173,22 @@ Pedido do dono do produto:
   - Entram sozinhos no Mural, no Formulário da Pessoal e no funil do
     Painel Pastoral, sem mudar código.
 
+### Editar anúncio e o WhatsApp de quem é membro (2026-10)
+
+- **✎ Editar** em "Os meus" abre `SheetEditarAnuncio.jsx`.
+  - Pode mudar: título, categoria (do mesmo lado — trocar Ofereço/Procuro
+    é outro anúncio), preço/grátis, cidade/freguesia, descrição e fotos
+    (tirar as que lá estão, juntar novas até 4).
+  - Grava pelo `editarAnuncio`, que passou a aceitar o lugar.
+  - As fotos só se regravam se mudaram (`subirFotosNovas` usa nomes
+    únicos, para não pisar uma foto mantida).
+- **O WhatsApp de quem se registou como membro** já era o número do
+  registo (`pessoas/{uid}.telefone`, lido por `telefoneDoAutor`).
+  Confirmado em produção. O dono nunca o via, porque no próprio anúncio
+  não há botão. Agora o "Eu" do Publicar mostra "no teu WhatsApp 9xx xxx
+  xxx" (`obterMeuTelefone`). Voluntários guardam o telefone na base, que
+  daqui não se lê, por isso fica o texto de sempre.
+
 ## Login rápido (2026-10)
 
 Reportado: "3 s para aparecer a lista de pessoas" e "30, 40 s para
