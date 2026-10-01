@@ -4,6 +4,7 @@ import { publicarEscala } from "../../lib/rascunho";
 import { nomePapel, papeisAtivos } from "../../lib/modelo";
 import { usePapeisEscala } from "../../lib/PapeisEscalaContext.jsx";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe, textoOndeServe, podeEscalarMesmoAssim } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
@@ -30,6 +31,13 @@ import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
  */
 export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado, onExcluir, aoMudar }) {
   const torrada = useTorrada();
+  // onde cada pessoa já serve neste culto, noutra base
+  const ondeServe = useOndeServe(evento?.id);
+  const bloqueado = (id) => {
+    if (podeEscalarMesmoAssim || !ondeServe[id]) return false;
+    torrada(textoOndeServe(ondeServe[id]));
+    return true;
+  };
   const papeis = usePapeisEscala();
   const [escalados, setEscalados] = useState(evento?.escala?.escalados ?? []);
   const [liderEscala, setLiderEscala] = useState(evento?.escala?.liderEscala ?? null);
@@ -68,6 +76,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
   }
 
   function juntarComPapel(id, papel) {
+    if (bloqueado(id)) return;
     const anterior = { escalados, liderEscala };
     const novosEscalados = [...escalados, { pessoaId: id, papel }];
     const novoLider = liderEscala ?? id;
@@ -155,6 +164,7 @@ export default function SheetEscala({ evento, voluntarios, onFechar, onGuardado,
           <Avatar pessoa={p} tamanho={38} fonte={15} />
           <span style={{ flex: 1 }}>
             <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+            {ondeServe[p.id] && <span className="onde-serve">{textoOndeServe(ondeServe[p.id])}</span>}
             <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
               {entrada && !aquiEscalado ? `já escalado como ${nomePapel(papeis, entrada.papel)}` : aquiEscalado ? `escalado${lid ? " · líder de escala" : ""}` : "por escalar"}
             </span>

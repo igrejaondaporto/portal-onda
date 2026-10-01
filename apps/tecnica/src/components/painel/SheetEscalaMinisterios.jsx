@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { guardarEscalaTecnica, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import { nomeEvento } from "@portal/shared/lib/data.js";
 
@@ -13,6 +14,17 @@ import { nomeEvento } from "@portal/shared/lib/data.js";
  *  ver apps/tecnica/CLAUDE.md. */
 export default function SheetEscalaMinisterios({ evento, ministerios, voluntarios, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  // quem já está escalado noutra base neste culto aparece na lista mas
+  // não dá para escolher — com a base, para o líder saber porquê
+  const ondeServe = useOndeServe(evento?.id);
+  const opcao = (p, escolhidoAqui) => {
+    const noutra = ondeServe[p.id];
+    return (
+      <option key={p.id} value={p.id} disabled={!!noutra && p.id !== escolhidoAqui}>
+        {p.nome}{noutra ? ` — já escalado(a) na ${noutra.join(" e ")}` : ""}
+      </option>
+    );
+  };
   const [aDispensar, setADispensar] = useState(false);
   const [dispensada, setDispensada] = useState((evento?.dispensadaPor || []).includes(BASE_ID));
 
@@ -109,7 +121,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
                 onChange={(e) => definirLugar(m.id, "titularId", e.target.value)}
               >
                 <option value="">Por definir</option>
-                {titulares.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                {titulares.map((p) => opcao(p, lugar.titularId))}
               </select>
               <label className="rot">Aprendiz (opcional)</label>
               <select
@@ -117,7 +129,7 @@ export default function SheetEscalaMinisterios({ evento, ministerios, voluntario
                 onChange={(e) => definirLugar(m.id, "aprendizId", e.target.value)}
               >
                 <option value="">Nenhum</option>
-                {aprendizes.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                {aprendizes.map((p) => opcao(p, lugar.aprendizId))}
               </select>
               {!lugar.titularId && aprendizes.length > 0 && (
                 <p className="ds" style={{ marginTop: 4 }}>Escolhe o titular primeiro — o aprendiz nunca fica sozinho.</p>

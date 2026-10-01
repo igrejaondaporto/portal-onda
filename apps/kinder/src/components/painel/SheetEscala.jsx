@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { guardarEscala, guardarMestraKinder, obterEstatisticasEscala, dispensarBaseDeEvento, reincluirBaseEmEvento } from "../../lib/painel";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
+import { useOndeServe, textoOndeServe, podeEscalarMesmoAssim } from "@portal/shared/lib/ondeServe.js";
 import { BASE_ID } from "@portal/shared/lib/firebase.js";
 import Avatar from "@portal/shared/components/Avatar.jsx";
 import { nomeEvento, dataCurta } from "@portal/shared/lib/data.js";
@@ -23,6 +24,13 @@ import { CATEGORIAS, nomeCategoria, varsCategoria } from "../../lib/modelo";
  */
 export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGuardado, onExcluir }) {
   const torrada = useTorrada();
+  // onde cada pessoa já serve neste culto, noutra base
+  const ondeServe = useOndeServe(evento?.id);
+  const bloqueado = (id) => {
+    if (podeEscalarMesmoAssim || !ondeServe[id]) return false;
+    torrada(textoOndeServe(ondeServe[id]));
+    return true;
+  };
   const [pessoas, setPessoas] = useState(evento?.escala?.pessoas ?? []);
   const [mestras, setMestras] = useState(evento?.escala?.mestras ?? {});
   const [estatisticas, setEstatisticas] = useState({});
@@ -47,6 +55,7 @@ export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGua
   }
 
   function alternar(id, catId) {
+    if (!pessoas.includes(id) && bloqueado(id)) return;
     const anteriores = pessoas;
     const dentro = pessoas.includes(id);
     const novasPessoas = dentro ? pessoas.filter((x) => x !== id) : [...pessoas, id];
@@ -114,6 +123,7 @@ export default function SheetEscala({ evento, voluntarios, sala, onFechar, onGua
           <Avatar pessoa={p} tamanho={38} fonte={15} />
           <span style={{ flex: 1 }}>
             <b style={{ fontSize: 15.5, fontWeight: 700 }}>{p.nome}</b>
+            {ondeServe[p.id] && <span className="onde-serve">{textoOndeServe(ondeServe[p.id])}</span>}
             <span style={{ display: "block", fontSize: 12, color: "var(--cinza)" }}>
               {dentro ? (ehMestra ? "mestra" : "na escala") : "fora deste culto"}
             </span>

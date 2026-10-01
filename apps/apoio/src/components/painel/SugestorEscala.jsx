@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { obterEventosPorIds, obterMesEnqueteRelevante, ouvirEnquete, ouvirRespostas, excluirEnquete, marcarEscalaPublicada } from "../../lib/enquetes";
-import { obterEstatisticasEscala, guardarEscala, obterIndisponibilidadesCrossBase } from "../../lib/painel";
+import { obterEstatisticasEscala, guardarEscala } from "../../lib/painel";
 import {
   gerarSugestaoApoio, calcularAlertas, construirIndisponibilidades,
-  mesclarIndisponibilidades, validarSugestao,
+  validarSugestao,
 } from "../../lib/sugestor";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { dataCurta, MESES } from "@portal/shared/lib/data.js";
@@ -135,13 +135,12 @@ export default function SugestorEscala({ voluntarios }) {
     if (!enquete?.domingos?.length) return;
     setACarregar(true);
     try {
-      const [estatisticas, indisponibilidadesCrossBase] = await Promise.all([
-        obterEstatisticasEscala(90),
-        obterIndisponibilidadesCrossBase(domingos.map((d) => d.id)),
-      ]);
-      const indisponibilidades = mesclarIndisponibilidades(
-        construirIndisponibilidades(respostas), indisponibilidadesCrossBase
-      );
+      // Só a enquete conta: servir noutra base no mesmo domingo não
+      // impede a Apoio (pedido 2026-10 — ver BASES_SEM_CONFLITO,
+      // packages/shared/lib/ondeServe.js). O "Servirá na Técnica"
+      // aparece ao abrir a escala desse domingo.
+      const estatisticas = await obterEstatisticasEscala(90);
+      const indisponibilidades = construirIndisponibilidades(respostas);
       const dados = { estatisticas, indisponibilidades };
       setDadosGeracao(dados);
       const s = gerarSugestaoApoio({ domingos, voluntarios, tamanhoEquipa: Number(tamanhoEquipa) || 1, ...dados });
