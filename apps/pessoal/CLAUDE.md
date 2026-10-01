@@ -10,7 +10,7 @@ auditório, conta o público do prédio todo, serve o café e recolhe
 contactos de quem quer ser chamado pelo pastor.
 
 Cerca de 17 voluntários, um culto por domingo (10h), líder própria —
-**Camila**. Como em qualquer outra base, o nome do líder é sempre uma
+**Ravenna** (desde 2026-10; antes era a Camila). Como em qualquer outra base, o nome do líder é sempre uma
 variável (`papel === "lider_base"`), nunca um nome fixo no código da
 UI; quando o painel do pastor existir, ele vai poder trocar quem é
 líder de qualquer base, incluindo esta.
@@ -70,7 +70,7 @@ presentes e pessoas em pé" abaixo).
 
 | Termo | O que é |
 |---|---|
-| **Líder da base** | Fixa (Camila). Vê e edita tudo, em qualquer data |
+| **Líder da base** | Hoje a Ravenna. Vê e edita tudo, em qualquer data |
 | **Escala** | Quem serve em cada culto |
 | **Função** | Café, Mapa, Acomodação, Recepção — catálogo, sem funções especiais por agora |
 | **Culto** | O evento. Domingos 10h |
@@ -84,6 +84,27 @@ Ver `src/lib/modelo.js` — os caminhos estão todos lá, com comentários.
 `bases/pessoal/pessoas/{uid}` guarda o que é específico desta base
 (papel, telefone, cor, ativo); a identidade e o PIN são globais (ver
 `CLAUDE.md` da raiz, regra 2/6).
+
+### Resumo do domingo no Início da líder (2026-10)
+
+Pedido do dono do produto: "um resuminho, no estilo do Painel Pastoral,
+só que para a Base Pessoal", sempre no Início da líder.
+`components/painel/ResumoDomingo.jsx`, só com `papel === "lider_base"`.
+
+- Abre no domingo de hoje (ou no último), com setas para os anteriores.
+  O id do evento é a data (o culto principal).
+- Mostra o total de pessoas na igreja e, por baixo:
+  - no auditório (sentados do Mapa, já com visitantes), em pé,
+    voluntários presentes e crianças;
+  - as cinco salas: Baby, Fun e Júnior (Kinder), SHIFT e New;
+  - visitantes e apelo (do Mapa, à parte — já estão no auditório).
+- O total segue a mesma conta do Painel Pastoral (`presencaDoCulto`):
+  auditório + em pé + voluntários + crianças.
+- **Ao vivo e sem Cloud Function**: são dois `onSnapshot` a documentos
+  que a Pessoal já lê e escreve (`eventos/{e}/acomodacao/mapa` e
+  `eventos/{e}/contagem/geral`). As salas gravam lá pelo painel de cada
+  uma.
+- "—" quer dizer que ninguém marcou; nunca aparece como 0.
 
 ### Função "Mapa" — id determinístico (ainda `drive`)
 
@@ -194,7 +215,7 @@ não por base. Quem publica é definido por `bases/{b}.culto.pode_publicar`
 (vira o claim `pode_publicar_culto` no token) — **hoje só a Backstage
 tem isto ligado**, por isso a Base Pessoal vê sempre em modo leitura
 (a mesma cronologia que o pastor publicou, nunca o botão de subir
-PDF). Se um dia a Camila também passar a publicar, basta ligar o
+PDF). Se um dia a líder também passar a publicar, basta ligar o
 mesmo campo em `bases/pessoal` — a interface já suporta os dois modos
 sem alteração nenhuma de código.
 
@@ -426,4 +447,4 @@ Só a líder da base cria no catálogo.
   fotografias do protótipo, pode precisar de afinação depois do
   primeiro culto a sério.
 - Pessoas por função em cada culto (1 a 3): valores por defeito ainda
-  não definidos — perguntar à Camila antes de fechar o módulo Funções.
+  não definidos — perguntar à líder antes de fechar o módulo Funções.
