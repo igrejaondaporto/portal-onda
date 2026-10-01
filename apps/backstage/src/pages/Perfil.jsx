@@ -9,6 +9,7 @@ import { dataPorExtenso, concordar } from "@portal/shared/lib/data.js";
 import { useTorrada } from "@portal/shared/lib/TorradaContext.jsx";
 import { sair } from "@portal/shared/lib/auth.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import EmailNoPerfil from "@portal/shared/components/EmailNoPerfil.jsx";
 
 const TAMANHO_MAX = 6 * 1024 * 1024;
 
@@ -138,6 +139,7 @@ export default function Perfil({ uid, papel, pessoa, definirCabecalho, onAtualiz
             <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} />
             <label className="rot">Telemóvel</label>
             <input className="campo" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="9xx xxx xxx" />
+            <EmailNoPerfil />
             <button className="btn full" style={{ marginTop: 16 }} disabled={aGuardar} onClick={guardar}>Guardar</button>
           </div>
         </div>
