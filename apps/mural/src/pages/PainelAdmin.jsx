@@ -3,7 +3,7 @@ import { ouvirTodosAnuncios, removerAnuncio, moderarAnuncio, resumoSemanalMural 
 import { nomeCategoria } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
 import MiniAvatar from "../components/MiniAvatar.jsx";
-import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import GaleriaExpandida from "../components/GaleriaExpandida.jsx";
 
 /** Painel de moderação — "caso queiramos excluir ou editar algum
  *  anúncio" (pedido explícito, 2026-09). Editar em si fica para uma
@@ -131,7 +131,7 @@ export default function PainelAdmin() {
           )}
         </>
       )}
-      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
+      {imagemExpandida && <GaleriaExpandida fotos={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

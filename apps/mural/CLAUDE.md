@@ -236,6 +236,9 @@ Pedido do dono do produto:
   - Também desliza com o dedo e responde às setas do teclado e ao Esc.
   - Fica no Mural e não no `ImagemExpandida` partilhado: as bases usam
     esse para uma foto só, e mudá-lo repintava todas.
+  - Abre também a partir da miniatura da lista, sem abrir o anúncio
+    (`FotoAnuncio` → `onExpandir(fotos)`), no Mural, em "Os meus" e no
+    Painel.
 - **Limpeza para o lançamento (2026-10-01):** os 16 anúncios de exemplo
   que ainda estavam no ar passaram a `ativo: false`, marcados com
   `limpezaLancamento: "2026-10-01"`, e nenhum foi apagado. As 16 contas de
