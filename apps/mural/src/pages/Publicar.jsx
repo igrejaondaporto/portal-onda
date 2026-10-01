@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, obterMeuTelefone, MAX_ATIVOS } from "../lib/anuncios.js";
-import { NATUREZAS, REGIOES, categoriasDe, precoValido } from "../lib/util.js";
-import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
+import { NATUREZAS, categoriasDe, precoValido } from "../lib/util.js";
+import { useLocais } from "../lib/locais.js";
+import EscolherLugar, { lugarFinal } from "../components/EscolherLugar.jsx";
 import EscolherPessoaEmNome, { SEM_REGISTO } from "../components/EscolherPessoaEmNome.jsx";
 import OrdenarFotos from "../components/OrdenarFotos.jsx";
 
-const OUTRA = "__outra__";
 const formatarTelefone = (t) => String(t).replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3");
 
 export default function Publicar({ onPublicado, souAdmin = false }) {
@@ -15,13 +15,10 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   const [natureza, setNatureza] = useState(null);
   const [tipo, setTipo] = useState(null);
   const [categoria, setCategoria] = useState(null);
-  // onde (2026-10): cidade de uma lista (os concelhos onde há GDs) ou
-  // "Outra cidade" escrita à mão; a freguesia é opcional. A região
-  // antiga deduz-se da cidade — só se pergunta em "Outra cidade".
-  const [cidade, setCidade] = useState("");
-  const [cidadeOutra, setCidadeOutra] = useState("");
-  const [freguesia, setFreguesia] = useState("");
-  const [regiaoOutra, setRegiaoOutra] = useState(REGIOES[0].id);
+  // onde (2026-10): Distrito → Cidade → Freguesia, Portugal inteiro
+  // (EscolherLugar, lib/locais.js); "Fora de Portugal" com a cidade à mão.
+  const [lugar, setLugar] = useState({ distrito: "", cidade: "", freguesia: "", regiao: "norte" });
+  const locais = useLocais();
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [preco, setPreco] = useState("");
@@ -68,12 +65,11 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
 
   async function publicar() {
     if (!titulo.trim()) return setErro("Escreve um título.");
-    const cidadeFinal = cidade === OUTRA ? cidadeOutra.trim() : cidade;
-    if (!cidadeFinal) return setErro("Escolhe a cidade.");
+    const onde = lugarFinal(lugar, locais);
+    if (!onde) return setErro("Escolhe o distrito e a cidade.");
     if (!gratis && !precoValido(preco)) {
       return setErro("No preço escreve só o valor (ex.: 15 € ou 15 €/hora) — o resto vai na descrição.");
     }
-    const regiao = cidade === OUTRA ? regiaoOutra : CIDADES[cidade].regiao;
     const semRegisto = emNome && emNomeOnde === SEM_REGISTO;
     if (emNome && !semRegisto && !emNomePessoa) return setErro("Escolhe a pessoa em nome de quem publicas.");
     if (semRegisto && !emNomeNome.trim()) return setErro("Escreve o nome da pessoa.");
@@ -86,7 +82,7 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
       const emNomeDe = !emNome ? undefined
         : semRegisto ? { nome: emNomeNome.trim(), telefone: emNomeTelefone }
         : { pessoaId: emNomePessoa.id };
-      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, cidade: cidadeFinal, freguesia: freguesia.trim(), contactoOutro, emNomeDe });
+      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, ...onde, contactoOutro, emNomeDe });
       if (ficheiros.length) await subirFotosAnuncio(id, ficheiros);
       // em nome de alguém registado, o anúncio fica nos "Os meus" DELA —
       // volta-se ao mural, onde já aparece
@@ -179,34 +175,7 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
         placeholder={natureza === "servico" ? "Ex.: Explicações de Matemática" : "Ex.: Sofá de 3 lugares, cinzento"}
       />
 
-      <label className="rot" htmlFor="cidade">Cidade</label>
-      <select id="cidade" className="campo" value={cidade} onChange={(e) => { setCidade(e.target.value); setFreguesia(""); }}>
-        <option value="" disabled>Escolhe a cidade</option>
-        {NOMES_CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-        <option value={OUTRA}>Outra cidade…</option>
-      </select>
-      {cidade === OUTRA && (
-        <>
-          <input className="campo" style={{ marginTop: 8 }} value={cidadeOutra} onChange={(e) => setCidadeOutra(e.target.value)} maxLength={60} placeholder="Qual cidade?" aria-label="Qual cidade" />
-          <label className="rot" htmlFor="regiaoOutra">Região</label>
-          <select id="regiaoOutra" className="campo" value={regiaoOutra} onChange={(e) => setRegiaoOutra(e.target.value)}>
-            {REGIOES.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-          </select>
-        </>
-      )}
-      {cidade && (
-        <>
-          <label className="rot" htmlFor="freguesia">Freguesia <span style={{ fontWeight: 400 }}>— opcional</span></label>
-          {cidade !== OUTRA ? (
-            <select id="freguesia" className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)}>
-              <option value="">Não interessa / não sei</option>
-              {CIDADES[cidade].freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
-          ) : (
-            <input id="freguesia" className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} maxLength={80} placeholder="Qual freguesia?" />
-          )}
-        </>
-      )}
+      <EscolherLugar lugar={lugar} setLugar={setLugar} />
 
       <label className="rot" htmlFor="preco">Preço <span style={{ fontWeight: 400 }}>— só o valor; vazio = a combinar</span></label>
       <input id="preco" className="campo" value={preco} disabled={gratis} onChange={(e) => setPreco(e.target.value)} placeholder={natureza === "servico" ? "Ex.: 15 €/hora ou A combinar" : "Ex.: 120 € ou A combinar"} />

@@ -1,30 +1,47 @@
+import { useEffect, useState } from "react";
+
 /**
- * Cidades (concelhos) e freguesias para o Publicar (2026-10, pedido:
- * "na hora de publicar, freguesia e cidade").
+ * Distritos → concelhos ("cidades") → freguesias de Portugal inteiro, para
+ * o Publicar e o Editar (2026-10, pedido: "na lista de cidades, a lista
+ * completa: primeiro o distrito, depois as cidades desse distrito e depois
+ * as freguesias"). Antes eram só os 12 concelhos onde há GDs.
  *
- * Copiado de apps/pessoal/src/lib/contactos.js (FREGUESIAS_POR_CONCELHO,
- * 2026-10) — só os nomes, sem as coordenadas dos GDs. Cópia e não
- * import: cada app é um bundle próprio (CLAUDE.md raiz), e o Mural não
- * deve partir quando a Pessoal mexer na lista dela. Os 12 concelhos
- * onde há GDs; qualquer outro entra por "Outra cidade" (texto livre),
- * e o filtro "Onde" do mural cresce a partir do que os anúncios trazem
- * — nunca desta lista.
+ * Os dados vivem em `portugal.json` (308 concelhos, 3259 freguesias, já
+ * com a desagregação de 2025), gerado por `scripts/gerarLocaisMural.mjs`
+ * a partir da CAOP. Carrega-se à parte (`import()` dinâmico) e só quando
+ * se abre o Publicar/Editar: quem só vê o mural não descarrega a lista.
  *
- * `regiao` é a região antiga (Norte/Lisboa/Sines), deduzida da cidade
- * para o anúncio continuar a ter uma — functions/mural.js ainda a exige.
+ * O anúncio continua a gravar só `cidade` e `freguesia` (e a `regiao`
+ * antiga, que `criarAnuncio` ainda exige). O distrito é só o primeiro
+ * passo da escolha: deduz-se da cidade (nomes de concelho são únicos).
+ * O filtro "Onde" do mural continua a sair dos anúncios, não desta lista.
  */
-export const CIDADES = {
-  "Porto": { regiao: "norte", freguesias: ["Aldoar, Foz do Douro e Nevogilde", "Bonfim", "Campanhã", "Cedofeita, Santo Ildefonso, Sé, Miragaia, São Nicolau e Vitória", "Lordelo do Ouro e Massarelos", "Paranhos", "Ramalde"] },
-  "Maia": { regiao: "norte", freguesias: ["Águas Santas", "Castêlo da Maia", "Cidade da Maia", "Folgosa", "Milheirós", "Moreira", "Nogueira e Silva Escura", "Pedrouços", "São Pedro Fins", "Vila Nova da Telha"] },
-  "Matosinhos": { regiao: "norte", freguesias: ["Custoias", "Guifões", "Lavra", "Leça da Palmeira", "Leça do Balio", "Matosinhos", "Perafita", "Santa Cruz do Bispo", "São Mamede de Infesta", "Senhora da Hora"] },
-  "Vila Nova de Gaia": { regiao: "norte", freguesias: ["Arcozelo", "Avintes", "Canelas", "Canidelo", "Grijó e Sermonde", "Gulpilhares e Valadares", "Madalena", "Mafamude e Vilar do Paraíso", "Oliveira do Douro", "Pedroso e Seixezelo", "Sandim, Olival, Lever e Crestuma", "Santa Marinha e São Pedro da Afurada", "São Félix da Marinha", "Serzedo e Perosinho", "Vilar de Andorinho"] },
-  "Gondomar": { regiao: "norte", freguesias: ["Baguim do Monte", "Fânzeres e São Pedro da Cova", "Foz do Sousa e Covelo", "Gondomar (São Cosme), Valbom e Jovim", "Lomba", "Melres e Medas", "Rio Tinto"] },
-  "Valongo": { regiao: "norte", freguesias: ["Alfena", "Campo", "Ermesinde", "Sobrado", "Valongo"] },
-  "Póvoa de Varzim": { regiao: "norte", freguesias: ["Aguçadoura", "Amorim", "Argivai", "Aver-o-Mar", "Balazar", "Beiriz", "Estela", "Laúndos", "Navais", "Póvoa de Varzim", "São Pedro de Rates", "Terroso"] },
-  "Vila do Conde": { regiao: "norte", freguesias: ["Árvore", "Aveleda", "Azurara", "Bagunte, Ferreiró, Outeiro Maior e Parada", "Fajozes", "Fornelo e Vairão", "Gião", "Guilhabreu", "Junqueira", "Labruge", "Macieira da Maia", "Malta e Canidelo", "Mindelo", "Modivas", "Retorta e Tougues", "Rio Mau e Arcos", "Touguinha e Touguinhó", "Vila Chã", "Vila do Conde", "Vilar e Mosteiró", "Vilar do Pinheiro"] },
-  "Barcelos": { regiao: "norte", freguesias: ["Abade de Neiva", "Aborim", "Adães", "Airó", "Aldreu", "Alheira e Igreja Nova", "Alvelos", "Alvito (São Pedro e São Martinho) e Couto", "Arcozelo", "Areias", "Areias de Vilar e Encourados", "Balugães", "Barcelinhos", "Barcelos, Vila Boa e Vila Frescainha (São Martinho e São Pedro)", "Barqueiros", "Cambeses", "Campo e Tamel (São Pedro Fins)", "Carapeços", "Carreira e Fonte Coberta", "Carvalhal", "Carvalhas", "Chorente, Góios, Courel, Pedra Furada e Gueral", "Cossourado", "Creixomil e Mariz", "Cristelo", "Durrães e Tregosa", "Fornelos", "Fragoso", "Galegos (Santa Maria)", "Galegos (São Martinho)", "Gamil e Midões", "Gilmonde", "Lama", "Lijó", "Macieira de Rates", "Manhente", "Martim", "Milhazes, Vilar de Figos e Faria", "Moure", "Negreiros e Chavão", "Oliveira", "Palme", "Panque", "Paradela", "Pereira", "Perelhal", "Pousa", "Quintiães e Aguiar", "Remelhe", "Roriz", "Santa Eugénia de Rio Covo", "Sequeade e Bastuço (São João e Santo Estêvão)", "Silva", "Silveiros e Rio Covo (Santa Eulália)", "Tamel (Santa Leocádia) e Vilar do Monte", "Tamel (São Veríssimo)", "Ucha", "Várzea", "Viatodos, Grimancelos e Minhotães e Monte de Fralães", "Vila Cova e Feitos", "Vila Seca"] },
-  "São João da Madeira": { regiao: "norte", freguesias: ["São João da Madeira"] },
-  "Lisboa": { regiao: "lisboa", freguesias: ["Ajuda", "Alcântara", "Alvalade", "Areeiro", "Arroios", "Avenidas Novas", "Beato", "Belém", "Benfica", "Campo de Ourique", "Campolide", "Carnide", "Estrela", "Lumiar", "Marvila", "Misericórdia", "Olivais", "Parque das Nações", "Penha de França", "Santa Clara", "Santa Maria Maior", "Santo António", "São Domingos de Benfica", "São Vicente"] },
-  "Sines": { regiao: "sines", freguesias: ["Sines", "Porto Covo"] },
-};
-export const NOMES_CIDADES = Object.keys(CIDADES);
+let aCaminho = null;
+export function carregarLocais() {
+  aCaminho ??= import("./portugal.json").then(({ default: distritos }) => {
+    const concelhos = {};
+    for (const d of distritos) for (const c of d.concelhos) concelhos[c.nome] = { distrito: d.nome, freguesias: c.freguesias };
+    return { distritos, concelhos };
+  });
+  return aCaminho;
+}
+
+/** A lista, ou null enquanto carrega. */
+export function useLocais() {
+  const [locais, setLocais] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    carregarLocais().then((l) => vivo && setLocais(l));
+    return () => { vivo = false; };
+  }, []);
+  return locais;
+}
+
+/** Região antiga (norte/lisboa/sines) a partir do lugar escolhido — só
+ *  porque functions/mural.js ainda a exige; os anúncios novos filtram-se
+ *  pela cidade. */
+export function regiaoDe(distrito, cidade) {
+  if (cidade === "Sines") return "sines";
+  if (distrito === "Lisboa" || distrito === "Setúbal") return "lisboa";
+  return "norte";
+}

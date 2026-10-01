@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { definirFotosAnuncio, editarAnuncio, subirFotosNovas } from "../lib/anuncios.js";
-import { REGIOES, categoriasDe, naturezaDe, precoValido } from "../lib/util.js";
-import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
+import { categoriasDe, naturezaDe, precoValido } from "../lib/util.js";
+import { useLocais } from "../lib/locais.js";
+import EscolherLugar, { lugarFinal } from "./EscolherLugar.jsx";
 import OrdenarFotos from "./OrdenarFotos.jsx";
 
-const OUTRA = "__outra__";
 
 /**
  * Editar um anúncio já publicado (2026-10, pedido: "poder editar um
@@ -19,16 +19,14 @@ const OUTRA = "__outra__";
  */
 export default function SheetEditarAnuncio({ anuncio, onFechar }) {
   const natureza = naturezaDe(anuncio);
-  const cidadeConhecida = anuncio.cidade && CIDADES[anuncio.cidade];
   const [titulo, setTitulo] = useState(anuncio.titulo || "");
   const [categoria, setCategoria] = useState(anuncio.categoria);
   const [preco, setPreco] = useState(anuncio.preco || "");
   const [gratis, setGratis] = useState(!!anuncio.gratis);
   const [descricao, setDescricao] = useState(anuncio.descricao || "");
-  const [cidade, setCidade] = useState(anuncio.cidade ? (cidadeConhecida ? anuncio.cidade : OUTRA) : "");
-  const [cidadeOutra, setCidadeOutra] = useState(cidadeConhecida ? "" : anuncio.cidade || "");
-  const [freguesia, setFreguesia] = useState(anuncio.freguesia || "");
-  const [regiaoOutra, setRegiaoOutra] = useState(anuncio.regiao || REGIOES[0].id);
+  // o distrito deduz-se da cidade (EscolherLugar)
+  const [lugar, setLugar] = useState({ distrito: "", cidade: anuncio.cidade || "", freguesia: anuncio.freguesia || "", regiao: anuncio.regiao || "norte" });
+  const locais = useLocais();
   // URLs das fotos que já lá estão + File das novas, pela ordem escolhida
   const [fotos, setFotos] = useState(anuncio.fotos || []);
   const [aGuardar, setAGuardar] = useState(false);
@@ -38,15 +36,12 @@ export default function SheetEditarAnuncio({ anuncio, onFechar }) {
   async function guardar() {
     if (!titulo.trim()) return setErro("Escreve um título.");
     if (!gratis && !precoValido(preco)) return setErro("No preço escreve só o valor (ex.: 15 € ou 15 €/hora).");
-    const cidadeFinal = cidade === OUTRA ? cidadeOutra.trim() : cidade;
     setErro("");
     setAGuardar(true);
     try {
-      const lugar = cidadeFinal
-        ? { cidade: cidadeFinal, freguesia: freguesia.trim(), regiao: cidade === OUTRA ? regiaoOutra : CIDADES[cidade].regiao }
-        : {};
+      const onde = lugarFinal(lugar, locais) || {};
       await editarAnuncio({
-        id: anuncio.id, titulo, descricao, preco, gratis, categoria, natureza, ...lugar,
+        id: anuncio.id, titulo, descricao, preco, gratis, categoria, natureza, ...onde,
       });
       const antes = anuncio.fotos || [];
       const mudouFotos = fotos.length !== antes.length || fotos.some((f, i) => f !== antes[i]);
@@ -86,30 +81,7 @@ export default function SheetEditarAnuncio({ anuncio, onFechar }) {
           <input type="checkbox" checked={gratis} onChange={(e) => setGratis(e.target.checked)} /> É grátis / doação
         </label>
 
-        <label className="rot" htmlFor="ed-cidade">Cidade</label>
-        <select id="ed-cidade" className="campo" value={cidade} onChange={(e) => { setCidade(e.target.value); setFreguesia(""); }}>
-          <option value="">— sem cidade —</option>
-          {NOMES_CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-          <option value={OUTRA}>Outra cidade…</option>
-        </select>
-        {cidade === OUTRA && (
-          <>
-            <input className="campo" style={{ marginTop: 8 }} value={cidadeOutra} onChange={(e) => setCidadeOutra(e.target.value)} maxLength={60} placeholder="Qual cidade?" aria-label="Qual cidade" />
-            <select className="campo" style={{ marginTop: 8 }} value={regiaoOutra} onChange={(e) => setRegiaoOutra(e.target.value)} aria-label="Região">
-              {REGIOES.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-            </select>
-          </>
-        )}
-        {cidade && (
-          cidade !== OUTRA ? (
-            <select className="campo" style={{ marginTop: 8 }} value={freguesia} onChange={(e) => setFreguesia(e.target.value)} aria-label="Freguesia">
-              <option value="">Freguesia — não interessa</option>
-              {CIDADES[cidade].freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
-          ) : (
-            <input className="campo" style={{ marginTop: 8 }} value={freguesia} onChange={(e) => setFreguesia(e.target.value)} maxLength={80} placeholder="Freguesia (opcional)" aria-label="Freguesia" />
-          )
-        )}
+        <EscolherLugar lugar={lugar} setLugar={setLugar} prefixo="ed-" />
 
         <label className="rot" htmlFor="ed-descricao">Descrição</label>
         <textarea id="ed-descricao" className="campo" rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={600} />
