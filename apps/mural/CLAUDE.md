@@ -139,12 +139,25 @@ Pedido do dono do produto:
     = Dou boleia + Preciso de boleia; "Compra e venda" = Vendo + Compro;
     "Arrendamento" = Arrendo + Quero arrendar). Antes eram duas listas,
     com "Outros" repetido.
-- **Onde: cidade e freguesia.**
-  - No Publicar escolhe-se a cidade, de entre os 12 concelhos onde há
-    GDs (`lib/locais.js`, copiado da Pessoal, só os nomes), ou "Outra
-    cidade…" escrita à mão. A freguesia é opcional.
-  - A região antiga deduz-se da cidade (só se pergunta em "Outra
-    cidade"), porque `criarAnuncio` ainda a exige.
+- **Onde: distrito, cidade e freguesia.**
+  - No Publicar e no Editar (`components/EscolherLugar.jsx`), escolhe-se
+    em cascata **Distrito → Cidade (concelho) → Freguesia** (opcional), de
+    **Portugal inteiro**: 18 distritos mais Madeira e Açores, 308
+    concelhos e 3259 freguesias.
+  - Antes eram só os 12 concelhos dos GDs. Pedido de 2026-10: "a lista
+    completa".
+  - Os dados estão em `lib/portugal.json`, gerado por
+    `scripts/gerarLocaisMural.mjs` a partir da CAOP (geoapi.pt), já com a
+    desagregação de 2025. Só se volta a gerar quando a CAOP mudar.
+  - O ficheiro carrega à parte (`import()`, cerca de 23 kB) e só ao abrir o
+    Publicar ou o Editar.
+  - "União das freguesias de X e Y" aparece só como "X e Y".
+  - No fim da lista de distritos há "Fora de Portugal / outro sítio",
+    para escrever a cidade à mão (por exemplo, Brescia).
+  - O anúncio grava só `cidade` e `freguesia`. O distrito deduz-se da
+    cidade, porque os nomes de concelho são únicos.
+  - A `regiao` antiga (que `criarAnuncio` ainda exige) sai de `regiaoDe`:
+    Sines dá `sines`, Lisboa e Setúbal dão `lisboa`, e o resto dá `norte`.
   - O filtro "Onde" **não é uma lista fixa**: sai dos anúncios que
     existem (`lugares` em `Sessao.jsx`), com quantos anúncios tem cada
     cidade. Escolhida uma cidade, aparecem as freguesias dela.
