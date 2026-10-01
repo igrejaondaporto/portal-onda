@@ -41,22 +41,50 @@ export const REGIOES = [
   { id: "sines", nome: "Sines" },
 ];
 
+/** Produtos e Serviços (2026-09, pedido do dono do produto): o mural é
+ *  uma grelha 2×2 — natureza × tipo (Ofereço/Procuro). */
+export const NATUREZAS = [
+  { id: "produto", nome: "Produtos", sub: "coisas: vender, dar, arrendar" },
+  { id: "servico", nome: "Serviços", sub: "trabalho, ajuda, boleias" },
+];
+
+/** As categorias de cada tipo, com a natureza a que pertencem. Os ids
+ *  são os de sempre (os anúncios antigos continuam válidos) — só os
+ *  nomes passaram a dizer o gesto ("Vendo", "Quero arrendar"). "outros"
+ *  é o único que existe nos dois lados (`natureza: null`). A mesma
+ *  lista vive em functions/mural.js (CATEGORIAS/CATEGORIAS_SERVICO),
+ *  que é quem valida — mudar uma, mudar a outra. */
 export const CATEGORIAS = {
   ofereco: [
-    { id: "venda", nome: "Venda" },
-    { id: "doacao", nome: "Doação" },
-    { id: "arrendamento", nome: "Arrendamento" },
-    { id: "emprego", nome: "Emprego" },
-    { id: "outros", nome: "Outros" },
+    { id: "venda", nome: "Vendo", natureza: "produto" },
+    { id: "doacao", nome: "Dou", natureza: "produto" },
+    { id: "arrendamento", nome: "Arrendo", natureza: "produto" },
+    { id: "servicos", nome: "Faço serviços", natureza: "servico" },
+    { id: "emprego", nome: "Vaga de emprego", natureza: "servico" },
+    { id: "boleias", nome: "Dou boleia", natureza: "servico" },
+    { id: "outros", nome: "Outros", natureza: null },
   ],
   procuro: [
-    { id: "objetos", nome: "Objetos" },
-    { id: "servicos", nome: "Serviços" },
-    { id: "boleias", nome: "Boleias" },
-    { id: "emprego", nome: "Emprego" },
-    { id: "outros", nome: "Outros" },
+    { id: "objetos", nome: "Compro / preciso de", natureza: "produto" },
+    { id: "arrendar", nome: "Quero arrendar", natureza: "produto" },
+    { id: "servicos", nome: "Preciso de um serviço", natureza: "servico" },
+    { id: "emprego", nome: "Procuro emprego", natureza: "servico" },
+    { id: "boleias", nome: "Preciso de boleia", natureza: "servico" },
+    { id: "outros", nome: "Outros", natureza: null },
   ],
 };
+
+/** As categorias de um quadrado (natureza × tipo), "Outros" no fim. */
+export const categoriasDe = (natureza, tipo) =>
+  (CATEGORIAS[tipo] ?? []).filter((c) => c.natureza === natureza || c.natureza === null);
+
+/** A natureza de um anúncio: a gravada, ou (anúncios de antes de
+ *  2026-09) a que a categoria diz — "outros" sem natureza fica em
+ *  Produtos. Mesma regra de `naturezaDe` em functions/mural.js. */
+export function naturezaDe(anuncio) {
+  if (anuncio.natureza) return anuncio.natureza;
+  return ["servicos", "emprego", "boleias"].includes(anuncio.categoria) ? "servico" : "produto";
+}
 
 export const ESTADOS = {
   disponivel: { classe: "disp", nome: "Disponível" },

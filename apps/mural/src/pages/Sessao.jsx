@@ -5,7 +5,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { CATEGORIAS, ESTADOS, REGIOES, nomeCategoria, relativo } from "../lib/util.js";
+import { CATEGORIAS, ESTADOS, NATUREZAS, REGIOES, naturezaDe, nomeCategoria, relativo } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
@@ -33,7 +33,9 @@ const PAGINAS_COM_SESSAO = new Set(["publicar", "meus", "painel"]);
 export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
   const [pagina, setPagina] = useState("mural");
   const [anuncios, setAnuncios] = useState([]);
-  const [tipo, setTipo] = useState("ofereco");
+  // Produtos | Serviços, e por baixo Tudo · Ofereço · Procuro (2026-09)
+  const [natureza, setNatureza] = useState("produto");
+  const [tipo, setTipo] = useState("tudo");
   // "todas" por omissão — a região é um filtro como outro qualquer,
   // só se aplica se a pessoa a escolher (pedido explícito, 2026-09:
   // pré-selecionar Norte escondia tudo de quem procura em Lisboa/Sines
@@ -47,16 +49,17 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
   const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
-  useEffect(() => setCategoria("todas"), [tipo]);
+  useEffect(() => setCategoria("todas"), [tipo, natureza]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return anuncios
-      .filter((a) => a.tipo === tipo)
+      .filter((a) => naturezaDe(a) === natureza)
+      .filter((a) => tipo === "tudo" || a.tipo === tipo)
       .filter((a) => regiao === "todas" || a.regiao === regiao)
       .filter((a) => categoria === "todas" || a.categoria === categoria)
       .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal}`.toLowerCase().includes(q));
-  }, [anuncios, tipo, regiao, categoria, busca]);
+  }, [anuncios, natureza, tipo, regiao, categoria, busca]);
 
   function irPara(destino) {
     if (PAGINAS_COM_SESSAO.has(destino) && !eu) return onPedirEntrar();
@@ -82,7 +85,17 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
 
   return casca(
     <>
+      <div className="natureza" role="group" aria-label="Produtos ou Serviços">
+        {NATUREZAS.map((n) => (
+          <button key={n.id} type="button" aria-pressed={natureza === n.id} onClick={() => setNatureza(n.id)}>
+            <b>{n.nome}</b>
+            <small>{n.sub}</small>
+          </button>
+        ))}
+      </div>
+
       <div className="segmentado">
+        <button data-on={tipo === "tudo" ? 1 : 0} onClick={() => setTipo("tudo")}>Tudo</button>
         <button data-on={tipo === "ofereco" ? 1 : 0} onClick={() => setTipo("ofereco")}>Ofereço</button>
         <button data-on={tipo === "procuro" ? 1 : 0} onClick={() => setTipo("procuro")}>Procuro</button>
       </div>
@@ -104,14 +117,14 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
       </div>
 
       <p className="ds" style={{ padding: "14px 0 2px" }}>
-        {filtrados.length} {tipo === "ofereco" ? "anúncios" : "pedidos"}
+        {filtrados.length} {tipo === "procuro" ? "pedidos" : "anúncios"} de {natureza === "servico" ? "serviços" : "produtos"}
         {regiao !== "todas" && <> na região {REGIOES.find((r) => r.id === regiao)?.nome}</>}
-        {categoria !== "todas" && <> · {CATEGORIAS[tipo].find((c) => c.id === categoria)?.nome}</>}
+        {categoria !== "todas" && tipo !== "tudo" && <> · {CATEGORIAS[tipo].find((c) => c.id === categoria)?.nome}</>}
       </p>
 
       {filtroAberto && (
         <FiltroSheet
-          tipo={tipo} regiao={regiao} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
+          natureza={natureza} tipo={tipo} regiao={regiao} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
           onFechar={() => setFiltroAberto(false)}
         />
       )}
@@ -134,7 +147,7 @@ export default function Sessao({ eu, onPedirEntrar, onAdminConcedido }) {
             </span>
             <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
               <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
-              {a.autorNome} · {nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
+              {a.autorNome} · {tipo === "tudo" && a.categoria === "outros" ? (a.tipo === "procuro" ? "Procuro · " : "Ofereço · ") : ""}{nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
             </span>
           </span>
           <span className="tag" style={{ background: ESTADOS[a.estado]?.classe === "disp" ? "var(--verde)" : ESTADOS[a.estado]?.classe === "res" ? "var(--laranja)" : "var(--agua)", color: ESTADOS[a.estado]?.classe === "vend" ? "var(--cinza)" : "#fff" }}>
