@@ -5,7 +5,7 @@ import NavBar from "@portal/shared/components/NavBar.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { NATUREZAS, ORDENS, REGIOES, bateCategoria, naturezaDe, nomeCategoria, nomeDaChave, ordenar, relativo, textoPreco } from "../lib/util.js";
+import { NATUREZAS, ORDENS, bateCategoria, bateLugar, lugarDe, naturezaDe, nomeCategoria, nomeDaChave, nomeLugar, ordenar, relativo, textoPreco } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
@@ -41,7 +41,10 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
   // só se aplica se a pessoa a escolher (pedido explícito, 2026-09:
   // pré-selecionar Norte escondia tudo de quem procura em Lisboa/Sines
   // sem a pessoa perceber porquê).
-  const [regiao, setRegiao] = useState("todas");
+  // "Onde" (2026-10): cidade, e dentro dela a freguesia — "Maia" ou
+  // "Maia||Pedrouços". As opções vêm dos anúncios que existem (lugares
+  // abaixo), por isso o filtro cresce sozinho.
+  const [lugar, setLugar] = useState("todas");
   const [categoria, setCategoria] = useState("todas");
   // 2026-10: "Mais recentes" | "Mais baratos" (grátis primeiro) | "Mais
   // caros" — e em qualquer uma, com foto primeiro (ordenar, lib/util.js)
@@ -50,14 +53,21 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
   const [aberto, setAberto] = useState(null);
   const [imagemExpandida, setImagemExpandida] = useState(null);
   const [filtroAberto, setFiltroAberto] = useState(false);
-  const filtrosAtivos = (regiao !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
+  const filtrosAtivos = (lugar !== "todas" ? 1 : 0) + (categoria !== "todas" ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
 
   useEffect(() => ouvirAnunciosAtivos(setAnuncios), []);
   // a categoria é por natureza; ao trocar Ofereço/Procuro só se perde
   // se for do outro lado ("ofereco:venda" continua a valer em Tudo)
   useEffect(() => setCategoria("todas"), [natureza]);
+  // em "Tudo" o Filtro mostra temas ("tema:boleias"); em Ofereço/Procuro
+  // as categorias desse lado ("procuro:boleias") — o que não serve ao
+  // lado novo volta a "todas"
   useEffect(() => {
-    setCategoria((c) => (c === "todas" || tipo === "tudo" || c.startsWith(`${tipo}:`) ? c : "todas"));
+    setCategoria((c) => {
+      if (c === "todas") return c;
+      if (tipo === "tudo") return c.startsWith("tema:") ? c : "todas";
+      return c.startsWith(`${tipo}:`) ? c : "todas";
+    });
   }, [tipo]);
 
   // Publicar/Os meus sem sessão abre a Entrada; ao entrar, segue para
@@ -79,10 +89,28 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
       .filter((a) => a.estado !== "pausado") // o dono tirou-o do ar (Os meus)
       .filter((a) => naturezaDe(a) === natureza)
       .filter((a) => tipo === "tudo" || a.tipo === tipo)
-      .filter((a) => regiao === "todas" || a.regiao === regiao)
+      .filter((a) => bateLugar(a, lugar))
       .filter((a) => bateCategoria(a, categoria))
       .filter((a) => !q || `${a.titulo} ${a.descricao} ${a.autorNome} ${a.autorLocal} ${nomeCategoria(a.tipo, a.categoria)}`.toLowerCase().includes(q)), ordem);
-  }, [anuncios, natureza, tipo, regiao, categoria, busca, ordem]);
+  }, [anuncios, natureza, tipo, lugar, categoria, busca, ordem]);
+
+  // as cidades (e freguesias) com anúncios nesta natureza/lado, com
+  // quantos tem cada uma — é daqui que o Filtro tira as opções de "Onde"
+  const lugares = useMemo(() => {
+    const mapa = new Map();
+    for (const a of anuncios) {
+      if (a.estado === "pausado" || naturezaDe(a) !== natureza || (tipo !== "tudo" && a.tipo !== tipo)) continue;
+      const cidade = lugarDe(a);
+      if (!cidade) continue;
+      const c = mapa.get(cidade) ?? { cidade, n: 0, freguesias: new Map() };
+      c.n += 1;
+      if (a.cidade && a.freguesia) c.freguesias.set(a.freguesia, (c.freguesias.get(a.freguesia) ?? 0) + 1);
+      mapa.set(cidade, c);
+    }
+    return [...mapa.values()]
+      .map((c) => ({ ...c, freguesias: [...c.freguesias].map(([nome, n]) => ({ nome, n })).sort((x, y) => y.n - x.n) }))
+      .sort((x, y) => y.n - x.n || x.cidade.localeCompare(y.cidade, "pt"));
+  }, [anuncios, natureza, tipo]);
 
   function irPara(destino) {
     if (PAGINAS_COM_SESSAO.has(destino) && !eu) {
@@ -144,7 +172,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
 
       <p className="ds" style={{ padding: "14px 0 2px" }}>
         {filtrados.length} {tipo === "procuro" ? "pedidos" : "anúncios"} de {natureza === "servico" ? "serviços" : "produtos"}
-        {regiao !== "todas" && <> na região {REGIOES.find((r) => r.id === regiao)?.nome}</>}
+        {lugar !== "todas" && <> em {nomeLugar(lugar)}</>}
         {categoria !== "todas" && <> · {nomeDaChave(categoria)}</>}
       </p>
 
@@ -160,9 +188,9 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
               {ORDENS.find((o) => o.id === ordem)?.nome} <span aria-hidden>×</span>
             </button>
           )}
-          {regiao !== "todas" && (
-            <button type="button" onClick={() => setRegiao("todas")} aria-label="Tirar o filtro de região">
-              {REGIOES.find((r) => r.id === regiao)?.nome} <span aria-hidden>×</span>
+          {lugar !== "todas" && (
+            <button type="button" onClick={() => setLugar("todas")} aria-label="Tirar o filtro de lugar">
+              {nomeLugar(lugar)} <span aria-hidden>×</span>
             </button>
           )}
         </div>
@@ -170,7 +198,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
 
       {filtroAberto && (
         <FiltroSheet
-          natureza={natureza} tipo={tipo} regiao={regiao} ordem={ordem} setOrdem={setOrdem} setRegiao={setRegiao} categoria={categoria} setCategoria={setCategoria}
+          natureza={natureza} tipo={tipo} lugar={lugar} setLugar={setLugar} lugares={lugares} ordem={ordem} setOrdem={setOrdem} categoria={categoria} setCategoria={setCategoria}
           onFechar={() => setFiltroAberto(false)}
         />
       )}
@@ -199,7 +227,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
             <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
             <span className="ds" style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
               <MiniAvatar nome={a.autorNome} foto={a.autorFoto} />
-              {a.autorNome} · {tipo === "tudo" && a.categoria === "outros" ? (a.tipo === "procuro" ? "Procuro · " : "Ofereço · ") : ""}{nomeCategoria(a.tipo, a.categoria)} · {relativo(a.criadoEm)}
+              {a.autorNome} · {tipo === "tudo" && a.categoria === "outros" ? (a.tipo === "procuro" ? "Procuro · " : "Ofereço · ") : ""}{nomeCategoria(a.tipo, a.categoria)}{a.cidade ? ` · ${a.cidade}` : ""} · {relativo(a.criadoEm)}
             </span>
           </span>
           {/* à direita o PREÇO (2026-10 — "Disponível" em todos não dizia

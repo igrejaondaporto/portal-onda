@@ -593,3 +593,14 @@
 .acoesDono button:disabled {
   opacity: 0.5;
 }
+
+/* espaço entre as fotos e "Publicar anúncio" (2026-10: estavam colados) */
+.caixa.caixaFoto {
+  margin-bottom: 26px;
+}
+.contaOpcao {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}

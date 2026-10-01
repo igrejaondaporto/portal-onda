@@ -120,6 +120,32 @@ Pedido do dono do produto:
     registou (RGPD), e é a única exceção consciente à regra 5 neste
     ficheiro.
 
+### Ajustes logo a seguir (2026-10)
+
+- **A etiqueta é só preço.** O campo é texto livre, e havia anúncios
+  com "Domingos" ou "Pago". `textoPreco` só mostra o texto se tiver um
+  algarismo; senão mostra "A combinar", ou "Grátis" numa boleia. O
+  Publicar já não deixa gravar texto sem valor (`precoValido`), e
+  escolher uma categoria de boleia marca "É grátis" sozinho.
+- **Filtro: Ordenar, Categoria e Onde**, nada da outra natureza.
+  - Em Ofereço/Procuro, as categorias desse lado.
+  - Em "Tudo", **temas** que juntam os dois lados (`TEMAS`: "Boleias"
+    = Dou boleia + Preciso de boleia; "Compra e venda" = Vendo + Compro;
+    "Arrendamento" = Arrendo + Quero arrendar). Antes eram duas listas,
+    com "Outros" repetido.
+- **Onde: cidade e freguesia.**
+  - No Publicar escolhe-se a cidade, de entre os 12 concelhos onde há
+    GDs (`lib/locais.js`, copiado da Pessoal, só os nomes), ou "Outra
+    cidade…" escrita à mão. A freguesia é opcional.
+  - A região antiga deduz-se da cidade (só se pergunta em "Outra
+    cidade"), porque `criarAnuncio` ainda a exige.
+  - O filtro "Onde" **não é uma lista fixa**: sai dos anúncios que
+    existem (`lugares` em `Sessao.jsx`), com quantos anúncios tem cada
+    cidade. Escolhida uma cidade, aparecem as freguesias dela.
+  - Os anúncios antigos, sem cidade, aparecem pela região (Norte…), via
+    `lugarDe`.
+- **Mais espaço** entre a caixa das fotos e "Publicar anúncio".
+
 ## Login rápido (2026-10)
 
 Reportado: "3 s para aparecer a lista de pessoas" e "30, 40 s para
