@@ -40,8 +40,13 @@ const TIPOS_RELATO = ["bug", "melhoria"];
 const STATUS_RELATO = ["aberto", "em_andamento", "resolvido", "recusado"];
 
 async function nomeDaPessoa(baseId, uid) {
-  const s = await db().doc(`bases/${baseId}/pessoas/${uid}`).get();
-  return s.exists ? s.data().nome : null;
+  if (baseId) {
+    const s = await db().doc(`bases/${baseId}/pessoas/${uid}`).get();
+    if (s.exists) return s.data().nome;
+  }
+  // Mural (membros sem base) — o nome vive só no perfil global
+  const g = await db().doc(`pessoas/${uid}`).get();
+  return g.exists ? g.data().nome ?? null : null;
 }
 
 // O ID nasce no cliente (mesmo padrão de SheetMarca — id gerado ANTES
@@ -51,15 +56,22 @@ async function nomeDaPessoa(baseId, uid) {
 // ou colidir — mesma confiança que o resto do repo já deposita nesse
 // padrão.
 export const abrirRelato = onCall(async (req) => {
-  const uid = req.auth?.uid, baseId = req.auth?.token?.baseId;
-  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { id, tipo, titulo, descricao, paginaOrigem = "", anexoUrl = null, anexoTipo = null } = req.data || {};
+  // O Mural Onda (2026-10) também manda relatos ao Tech Hub — o mesmo
+  // botão "Melhorias" das bases. Quem entra como membro não tem base no
+  // token, e um voluntário lá dentro traz a base dele; por isso a origem
+  // vem da página ("Mural Onda — …", ver apps/mural/src/pages/Sessao.jsx)
+  // e não do token.
+  const doMural = /^Mural Onda/.test(String(paginaOrigem));
+  const uid = req.auth?.uid;
+  const baseId = doMural ? "mural" : req.auth?.token?.baseId;
+  if (!uid || !baseId) throw new HttpsError("unauthenticated", "Sessão inválida.");
   if (!id) throw new HttpsError("invalid-argument", "Falta o id.");
   if (!TIPOS_RELATO.includes(tipo)) throw new HttpsError("invalid-argument", "Tipo inválido.");
   if (!titulo?.trim()) throw new HttpsError("invalid-argument", "Falta o título.");
   if (!descricao?.trim()) throw new HttpsError("invalid-argument", "Falta descrever o que aconteceu.");
 
-  const reportadoPorNome = await nomeDaPessoa(baseId, uid);
+  const reportadoPorNome = await nomeDaPessoa(doMural ? req.auth?.token?.baseId : baseId, uid);
   await refRelato(id).set({
     tipo, titulo: titulo.trim(), descricao: descricao.trim(),
     paginaOrigem: paginaOrigem.trim() || null,
