@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { corPara, ESTADOS, nomeCategoria, relativo, linkWhatsApp } from "../lib/util.js";
+import { corPara, ESTADOS, nomeCategoria, relativo, linkWhatsApp, textoPreco } from "../lib/util.js";
 import { pedirContactoAnuncio, reportarAnuncio } from "../lib/anuncios.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
@@ -17,16 +17,23 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
   const [reportado, setReportado] = useState(false);
   const [erro, setErro] = useState("");
   const [imagemExpandida, setImagemExpandida] = useState(null);
+  // contacto de OUTRA pessoa (2026-10): depois de pedido, mostra-se o
+  // número também por extenso — pode ser um fixo (placa na rua), e
+  // nesse caso o WhatsApp não serve
+  const [contactoOutro, setContactoOutro] = useState(null);
 
   const ehMeu = anuncio.autorId === meuUid;
-  const est = ESTADOS[anuncio.estado] || ESTADOS.disponivel;
+  // "Disponível" deixou de aparecer (2026-10) — só o que diz alguma coisa
+  const est = anuncio.estado && anuncio.estado !== "disponivel" ? ESTADOS[anuncio.estado] : null;
+  const deOutro = !!anuncio.contactoDeOutro;
 
   async function falarNoWhatsapp() {
     setAPedirContacto(true);
     setErro("");
     try {
-      const telefone = await pedirContactoAnuncio(anuncio.id);
-      window.open(linkWhatsApp(telefone), "_blank", "noreferrer");
+      const c = await pedirContactoAnuncio(anuncio.id);
+      if (c.deOutro) setContactoOutro(c);
+      window.open(linkWhatsApp(c.telefone), "_blank", "noreferrer");
     } catch {
       setErro("Sem contacto disponível para este anúncio.");
     }
@@ -66,12 +73,14 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         <span className="tag" style={{ marginTop: 14, display: "inline-block" }}>
           {nomeCategoria(anuncio.tipo, anuncio.categoria)}
         </span>{" "}
-        <span className={`tag ${est.classe === "disp" ? "verd" : est.classe === "vend" ? "cinz" : ""}`}>
-          {est.nome}
-        </span>
+        {est && (
+          <span className={`tag ${est.classe === "vend" || est.classe === "paus" ? "cinz" : ""}`} style={est.classe === "res" ? { background: "var(--laranja)" } : undefined}>
+            {est.nome}
+          </span>
+        )}
         <h2 style={{ marginTop: 10, textAlign: "left" }}>{anuncio.titulo}</h2>
         <p className="sb2" style={{ fontSize: 20, fontWeight: 800, color: "var(--tinta)", textAlign: "left" }}>
-          {anuncio.gratis ? "Grátis" : anuncio.preco || "A combinar"}
+          {textoPreco(anuncio)}
         </p>
         {anuncio.descricao && <p className="ds" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8 }}>{anuncio.descricao}</p>}
         <div className="linha" style={{ marginTop: 6 }}>
@@ -94,10 +103,23 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
           </span>
         </div>
 
+        {deOutro && (
+          <p className="nota" style={{ marginTop: 10 }}>
+            {anuncio.autorNome?.split(" ")[0]} publicou isto para ajudar — o contacto é de quem trata do assunto,
+            não de {anuncio.autorNome?.split(" ")[0]}.
+          </p>
+        )}
         {!ehMeu && anuncio.estado !== "vendido" && (
           <button className="btn zap" disabled={aPedirContacto} onClick={falarNoWhatsapp} style={{ marginTop: 12 }}>
-            Falar com {anuncio.autorNome?.split(" ")[0]} no WhatsApp
+            {deOutro ? "Falar com quem trata no WhatsApp" : `Falar com ${anuncio.autorNome?.split(" ")[0]} no WhatsApp`}
           </button>
+        )}
+        {contactoOutro && (
+          <p className="ds" style={{ textAlign: "center", marginTop: 8 }}>
+            {contactoOutro.nome ? `${contactoOutro.nome} · ` : ""}
+            <a href={`tel:${contactoOutro.telefone}`} style={{ color: "var(--azul)", fontWeight: 700 }}>{contactoOutro.telefone}</a>
+            {" "}— se não tiver WhatsApp, liga
+          </p>
         )}
         {erro && <p className="aviso">{erro}</p>}
         {!ehMeu && (

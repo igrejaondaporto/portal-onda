@@ -75,6 +75,51 @@ em Produtos) — sem migração. O resumo semanal separa 🛒 Produtos e
     Publicar/Os meus na barra de baixo).
   - Fechar a Entrada sem entrar esquece o destino.
 
+## Preço, ordenar, fotos primeiro, pausar e contacto de outra pessoa (2026-10)
+
+Pedido do dono do produto:
+
+- **Preço no lugar da etiqueta "Disponível".** A etiqueta estava em
+  todos os anúncios e não dizia nada. No feed, à direita fica o preço
+  (`.precoTag`, `textoPreco`): Grátis a verde, "A combinar" a
+  cinzento. O estado só aparece quando diz alguma coisa: Reservado
+  (laranja) ou Vendido. O detalhe também deixou de mostrar
+  "Disponível".
+- **Ordenar** (Filtro → Ordenar, `ORDENS`/`ordenar` em `lib/util.js`):
+  - "Mais recentes" (omissão), "Mais baratos" (grátis primeiro, depois
+    do menor para o maior valor) e "Mais caros".
+  - O preço é texto livre, por isso `valorPreco` lê o primeiro número
+    ("1.200 €" = 1200, "15,50 €/h" = 15,5). Sem número ("A combinar")
+    vai sempre para o fim.
+- **Com foto sempre primeiro**, em qualquer ordem. O Publicar avisa
+  duas vezes: uma dica logo depois de escolher a categoria e a caixa
+  das fotos em destaque.
+- **Reservado → pausar ou excluir** (Os meus, `.acoesDono`):
+  - "Marcar reservado" liga e desliga. Quando está reservado, aparece
+    a dica "Quando ficar resolvido, pausa-o ou exclui-o".
+  - **Pausar** grava `estado: "pausado"`: sai do feed (filtro no
+    cliente) e do resumo semanal, continua a contar para o limite de 5
+    e "Retomar" volta a pô-lo no ar.
+  - **Excluir** é o `removerAnuncio` de sempre (`ativo: false`, nunca
+    se apaga). O "Já vendi" do aviso dos 30 dias passou a "Já não,
+    excluir".
+  - "Disponível" e "Vendido" deixaram de ser botões. Os anúncios antigos
+    marcados como vendidos continuam a aparecer esbatidos.
+- **Contacto de outra pessoa**:
+  - Publicar → "Quem atende os interessados?", com as opções "Eu" e
+    "Outra pessoa". Exemplo: "vi uma placa de arrendamento na rua e
+    quero ajudar".
+  - O nome (opcional) e o telemóvel de quem trata ficam em
+    `anuncios/{id}/privado/contacto`, onde nenhuma regra dá acesso. O
+    anúncio público só leva `contactoDeOutro: true`.
+  - O detalhe diz "X publicou isto para ajudar — o contacto é de quem
+    trata". O botão passa a "Falar com quem trata no WhatsApp" e
+    mostra também o número, para ligar se for um fixo.
+  - **Sai do sistema quando o anúncio sai do ar** (removido, moderado
+    ou expirado, em `functions/mural.js`). É de alguém que nunca se
+    registou (RGPD), e é a única exceção consciente à regra 5 neste
+    ficheiro.
+
 ## Login rápido (2026-10)
 
 Reportado: "3 s para aparecer a lista de pessoas" e "30, 40 s para

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ouvirMeusAnuncios, alterarEstadoAnuncio, renovarAnuncio, removerAnuncio, MAX_ATIVOS } from "../lib/anuncios.js";
-import { ESTADOS, nomeCategoria } from "../lib/util.js";
+import { nomeCategoria, textoPreco } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
 
@@ -28,7 +28,7 @@ export default function MeusAnuncios() {
           <p className="ds">Publicaste há quase um mês. Responde e fica mais 30 dias; ignora e sai sozinho.</p>
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <button className="btn" style={{ flex: 1 }} disabled={aTrabalhar === a.id} onClick={() => correr(a.id, () => renovarAnuncio(a.id))}>Sim, continua</button>
-            <button className="btn sec" style={{ flex: 1 }} disabled={aTrabalhar === a.id} onClick={() => correr(a.id, () => alterarEstadoAnuncio(a.id, "vendido"))}>Já vendi</button>
+            <button className="btn sec" style={{ flex: 1 }} disabled={aTrabalhar === a.id} onClick={() => window.confirm("Excluir este anúncio?") && correr(a.id, () => removerAnuncio(a.id))}>Já não, excluir</button>
           </div>
         </div>
       ))}
@@ -46,33 +46,44 @@ export default function MeusAnuncios() {
             <FotoAnuncio anuncio={a} estilo={{ marginTop: 2 }} onExpandir={setImagemExpandida} />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="nmt" style={{ display: "block" }}>{a.titulo}</span>
-              <span className="ds">{nomeCategoria(a.tipo, a.categoria)} · {a.gratis ? "grátis" : a.preco || "a combinar"}</span>
+              <span className="ds">{nomeCategoria(a.tipo, a.categoria)} · {textoPreco(a)}</span>
               {!a.ativo ? (
-                <span className="tag cinz" style={{ marginTop: 6, display: "inline-block" }}>Removido</span>
+                <span className="tag cinz" style={{ marginTop: 6, display: "inline-block" }}>Excluído</span>
               ) : (
-                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                  {Object.entries(ESTADOS).map(([chave, e]) => (
+                <>
+                  {a.estado === "pausado" && (
+                    <p className="ds" style={{ marginTop: 6, color: "var(--laranja)", fontWeight: 600 }}>Pausado — ninguém o vê no mural até o retomares.</p>
+                  )}
+                  {a.estado === "reservado" && (
+                    <p className="ds" style={{ marginTop: 6 }}>Reservado. Quando ficar resolvido, pausa-o ou exclui-o.</p>
+                  )}
+                  {/* 2026-10: "Disponível" saiu (é o normal); Reservado liga e
+                      desliga; Pausar tira-o do mural sem o perder; Excluir
+                      tira-o de vez (ativo:false — nunca se apaga a sério). */}
+                  <div className="acoesDono">
+                    {a.estado !== "pausado" && (
+                      <button
+                        type="button" aria-pressed={a.estado === "reservado"} disabled={aTrabalhar === a.id}
+                        onClick={() => correr(a.id, () => alterarEstadoAnuncio(a.id, a.estado === "reservado" ? "disponivel" : "reservado"))}
+                      >
+                        {a.estado === "reservado" ? "✓ Reservado" : "Marcar reservado"}
+                      </button>
+                    )}
                     <button
-                      key={chave}
-                      className="tag"
-                      style={{
-                        border: "1px solid var(--fio)", cursor: "pointer",
-                        background: a.estado === chave ? "var(--azul)" : "#fff",
-                        color: a.estado === chave ? "#fff" : "var(--cinza)",
-                      }}
-                      disabled={aTrabalhar === a.id}
-                      onClick={() => correr(a.id, () => alterarEstadoAnuncio(a.id, chave))}
+                      type="button" disabled={aTrabalhar === a.id}
+                      onClick={() => correr(a.id, () => alterarEstadoAnuncio(a.id, a.estado === "pausado" ? "disponivel" : "pausado"))}
                     >
-                      {e.nome}
+                      {a.estado === "pausado" ? "▶ Retomar" : "⏸ Pausar"}
                     </button>
-                  ))}
-                </div>
-              )}
-              {a.ativo && (
-                <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
-                  <button className="sair" style={{ padding: 0, fontSize: 12.5 }} disabled={aTrabalhar === a.id} onClick={() => correr(a.id, () => renovarAnuncio(a.id))}>Renovar 30 dias</button>
-                  <button className="sair" style={{ padding: 0, fontSize: 12.5, color: "var(--magenta)" }} disabled={aTrabalhar === a.id} onClick={() => window.confirm("Remover este anúncio?") && correr(a.id, () => removerAnuncio(a.id))}>Remover</button>
-                </div>
+                    <button
+                      type="button" className="perigo" disabled={aTrabalhar === a.id}
+                      onClick={() => window.confirm("Excluir este anúncio? Sai do mural de vez.") && correr(a.id, () => removerAnuncio(a.id))}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                  <button className="sair" style={{ padding: 0, fontSize: 12.5, marginTop: 8 }} disabled={aTrabalhar === a.id} onClick={() => correr(a.id, () => renovarAnuncio(a.id))}>Renovar 30 dias</button>
+                </>
               )}
             </span>
           </div>
