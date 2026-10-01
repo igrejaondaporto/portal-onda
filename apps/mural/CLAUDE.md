@@ -165,12 +165,25 @@ Pedido do dono do produto:
     Entrada). Os membros sem base vêm de `listarMembrosMural`, só para
     quem modera: nome, GD e os últimos 3 dígitos do telemóvel, para
     distinguir nomes iguais.
-  - **Não está registada**: `emNomeDe: {nome, telefone}`. O telefone vai
-    para `anuncios/{id}/privado/contacto` (o mesmo sítio do "contacto de
-    outra pessoa"), que se apaga quando o anúncio sai do ar. Fica no
-    `autorId` de quem modera, que o gere em "Os meus".
-  - Nenhum dos dois conta para o limite de 5. O detalhe mostra
-    "publicado pela moderação" ao lado da data.
+  - **Não está registada**: `emNomeDe: {nome, telefone}`.
+    - Se o número já tem conta no Mural, é igual ao caso acima: vai logo
+      para o perfil dela.
+    - Se não tem, o telefone vai para `anuncios/{id}/privado/contacto` (o
+      mesmo sítio do "contacto de outra pessoa") e o anúncio fica no
+      `autorId` de quem modera, **pendente**.
+    - `muralPendentes/tel_<número>` (fechado, só o Admin SDK lê) guarda
+      os ids. Quando a pessoa se regista com esse número (`registarMural`
+      → `transferirPendentes`), os anúncios passam para o perfil dela e o
+      WhatsApp passa a ser o do perfil.
+    - Ao sair do ar, o anúncio sai também da lista de pendentes, e o
+      contacto apaga-se.
+    - Só o registo pelo Mural ("Não, mas sou membro") transfere. Se for
+      voluntário, escolhe-se na lista da base.
+  - **Conta para os 5 dessa pessoa** (pedido 2026-10), nunca para os de
+    quem modera: os ativos dela, ou os pendentes desse número. No Publicar
+    de quem modera, os pendentes (`emNomeDe`) não entram na contagem.
+  - **Sem etiqueta**: o anúncio aparece como qualquer outro dessa pessoa
+    (a etiqueta "publicado pela moderação" saiu, pedido 2026-10).
   - As fotos dum anúncio publicado pela moderação ficam na pasta de quem
     moderou. Quando a dona edita, `definirFotosAnuncio` deixa ficar as
     que o anúncio já tem, venham de que pasta vierem.

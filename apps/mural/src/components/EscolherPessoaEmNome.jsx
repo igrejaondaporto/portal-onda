@@ -16,7 +16,8 @@ export const SEM_REGISTO = "__sem_registo__";
  * cache) da Entrada; os membros de `listarMembrosMural`, só da moderação.
  *
  * Quem está registado: o anúncio nasce no perfil dela (functions/mural.js,
- * criarAnuncio com `pessoaId`). Quem não está: nome + telemóvel, como antes.
+ * criarAnuncio com `pessoaId`). Quem não está: nome + telemóvel, e o
+ * anúncio passa para o perfil dela quando se registar com esse número.
  */
 export default function EscolherPessoaEmNome({ onde, setOnde, pessoa, setPessoa, nome, setNome, telefone, setTelefone }) {
   const [bases, setBases] = useState(() => basesGuardadas() || []);
@@ -105,7 +106,8 @@ export default function EscolherPessoaEmNome({ onde, setOnde, pessoa, setPessoa,
       {onde === SEM_REGISTO && (
         <>
           <p className="ds" style={{ marginTop: 6 }}>
-            Sai com este nome e o contacto dela, e fica nos teus "Os meus" (é a moderação que o gere).
+            Sai com este nome e o WhatsApp dela. Fica nos teus "Os meus" até ela se registar no Mural com este
+            número — aí passa sozinho para o perfil dela. Se o número já tiver conta, vai logo para lá.
           </p>
           <label className="rot" htmlFor="emNomeNome">Nome da pessoa</label>
           <input id="emNomeNome" className="campo" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} placeholder="Como aparece no anúncio" />

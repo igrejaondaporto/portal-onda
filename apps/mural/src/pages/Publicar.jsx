@@ -33,7 +33,7 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   // moderação (2026-10): publicar EM NOME de alguém que pôs o anúncio no
   // grupo do WhatsApp e não no Mural. Escolhe-se a pessoa numa lista (base
   // → nome, ou Membros) e o anúncio fica no perfil dela; quem não está
-  // registado vai por nome + telemóvel. Não conta para o limite (ver
+  // registado vai por nome + telemóvel. Conta para os 5 DESSA pessoa (ver
   // criarAnuncio em functions/mural.js e EscolherPessoaEmNome.jsx).
   const [emNome, setEmNome] = useState(false);
   const [emNomeOnde, setEmNomeOnde] = useState("");
@@ -51,7 +51,9 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
   // (2026-10) — mostra-se no "Eu", para não haver dúvida de qual é
   const [meuTelefone, setMeuTelefone] = useState(null);
   useEffect(() => { obterMeuTelefone().then(setMeuTelefone); }, []);
-  const ativos = meus.filter((a) => a.ativo).length;
+  // os anúncios em nome de quem ainda não se registou (emNomeDe) são
+  // dessa pessoa, não contam para os teus 5
+  const ativos = meus.filter((a) => a.ativo && !a.emNomeDe).length;
   const noLimite = ativos >= MAX_ATIVOS;
 
   function trocarNatureza(n) {
@@ -89,7 +91,9 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
       // volta-se ao mural, onde já aparece
       onPublicado?.({ paraOutra: emNome && !semRegisto });
     } catch (e) {
-      setErro(e.message === "limite" ? `Já tens ${MAX_ATIVOS} anúncios no ar — marca um como vendido para abrir espaço.` : "Não foi possível publicar. Tenta outra vez.");
+      setErro(e.message !== "limite" ? "Não foi possível publicar. Tenta outra vez."
+        : emNome ? `Essa pessoa já tem ${MAX_ATIVOS} anúncios no ar — tem de tirar um antes deste.`
+        : `Já tens ${MAX_ATIVOS} anúncios no ar — marca um como vendido para abrir espaço.`);
     }
     setAEnviar(false);
   }
@@ -103,8 +107,8 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
             Publicar em nome de outra pessoa
           </label>
           <p className="ds" style={{ marginTop: 4 }}>
-            Só a moderação vê isto. Para quem pôs o anúncio no grupo do WhatsApp e não no Mural. Não conta para o
-            teu limite.
+            Só a moderação vê isto. Para quem pôs o anúncio no grupo do WhatsApp e não no Mural. Conta para
+            os {MAX_ATIVOS} anúncios dessa pessoa, não para os teus.
           </p>
           {emNome && (
             <EscolherPessoaEmNome
