@@ -40,10 +40,24 @@ const DIAS_ATE_EXPIRAR = 30;
 const DIAS_AVISO_ANTES_DE_EXPIRAR = 2;
 
 const TIPOS = new Set(["ofereco", "procuro"]);
+// Produtos e Serviços (2026-09, pedido do dono do produto): o mural
+// passa a ser uma grelha 2×2 — natureza (produto/serviço) × tipo
+// (ofereço/procuro). "servicos"/"boleias" no Ofereço e "arrendar" no
+// Procuro nasceram aqui, para cada quadrado ter opções a sério.
 const CATEGORIAS = {
-  ofereco: new Set(["venda", "doacao", "arrendamento", "emprego", "outros"]),
-  procuro: new Set(["objetos", "servicos", "boleias", "emprego", "outros"]),
+  ofereco: new Set(["venda", "doacao", "arrendamento", "servicos", "emprego", "boleias", "outros"]),
+  procuro: new Set(["objetos", "arrendar", "servicos", "emprego", "boleias", "outros"]),
 };
+const NATUREZAS = new Set(["produto", "servico"]);
+const CATEGORIAS_SERVICO = new Set(["servicos", "emprego", "boleias"]);
+/** A natureza vem da categoria — só "outros" existe nos dois lados, e
+ *  aí vale a que o cliente pediu (produto por omissão, que é onde os
+ *  "outros" antigos, sem natureza gravada, caem). Mesma regra de
+ *  `naturezaDe` em apps/mural/src/lib/util.js. */
+function naturezaDe(categoria, pedida) {
+  if (categoria === "outros") return NATUREZAS.has(pedida) ? pedida : "produto";
+  return CATEGORIAS_SERVICO.has(categoria) ? "servico" : "produto";
+}
 const REGIOES = new Set(["norte", "lisboa", "sines"]);
 const ESTADOS = new Set(["disponivel", "reservado", "vendido"]);
 
@@ -436,7 +450,7 @@ export const pedirContactoAnuncio = onCall(async (req) => {
 export const criarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { tipo, categoria, titulo, descricao = "", regiao, preco = "", gratis = false } = req.data || {};
+  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false } = req.data || {};
 
   if (!TIPOS.has(tipo)) throw new HttpsError("invalid-argument", "Tipo inválido.");
   if (!CATEGORIAS[tipo].has(categoria)) throw new HttpsError("invalid-argument", "Categoria inválida.");
@@ -458,7 +472,7 @@ export const criarAnuncio = onCall(async (req) => {
   const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + DIAS_ATE_EXPIRAR * 24 * 60 * 60 * 1000);
 
   const ref = await db().collection("anuncios").add({
-    tipo, categoria, titulo: t, descricao: String(descricao).trim(),
+    tipo, categoria, natureza: naturezaDe(categoria, natureza), titulo: t, descricao: String(descricao).trim(),
     regiao, preco: gratis ? "" : String(preco).trim(), gratis: !!gratis,
     fotos: [], estado: "disponivel", ativo: true,
     autorId: uid, autorNome: nome, autorFoto: foto, autorLocal: local,
@@ -471,7 +485,7 @@ export const criarAnuncio = onCall(async (req) => {
 export const editarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { id, titulo, descricao, preco, gratis, categoria } = req.data || {};
+  const { id, titulo, descricao, preco, gratis, categoria, natureza } = req.data || {};
   const ref = db().doc(`anuncios/${id}`);
   const snap = await exigirDono(ref, uid);
   const tipo = snap.data().tipo;
@@ -489,6 +503,7 @@ export const editarAnuncio = onCall(async (req) => {
   if (categoria !== undefined) {
     if (!CATEGORIAS[tipo].has(categoria)) throw new HttpsError("invalid-argument", "Categoria inválida.");
     alteracoes.categoria = categoria;
+    alteracoes.natureza = naturezaDe(categoria, natureza);
   }
   if (gratis !== undefined) alteracoes.gratis = !!gratis;
   if (preco !== undefined) alteracoes.preco = alteracoes.gratis || snap.data().gratis ? "" : String(preco).trim();
@@ -612,7 +627,7 @@ export const moderarAnuncio = onCall(async (req) => {
  *  interrupções, mesmo alcance"). Só quem modera chama isto. */
 const EMOJI_CATEGORIA = {
   venda: "🛒", doacao: "🎁", arrendamento: "🏠", emprego: "💼", outros: "📌",
-  objetos: "🙏", servicos: "🙏", boleias: "🚗",
+  objetos: "🙏", servicos: "🛠️", boleias: "🚗", arrendar: "🏠",
 };
 const NOME_REGIAO = { norte: "Norte", lisboa: "Lisboa", sines: "Sines" };
 
@@ -624,18 +639,23 @@ export const resumoSemanalMural = onCall(async (req) => {
 
   const ofertas = anuncios.filter((a) => a.tipo === "ofereco");
   const pedidos = anuncios.filter((a) => a.tipo === "procuro");
-  const porRegiao = {};
-  for (const a of ofertas) (porRegiao[a.regiao] ??= []).push(a);
 
+  // Produtos e Serviços em blocos separados (2026-09), cada um por região
+  const natureza = (a) => a.natureza ?? naturezaDe(a.categoria);
   let texto = `📋 Mural Onda — últimos 7 dias\n\nEsta semana: ${ofertas.length} novos anúncios e ${pedidos.length} pedidos.\n`;
-  for (const regiao of ["norte", "lisboa", "sines"]) {
-    const lista = porRegiao[regiao];
-    if (!lista?.length) continue;
-    texto += `\n${NOME_REGIAO[regiao]}\n`;
-    for (const a of lista) {
-      const emoji = EMOJI_CATEGORIA[a.categoria] || "📌";
-      const preco = a.gratis ? "grátis" : a.preco || "a combinar";
-      texto += `${emoji} ${a.titulo} — ${preco}\n`;
+  for (const [nat, titulo] of [["produto", "🛒 PRODUTOS"], ["servico", "🛠️ SERVIÇOS"]]) {
+    const daNatureza = ofertas.filter((a) => natureza(a) === nat);
+    if (!daNatureza.length) continue;
+    texto += `\n${titulo}\n`;
+    for (const regiao of ["norte", "lisboa", "sines"]) {
+      const lista = daNatureza.filter((a) => a.regiao === regiao);
+      if (!lista.length) continue;
+      texto += `${NOME_REGIAO[regiao]}\n`;
+      for (const a of lista) {
+        const emoji = EMOJI_CATEGORIA[a.categoria] || "📌";
+        const preco = a.gratis ? "grátis" : a.preco || "a combinar";
+        texto += `${emoji} ${a.titulo} — ${preco}\n`;
+      }
     }
   }
   if (pedidos.length) {
