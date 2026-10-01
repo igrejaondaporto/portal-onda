@@ -27,7 +27,32 @@ ver anúncios deixa de ser interrompido; e cada anúncio fica sempre
 atualizado, porque o dono confirma "ainda está disponível?" a cada 30
 dias, em vez de a informação morrer soterrada no histórico do grupo.
 
-## O mural é público — só publicar pede conta
+## Produtos e Serviços — a grelha 2×2 (2026-09)
+
+Pedido do dono do produto: "uma forma simples e prática, dividir em
+PRODUTOS e SERVIÇOS, e dentro de cada um Procuro e Ofereço". O mural
+abre com dois botões grandes (**Produtos | Serviços**, `.natureza` em
+`mural.css`) e por baixo o segmentado **Tudo · Ofereço · Procuro**.
+Publicar é em três toques — Produto ou Serviço → Ofereço ou Procuro →
+a categoria desse quadrado — e só depois aparece o resto do formulário.
+
+| | Ofereço | Procuro |
+|---|---|---|
+| **Produtos** | Vendo (`venda`) · Dou (`doacao`) · Arrendo (`arrendamento`) | Compro / preciso de (`objetos`) · Quero arrendar (`arrendar`) |
+| **Serviços** | Faço serviços (`servicos`) · Vaga de emprego (`emprego`) · Dou boleia (`boleias`) | Preciso de um serviço (`servicos`) · Procuro emprego (`emprego`) · Preciso de boleia (`boleias`) |
+
+"Outros" existe nos quatro. Os ids são os de sempre — só os nomes
+passaram a dizer o gesto; `servicos`/`boleias` no Ofereço e `arrendar`
+no Procuro nasceram aqui. `anuncios/{id}.natureza` (`produto`/
+`servico`) é gravado pelo servidor e **derivado da categoria**
+(`naturezaDe`, nos dois lados — `functions/mural.js` e `lib/util.js`);
+só "outros" usa a natureza escolhida. Os anúncios de antes não têm o
+campo e caem no sítio certo pela categoria (os "outros" antigos ficam
+em Produtos) — sem migração. Em "Tudo" o Filtro mostra só a região
+(as categorias de Ofereço e Procuro não são as mesmas). O resumo
+semanal separa 🛒 Produtos e 🛠️ Serviços.
+
+
 
 Diferença grande em relação a todas as outras apps do repo: ver os
 anúncios e falar no WhatsApp **nunca pedem sessão**. `anuncios/{id}`

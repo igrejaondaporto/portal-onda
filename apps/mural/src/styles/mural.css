@@ -326,3 +326,49 @@
   place-items: center;
   padding: 0 4px;
 }
+
+/* ── Produtos | Serviços (2026-09) ──────────────────────────────
+ * Os dois botões grandes por cima do Ofereço/Procuro, no Mural e no
+ * primeiro passo do Publicar. Escolhido = contorno azul + fundo água
+ * (o lima fica para o segmentado logo abaixo, para os dois níveis não
+ * se confundirem). */
+.natureza {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.natureza button {
+  font: inherit;
+  cursor: pointer;
+  border: 2px solid var(--fio);
+  background: #fff;
+  color: var(--tinta);
+  border-radius: 18px;
+  padding: 12px 14px 11px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: 0.16s;
+}
+.natureza button b {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.natureza button small {
+  font-size: 11.5px;
+  color: var(--cinza);
+}
+.natureza button[aria-pressed="true"] {
+  border-color: var(--azul);
+  background: var(--agua);
+}
+.natureza button[aria-pressed="true"] b {
+  color: var(--azul);
+}
+.natureza button:focus-visible {
+  outline: 3px solid var(--lima);
+  outline-offset: 2px;
+}
