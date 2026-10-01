@@ -83,7 +83,8 @@ leitura por id. Somavam-se arranques a frio das Cloud Functions,
 encadeados uns atrás dos outros. Quatro coisas:
 
 1. **Functions** (`functions/aquecer.js`, PR à parte). O `index.js` já
-   não carrega PDF/sharp/áudio no topo, e `manterLoginQuente` mantém
+   não carrega PDF/sharp/áudio no topo, e `aquecerLogin` (à boleia do
+   `sondarFreeshow`, custo zero) mantém
    acordadas, de 5 em 5 min, `entrar`, `dadosEntrada`,
    `listarBasesMural`, `pedirEntradaMural` e `entrarMural`.
 2. **Lista pré-carregada e guardada** (`lib/auth.js`).

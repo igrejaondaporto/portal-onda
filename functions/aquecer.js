@@ -17,19 +17,21 @@
  *      O Cloud Run mantém uma instância parada viva uns ~15 minutos,
  *      por isso ela nunca chega a desligar-se.
  *
- * Porquê isto e não `minInstances: 1`: uma instância mínima é cobrada
- * 24h por dia, cada função (uns 3 €/mês cada, ~15 € pelas cinco); isto
- * são ~45 mil invocações por mês (o plano grátis cobre 2 milhões) e um
- * job do Cloud Scheduler (0,10 €/mês a partir do 4.º). Se um dia a
- * igreja crescer ao ponto de vários logins em simultâneo serem
- * normais, aí sim, `minInstances` nas duas ou três mais usadas.
+ * CUSTO ZERO, de propósito (pedido do dono do produto: "não tem como
+ * não gastar NADA?"). Não é uma função agendada própria: o Cloud
+ * Scheduler só dá 3 jobs grátis por conta de faturação e o projeto já
+ * tem mais do que isso (cada job a mais são ~0,10 €/mês). Por isso
+ * `aquecerLogin` corre DENTRO do `sondarFreeshow` (index.js), que já
+ * existe e já corre a cada minuto — de 5 em 5 minutos faz também isto.
+ * As invocações (~45 mil/mês) e o CPU cabem no plano grátis do Cloud
+ * Run (2 milhões de pedidos/mês). Nada de `minInstances` (cobrado 24h
+ * por dia, ~3 €/mês por função).
  *
  * Uma função nova do caminho do login entra em AQUECER e responde a
  * `req.data?.aquecer` logo na primeira linha — sem isso o pedido
  * "aquece" na mesma, mas lê o Firestore à toa a cada 5 minutos.
  */
 import "./opcoes.js";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 
 export const AQUECER = ["entrar", "dadosEntrada", "listarBasesMural", "pedirEntradaMural", "entrarMural"];
@@ -43,9 +45,12 @@ function projeto() {
   }
 }
 
-export const manterLoginQuente = onSchedule({ schedule: "every 5 minutes", timeZone: "Europe/Lisbon" }, async () => {
+/** Só nos minutos múltiplos de 5 — o `sondarFreeshow` chama isto a
+ *  cada minuto (ver o topo). */
+export async function aquecerLogin(agora = new Date()) {
+  if (agora.getMinutes() % 5 !== 0) return;
   const id = projeto();
-  if (!id) return logger.warn("manterLoginQuente: sem id do projeto");
+  if (!id) return logger.warn("aquecerLogin: sem id do projeto");
   const falhas = [];
   await Promise.all(AQUECER.map(async (nome) => {
     try {
@@ -53,12 +58,12 @@ export const manterLoginQuente = onSchedule({ schedule: "every 5 minutes", timeZ
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: { aquecer: true } }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(30_000),
       });
       if (!r.ok) falhas.push(`${nome}: ${r.status}`);
     } catch (e) {
       falhas.push(`${nome}: ${e.message}`);
     }
   }));
-  if (falhas.length) logger.warn("manterLoginQuente: algumas não responderam", { falhas });
-});
+  if (falhas.length) logger.warn("aquecerLogin: algumas não responderam", { falhas });
+}

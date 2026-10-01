@@ -194,8 +194,11 @@ arrancar — até o `entrar` carregava PDF, sharp, Essentia e
 socket.io, e o login do Mural chegou a 30–40 s (2026-10). Uma
 dependência pesada nova entra por `import()` dinâmico dentro da
 função que a usa (padrão `carregarSharp`/`carregarPdfjs`). E o
-caminho do login fica acordado por `manterLoginQuente`
-(`functions/aquecer.js`, de 5 em 5 min, `{ aquecer: true }`) — uma
+caminho do login fica acordado por `aquecerLogin`
+(`functions/aquecer.js`, de 5 em 5 min, `{ aquecer: true }`), que corre
+à boleia do `sondarFreeshow` (já agendado a cada minuto) para não
+custar um job do Cloud Scheduler a mais — o projeto já passou os 3
+grátis. Custo zero é a regra: nada de `minInstances`. Uma
 função nova desse caminho entra na lista `AQUECER` e responde a
 `req.data?.aquecer` na primeira linha.
 
