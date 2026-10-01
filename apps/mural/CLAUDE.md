@@ -151,18 +151,29 @@ Pedido do dono do produto:
 
 - **Publicar em nome de outra pessoa** (só quem modera; caixa violeta no
   topo do Publicar). Serve para quem pôs o anúncio no grupo do WhatsApp
-  e não no Mural.
-  - `criarAnuncio({ emNomeDe: {nome, telefone} })` grava `autorNome` =
-    essa pessoa, sem foto, e `emNomeDe: true`.
-  - O telefone dela vai para `anuncios/{id}/privado/contacto` (o mesmo
-    sítio do "contacto de outra pessoa"), que se apaga quando o anúncio
-    sai do ar.
-  - Fica no `autorId` de quem modera (é quem o gere em "Os meus") e não
-    conta para o limite de 5.
-  - O detalhe mostra-o como um anúncio normal dessa pessoa, com
+  e não no Mural. Escolhe-se **onde está a pessoa** (uma base, "Membros"
+  ou "Não está registada") e depois o nome, com busca
+  (`components/EscolherPessoaEmNome.jsx`).
+  - **Registada** (voluntário de uma base ou membro do Mural):
+    `criarAnuncio({ emNomeDe: { pessoaId } })` cria o anúncio **no perfil
+    dela** (`autorId` = ela). Leva o nome, a foto e o "onde serve" dela,
+    aparece nos "Os meus" dela, é ela que o gere, e o WhatsApp é o dela.
+    Fica `publicadoPor` = quem moderou, só para poder pôr as fotos logo a
+    seguir (`definirFotosAnuncio`). Depois de publicar, volta-se ao
+    mural, porque o anúncio não está nos "Os meus" de quem modera.
+  - As pessoas de cada base vêm do `dadosEntrada` (a mesma cache da
+    Entrada). Os membros sem base vêm de `listarMembrosMural`, só para
+    quem modera: nome, GD e os últimos 3 dígitos do telemóvel, para
+    distinguir nomes iguais.
+  - **Não está registada**: `emNomeDe: {nome, telefone}`. O telefone vai
+    para `anuncios/{id}/privado/contacto` (o mesmo sítio do "contacto de
+    outra pessoa"), que se apaga quando o anúncio sai do ar. Fica no
+    `autorId` de quem modera, que o gere em "Os meus".
+  - Nenhum dos dois conta para o limite de 5. O detalhe mostra
     "publicado pela moderação" ao lado da data.
-  - Se a pessoa se registar depois, o anúncio não passa para ela: fica
-    com a moderação.
+  - As fotos dum anúncio publicado pela moderação ficam na pasta de quem
+    moderou. Quando a dona edita, `definirFotosAnuncio` deixa ficar as
+    que o anúncio já tem, venham de que pasta vierem.
 - **Login sem "Base"**: `nomeBase` tira o prefixo ("Base de Apoio" →
   "Apoio", "Base Louvor" → "Louvor").
 - **Login**: a segunda opção passou a "Não, mas sou membro".

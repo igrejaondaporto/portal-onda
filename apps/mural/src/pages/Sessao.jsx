@@ -145,7 +145,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
     </Casca>
   );
 
-  if (pagina === "publicar" && eu) return casca(<Publicar souAdmin={!!eu?.admin} onPublicado={() => setPagina("meus")} />);
+  if (pagina === "publicar" && eu) return casca(<Publicar souAdmin={!!eu?.admin} onPublicado={(r) => setPagina(r?.paraOutra ? "mural" : "meus")} />);
   if (pagina === "meus" && eu) return casca(<MeusAnuncios />);
   if (pagina === "painel" && eu?.admin) return casca(<PainelAdmin />);
 
