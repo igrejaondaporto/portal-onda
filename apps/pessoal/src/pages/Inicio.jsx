@@ -20,6 +20,7 @@ import SheetAbrirSolicitacao from "@portal/shared/components/SheetAbrirSolicitac
 import SheetDetalheSolicitacao from "@portal/shared/components/SheetDetalheSolicitacao.jsx";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import ResumoDomingo from "../components/painel/ResumoDomingo";
 
 /** A checklist é espelho de Funções — mesma ordem (o líder reordena
  *  lá, com as setas ↑/↓), nunca outra. A lista já chega ordenada por
@@ -227,6 +228,8 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
   return (
     <>
       <RecadoPastoral papel={papel} />
+      {/* os números do domingo, ao vivo — só a líder (2026-10) */}
+      {souLiderBase && <ResumoDomingo />}
       {/* "quero servir" — pedidos à espera, só o líder vê (packages/shared) */}
       <PedidosParaServir papel={papel} />
       {enquetesDentroDoPrazo.length > 0 && !carregandoRespostas && (

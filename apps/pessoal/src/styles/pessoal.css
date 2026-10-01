@@ -149,3 +149,110 @@
   .contagem-ajuste { transition: transform 160ms var(--ease-out, ease-out); }
   .contagem-ajuste:active:not(:disabled) { transform: scale(.97); }
 }
+
+/* ── Resumo do domingo no Início da líder (2026-10) ─────────────── */
+.resumoDomingo {
+  background: var(--agua);
+  border-radius: 22px;
+  padding: 14px 14px 12px;
+}
+.rdTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rdTopo .cap {
+  display: block;
+}
+.rdData {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.rdSeta {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: #fff;
+  color: var(--azul);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.rdSeta:disabled {
+  opacity: 0.35;
+}
+.rdHeroi {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 2px 10px;
+}
+.rdTotal {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--azul);
+  font-variant-numeric: tabular-nums;
+}
+.rdTotalRot {
+  font-size: 13px;
+  color: var(--cinza);
+}
+.rdGrelha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rdCartao {
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.rdNum {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.rdRot {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.rdSub {
+  font-size: 11px;
+  color: var(--cinza);
+}
+.rdSalas {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.rdSala {
+  background: #fff;
+  border-radius: 12px;
+  padding: 7px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.rdSala b {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.rdSala small {
+  font-size: 10.5px;
+  color: var(--cinza);
+}
+.rdLinha {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+.rdLinha b {
+  font-variant-numeric: tabular-nums;
+}
