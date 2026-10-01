@@ -37,7 +37,7 @@ export default function EscolherPessoaEmNome({ onde, setOnde, pessoa, setPessoa,
     if (onde === MEMBROS) {
       setLista(null);
       chamar("listarMembrosMural")()
-        .then(({ data }) => vivo && setLista(data.membros.map((m) => ({ ...m, sub: [m.local, m.fimTelefone && `…${m.fimTelefone}`].filter(Boolean).join(" · ") }))))
+        .then(({ data }) => vivo && setLista(data.membros.map((m) => ({ ...m, sub: m.local || "" }))))
         .catch(() => vivo && (setLista([]), setErro("Não deu para carregar os membros.")));
     } else {
       const deBase = (ps) => (ps || []).map((p) => ({ id: p.id, nome: p.nome, foto: p.foto ?? null }));

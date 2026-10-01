@@ -181,8 +181,9 @@ Pedido do dono do produto:
     mural, porque o anúncio não está nos "Os meus" de quem modera.
   - As pessoas de cada base vêm do `dadosEntrada` (a mesma cache da
     Entrada). Os membros sem base vêm de `listarMembrosMural`, só para
-    quem modera: nome, GD e os últimos 3 dígitos do telemóvel, para
-    distinguir nomes iguais.
+    quem modera. A lista mostra o nome e o GD. Os últimos dígitos do
+    telemóvel deixaram de aparecer (pedido de 2026-10), embora a função
+    ainda os devolva.
   - **Não está registada**: `emNomeDe: {nome, telefone}`.
     - Se o número já tem conta no Mural, é igual ao caso acima: vai logo
       para o perfil dela.
@@ -347,6 +348,23 @@ padrão do resto do repo (onde cada app serve UMA base, com
   `tel_<telefone>` — nunca um nome cru, regra 9 do CLAUDE.md raiz) ou
   `entrarMural` (conta já existente).
 
+**Voluntários e líderes também entram pelo telemóvel** (2026-10).
+Reportado: "o código está sempre com 4 dígitos, mas os líderes têm 6".
+Pela grelha de bases o líder já via 6 dígitos (vêm do `dadosEntrada`).
+O problema estava em "Não, mas sou membro": o telefone de um líder vive
+na base, não em `pessoas/tel_…`, por isso não era encontrado e o Mural
+pedia um código novo de 4 dígitos.
+
+- `encontrarPorTelefone` (`functions/mural.js`) procura também o
+  voluntário pelo telefone da base, com as formas comuns de o escrever,
+  e entra com a identidade e o PIN de sempre, com os dígitos que o PIN
+  tem.
+- Se o número estiver em pessoas diferentes (família), o Mural manda
+  entrar pela grelha.
+- `registarMural` recusa o telefone de um voluntário, para não nascer
+  uma segunda identidade.
+- `trocarPinMural` mantém os dígitos do PIN. Antes forçava 4.
+
 `apps/mural/src/lib/auth.js` guarda a base escolhida num módulo local
 (`definirBaseEmCurso`) para o primeiro caminho, porque
 `entrarComPin(pessoaId, pin)` não leva `baseId` — cada app de base
@@ -427,12 +445,11 @@ voluntário, guarda o telefone na sua base).
 
 ## Débitos conscientes
 
-- **Busca por telefone não normalizada entre sistemas.** `entrarMural`/
-  `registarMural` só comparam contra `pessoas/tel_<telefone>` (o
-  próprio caminho de registo do Mural), nunca contra o telefone que um
-  líder escreveu numa base — por isso o formato ("912 345 678" vs
-  "912345678") nunca interfere aqui. Ver o comentário completo no
-  topo de `functions/mural.js`.
+- **Telefones das bases em texto livre.** Para encontrar um voluntário
+  pelo telemóvel, `voluntarioPorTelefone` tenta as formas comuns
+  ("912345678", "912 345 678", "+351 …"). Um número escrito de outra
+  maneira não é encontrado. Nesse caso a pessoa entra pela grelha de
+  bases, como sempre.
 - **Sem moderação prévia.** Qualquer anúncio fica visível assim que é
   publicado; o Painel (aba "Reportados") e "Reportar anúncio à
   moderação" no detalhe são o mecanismo de hoje. Pré-aprovação

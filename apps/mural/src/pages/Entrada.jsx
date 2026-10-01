@@ -74,6 +74,11 @@ export default function Entrada() {
     setErro("");
     const r = await pedirEntradaMural(limpo).catch(() => null);
     if (!r) return setErro("Não foi possível verificar o telemóvel. Tenta outra vez.");
+    // número de um voluntário que aparece em mais de uma pessoa (2026-10):
+    // pelo telemóvel não dá para saber quem é — entra pela grelha de bases
+    if (r.usarBase) return setErro("Este número está em mais de uma pessoa. Entra por \"Sim, sirvo numa base\" e toca no teu nome.");
+    // voluntários e líderes também entram por aqui, com o PIN de sempre:
+    // `digitos` é o do PIN deles (6 para líderes) — functions/mural.js
     if (r.existe) {
       aquecerEntrarMural();
       definirPessoaEmCurso(null);
