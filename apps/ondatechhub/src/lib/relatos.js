@@ -37,5 +37,7 @@ export const NOMES_BASE = {
   pessoal: "Pessoal", louvor: "Louvor", louvorkinder: "Louvor Kinder", new: "New",
   shift: "SHIFT", kinder: "Kinder", financeiro: "Financeiro", pastoral: "Pastoral",
   ondatechhub: "Onda Tech Hub",
+  // não é uma base, mas manda relatos pelo mesmo botão (2026-10)
+  mural: "Mural Onda",
 };
 export const nomeBase = (id) => NOMES_BASE[id] || id;
