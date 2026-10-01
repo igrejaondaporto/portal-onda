@@ -21,6 +21,7 @@ import { linhasDoPdf, analisar } from "./ordemCultoPdf.js";
 import { logger } from "firebase-functions";
 import { sondarUmaVez, normalizarNome } from "./freeshow.js";
 import { CATEGORIAS_KINDER } from "./kinder.js";
+import { aquecerLogin } from "./aquecer.js";
 
 /* ── DEPENDÊNCIAS PESADAS SÓ QUANDO SÃO PRECISAS (2026-10) ────────
  * Cada Cloud Function de 2.ª geração arranca este ficheiro INTEIRO —
@@ -110,10 +111,6 @@ export {
   pedirParaServir, cancelarPedidoServir, enviarContactoParaServir,
   decidirCandidatura, notificarCandidatura,
 } from "./candidaturas.js";
-
-// Mantém acordadas as funções do caminho do login (aquecer.js) — o
-// login do Mural chegava a 30-40 s por causa de arranques a frio.
-export { manterLoginQuente } from "./aquecer.js";
 
 // Reportar bugs/erros/melhorias do painel, de qualquer base, para o
 // Onda Tech Hub triar — ficheiro próprio, mesmo motivo de
@@ -4241,7 +4238,12 @@ async function executarSondaFreeshow() {
   await ref.set({ ...patch, estado, secoesReais, movimentoJanela, ultimaDeteccaoOutput }, { merge: true });
 }
 
-export const sondarFreeshow = onSchedule("every 1 minutes", executarSondaFreeshow);
+// De 5 em 5 minutos acorda também as funções do login (aquecer.js) —
+// à boleia deste job, que já existe, para não pagar um job do
+// Scheduler a mais. As duas coisas em paralelo: uma não atrasa a outra.
+export const sondarFreeshow = onSchedule("every 1 minutes", async () => {
+  await Promise.all([aquecerLogin().catch(() => {}), executarSondaFreeshow()]);
+});
 
 /* Chamado pelo ecrã da Ordem do culto, a cada poucos segundos, só
  * enquanto o culto que a pessoa está a ver estiver mesmo "gravando" —
