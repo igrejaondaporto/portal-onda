@@ -2,24 +2,19 @@ import { useEffect, useState } from "react";
 import { sair } from "../lib/auth";
 import { useTrocarBase } from "../lib/useTrocarBase";
 import ImagemExpandida from "./ImagemExpandida";
-import SheetEmail from "./SheetEmail.jsx";
 import SheetPrivacidade from "./SheetPrivacidade.jsx";
 import SheetServirNoutraBase from "./SheetServirNoutraBase.jsx";
-import { estadoDoEmail, ouvirMeuEmail } from "../lib/email.js";
 import { ouvirMeuPedido } from "../lib/candidaturas.js";
 
-export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onAbrirTour, onVerComoVoluntario }) {
+export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = [], onFechar, onAbrirPainel, onAbrirPerfil, onVerComoVoluntario }) {
+  // "Rever tour" saiu do menu (2026-10, pedido do dono do produto); as
+  // apps ainda passam `onAbrirTour`, que fica sem uso.
   // "auxiliar" só existe na Louvor e tem as mesmas funções do líder
   // da base (ver apps/louvor/src/lib/modelo.js) — nenhuma outra base
   // consegue produzir esse papel no token, seguro tratar aqui.
   const lider = papel === "lider_base" || papel === "auxiliar";
   const [expandida, setExpandida] = useState(false);
-  // o e-mail dos avisos abre por cima deste menu, e fechá-lo volta aqui
-  const [verEmail, setVerEmail] = useState(false);
   const [verPrivacidade, setVerPrivacidade] = useState(false);
-  // a bolinha no botão: laranja se o e-mail ainda está por confirmar
-  const [estadoEmail, setEstadoEmail] = useState(null);
-  useEffect(() => ouvirMeuEmail((m) => setEstadoEmail(estadoDoEmail(m))), []);
   // "Servir noutra base" (functions/candidaturas.js) — o pedido à
   // espera, se houver, aparece no próprio botão
   const [verServir, setVerServir] = useState(false);
@@ -68,18 +63,13 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         <button className="btn full" style={{ marginTop: 20 }} onClick={onAbrirPerfil}>
           Ver perfil
         </button>
-        {/* em todas as bases, sem cada app ter de o ligar — o e-mail é
-          * da pessoa, não da base (functions/email.js) */}
-        <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => setVerEmail(true)}>
-          E-mail para avisos
-          {estadoEmail === "porConfirmar" && (
-            <span
-              aria-label="por confirmar" title="Por confirmar"
-              style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "var(--laranja, #f5a300)", marginLeft: 8, verticalAlign: "middle" }}
-            />
-          )}
-        </button>
-        {/* em todas as bases, como o e-mail: pedir para servir também
+        {/* Mural Onda (2026-10, pedido do dono do produto): um atalho para o
+          * mural da igreja, a lima do "Onda". O e-mail para avisos, que
+          * estava aqui, passou para o Perfil (EmailNoPerfil). */}
+        <a className="btn full mural-menu" style={{ marginTop: 9 }} href="https://mural.igrejaonda.pt">
+          Mural Onda
+        </a>
+        {/* em todas as bases: pedir para servir também
           * noutra base. Azul mais cheio que os outros, de propósito
           * (pedido do dono do produto) — é um convite, não definições. */}
         <button className="btn full sv-menu" style={{ marginTop: 9 }} onClick={() => setVerServir(true)}>
@@ -98,14 +88,6 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
         {lider && onVerComoVoluntario && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={() => { onFechar(); onVerComoVoluntario(); }}>
             Painel do voluntário
-          </button>
-        )}
-        {onAbrirTour && (
-          <button
-            className="btn sec full" style={{ marginTop: 9 }}
-            onClick={() => { onFechar(); onAbrirTour(); }}
-          >
-            Rever tour
           </button>
         )}
         <button className="btn sec full" style={{ marginTop: 9 }} onClick={sair}>
@@ -127,7 +109,6 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
           </button>
         </p>
       </div>
-      {verEmail && <SheetEmail onFechar={() => setVerEmail(false)} />}
       {verPrivacidade && <SheetPrivacidade onFechar={() => setVerPrivacidade(false)} />}
       {verServir && (
         <SheetServirNoutraBase

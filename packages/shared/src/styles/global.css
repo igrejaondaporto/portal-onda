@@ -2581,6 +2581,15 @@ textarea.campo {
   color: var(--azul);
   font-weight: 700;
 }
+/* "Mural Onda" no menu da foto (2026-10): a lima do "Onda", texto
+ * escuro — leva ao mural.igrejaonda.pt. É um <a>, por isso display:block
+ * para ocupar a largura toda como os botões vizinhos. */
+.btn.mural-menu {
+  display: block;
+  background: var(--lima);
+  color: var(--tinta, #0b1033);
+  font-weight: 700;
+}
 .sv-menu-estado {
   display: block;
   font-size: 11.5px;
