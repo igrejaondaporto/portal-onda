@@ -24,6 +24,7 @@ import LembreteEnsaio, { isoLocal } from "../components/LembreteEnsaio";
 import SheetResponderEnquete from "../components/SheetResponderEnquete";
 import RecadoPastoral from "@portal/shared/components/RecadoPastoral.jsx";
 import PedidosParaServir from "@portal/shared/components/PedidosParaServir.jsx";
+import CaixasAtalho from "@portal/shared/components/CaixasAtalho.jsx";
 
 export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, definirCabecalho, onIrEscala, onIrCulto, onIrBiblioteca, onIrReembolsos }) {
   const torrada = useTorrada();
@@ -368,32 +369,13 @@ export default function Inicio({ uid, papel, pessoa, mes, ano, mudarMes, ativo, 
               <span className="seta">›</span>
             </div>
           ))}
-          {/* Reembolsos e (para o líder) Solicitar BG só se alcançam por
-            * aqui — sem entrada própria na barra de baixo, ao contrário
-            * de Biblioteca/Culto acima. Em cor para se distinguirem à
-            * vista do resto da lista. */}
-          <div className="destaque" style={{ background: "var(--laranja)", marginTop: 14, marginBottom: 0 }} onClick={() => onIrReembolsos?.()}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Reembolsos</p>
-              <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Nota e valor</p>
-            </div>
-            <span style={{ fontSize: 24 }}>›</span>
-          </div>
-          {souLider && (
-            <div className="destaque" style={{ background: "var(--violeta)", marginTop: 10, marginBottom: 0 }} onClick={() => setSheetComunicacao({ tipo: "lista" })}>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>Solicitar BG</p>
-                <p style={{ fontSize: 17, fontWeight: 700, marginTop: 5, letterSpacing: "-.03em" }}>Peças gráficas, vídeo ou fotografia</p>
-              </div>
-              {emCurso > 0 ? (
-                <span style={{ background: "rgba(255,255,255,.25)", color: "#fff", fontSize: 11.5, fontWeight: 700, padding: "5px 11px", borderRadius: 100, whiteSpace: "nowrap" }}>
-                  {emCurso} em curso
-                </span>
-              ) : (
-                <span style={{ fontSize: 24 }}>›</span>
-              )}
-            </div>
-          )}
+          {/* Reembolsos, Solicitar BG (líder) e Mural Onda — as caixas de
+            * cor iguais em todas as bases (CaixasAtalho, shared). */}
+          <CaixasAtalho
+            onReembolsos={onIrReembolsos}
+            onSolicitarBG={souLider ? () => setSheetComunicacao({ tipo: "lista" }) : null}
+            emCurso={emCurso}
+          />
         </div>
       </div>
     </div>
