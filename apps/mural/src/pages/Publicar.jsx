@@ -3,6 +3,7 @@ import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, obterMeuTelefone, M
 import { NATUREZAS, REGIOES, categoriasDe, precoValido } from "../lib/util.js";
 import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
 import EscolherPessoaEmNome, { SEM_REGISTO } from "../components/EscolherPessoaEmNome.jsx";
+import OrdenarFotos from "../components/OrdenarFotos.jsx";
 
 const OUTRA = "__outra__";
 const formatarTelefone = (t) => String(t).replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3");
@@ -248,10 +249,15 @@ export default function Publicar({ onPublicado, souAdmin = false }) {
           contactos. Até 4 — comprimimos antes de enviar, não gasta os teus dados.
         </p>
         <input ref={inputFoto} type="file" accept="image/*" multiple hidden
-          onChange={(e) => setFicheiros(Array.from(e.target.files || []).slice(0, 4))} />
-        <button className="btn sec" style={{ marginTop: 10 }} onClick={() => inputFoto.current?.click()}>
-          {ficheiros.length ? `${ficheiros.length} foto(s) escolhida(s)` : "Escolher fotos"}
-        </button>
+          onChange={(e) => { const novos = Array.from(e.target.files || []); e.target.value = ""; setFicheiros((l) => [...l, ...novos].slice(0, 4)); }} />
+        {ficheiros.length ? (
+          <>
+            <OrdenarFotos lista={ficheiros} setLista={setFicheiros} onJuntar={() => inputFoto.current?.click()} />
+            {ficheiros.length > 1 && <p className="ds" style={{ marginTop: 8 }}>A primeira é a capa. Usa ‹ › para mudar a ordem.</p>}
+          </>
+        ) : (
+          <button className="btn sec" style={{ marginTop: 10 }} onClick={() => inputFoto.current?.click()}>Escolher fotos</button>
+        )}
       </div>
 
       {erro && <p className="aviso">{erro}</p>}
