@@ -259,6 +259,8 @@ export const registarMural = onCall(async (req) => {
     origemMural: true, criadoEm: admin.firestore.FieldValue.serverTimestamp(),
   });
   await refSegredo(id).set({ pinHash: hash(pin), pinDigitos: 4, provisorio: false, falhas: 0 });
+  // anúncios que a moderação já tinha publicado em nome deste número
+  await transferirPendentes(telefone, id).catch((e) => console.error("transferirPendentes", e));
 
   const token = await admin.auth().createCustomToken(id);
   return { token };
@@ -480,7 +482,64 @@ function validarContactoOutro(c) {
   const nome = String(c.nome || "").trim().slice(0, 60);
   return { telefone, nome };
 }
-const apagarContactoOutro = (id) => refContactoOutro(id).delete().catch(() => {});
+async function apagarContactoOutro(id) {
+  // se era um anúncio à espera de alguém se registar (ver PENDENTES abaixo),
+  // tira-o também da lista dessa pessoa — o número não fica a acumular
+  const c = await refContactoOutro(id).get().catch(() => null);
+  if (c?.exists && c.data().pendente) await tirarPendente(c.data().telefone, id).catch(() => {});
+  await refContactoOutro(id).delete().catch(() => {});
+}
+
+/* ── PENDENTES (2026-10) ────────────────────────────────────────
+ * A moderação publica em nome de quem ainda não está registado (nome +
+ * telemóvel). "Quando ele se registar com o número dele, o anúncio já
+ * vai para o perfil dele." Até lá o anúncio fica no autorId de quem
+ * moderou, e `muralPendentes/tel_<telefone>` (fechado pelo catch-all do
+ * firestore.rules — só o Admin SDK lê) guarda os ids. `registarMural`
+ * passa-os para a conta nova (transferirPendentes). Sai da lista quando
+ * o anúncio sai do ar (apagarContactoOutro), e o doc apaga-se vazio. */
+const refPendentes = (telefone) => db().doc(`muralPendentes/${idParaTelefone(telefone)}`);
+async function tirarPendente(telefone, id) {
+  const ref = refPendentes(telefone);
+  await db().runTransaction(async (tx) => {
+    const s = await tx.get(ref);
+    if (!s.exists) return;
+    const resto = (s.data().anuncios || []).filter((x) => x !== id);
+    if (resto.length) tx.update(ref, { anuncios: resto });
+    else tx.delete(ref);
+  });
+}
+/** Anúncios ainda no ar à espera deste telefone (para o limite de 5). */
+async function pendentesAtivos(telefone) {
+  const s = await refPendentes(telefone).get();
+  if (!s.exists) return [];
+  const docs = await Promise.all((s.data().anuncios || []).map((id) => db().doc(`anuncios/${id}`).get()));
+  return docs.filter((d) => d.exists && d.data().ativo === true);
+}
+/** Passa para a conta acabada de criar os anúncios que a moderação
+ *  publicou em nome deste telefone: autoria, nome/foto/GD dela, e o
+ *  contacto passa a ser o do perfil (o privado/contacto apaga-se). */
+async function transferirPendentes(telefone, pessoaId) {
+  const ref = refPendentes(telefone);
+  const s = await ref.get();
+  if (!s.exists) return 0;
+  const { nome, foto, local } = await autorInfo(pessoaId);
+  let n = 0;
+  for (const id of s.data().anuncios || []) {
+    const aRef = db().doc(`anuncios/${id}`);
+    const a = await aRef.get();
+    // só os que continuam no ar e ainda estão com quem moderou
+    if (!a.exists || a.data().ativo !== true || a.data().autorId !== a.data().publicadoPor) continue;
+    await aRef.update({
+      autorId: pessoaId, autorNome: nome, autorFoto: foto, autorLocal: local,
+      contactoDeOutro: false, atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await refContactoOutro(id).delete().catch(() => {});
+    n++;
+  }
+  await ref.delete();
+  return n;
+}
 
 /** Botão "Falar no WhatsApp" do detalhe do anúncio — público de
  *  propósito (2026-09): ver quem vende e chamar no WhatsApp NUNCA
@@ -521,15 +580,19 @@ export const criarAnuncio = onCall(async (req) => {
   //  - `{ pessoaId }` — alguém que já existe (voluntário de uma base ou
   //    membro registado no Mural), escolhido numa lista. O anúncio nasce
   //    no perfil DELA (`autorId` = ela): aparece nos "Os meus" dela, é
-  //    ela que o gere, e o WhatsApp é o dela (telefoneDoAutor). Fica
-  //    `publicadoPor` = quem moderou, para poder pôr as fotos a seguir.
-  //  - `{ nome, telefone }` — quem não está registado. O anúncio leva
-  //    esse nome; o contacto fica como o "contacto de outra pessoa"
-  //    (privado, apagado quando o anúncio sai do ar) e o anúncio fica no
-  //    `autorId` de quem modera, que o gere em "Os meus".
-  // Nenhum dos dois conta para o limite de 5 (é a moderação a publicar).
+  //    ela que o gere, e o WhatsApp é o dela (telefoneDoAutor).
+  //  - `{ nome, telefone }` — quem não está escolhido na lista. Se o
+  //    número já tem conta no Mural, é igual ao caso acima. Se não, o
+  //    anúncio leva esse nome, o contacto fica como o "contacto de outra
+  //    pessoa" (privado) e fica no `autorId` de quem modera, PENDENTE:
+  //    quando ela se registar com esse número, passa para o perfil dela
+  //    (ver PENDENTES acima).
+  // `publicadoPor` = quem moderou (fotos logo a seguir; e o pendente
+  // ainda é dele). Conta para o limite de 5 DESSA pessoa (pedido 2026-10),
+  // nunca para o de quem modera.
   let porOutro = null;
   let autorPessoa = null;
+  let ativosDaPessoa = null;
   if (emNomeDe) {
     if (!(await souAdminMural(uid))) throw new HttpsError("permission-denied", "Só a moderação publica em nome de outra pessoa.");
     if (emNomeDe.pessoaId) {
@@ -541,10 +604,16 @@ export const criarAnuncio = onCall(async (req) => {
     } else {
       const nomeOutro = String(emNomeDe.nome || "").trim().slice(0, 60);
       if (!nomeOutro) throw new HttpsError("invalid-argument", "Falta o nome da pessoa.");
-      porOutro = { nome: nomeOutro, ...validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro }) };
+      const ct = validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro });
+      const achado = await encontrarPorTelefone(ct.telefone);
+      if (achado) autorPessoa = achado.pessoaId;
+      else {
+        porOutro = { nome: nomeOutro, telefone: ct.telefone };
+        ativosDaPessoa = (await pendentesAtivos(ct.telefone)).length;
+      }
     }
   }
-  const outro = porOutro ? { nome: porOutro.nome, telefone: porOutro.telefone } : validarContactoOutro(contactoOutro);
+  const outro = porOutro ? { nome: porOutro.nome, telefone: porOutro.telefone, pendente: true } : validarContactoOutro(contactoOutro);
   // cidade e freguesia (2026-10): texto curto, escolhido de uma lista no
   // Publicar ou escrito à mão em "Outra cidade" — o filtro "Onde" do
   // mural cresce sozinho a partir do que os anúncios trazem. A região
@@ -552,11 +621,16 @@ export const criarAnuncio = onCall(async (req) => {
   const c = String(cidade || "").trim().slice(0, 60);
   const f = c ? String(freguesia || "").trim().slice(0, 80) : "";
 
-  const ativosSnap = await db().collection("anuncios")
-    .where("autorId", "==", uid).where("ativo", "==", true).get();
-  if (!emNomeDe && ativosSnap.size >= MAX_ATIVOS_POR_PESSOA) {
+  if (ativosDaPessoa === null) {
+    const ativosSnap = await db().collection("anuncios")
+      .where("autorId", "==", autorPessoa || uid).where("ativo", "==", true).get();
+    // no autorId de quem modera, os anúncios `emNomeDe` são pendentes de
+    // outras pessoas — não contam para o limite dela
+    ativosDaPessoa = autorPessoa ? ativosSnap.size : ativosSnap.docs.filter((d) => !d.data().emNomeDe).length;
+  }
+  if (ativosDaPessoa >= MAX_ATIVOS_POR_PESSOA) {
     throw new HttpsError("resource-exhausted", "limite",
-      { limite: MAX_ATIVOS_POR_PESSOA, ativos: ativosSnap.size });
+      { limite: MAX_ATIVOS_POR_PESSOA, ativos: ativosDaPessoa, deOutra: !!emNomeDe });
   }
 
   const autorId = autorPessoa || uid;
@@ -577,6 +651,11 @@ export const criarAnuncio = onCall(async (req) => {
     criadoEm: agora, atualizadoEm: agora, expiraEm,
   });
   if (outro) await refContactoOutro(ref.id).set({ ...outro, porUid: uid, em: agora });
+  if (porOutro) {
+    await refPendentes(porOutro.telefone).set({
+      anuncios: admin.firestore.FieldValue.arrayUnion(ref.id), atualizadoEm: agora,
+    }, { merge: true });
+  }
   return { id: ref.id };
 });
 
