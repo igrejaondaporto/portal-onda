@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ouvirMeusAnuncios, alterarEstadoAnuncio, renovarAnuncio, removerAnuncio, MAX_ATIVOS } from "../lib/anuncios.js";
 import { nomeCategoria, textoPreco } from "../lib/util.js";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
-import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import GaleriaExpandida from "../components/GaleriaExpandida.jsx";
 import SheetEditarAnuncio from "../components/SheetEditarAnuncio.jsx";
 
 export default function MeusAnuncios() {
@@ -93,7 +93,7 @@ export default function MeusAnuncios() {
         );
       })}
       {aEditar && <SheetEditarAnuncio anuncio={aEditar} onFechar={() => setAEditar(null)} />}
-      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
+      {imagemExpandida && <GaleriaExpandida fotos={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }

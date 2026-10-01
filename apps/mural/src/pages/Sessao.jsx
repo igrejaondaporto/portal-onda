@@ -3,7 +3,7 @@ import AvisoOffline from "@portal/shared/components/AvisoOffline.jsx";
 import AvisoInstalarPWA from "@portal/shared/components/AvisoInstalarPWA.jsx";
 import NavBar, { EVENTO_ABRIR_MELHORIAS } from "@portal/shared/components/NavBar.jsx";
 import BotaoReportarFlutuante from "@portal/shared/components/BotaoReportarFlutuante.jsx";
-import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import GaleriaExpandida from "../components/GaleriaExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
 import { NATUREZAS, ORDENS, bateCategoria, bateLugar, lugarDe, naturezaDe, nomeCategoria, nomeDaChave, nomeLugar, ordenar, relativo, textoPreco } from "../lib/util.js";
@@ -259,7 +259,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
           onPedirEntrar={onPedirEntrar}
         />
       )}
-      {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
+      {imagemExpandida && <GaleriaExpandida fotos={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
     </>
   );
 }
