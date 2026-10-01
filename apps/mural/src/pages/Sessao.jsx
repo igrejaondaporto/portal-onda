@@ -6,7 +6,7 @@ import BotaoReportarFlutuante from "@portal/shared/components/BotaoReportarFlutu
 import GaleriaExpandida from "../components/GaleriaExpandida.jsx";
 import { sair } from "../lib/auth.js";
 import { ouvirAnunciosAtivos } from "../lib/anuncios.js";
-import { NATUREZAS, ORDENS, bateCategoria, bateLugar, lugarDe, naturezaDe, nomeCategoria, nomeDaChave, nomeLugar, ordenar, relativo, textoPreco } from "../lib/util.js";
+import { NATUREZAS, ORDENS, bateCategoria, bateLugar, lugarDe, etiquetaTipo, naturezaDe, nomeCategoria, nomeDaChave, nomeLugar, ordenar, relativo, textoPreco } from "../lib/util.js";
 import DetalheAnuncio from "../components/DetalheAnuncio.jsx";
 import FiltroSheet from "../components/FiltroSheet.jsx";
 import FotoAnuncio from "../components/FotoAnuncio.jsx";
@@ -245,6 +245,7 @@ export default function Sessao({ eu, aEntrar, onPedirEntrar, onAdminConcedido })
               nada); o estado só aparece quando diz alguma coisa */}
           <span className="ladoPreco">
             <span className={`precoTag${a.gratis ? " gratis" : valorPrecoVazio(a) ? " combinar" : ""}`}>{textoPreco(a)}</span>
+            <span className="tipoTag" data-natureza={naturezaDe(a)}>{etiquetaTipo(a)}</span>
             {a.estado === "reservado" && <span className="seloEstado res">Reservado</span>}
             {a.estado === "vendido" && <span className="seloEstado vend">Vendido</span>}
           </span>

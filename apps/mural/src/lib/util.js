@@ -214,6 +214,18 @@ export function nomeCategoria(tipo, categoriaId) {
   return CATEGORIAS[tipo]?.find((c) => c.id === categoriaId)?.nome || categoriaId;
 }
 
+/** Etiqueta curta do tipo de anúncio, ao lado do preço na lista (2026-10,
+ *  pedido: "a etiqueta do tipo do anúncio — Vaga, Serviços, Arrendamento,
+ *  Boleia"). Uma palavra, para caber na coluna do preço; o nome completo
+ *  ("Preciso de boleia") continua na linha de baixo. */
+const ETIQUETAS = {
+  ofereco: { venda: "Venda", doacao: "Doação", arrendamento: "Arrendamento", servicos: "Serviço", emprego: "Vaga", boleias: "Boleia", outros: "Outros" },
+  procuro: { objetos: "Compra", arrendar: "Arrendamento", servicos: "Serviço", emprego: "Emprego", boleias: "Boleia", outros: "Outros" },
+};
+export function etiquetaTipo(anuncio) {
+  return ETIQUETAS[anuncio.tipo]?.[anuncio.categoria] || nomeCategoria(anuncio.tipo, anuncio.categoria);
+}
+
 /** Link do WhatsApp a partir de um telefone (já pedido a
  *  `pedirContactoAnuncio`, nunca gravado no anúncio em si — ver o
  *  comentário em functions/mural.js). Aceita qualquer formato comum
