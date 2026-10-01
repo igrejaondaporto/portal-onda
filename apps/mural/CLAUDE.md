@@ -214,6 +214,34 @@ Pedido do dono do produto:
   xxx" (`obterMeuTelefone`). Voluntários guardam o telefone na base, que
   daqui não se lê, por isso fica o texto de sempre.
 
+### Fotos: reordenar e galeria (2026-10)
+
+- **Reordenar** (`components/OrdenarFotos.jsx`, no Publicar e no Editar):
+  - as fotos escolhidas aparecem em miniatura, cada uma com ‹ › para
+    trocar de lugar e × para tirar;
+  - a primeira leva a marca "capa", porque é a que aparece no feed;
+  - "+ foto" junta mais, até 4.
+  - São setas e não arrastar: no telemóvel, arrastar dentro de uma página
+    que também desliza é frágil.
+  - No Editar, a ordem nova grava-se pelo `definirFotosAnuncio`, que
+    aceita reordenar as fotos que o anúncio já tem.
+- **Bug corrigido:** o `<input type=file>` limpava-se (`value = ""`)
+  antes de o `setState` ler `e.target.files`, porque o updater corre
+  depois. As fotos escolhidas no Editar perdiam-se sem aviso. Agora os
+  ficheiros são copiados primeiro.
+- **Galeria** (`components/GaleriaExpandida.jsx`): tocar numa foto do
+  detalhe abre-a em ecrã cheio.
+  - Tem setas dos lados para passar às outras sem fechar e as miniaturas
+    de todas por baixo.
+  - Também desliza com o dedo e responde às setas do teclado e ao Esc.
+  - Fica no Mural e não no `ImagemExpandida` partilhado: as bases usam
+    esse para uma foto só, e mudá-lo repintava todas.
+- **Limpeza para o lançamento (2026-10-01):** os 16 anúncios de exemplo
+  que ainda estavam no ar passaram a `ativo: false`, marcados com
+  `limpezaLancamento: "2026-10-01"`, e nenhum foi apagado. As 16 contas de
+  teste (`tel_0000000xx`, `tel_999999999`) ficaram como estavam, a
+  pedido.
+
 ### "Melhorias" — relatos ao Onda Tech Hub (2026-10)
 
 O botão "Melhorias" vinha no menu partilhado (`NavBar`), mas o Mural

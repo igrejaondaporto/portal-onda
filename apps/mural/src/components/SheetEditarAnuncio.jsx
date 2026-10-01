@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { definirFotosAnuncio, editarAnuncio, subirFotosNovas } from "../lib/anuncios.js";
 import { REGIOES, categoriasDe, naturezaDe, precoValido } from "../lib/util.js";
 import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
+import OrdenarFotos from "./OrdenarFotos.jsx";
 
 const OUTRA = "__outra__";
 
@@ -14,7 +15,7 @@ const OUTRA = "__outra__";
  * ou Procuro não muda, é outro anúncio), preço/grátis, cidade/freguesia,
  * descrição e fotos (tirar as que lá estão, juntar novas até 4). Tudo
  * pelo `editarAnuncio` de sempre (functions/mural.js); as fotos pelo
- * `definirFotosAnuncio`, só se mudaram.
+ * `definirFotosAnuncio`, só se mudaram (também a ordem — a primeira é a capa).
  */
 export default function SheetEditarAnuncio({ anuncio, onFechar }) {
   const natureza = naturezaDe(anuncio);
@@ -28,13 +29,11 @@ export default function SheetEditarAnuncio({ anuncio, onFechar }) {
   const [cidadeOutra, setCidadeOutra] = useState(cidadeConhecida ? "" : anuncio.cidade || "");
   const [freguesia, setFreguesia] = useState(anuncio.freguesia || "");
   const [regiaoOutra, setRegiaoOutra] = useState(anuncio.regiao || REGIOES[0].id);
+  // URLs das fotos que já lá estão + File das novas, pela ordem escolhida
   const [fotos, setFotos] = useState(anuncio.fotos || []);
-  const [novas, setNovas] = useState([]);
   const [aGuardar, setAGuardar] = useState(false);
   const [erro, setErro] = useState("");
   const inputFoto = useRef(null);
-
-  const lugarFotos = Math.max(0, 4 - fotos.length - novas.length);
 
   async function guardar() {
     if (!titulo.trim()) return setErro("Escreve um título.");
@@ -49,10 +48,13 @@ export default function SheetEditarAnuncio({ anuncio, onFechar }) {
       await editarAnuncio({
         id: anuncio.id, titulo, descricao, preco, gratis, categoria, natureza, ...lugar,
       });
-      const mudouFotos = novas.length > 0 || fotos.length !== (anuncio.fotos || []).length;
+      const antes = anuncio.fotos || [];
+      const mudouFotos = fotos.length !== antes.length || fotos.some((f, i) => f !== antes[i]);
       if (mudouFotos) {
-        const subidas = novas.length ? await subirFotosNovas(anuncio.id, novas) : [];
-        await definirFotosAnuncio(anuncio.id, [...fotos, ...subidas]);
+        // sobem só as novas; depois cada File dá lugar ao seu URL, na mesma posição
+        const subidas = await subirFotosNovas(anuncio.id, fotos.filter((f) => typeof f !== "string"));
+        let k = 0;
+        await definirFotosAnuncio(anuncio.id, fotos.map((f) => (typeof f === "string" ? f : subidas[k++])));
       }
       onFechar();
     } catch {
@@ -113,25 +115,11 @@ export default function SheetEditarAnuncio({ anuncio, onFechar }) {
         <textarea id="ed-descricao" className="campo" rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={600} />
 
         <span className="rot">Fotografias</span>
-        <div className="edFotos">
-          {fotos.map((f) => (
-            <span key={f} className="edFoto" style={{ backgroundImage: `url(${f})` }}>
-              <button type="button" aria-label="Tirar esta foto" onClick={() => setFotos((l) => l.filter((x) => x !== f))}>×</button>
-            </span>
-          ))}
-          {novas.map((f, i) => (
-            <span key={`n${i}`} className="edFoto nova">
-              <small>nova</small>
-              <button type="button" aria-label="Tirar esta foto" onClick={() => setNovas((l) => l.filter((_, j) => j !== i))}>×</button>
-            </span>
-          ))}
-          {lugarFotos > 0 && (
-            <button type="button" className="edFoto juntar" onClick={() => inputFoto.current?.click()}>+ foto</button>
-          )}
-        </div>
+        <OrdenarFotos lista={fotos} setLista={setFotos} onJuntar={() => inputFoto.current?.click()} />
+        {fotos.length > 1 && <p className="ds" style={{ marginTop: 8 }}>A primeira é a capa. Usa ‹ › para mudar a ordem.</p>}
         <input
           ref={inputFoto} type="file" accept="image/*" multiple hidden
-          onChange={(e) => { setNovas((l) => [...l, ...Array.from(e.target.files || [])].slice(0, 4 - fotos.length)); e.target.value = ""; }}
+          onChange={(e) => { const novos = Array.from(e.target.files || []); e.target.value = ""; setFotos((l) => [...l, ...novos].slice(0, 4)); }}
         />
 
         {erro && <p className="aviso">{erro}</p>}

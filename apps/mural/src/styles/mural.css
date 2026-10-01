@@ -694,7 +694,7 @@
   color: var(--azul);
   font-weight: 700;
 }
-.edFoto button {
+.edFoto .tirar {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -708,6 +708,40 @@
   line-height: 1;
   cursor: pointer;
 }
+/* reordenar (2026-10): ‹ › por baixo de cada foto; a primeira é a capa */
+.edFoto .setas {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+.edFoto .setas button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.edFoto .setas button:disabled {
+  visibility: hidden;
+}
+.edFoto .capa {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--lima);
+  color: var(--tinta);
+  font-size: 10.5px;
+  font-weight: 700;
+}
 .edFoto.juntar {
   border: 1.5px dashed var(--azul);
   color: var(--azul);
@@ -715,4 +749,59 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* Galeria do anúncio em ecrã cheio (2026-10): setas dos lados e as
+ * miniaturas por baixo — GaleriaExpandida.jsx, sobre o .lightbox global */
+.lightbox.galeria {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 12px;
+}
+.galeriaPalco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+}
+.lightbox.galeria .galeriaPalco img {
+  max-width: calc(100% - 96px);
+  max-height: 70vh;
+  min-width: 0;
+}
+.galeriaSeta {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.galeriaMinis {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.galeriaMinis button {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: center / cover no-repeat;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.galeriaMinis button[data-on="1"] {
+  border-color: var(--lima);
+  opacity: 1;
 }

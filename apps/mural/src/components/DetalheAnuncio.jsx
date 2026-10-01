@@ -2,6 +2,7 @@ import { useState } from "react";
 import { corPara, ESTADOS, nomeCategoria, relativo, linkWhatsApp, textoPreco } from "../lib/util.js";
 import { pedirContactoAnuncio, reportarAnuncio } from "../lib/anuncios.js";
 import ImagemExpandida from "@portal/shared/components/ImagemExpandida.jsx";
+import GaleriaExpandida from "./GaleriaExpandida.jsx";
 
 /** Folha de detalhe — mesmo padrão de SheetPin (veu + folha fixa em
  *  baixo). "Falar no WhatsApp" é público (2026-09: ver e contactar
@@ -16,7 +17,8 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
   const [aReportar, setAReportar] = useState(false);
   const [reportado, setReportado] = useState(false);
   const [erro, setErro] = useState("");
-  const [imagemExpandida, setImagemExpandida] = useState(null);
+  const [imagemExpandida, setImagemExpandida] = useState(null); // foto do autor
+  const [fotoAberta, setFotoAberta] = useState(null); // índice na galeria do anúncio
   // contacto de OUTRA pessoa (2026-10): depois de pedido, mostra-se o
   // número também por extenso — pode ser um fixo (placa na rua), e
   // nesse caso o WhatsApp não serve
@@ -60,7 +62,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         {anuncio.fotos?.length ? (
           <div className="fotoscolagem" style={{ marginTop: 0 }}>
             {anuncio.fotos.map((f, i) => (
-              <img key={i} src={f} alt="" style={{ cursor: "zoom-in" }} onClick={() => setImagemExpandida(f)} />
+              <img key={i} src={f} alt="" style={{ cursor: "zoom-in" }} onClick={() => setFotoAberta(i)} />
             ))}
           </div>
         ) : (
@@ -138,6 +140,7 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         )}
       </div>
       {imagemExpandida && <ImagemExpandida src={imagemExpandida} onFechar={() => setImagemExpandida(null)} />}
+      {fotoAberta != null && <GaleriaExpandida fotos={anuncio.fotos} inicio={fotoAberta} onFechar={() => setFotoAberta(null)} />}
     </>
   );
 }
