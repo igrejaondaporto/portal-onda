@@ -35,6 +35,23 @@ export function relativo(timestamp) {
   return `há ${Math.round(dias / 30)} mês${dias >= 60 ? "es" : ""}`;
 }
 
+/** "Onde" (2026-10): a cidade do anúncio, ou — anúncios de antes, sem
+ *  cidade — o nome da região antiga. O filtro é feito a partir disto,
+ *  dos anúncios que existem, e cresce sozinho. */
+export function lugarDe(a) {
+  return a.cidade || REGIOES.find((r) => r.id === a.regiao)?.nome || "";
+}
+/** `lugar`: "todas" | "Maia" | "Maia||Pedrouços" */
+export function bateLugar(a, lugar) {
+  if (lugar === "todas") return true;
+  const [cidade, freguesia] = lugar.split("||");
+  return lugarDe(a) === cidade && (!freguesia || a.freguesia === freguesia);
+}
+export const nomeLugar = (lugar) => {
+  const [cidade, freguesia] = String(lugar).split("||");
+  return freguesia ? `${freguesia}, ${cidade}` : cidade;
+};
+
 export const REGIOES = [
   { id: "norte", nome: "Norte" },
   { id: "lisboa", nome: "Lisboa" },
@@ -97,8 +114,25 @@ export const ESTADOS = {
   pausado: { classe: "paus", nome: "Pausado" },
 };
 
-/** O texto do preço, como aparece na etiqueta do feed e no detalhe. */
-export const textoPreco = (a) => (a.gratis ? "Grátis" : a.preco || "A combinar");
+/** O texto do preço, como aparece na etiqueta do feed e no detalhe.
+ *  Só preço (2026-10, pedido: "a etiqueta 'Domingos' não existe — ali
+ *  tem de ser apenas sobre preços"): o campo é texto livre e há
+ *  anúncios com "Domingos" ou "Pago" lá dentro. Sem nenhum algarismo,
+ *  a etiqueta diz "A combinar" — e numa boleia, "Grátis" (é o normal
+ *  entre irmãos da igreja). O Publicar já não deixa gravar texto sem
+ *  valor (ver `precoValido`). */
+export function textoPreco(a) {
+  if (a.gratis) return "Grátis";
+  const p = String(a.preco || "").trim();
+  if (/\d/.test(p)) return p;
+  return a.categoria === "boleias" ? "Grátis" : "A combinar";
+}
+/** Preço aceitável no Publicar: vazio (= a combinar), "a combinar", ou
+ *  com pelo menos um algarismo ("15 €", "15 €/hora", "até 40 €"). */
+export const precoValido = (p) => {
+  const t = String(p || "").trim();
+  return !t || /\d/.test(t) || /^a combinar$/i.test(t);
+};
 
 /** O preço é texto livre ("120 €", "320 €/mês", "1.200€", "15,50 €/h"),
  *  por isso para ordenar lê-se o primeiro número que lá estiver.
@@ -143,10 +177,34 @@ export function ordenar(lista, ordem) {
  *  com sentidos opostos ("Faço serviços" ≠ "Preciso de um serviço"),
  *  e em "Tudo" a folha do filtro mostra os dois grupos de uma vez. */
 export const chaveCategoria = (tipo, categoriaId) => `${tipo}:${categoriaId}`;
+/** Em "Tudo" (Ofereço e Procuro juntos) o Filtro mostra TEMAS da
+ *  natureza aberta, e não as categorias de cada lado (2026-10, pedido:
+ *  "só os da própria categoria"): "Boleias" apanha "Dou boleia" e
+ *  "Preciso de boleia". Cada tema junta as chaves `tipo:categoria`. */
+export const TEMAS = {
+  produto: [
+    { id: "compraVenda", nome: "Compra e venda", chaves: ["ofereco:venda", "procuro:objetos"] },
+    { id: "doacoes", nome: "Doações", chaves: ["ofereco:doacao"] },
+    { id: "arrendamento", nome: "Arrendamento", chaves: ["ofereco:arrendamento", "procuro:arrendar"] },
+    { id: "outrosProduto", nome: "Outros", chaves: ["ofereco:outros", "procuro:outros"] },
+  ],
+  servico: [
+    { id: "servicos", nome: "Serviços", chaves: ["ofereco:servicos", "procuro:servicos"] },
+    { id: "emprego", nome: "Emprego", chaves: ["ofereco:emprego", "procuro:emprego"] },
+    { id: "boleias", nome: "Boleias", chaves: ["ofereco:boleias", "procuro:boleias"] },
+    { id: "outrosServico", nome: "Outros", chaves: ["ofereco:outros", "procuro:outros"] },
+  ],
+};
+const temaPorId = (id) => [...TEMAS.produto, ...TEMAS.servico].find((t) => t.id === id);
+
 export function bateCategoria(anuncio, chave) {
-  return chave === "todas" || chave === chaveCategoria(anuncio.tipo, anuncio.categoria);
+  if (chave === "todas") return true;
+  const propria = chaveCategoria(anuncio.tipo, anuncio.categoria);
+  if (String(chave).startsWith("tema:")) return !!temaPorId(chave.slice(5))?.chaves.includes(propria);
+  return chave === propria;
 }
 export function nomeDaChave(chave) {
+  if (String(chave).startsWith("tema:")) return temaPorId(chave.slice(5))?.nome ?? "";
   const [tipo, id] = String(chave).split(":");
   if (id === "outros") return tipo === "procuro" ? "Procuro · Outros" : "Ofereço · Outros";
   return nomeCategoria(tipo, id);

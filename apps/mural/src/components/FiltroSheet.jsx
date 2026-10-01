@@ -1,25 +1,26 @@
-import { ORDENS, REGIOES, categoriasDe, chaveCategoria } from "../lib/util.js";
+import { ORDENS, TEMAS, categoriasDe, chaveCategoria } from "../lib/util.js";
 
-const GRUPOS = [
-  { tipo: "ofereco", titulo: "Ofereço" },
-  { tipo: "procuro", titulo: "Procuro" },
-];
-
-/** Categoria + região num botão só ("Filtro"), em vez de duas fileiras
- *  de pílulas sempre visíveis — pedido explícito, 2026-09: os dois
- *  filtros juntos, escondidos até a pessoa querer usar. Mesmo padrão
- *  de folha do DetalheAnuncio (.veu + .pin).
+/** Filtro do mural — uma folha só (pedido 2026-09: escondido até a
+ *  pessoa o querer usar). Mesmo padrão de folha do DetalheAnuncio
+ *  (.veu + .pin). Três coisas, por esta ordem (revisto 2026-10):
  *
- *  Revisto com Produtos/Serviços (2026-10): as categorias são só as da
- *  natureza aberta (Serviços nunca mostra "Vendo"), e em "Tudo" já não
- *  desaparecem — aparecem em dois grupos, Ofereço e Procuro, porque
- *  "Faço serviços" e "Preciso de um serviço" são o mesmo id com
- *  sentidos opostos. Por isso a escolha guarda o tipo junto
- *  (`chaveCategoria`, lib/util.js). */
-export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categoria, setCategoria, ordem, setOrdem, onFechar }) {
-  const grupos = GRUPOS
-    .filter((g) => tipo === "tudo" || g.tipo === tipo)
-    .map((g) => ({ ...g, categorias: categoriasDe(natureza, g.tipo) }));
+ *  - **Ordenar** — mais recentes / mais baratos (grátis primeiro) /
+ *    mais caros; com foto sobe sempre (`ordenar`, lib/util.js).
+ *  - **Categoria** — SÓ da natureza aberta (em Serviços nunca aparece
+ *    nada de Produtos). Em Ofereço/Procuro, as categorias desse lado;
+ *    em "Tudo", temas que juntam os dois ("Boleias" = dou + preciso),
+ *    em vez de duas listas com "Outros" repetido (`TEMAS`).
+ *  - **Onde** — as cidades que os anúncios trazem (e, escolhida uma,
+ *    as freguesias dela), com quantos anúncios tem cada. Não é uma
+ *    lista fixa: cresce à medida que se publica com cidade. Os
+ *    anúncios antigos, sem cidade, aparecem pela região (Norte…). */
+export default function FiltroSheet({ natureza, tipo, categoria, setCategoria, ordem, setOrdem, lugar, setLugar, lugares, onFechar }) {
+  const opcoes = tipo === "tudo"
+    ? TEMAS[natureza].map((t) => ({ chave: `tema:${t.id}`, nome: t.nome }))
+    : categoriasDe(natureza, tipo).map((c) => ({ chave: chaveCategoria(tipo, c.id), nome: c.nome }));
+  const [cidadeEscolhida] = lugar === "todas" ? [null] : lugar.split("||");
+  const daCidade = lugares.find((l) => l.cidade === cidadeEscolhida);
+
   return (
     <>
       <div className="veu on" onClick={onFechar} />
@@ -27,9 +28,6 @@ export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categor
         <div className="pux" />
         <h2 style={{ textAlign: "left" }}>Filtrar {natureza === "servico" ? "serviços" : "produtos"}</h2>
 
-        {/* Ordenar (2026-10): "Mais baratos" = grátis primeiro, depois
-            do menor para o maior valor. Com foto sobe sempre (ver
-            ordenar em lib/util.js). */}
         <span className="rot" style={{ marginTop: 6 }}>Ordenar</span>
         <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
           {ORDENS.map((o) => (
@@ -39,30 +37,38 @@ export default function FiltroSheet({ natureza, tipo, regiao, setRegiao, categor
         <p className="ds" style={{ margin: "2px 0 4px" }}>Os anúncios com foto aparecem sempre primeiro.</p>
 
         <span className="rot">Categoria</span>
-        <div className="menu" style={{ padding: "8px 0 0", position: "static" }}>
-          <button data-on={categoria === "todas" ? 1 : 0} onClick={() => setCategoria("todas")}>Todas as categorias</button>
+        <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
+          <button data-on={categoria === "todas" ? 1 : 0} onClick={() => setCategoria("todas")}>Todas</button>
+          {opcoes.map((o) => (
+            <button key={o.chave} data-on={categoria === o.chave ? 1 : 0} onClick={() => setCategoria(o.chave)}>{o.nome}</button>
+          ))}
         </div>
-        {grupos.map((g) => (
-          <div key={g.tipo}>
-            {grupos.length > 1 && <span className="rot" style={{ marginTop: 6 }}>{g.titulo}</span>}
+
+        <span className="rot">Onde</span>
+        <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
+          <button data-on={lugar === "todas" ? 1 : 0} onClick={() => setLugar("todas")}>Todo o lado</button>
+          {lugares.map((l) => (
+            <button key={l.cidade} data-on={cidadeEscolhida === l.cidade ? 1 : 0} onClick={() => setLugar(l.cidade)}>
+              {l.cidade} <small className="contaOpcao">{l.n}</small>
+            </button>
+          ))}
+        </div>
+        {daCidade?.freguesias.length > 0 && (
+          <>
+            <span className="rot">Freguesia em {daCidade.cidade}</span>
             <div className="menu quebra" style={{ padding: "8px 0 4px", position: "static" }}>
-              {g.categorias.map((c) => {
-                const chave = chaveCategoria(g.tipo, c.id);
+              <button data-on={lugar === daCidade.cidade ? 1 : 0} onClick={() => setLugar(daCidade.cidade)}>Todas</button>
+              {daCidade.freguesias.map((f) => {
+                const chave = `${daCidade.cidade}||${f.nome}`;
                 return (
-                  <button key={chave} data-on={categoria === chave ? 1 : 0} onClick={() => setCategoria(chave)}>{c.nome}</button>
+                  <button key={chave} data-on={lugar === chave ? 1 : 0} onClick={() => setLugar(chave)}>
+                    {f.nome} <small className="contaOpcao">{f.n}</small>
+                  </button>
                 );
               })}
             </div>
-          </div>
-        ))}
-
-        <span className="rot">Região</span>
-        <div className="menu" style={{ padding: "8px 0 4px", position: "static" }}>
-          <button data-on={regiao === "todas" ? 1 : 0} onClick={() => setRegiao("todas")}>Todas</button>
-          {REGIOES.map((r) => (
-            <button key={r.id} data-on={regiao === r.id ? 1 : 0} onClick={() => setRegiao(r.id)}>{r.nome}</button>
-          ))}
-        </div>
+          </>
+        )}
 
         <button className="btn full" onClick={onFechar}>Ver anúncios</button>
       </div>

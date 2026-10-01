@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { criarAnuncio, subirFotosAnuncio, ouvirMeusAnuncios, MAX_ATIVOS } from "../lib/anuncios.js";
-import { NATUREZAS, REGIOES, categoriasDe } from "../lib/util.js";
+import { NATUREZAS, REGIOES, categoriasDe, precoValido } from "../lib/util.js";
+import { CIDADES, NOMES_CIDADES } from "../lib/locais.js";
+
+const OUTRA = "__outra__";
 
 export default function Publicar({ onPublicado }) {
   const [meus, setMeus] = useState([]);
@@ -9,7 +12,13 @@ export default function Publicar({ onPublicado }) {
   const [natureza, setNatureza] = useState(null);
   const [tipo, setTipo] = useState(null);
   const [categoria, setCategoria] = useState(null);
-  const [regiao, setRegiao] = useState(REGIOES[0].id);
+  // onde (2026-10): cidade de uma lista (os concelhos onde há GDs) ou
+  // "Outra cidade" escrita à mão; a freguesia é opcional. A região
+  // antiga deduz-se da cidade — só se pergunta em "Outra cidade".
+  const [cidade, setCidade] = useState("");
+  const [cidadeOutra, setCidadeOutra] = useState("");
+  const [freguesia, setFreguesia] = useState("");
+  const [regiaoOutra, setRegiaoOutra] = useState(REGIOES[0].id);
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [preco, setPreco] = useState("");
@@ -40,12 +49,18 @@ export default function Publicar({ onPublicado }) {
 
   async function publicar() {
     if (!titulo.trim()) return setErro("Escreve um título.");
+    const cidadeFinal = cidade === OUTRA ? cidadeOutra.trim() : cidade;
+    if (!cidadeFinal) return setErro("Escolhe a cidade.");
+    if (!gratis && !precoValido(preco)) {
+      return setErro("No preço escreve só o valor (ex.: 15 € ou 15 €/hora) — o resto vai na descrição.");
+    }
+    const regiao = cidade === OUTRA ? regiaoOutra : CIDADES[cidade].regiao;
     if (deOutro && contactoTelefone.replace(/\D/g, "").length < 9) return setErro("Escreve o telemóvel de quem trata.");
     setErro("");
     setAEnviar(true);
     try {
       const contactoOutro = deOutro ? { nome: contactoNome.trim(), telefone: contactoTelefone } : undefined;
-      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, contactoOutro });
+      const { id } = await criarAnuncio({ natureza, tipo, categoria, titulo, descricao, preco, gratis, regiao, cidade: cidadeFinal, freguesia: freguesia.trim(), contactoOutro });
       if (ficheiros.length) await subirFotosAnuncio(id, ficheiros);
       onPublicado?.();
     } catch (e) {
@@ -93,7 +108,12 @@ export default function Publicar({ onPublicado }) {
           <span className="rot">3 · Qual destes?</span>
           <div className="menu" style={{ padding: "8px 0 4px", position: "static", flexWrap: "wrap" }}>
             {categoriasDe(natureza, tipo).map((c) => (
-              <button key={c.id} type="button" data-on={categoria === c.id ? 1 : 0} onClick={() => setCategoria(c.id)}>{c.nome}</button>
+              <button
+                key={c.id} type="button" data-on={categoria === c.id ? 1 : 0}
+                onClick={() => { setCategoria(c.id); if (c.id === "boleias") setGratis(true); }}
+              >
+                {c.nome}
+              </button>
             ))}
           </div>
         </>
@@ -108,12 +128,36 @@ export default function Publicar({ onPublicado }) {
         placeholder={natureza === "servico" ? "Ex.: Explicações de Matemática" : "Ex.: Sofá de 3 lugares, cinzento"}
       />
 
-      <label className="rot" htmlFor="regiao">Região</label>
-      <select id="regiao" className="campo" value={regiao} onChange={(e) => setRegiao(e.target.value)}>
-        {REGIOES.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+      <label className="rot" htmlFor="cidade">Cidade</label>
+      <select id="cidade" className="campo" value={cidade} onChange={(e) => { setCidade(e.target.value); setFreguesia(""); }}>
+        <option value="" disabled>Escolhe a cidade</option>
+        {NOMES_CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
+        <option value={OUTRA}>Outra cidade…</option>
       </select>
+      {cidade === OUTRA && (
+        <>
+          <input className="campo" style={{ marginTop: 8 }} value={cidadeOutra} onChange={(e) => setCidadeOutra(e.target.value)} maxLength={60} placeholder="Qual cidade?" aria-label="Qual cidade" />
+          <label className="rot" htmlFor="regiaoOutra">Região</label>
+          <select id="regiaoOutra" className="campo" value={regiaoOutra} onChange={(e) => setRegiaoOutra(e.target.value)}>
+            {REGIOES.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </select>
+        </>
+      )}
+      {cidade && (
+        <>
+          <label className="rot" htmlFor="freguesia">Freguesia <span style={{ fontWeight: 400 }}>— opcional</span></label>
+          {cidade !== OUTRA ? (
+            <select id="freguesia" className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)}>
+              <option value="">Não interessa / não sei</option>
+              {CIDADES[cidade].freguesias.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          ) : (
+            <input id="freguesia" className="campo" value={freguesia} onChange={(e) => setFreguesia(e.target.value)} maxLength={80} placeholder="Qual freguesia?" />
+          )}
+        </>
+      )}
 
-      <label className="rot" htmlFor="preco">Preço <span style={{ fontWeight: 400 }}>— deixa vazio se é doação</span></label>
+      <label className="rot" htmlFor="preco">Preço <span style={{ fontWeight: 400 }}>— só o valor; vazio = a combinar</span></label>
       <input id="preco" className="campo" value={preco} disabled={gratis} onChange={(e) => setPreco(e.target.value)} placeholder={natureza === "servico" ? "Ex.: 15 €/hora ou A combinar" : "Ex.: 120 € ou A combinar"} />
       <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13, color: "var(--cinza)" }}>
         <input type="checkbox" checked={gratis} onChange={(e) => setGratis(e.target.checked)} /> É grátis / doação

@@ -82,6 +82,9 @@ export default function DetalheAnuncio({ anuncio, meuUid, onFechar, onPedirEntra
         <p className="sb2" style={{ fontSize: 20, fontWeight: 800, color: "var(--tinta)", textAlign: "left" }}>
           {textoPreco(anuncio)}
         </p>
+        {anuncio.cidade && (
+          <p className="ds" style={{ marginTop: 2 }}>📍 {anuncio.freguesia ? `${anuncio.freguesia}, ` : ""}{anuncio.cidade}</p>
+        )}
         {anuncio.descricao && <p className="ds" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8 }}>{anuncio.descricao}</p>}
         <div className="linha" style={{ marginTop: 6 }}>
           <span
