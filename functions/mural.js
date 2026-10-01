@@ -13,8 +13,10 @@
  *   já serve para publicar no Mural, porque as funções abaixo só
  *   olham para `req.auth.uid`, nunca para baseId/papel.
  *   Quem NUNCA foi voluntário não tem base nenhuma para escolher —
- *   por isso só para essas pessoas é que existe um caminho próprio:
- *   telemóvel + PIN, com uma identidade global nova
+ *   por isso existe um caminho próprio: telemóvel + PIN. Um voluntário
+ *   que vá por aqui é reconhecido pelo telefone da base e entra com a
+ *   identidade e o PIN de sempre (2026-10, ver encontrarPorTelefone).
+ *   Quem não é voluntário fica com uma identidade global nova
  *   (`pessoas/tel_<telefone>`, nunca um nome cru — regra 9 do
  *   CLAUDE.md raiz: aqui não há sequer nome no id, é o telefone).
  *
@@ -147,14 +149,48 @@ async function bloqueioEValidacaoPin(segredoRef, pin) {
   }, { merge: true });
 }
 
-/** Só entre quem já se registou pelo Mural — quem já é voluntário
- *  entra pelo caminho de sempre (ver o comentário no topo do
- *  ficheiro), nunca por aqui. */
+/** Quem tem este telemóvel (2026-10).
+ *
+ *  Primeiro quem se registou pelo Mural (`pessoas/tel_<telefone>`).
+ *  Depois, quem é voluntário numa base com esse telefone. Pedido: "o
+ *  código para entrar no mural está sempre com 4 dígitos, mas os líderes
+ *  têm 6". Um líder que entrava por "Não, mas sou membro" não era
+ *  encontrado, caía no registo e o Mural pedia-lhe um código NOVO de 4
+ *  dígitos, criando uma segunda identidade. Agora entra com a identidade
+ *  e o PIN de sempre (regra 2), com os dígitos que o PIN tem (`pinDigitos`).
+ *
+ *  O telefone nas bases é texto livre ("912 345 678", "912345678",
+ *  "+351 912 345 678"…), por isso procura-se pelas formas comuns com o
+ *  índice de grupo de coleção `pessoas.telefone` (firestore.indexes.json).
+ *  Se o número aparecer em pessoas diferentes (família, por exemplo),
+ *  devolve `{ ambiguo: true }` e quem entra é mandado para a grelha de
+ *  bases. */
+function variantesTelefone(t) {
+  const v = new Set([t]);
+  if (t.length === 9) {
+    const e = `${t.slice(0, 3)} ${t.slice(3, 6)} ${t.slice(6)}`;
+    for (const x of [e, `+351 ${e}`, `+351 ${t}`, `+351${t}`, `351${t}`, `00351${t}`]) v.add(x);
+  }
+  return [...v];
+}
+async function voluntarioPorTelefone(telefone) {
+  const snap = await db().collectionGroup("pessoas").where("telefone", "in", variantesTelefone(telefone)).get();
+  const ids = [...new Set(snap.docs
+    .filter((d) => d.ref.path.startsWith("bases/") && d.data().ativo !== false)
+    .map((d) => d.id))];
+  const ativos = [];
+  for (const id of ids) {
+    const g = await refGlobal(id).get();
+    if (g.exists && g.data().ativo !== false) ativos.push(id);
+  }
+  if (ativos.length > 1) return { ambiguo: true };
+  return ativos.length ? { pessoaId: ativos[0], voluntario: true } : null;
+}
 async function encontrarPorTelefone(telefone) {
   const id = idParaTelefone(telefone);
   const snap = await refGlobal(id).get();
   if (snap.exists && snap.data().ativo !== false) return { pessoaId: id };
-  return null;
+  return voluntarioPorTelefone(telefone);
 }
 
 /* ── ENTRADA ──────────────────────────────────────────────────
@@ -199,8 +235,10 @@ export const pedirEntradaMural = onCall(async (req) => {
   if (telefone.length < 9) throw new HttpsError("invalid-argument", "Telemóvel inválido.");
 
   const achado = await encontrarPorTelefone(telefone);
+  if (achado?.ambiguo) return { existe: false, usarBase: true };
   if (!achado) return { existe: false };
 
+  // os dígitos são os do PIN de sempre — 6 para quem é líder (2026-10)
   const sSnap = await refSegredo(achado.pessoaId).get();
   const digitos = sSnap.exists ? sSnap.data().pinDigitos ?? 4 : 4;
   return { existe: true, digitos };
@@ -214,7 +252,7 @@ export const entrarMural = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Dados de entrada inválidos.");
   }
   const achado = await encontrarPorTelefone(telefone);
-  if (!achado) throw new HttpsError("permission-denied", "errado");
+  if (!achado || achado.ambiguo) throw new HttpsError("permission-denied", "errado");
 
   await bloqueioEValidacaoPin(refSegredo(achado.pessoaId), pin);
 
@@ -242,6 +280,9 @@ export const registarMural = onCall(async (req) => {
   if (nome.length > 60) throw new HttpsError("invalid-argument", "Nome demasiado longo.");
 
   const jaExiste = await encontrarPorTelefone(telefone);
+  if (jaExiste?.voluntario || jaExiste?.ambiguo) {
+    throw new HttpsError("already-exists", "Este telemóvel é de um voluntário — entra por \"Sim, sirvo numa base\".");
+  }
   if (jaExiste) {
     // já existe conta para este telefone — a app deve ter chamado
     // pedirEntradaMural antes e mostrado o ecrã de entrar, não este;
@@ -268,24 +309,28 @@ export const registarMural = onCall(async (req) => {
 
 /** Troca do próprio PIN — mesma lógica de `trocarPin` em index.js,
  *  só que essa exige `req.auth.token.baseId` (que ninguém do Mural
- *  tem, por desenho — ver o comentário no topo do ficheiro). Sempre
- *  4 dígitos: ninguém entra no Mural como líder de base. */
+ *  tem, por desenho — ver o comentário no topo do ficheiro). Mantém o
+ *  número de dígitos do PIN de sempre (6 para líderes). */
 export const trocarPinMural = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
   const { pinAtual, pinNovo } = req.data || {};
-  if (!/^\d{4}$/.test(String(pinNovo || ""))) {
-    throw new HttpsError("invalid-argument", "O código tem de ter 4 dígitos.");
+  // o PIN é global (regra 2): quem é líder numa base tem 6 dígitos e
+  // continua com 6 — antes isto forçava 4 e baixava o PIN de um líder
+  // que o trocasse aqui (2026-10)
+  const ref = refSegredo(uid);
+  const snap = await ref.get();
+  const digitos = snap.exists ? snap.data().pinDigitos ?? 4 : 4;
+  if (!new RegExp(`^\\d{${digitos}}$`).test(String(pinNovo || ""))) {
+    throw new HttpsError("invalid-argument", `O código tem de ter ${digitos} dígitos.`);
   }
   if (/^(\d)\1+$/.test(pinNovo) || "0123456789".includes(pinNovo)) {
     throw new HttpsError("invalid-argument", "Escolhe um código menos óbvio.");
   }
-  const ref = refSegredo(uid);
-  const snap = await ref.get();
   if (!snap.exists || !confere(String(pinAtual), snap.data().pinHash)) {
     throw new HttpsError("permission-denied", "O código atual não está certo.");
   }
-  await ref.set({ pinHash: hash(String(pinNovo)), pinDigitos: 4, provisorio: false, falhas: 0 }, { merge: true });
+  await ref.set({ pinHash: hash(String(pinNovo)), pinDigitos: digitos, provisorio: false, falhas: 0 }, { merge: true });
   return { ok: true };
 });
 
@@ -606,7 +651,7 @@ export const criarAnuncio = onCall(async (req) => {
       if (!nomeOutro) throw new HttpsError("invalid-argument", "Falta o nome da pessoa.");
       const ct = validarContactoOutro({ telefone: emNomeDe.telefone, nome: nomeOutro });
       const achado = await encontrarPorTelefone(ct.telefone);
-      if (achado) autorPessoa = achado.pessoaId;
+      if (achado?.pessoaId) autorPessoa = achado.pessoaId;
       else {
         porOutro = { nome: nomeOutro, telefone: ct.telefone };
         ativosDaPessoa = (await pendentesAtivos(ct.telefone)).length;
