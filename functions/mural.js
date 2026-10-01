@@ -481,7 +481,7 @@ export const pedirContactoAnuncio = onCall(async (req) => {
 export const criarAnuncio = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sessão inválida.");
-  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false, contactoOutro } = req.data || {};
+  const { tipo, categoria, natureza, titulo, descricao = "", regiao, preco = "", gratis = false, contactoOutro, cidade = "", freguesia = "" } = req.data || {};
 
   if (!TIPOS.has(tipo)) throw new HttpsError("invalid-argument", "Tipo inválido.");
   if (!CATEGORIAS[tipo].has(categoria)) throw new HttpsError("invalid-argument", "Categoria inválida.");
@@ -491,6 +491,12 @@ export const criarAnuncio = onCall(async (req) => {
   if (String(descricao).length > 600) throw new HttpsError("invalid-argument", "Descrição demasiado longa.");
   if (String(preco).length > 40) throw new HttpsError("invalid-argument", "Preço inválido.");
   const outro = validarContactoOutro(contactoOutro);
+  // cidade e freguesia (2026-10): texto curto, escolhido de uma lista no
+  // Publicar ou escrito à mão em "Outra cidade" — o filtro "Onde" do
+  // mural cresce sozinho a partir do que os anúncios trazem. A região
+  // continua (Norte/Lisboa/Sines) para os anúncios antigos e o resumo.
+  const c = String(cidade || "").trim().slice(0, 60);
+  const f = c ? String(freguesia || "").trim().slice(0, 80) : "";
 
   const ativosSnap = await db().collection("anuncios")
     .where("autorId", "==", uid).where("ativo", "==", true).get();
@@ -510,6 +516,7 @@ export const criarAnuncio = onCall(async (req) => {
     autorId: uid, autorNome: nome, autorFoto: foto, autorLocal: local,
     numReports: 0, reportadoPor: [], ultimosReports: [], lembreteEnviado: false, pedirConfirmacao: false,
     contactoDeOutro: !!outro,
+    cidade: c, freguesia: f,
     criadoEm: agora, atualizadoEm: agora, expiraEm,
   });
   if (outro) await refContactoOutro(ref.id).set({ ...outro, porUid: uid, em: agora });
