@@ -1,4 +1,4 @@
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, chamar, db, storage } from "@portal/shared/lib/firebase.js";
 import { comprimirImagem } from "@portal/shared/lib/imagem.js";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -81,4 +81,30 @@ export async function subirFotosAnuncio(anuncioId, ficheiros) {
   }
   await chamar("definirFotosAnuncio")({ id: anuncioId, fotos: urls });
   return urls;
+}
+
+/** Editar (2026-10): sobe só as fotos NOVAS, com nomes únicos — as que
+ *  ficam mantêm o URL de sempre (`subirFotosAnuncio` escreve 0.jpg, 1.jpg…
+ *  e pisaria uma foto mantida com o mesmo índice). */
+export async function subirFotosNovas(anuncioId, ficheiros) {
+  const uid = auth.currentUser?.uid;
+  const urls = [];
+  for (const f of ficheiros) {
+    const comprimido = await comprimirImagem(f);
+    const caminho = `anuncios/${uid}/${anuncioId}/${Date.now()}-${urls.length}.jpg`;
+    await uploadBytes(ref(storage, caminho), comprimido);
+    urls.push(await getDownloadURL(ref(storage, caminho)));
+  }
+  return urls;
+}
+export const definirFotosAnuncio = (id, fotos) => chamar("definirFotosAnuncio")({ id, fotos }).then((r) => r.data);
+
+/** O telemóvel com que a pessoa entrou no Mural (membro: `pessoas/{uid}.telefone`,
+ *  gravado no registo) — é esse o WhatsApp dos anúncios dela. Voluntários
+ *  guardam o telefone na base, que daqui não se lê: null. */
+export async function obterMeuTelefone() {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  const snap = await getDoc(doc(db, "pessoas", uid)).catch(() => null);
+  return snap?.exists() ? snap.data().telefone ?? null : null;
 }
