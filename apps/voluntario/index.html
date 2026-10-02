@@ -426,10 +426,62 @@ const CATEGORIAS = {
 /* ════════════════════════════════════════════════════════════════
  * Estado
  * ════════════════════════════════════════════════════════════════ */
-const GUARDA = "onda.teste-bases.v8"; // telemóvel → resultado (por agora só neste browser: ainda não há servidor)
+const GUARDA = "onda.teste-bases.v8"; // telemóvel → resultado neste browser (o envio a sério vai à Cloud Function, `enviarAosLideres`)
 const lerFeitos = () => { try { return JSON.parse(localStorage.getItem(GUARDA) || "{}"); } catch { return {}; } };
 const gravarFeito = (tel, r) => { try { const f = lerFeitos(); f[tel] = r; localStorage.setItem(GUARDA, JSON.stringify(f)); } catch { /* sem storage */ } };
 const soDigitos = (t) => String(t).replace(/\D/g, "").replace(/^351(?=\d{9}$)/, "");
+
+/* ════════════════════════════════════════════════════════════════
+ * Enviar aos líderes (2026-10): a Cloud Function pública
+ * `enviarTesteVoluntario` (functions/candidaturas.js) cria o pedido à
+ * 1.ª base; se ela disser "agora não", segue para a 2.ª e depois para
+ * todas as outras. Chamada "onCall" por fetch, sem o SDK do Firebase
+ * (esta página continua um HTML estático).
+ * ════════════════════════════════════════════════════════════════ */
+const URL_ENVIO = "https://europe-west1-painel-onda.cloudfunctions.net/enviarTesteVoluntario";
+async function enviarAosLideres(f) {
+  const e = f.escolha;
+  let r, j = {};
+  try {
+    r = await fetch(URL_ENVIO, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: {
+        nome: f.nome || pessoa.nome, telefone: pessoa.tel, primeira: e.p1, segunda: e.p2 || null,
+        direto: !!f.direto, area: areaDe(f, e.p1) || null,
+      } }),
+    });
+    j = await r.json().catch(() => ({}));
+  } catch {
+    throw new Error("Sem ligação. Confirma a internet e tenta outra vez.");
+  }
+  // já há um pedido deste telemóvel à espera: para a pessoa é o mesmo que enviado
+  if (j.error?.status === "ALREADY_EXISTS") return { jaEstava: true };
+  if (!r.ok || j.error) throw new Error(j.error?.message || "Não foi possível enviar. Tenta outra vez.");
+  return j.result;
+}
+/* marca como enviado, grava e mostra — ou mostra o erro por baixo do botão */
+let aEnviar = false;
+async function enviarEMostrar(f, botao) {
+  if (aEnviar) return;
+  aEnviar = true;
+  const txt = botao?.textContent;
+  if (botao) { botao.disabled = true; botao.textContent = "A enviar…"; }
+  const erro = document.getElementById("erro-envio");
+  if (erro) erro.textContent = "";
+  try {
+    const r = await enviarAosLideres(f);
+    f.enviado = true; f.noServidor = true; f.jaEstava = !!r?.jaEstava;
+    f.enviadoEm = new Date().toLocaleDateString("pt-PT");
+    editar = false;
+    gravarFeito(soDigitos(pessoa.tel), f);
+    final = f; passo = "resultado"; render(); topo();
+  } catch (e) {
+    if (botao) { botao.disabled = false; botao.textContent = txt; }
+    if (erro) erro.textContent = e.message;
+  } finally {
+    aEnviar = false;
+  }
+}
 
 let passo = "id";          // id | funil | categoria | resultado | jafez
 let pessoa = { nome: "", tel: "" };
@@ -550,6 +602,9 @@ function renderId() {
     if (pessoa.nome.split(/\s+/).length < 2) { erro.textContent = "Escreve o nome e o apelido."; return; }
     if (soDigitos(pessoa.tel).length !== 9) { erro.textContent = "O telemóvel tem de ter 9 números."; return; }
     const ja = lerFeitos()[soDigitos(pessoa.tel)];
+    // antes de 2026-10 o "Enviar" só gravava neste telemóvel: esses ainda
+    // não chegaram a ninguém, por isso voltam a "por enviar"
+    if (ja && ja.enviado && !ja.noServidor) ja.enviado = false;
     if (ja) { final = ja; passo = "jafez"; render(); topo(); return; }
     semente = Number(soDigitos(pessoa.tel).slice(-6)) || 1;
     prepararSorteio(semente);
@@ -577,6 +632,7 @@ function renderEscolher() {
       </div>`;
     }).join("")}</div>
     <button class="btn" id="enviar-direto" style="margin-top:16px" ${direta.p1 ? "" : "disabled"}>${direta.p1 ? `Enviar: ${esc(BASES[direta.p1].nome)}${direta.p2 ? ` e ${esc(BASES[direta.p2].nome)}` : ""}` : "Escolhe a 1.ª base"}</button>
+    <p class="erro" id="erro-envio" role="alert"></p>
     <button class="btn sec" id="fazer-teste" style="margin-top:9px">Afinal, quero fazer o teste</button>`;
   corpo.querySelectorAll(".edit-pos").forEach((btn) => btn.onclick = () => {
     const b = btn.dataset.b, n = Number(btn.dataset.n);
@@ -590,13 +646,12 @@ function renderEscolher() {
   document.getElementById("fazer-teste").onclick = () => { passo = "funil"; render(); topo(); };
   document.getElementById("enviar-direto").onclick = () => {
     if (!direta.p1) return;
-    final = {
+    const f = {
       direto: true, primeira: direta.p1, segunda: direta.p2, contagem: null,
       nome: pessoa.nome, em: new Date().toLocaleDateString("pt-PT"),
-      escolha: { p1: direta.p1, p2: direta.p2 }, enviado: true, enviadoEm: new Date().toLocaleDateString("pt-PT"),
+      escolha: { p1: direta.p1, p2: direta.p2 }, enviado: false,
     };
-    gravarFeito(soDigitos(pessoa.tel), final);
-    passo = "resultado"; render(); topo();
+    enviarEMostrar(f, document.getElementById("enviar-direto"));
   };
 }
 
@@ -737,13 +792,16 @@ function renderResultado() {
   const f = final, e = f.escolha;
   const mudou = e.p1 !== f.primeira || e.p2 !== f.segunda;
   titulo.innerHTML = f.enviado ? "<em>Enviado!</em>" : (mudou ? "As tuas <em>escolhas</em>" : `Sugerimos <em>${esc(BASES[e.p1].nome.replace(/^Base (de )?/, ""))}</em>`);
-  sub.textContent = f.enviado ? "Obrigado! Agora é com os líderes." : (mudou ? "Confirma e envia." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
+  sub.textContent = f.enviado ? "Obrigado! Agora é só aguardar." : (mudou ? "Confirma e envia." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
   let html = `<div class="duas${e.p2 ? "" : " so1"}">${cartaoBase(f, e.p1, 1)}${e.p2 ? cartaoBase(f, e.p2, 2) : ""}</div>`;
   if (f.enviado) {
-    html += `<div class="feito" style="margin-top:14px">✅ <b>Enviado em ${esc(f.enviadoEm)}.</b><br>O líder da ${esc(BASES[e.p1].nome)} vai falar contigo pelo WhatsApp.${e.p2 ? ` A ${esc(BASES[e.p2].nome)} fica como segunda opção.` : ""}</div>`;
+    html += `<div class="feito" style="margin-top:14px">✅ <b>A tua solicitação foi enviada aos líderes. Agora é só aguardar!</b><br>
+      Vai primeiro à ${esc(BASES[e.p1].nome)}.${e.p2 ? ` Se lá não der, segue para a ${esc(BASES[e.p2].nome)}` : " Se lá não der, segue"}${e.p2 ? ", e depois para as outras bases." : " para as outras bases."}
+      Um líder vai falar contigo pelo WhatsApp.${f.enviadoEm ? `<br><small>Enviado em ${esc(f.enviadoEm)}.</small>` : ""}</div>`;
   } else if (editar) {
     html += `<button class="btn sec" id="trocar-ordem" style="margin-top:12px">⇅ Trocar a ordem</button>` + listaEditar(f) +
       `<button class="btn" id="enviar" style="margin-top:14px">Enviar</button>
+       <p class="erro" id="erro-envio" role="alert"></p>
        <button class="btn sec" id="repor" style="margin-top:9px">Voltar à sugestão</button>`;
   } else {
     html += `<div class="pergunta-final">
@@ -751,6 +809,7 @@ function renderResultado() {
         <p>Podes aceitar a sugestão, trocar uma delas ou mudar a ordem. Só depois é que vai para os líderes.</p></div>
         <div class="acoes"><button class="btn" id="enviar">Sim, enviar</button>
         <button class="btn sec" id="mudar">Quero mudar</button></div>
+        <p class="erro" id="erro-envio" role="alert"></p>
       </div>`;
   }
   corpo.innerHTML = html;
@@ -758,7 +817,7 @@ function renderResultado() {
   on("mudar", () => { editar = true; render(); });
   on("repor", () => { f.escolha = { p1: f.primeira, p2: f.segunda }; editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); });
   on("trocar-ordem", () => { f.escolha = { p1: e.p2, p2: e.p1 }; gravarFeito(soDigitos(pessoa.tel), f); render(); });
-  on("enviar", () => { f.enviado = true; f.enviadoEm = new Date().toLocaleDateString("pt-PT"); editar = false; gravarFeito(soDigitos(pessoa.tel), f); render(); topo(); });
+  on("enviar", () => enviarEMostrar(f, document.getElementById("enviar")));
   corpo.querySelectorAll(".edit-pos").forEach((btn) => btn.onclick = () => { escolher(f, btn.dataset.b, Number(btn.dataset.n)); gravarFeito(soDigitos(pessoa.tel), f); render(); });
 }
 
