@@ -39,8 +39,9 @@ apps/mural/             Mural Onda — anúncios de dou/vendo/arrendo e de
                         próprio, como qualquer app. Domínio: mural.igrejaonda.pt
 apps/voluntario/        Teste "Onde vais servir?" para quem sai da reunião
                         de novos voluntários. NÃO é uma base, sem login;
-                        por agora uma página estática, ainda sem ligação
-                        a líderes nem ao pastor. Domínio: voluntario.igrejaonda.pt
+                        página estática que envia o pedido aos líderes em
+                        cascata (1.ª base → 2.ª → todas, functions/
+                        candidaturas.js). Domínio: voluntario.igrejaonda.pt
 ```
 
 Cada `apps/*` tem o seu próprio `wrangler.toml`, `.env.production`

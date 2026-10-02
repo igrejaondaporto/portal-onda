@@ -82,29 +82,43 @@ não há login, nem PIN, nem `bases/voluntario`.
   cada resposta** — isso é só do pastor. Por isso a vista `#pastor`
   da prévia (Artifact) ficou de fora desta app.
 
-## Estado (2026-09): só publicado, NÃO ligado
+## Estado (2026-10): ligado aos líderes, em cascata
 
-Decisão do dono do produto: publicar no domínio, mas ainda sem ligar a
-nada. Hoje é **um `index.html` estático** (Vite só copia; sem React,
-sem Firebase):
+Pedido do dono do produto (2026-10): "liga isso para que seja enviada
+uma solicitação a cada líder, mas na ordem de preferência". Continua
+**um `index.html` estático** (Vite só copia; sem React, sem SDK do
+Firebase) — o "Enviar" chama por `fetch` a Cloud Function pública
+`enviarTesteVoluntario` (`functions/candidaturas.js`, protocolo
+`onCall`: `POST {data:{…}}`, resposta `{result}` ou `{error}`):
 
-- "Enviar" (antes "Enviar ao pastor" — o dono do produto: "vai direto
-  para os líderes") **ainda não envia nada** — grava só no `localStorage`
-  do telemóvel da pessoa (`onda.teste-bases.v8`). O selo "PRÉVIA" e o
-  botão "Apagar e repetir" da prévia saíram a pedido do dono do
-  produto: a página já se apresenta como a versão final.
-- "Um teste por telemóvel" é só neste browser.
+- O pedido vai **primeiro só à 1.ª base**. Se o líder dela disser
+  "agora não", segue para a **2.ª**; se a 2.ª também, vai a **todas as
+  outras** ao mesmo tempo, e a primeira que aprovar fica com a pessoa.
+  Quem avança é o servidor, dentro da transação que recusa — ver
+  "A cascata" no topo de `functions/candidaturas.js`.
+- O líder recebe-o no Início (`PedidosParaServir`, "Veio do teste")
+  com o WhatsApp à vista; aprovar cria a pessoa com o PIN provisório
+  `1234` (ou liga-a a quem já tem o mesmo telemóvel, se o líder disser
+  que é a mesma pessoa).
+- No fim a pessoa vê "A tua solicitação foi enviada aos líderes. Agora
+  é só aguardar!" — não há conta nem aviso por push para ela (não tem
+  login); quem fala com ela é o líder, pelo WhatsApp.
+- Um pedido à espera por telemóvel (o servidor recusa outro com
+  "Já recebemos o teu pedido"; a página trata isso como enviado) e um
+  teto de 40 envios por dia para a igreja toda (a função é pública e
+  cada envio avisa líderes). O resultado fica em
+  `testesVoluntario/{telemóvel}` (só Admin SDK).
+- O `localStorage` (`onda.teste-bases.v8`) continua a guardar o
+  resultado neste telemóvel, para voltar ao ecrã certo. Quem "enviou"
+  antes de isto estar ligado (só ficou no telemóvel, sem
+  `noServidor`) volta a "por enviar" ao reentrar com o mesmo número.
 - Telemóvel primeiro, mas **não só**: a partir de 760px abre para um
   ecrã de computador (cabeçalho a toda a largura, início em duas
   colunas, respostas em duas colunas, as duas bases lado a lado) —
-  o bloco `@media (min-width: 760px)` no fim do CSS. Uma coluna de
-  480px no meio do ecrã parecia "uma vista de telemóvel".
+  o bloco `@media (min-width: 760px)` no fim do CSS.
 
-Para ligar a sério (quando for pedido): uma Cloud Function pública
-(sem login) que grava o resultado, garante um teste por telemóvel no
-servidor e cria as candidaturas nas duas bases escolhidas
-(`functions/candidaturas.js`), com a revisão no Painel Pastoral. A Function vai em PR à parte
-(CLAUDE.md raiz, "Trabalhar numa base sem mexer nas outras").
+Ainda **não** passa pelo Painel Pastoral (o funil de contactos): vai
+direto aos líderes, como pedido.
 
 ## Deploy
 
