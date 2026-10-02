@@ -795,9 +795,8 @@ function renderResultado() {
   sub.textContent = f.enviado ? "Obrigado! Agora é só aguardar." : (mudou ? "Confirma e envia." : "Pelas tuas respostas, estas são as bases que mais combinam contigo.");
   let html = `<div class="duas${e.p2 ? "" : " so1"}">${cartaoBase(f, e.p1, 1)}${e.p2 ? cartaoBase(f, e.p2, 2) : ""}</div>`;
   if (f.enviado) {
-    html += `<div class="feito" style="margin-top:14px">✅ <b>A tua solicitação foi enviada aos líderes. Agora é só aguardar!</b><br>
-      Vai primeiro à ${esc(BASES[e.p1].nome)}.${e.p2 ? ` Se lá não der, segue para a ${esc(BASES[e.p2].nome)}` : " Se lá não der, segue"}${e.p2 ? ", e depois para as outras bases." : " para as outras bases."}
-      Um líder vai falar contigo pelo WhatsApp.${f.enviadoEm ? `<br><small>Enviado em ${esc(f.enviadoEm)}.</small>` : ""}</div>`;
+    // só isto (pedido do dono do produto): a ordem em que vai às bases não é da conta de quem envia
+    html += `<div class="feito" style="margin-top:14px">✅ <b>A tua solicitação foi enviada aos líderes. Agora é só aguardar!</b></div>`;
   } else if (editar) {
     html += `<button class="btn sec" id="trocar-ordem" style="margin-top:12px">⇅ Trocar a ordem</button>` + listaEditar(f) +
       `<button class="btn" id="enviar" style="margin-top:14px">Enviar</button>
