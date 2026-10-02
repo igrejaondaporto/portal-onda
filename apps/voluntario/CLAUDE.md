@@ -100,9 +100,13 @@ Firebase) — o "Enviar" chama por `fetch` a Cloud Function pública
   com o WhatsApp à vista; aprovar cria a pessoa com o PIN provisório
   `1234` (ou liga-a a quem já tem o mesmo telemóvel, se o líder disser
   que é a mesma pessoa).
-- No fim a pessoa vê "A tua solicitação foi enviada aos líderes. Agora
-  é só aguardar!" — não há conta nem aviso por push para ela (não tem
+- No fim a pessoa vê só "A tua solicitação foi enviada aos líderes.
+  Agora é só aguardar!" — sem explicar a ordem das bases (pedido do
+  dono do produto). Não há conta nem aviso por push para ela (não tem
   login); quem fala com ela é o líder, pelo WhatsApp.
+- Os líderes **não sabem do teste**: o pedido aparece-lhes como
+  "Voluntário aguardando solicitação" (cartão e aviso), nunca "veio do
+  teste".
 - Um pedido à espera por telemóvel (o servidor recusa outro com
   "Já recebemos o teu pedido"; a página trata isso como enviado) e um
   teto de 40 envios por dia para a igreja toda (a função é pública e
