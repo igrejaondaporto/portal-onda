@@ -654,7 +654,9 @@ export const notificarCandidatura = onDocumentWritten("candidaturas/{id}", async
           : depois.origem === "pastoral"
             ? `${depois.nome} veio do Painel Pastoral e quer servir na tua base. Fala com ele(a) e responde no Início.`
             : depois.origem === "teste"
-              ? `${depois.nome} fez o teste "Onde vais servir?" e escolheu a tua base${segunda}. Fala com ele(a) e responde no Início.`
+              // os líderes não sabem do teste (pedido do dono do produto): é só
+              // "voluntário aguardando solicitação"
+              ? `Voluntário aguardando solicitação: ${depois.nome} quer servir na tua base${segunda}. Fala com ele(a) e responde no Início.`
               : `${depois.nome} pediu para servir também na tua base${segunda}. Responde no Início.`,
         url: urlDaBase(depois.baseId), tag,
       });
