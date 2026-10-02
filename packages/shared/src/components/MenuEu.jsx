@@ -74,7 +74,7 @@ export default function MenuEu({ pessoa, papel, baseIdAtual, basesDisponiveis = 
           * (pedido do dono do produto) — é um convite, não definições. */}
         <button className="btn full sv-menu" style={{ marginTop: 9 }} onClick={() => setVerServir(true)}>
           🙋 Servir noutra base
-          {meuPedido && <span className="sv-menu-estado">Pedido à {meuPedido.baseNome} · à espera</span>}
+          {meuPedido && <span className="sv-menu-estado">{meuPedido.ids?.length > 1 ? "Pedido a todas as bases" : `Pedido à ${meuPedido.baseNome}`} · à espera</span>}
         </button>
         {lider && (
           <button className="btn sec full" style={{ marginTop: 9 }} onClick={onAbrirPainel}>

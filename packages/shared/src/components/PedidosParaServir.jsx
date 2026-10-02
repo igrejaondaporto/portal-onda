@@ -139,10 +139,17 @@ function Pedido({ pedido: p, onAprovado }) {
               {outra && <p className="sv-info" style={{ marginTop: 4 }}>{outra.opcao}.ª opção: {outra.nome} — quem aprovar primeiro fica com a pessoa</p>}
               {p.gd && <p className="sv-info" style={{ marginTop: 2 }}>GD: {p.gd}</p>}
             </>
+          ) : p.origem === "teste" ? (
+            <>
+              <span className="sv-origem sv-origem-teste">Veio do teste “Onde vais servir?”</span>
+              <InfoCascata p={p} />
+              {p.teste?.area && p.teste.areaDe === p.baseId && <p className="sv-info" style={{ marginTop: 2 }}>Área: {p.teste.area}</p>}
+            </>
           ) : (
             <>
               <span className="sv-origem sv-origem-perfil">Pediu pelo perfil</span>
               {p.basesAtuais?.length > 0 && <p className="sv-info" style={{ marginTop: 4 }}>Já serve na {p.basesAtuais.join(" e na ")}</p>}
+              <InfoCascata p={p} />
             </>
           )}
           {p.mensagem && <p className="ds" style={{ marginTop: 6, fontStyle: "italic" }}>“{p.mensagem}”</p>}
@@ -181,7 +188,7 @@ function Pedido({ pedido: p, onAprovado }) {
       ) : confirmarNao ? (
         <div className="sv-confirmar">
           <p className="nmt" style={{ fontSize: 14 }}>Dizer “agora não” a {primeiroNome}?</p>
-          <p className="ds">{p.origem === "pastoral" ? "O pastor fica a saber." : `${primeiroNome} recebe um aviso.`}</p>
+          <p className="ds">{p.passo ? depoisDoNao(p) : p.origem === "pastoral" ? "O pastor fica a saber." : `${primeiroNome} recebe um aviso.`}</p>
           <div className="sv-acoes">
             <button className="btn perigo" disabled={aGuardar} onClick={recusar}>Agora não</button>
             <button className="btn sec" onClick={() => setConfirmarNao(false)}>Voltar</button>
@@ -197,6 +204,26 @@ function Pedido({ pedido: p, onAprovado }) {
       )}
     </div>
   );
+}
+
+/** Em que passo da cascata está o pedido (functions/candidaturas.js):
+ *  1.ª escolha, 2.ª, ou "todas" — e para onde segue se for "agora não". */
+function InfoCascata({ p }) {
+  if (!p.passo) return null;
+  const segunda = p.cascata?.[1]?.nome;
+  const recusadas = p.recusadas?.length ? p.recusadas.join(" e a ") : null;
+  let texto;
+  if (p.passo === 1) texto = `1.ª escolha${segunda ? ` · a 2.ª é a ${segunda}` : ""}`;
+  else if (p.passo === 2) texto = `2.ª escolha${recusadas ? ` · a ${recusadas} disse “agora não”` : ""}`;
+  else texto = `Não escolheu a tua base: ${recusadas ? `a ${recusadas} disse${p.recusadas.length > 1 ? "ram" : ""} “agora não”, e ` : ""}o pedido foi a todas as bases. Quem aprovar primeiro fica com a pessoa.`;
+  return <p className="sv-info" style={{ marginTop: 4 }}>{texto}</p>;
+}
+
+function depoisDoNao(p) {
+  const segunda = p.cascata?.[1]?.nome;
+  if (p.passo === 1 && segunda) return `O pedido segue para a ${segunda}, a 2.ª escolha.`;
+  if (p.passo < 3) return "O pedido segue para as outras bases.";
+  return "As outras bases continuam a poder responder.";
 }
 
 /** Depois de aprovar: quem entrou, o código (se for novo) e a mensagem

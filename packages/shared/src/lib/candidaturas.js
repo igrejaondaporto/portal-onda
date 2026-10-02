@@ -23,6 +23,12 @@ export const BASES_CANDIDATURA = [
 
 export const PAPEIS_QUE_RESPONDEM = new Set(["lider_base", "auxiliar"]);
 
+/** No máximo em duas bases (2026-10) — o MESMO `LIMITE_BASES` de
+ *  `functions/candidaturas.js`, que é quem decide a sério. Só contam as
+ *  equipas de domingo (`BASES_CANDIDATURA`). */
+export const LIMITE_BASES = 2;
+export const contamParaLimite = (ids) => [...new Set(ids)].filter((b) => BASES_CANDIDATURA.includes(b));
+
 /** O endereço da app de cada base — o subdomínio é o baseId, menos na
  *  Backstage (back.) e no Onda Tech Hub (techhub.): `SUBDOMINIO`, auth.js. */
 export const urlDaBase = (baseId) => `https://${SUBDOMINIO[baseId] ?? baseId}.igrejaonda.pt`;
@@ -37,12 +43,25 @@ export async function listarBasesParaServir() {
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt"));
 }
 
-/** O meu pedido à espera (ou null) — no máximo um, o servidor garante. */
+/** O meu pedido à espera (ou null). É um só pedido, mas na cascata
+ *  (1.ª escolha → 2.ª → todas, ver functions/candidaturas.js) o passo 3
+ *  são vários documentos ao mesmo tempo, um por base: junta-os.
+ *  `baseNome` é a base à espera (ou "todas as bases"), `bases` a lista. */
 export function ouvirMeuPedido(cb) {
   const uid = auth.currentUser?.uid;
   if (!uid) { cb(null); return () => {}; }
   const q = query(collection(db, "candidaturas"), where("pessoaId", "==", uid), where("estado", "==", "pendente"));
-  return onSnapshot(q, (s) => cb(s.empty ? null : { id: s.docs[0].id, ...s.docs[0].data() }), () => cb(null));
+  return onSnapshot(q, (s) => {
+    if (s.empty) { cb(null); return; }
+    const docs = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const um = docs[0];
+    cb({
+      ...um,
+      ids: docs.map((d) => d.id),
+      bases: docs.map((d) => d.baseNome),
+      baseNome: docs.length > 1 ? "todas as bases" : um.baseNome,
+    });
+  }, () => cb(null));
 }
 
 /** Os pedidos à espera nesta base, os mais antigos primeiro. Ordenação
@@ -61,8 +80,10 @@ export function ouvirPedidosDaBase(cb) {
   );
 }
 
-export const pedirParaServir = (baseId, mensagem) =>
-  chamar("pedirParaServir")({ baseId, mensagem }).then((r) => r.data);
+/** `baseId` é a 1.ª escolha; `segundaId` (opcional) a 2.ª — o pedido só
+ *  lá chega se a 1.ª disser "agora não". */
+export const pedirParaServir = (baseId, mensagem, segundaId = null) =>
+  chamar("pedirParaServir")({ baseId, segundaId, mensagem }).then((r) => r.data);
 
 export const cancelarPedidoServir = (id) =>
   chamar("cancelarPedidoServir")({ id }).then((r) => r.data);
