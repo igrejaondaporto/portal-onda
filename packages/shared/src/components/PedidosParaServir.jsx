@@ -141,7 +141,9 @@ function Pedido({ pedido: p, onAprovado }) {
             </>
           ) : p.origem === "teste" ? (
             <>
-              <span className="sv-origem sv-origem-teste">Veio do teste “Onde vais servir?”</span>
+              {/* veio do teste "Onde vais servir?", mas os líderes não sabem
+                * do teste (pedido do dono do produto) */}
+              <span className="sv-origem sv-origem-teste">Voluntário aguardando solicitação</span>
               <InfoCascata p={p} />
               {p.teste?.area && p.teste.areaDe === p.baseId && <p className="sv-info" style={{ marginTop: 2 }}>Área: {p.teste.area}</p>}
             </>
