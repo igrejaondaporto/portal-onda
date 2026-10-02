@@ -109,7 +109,7 @@ export {
 // o Firebase só cria o que sai deste ficheiro (ver o CLAUDE.md raiz).
 export {
   pedirParaServir, cancelarPedidoServir, enviarContactoParaServir,
-  decidirCandidatura, notificarCandidatura,
+  decidirCandidatura, notificarCandidatura, enviarTesteVoluntario,
 } from "./candidaturas.js";
 
 // Reportar bugs/erros/melhorias do painel, de qualquer base, para o
