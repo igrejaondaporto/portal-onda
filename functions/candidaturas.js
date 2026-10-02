@@ -40,6 +40,27 @@
  *     duas pessoas diferentes num perfil só) e nunca se duplica sem
  *     perguntar (regra 9 do CLAUDE.md raiz).
  *
+ * ── A cascata: 1.ª escolha → 2.ª → todas (2026-10) ─────────────
+ *
+ * Pedido do dono do produto: o pedido vai PRIMEIRO só à 1.ª base que a
+ * pessoa escolheu; se essa disser "agora não", segue para a 2.ª; se a
+ * 2.ª também disser, vai a TODAS as outras ao mesmo tempo (e a primeira
+ * que aprovar fica com a pessoa — o mesmo `grupo` do Painel Pastoral).
+ * Serve os dois caminhos de quem escolhe sozinho:
+ *
+ *   - o teste "Onde vais servir?" (`apps/voluntario`, sem login) —
+ *     `enviarTesteVoluntario`, `origem: "teste"`;
+ *   - o "Servir noutra base" do menu da foto — `pedirParaServir`, que
+ *     passou a aceitar a 2.ª escolha e a recusar quem já está em DUAS
+ *     bases ("o limite é duas bases" — `LIMITE_BASES`).
+ *
+ * Cada documento leva `grupo`, `passo` (1, 2 ou 3 = todas) e `cascata`
+ * (as escolhas, por ordem). Avançar acontece DENTRO da transação que
+ * recusa (`proximoPasso`), nunca num gatilho: dois líderes a recusar ao
+ * mesmo tempo no passo 3 não podem criar a cascata duas vezes. Os
+ * pedidos do Painel Pastoral (as duas bases ao mesmo tempo) não têm
+ * `passo` e ficam como estavam.
+ *
  * `FieldValue.serverTimestamp()` só em campos de NÍVEL DE DOCUMENTO:
  * `contactos/{id}.servir.bases` e `historicoEtapas` são arrays (ver o
  * CLAUDE.md raiz — um sentinel dentro de um array rebenta na escrita).
@@ -148,28 +169,147 @@ async function nomesDasBases(ids) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+ *  A CASCATA — 1.ª escolha → 2.ª → todas
+ * ══════════════════════════════════════════════════════════════ */
+
+/** No máximo em duas bases (pedido do dono do produto, 2026-10). Só
+ *  contam as equipas de domingo (`BASES_CANDIDATURA`): o Financeiro, a
+ *  Pastoral e o Onda Tech Hub não entram nesta conta. */
+const LIMITE_BASES = 2;
+const MSG_LIMITE = "LIMITE DE BASES ATINGIDO! Já serves em duas bases, que é o máximo.";
+const contamParaLimite = (bases) => bases.filter((b) => BASES_CANDIDATURA.includes(b));
+
+/** Mesmo `soDigitos` do teste (apps/voluntario): 9 dígitos, sem +351. */
+const soDigitosTel = (t) => String(t || "").replace(/\D/g, "").replace(/^351(?=\d{9}$)/, "");
+
+/** O que passa de um passo para o seguinte — tudo menos a base e o estado. */
+const CAMPOS_DA_CASCATA = [
+  "origem", "pessoaId", "nome", "telefone", "telefoneNorm", "foto", "basesAtuais", "basesAtuaisIds",
+  "mensagem", "localidade", "grupo", "cascata", "teste", "criadoPor",
+];
+function comumDe(c) {
+  const comum = {};
+  for (const k of CAMPOS_DA_CASCATA) if (c[k] !== undefined) comum[k] = c[k];
+  return comum;
+}
+
+/** Um pedido por base, todos no mesmo `grupo`. */
+function escreverPasso(t, comum, passo, bases, recusadas = []) {
+  for (const b of bases) {
+    t.set(db().collection("candidaturas").doc(), {
+      ...comum, baseId: b.id, baseNome: b.nome,
+      estado: "pendente", passo, recusadas, criadoEm: agora(),
+    });
+  }
+}
+
+/** Para onde segue um pedido da cascata que acabou de ser recusado. SÓ
+ *  LEITURAS (chama-se antes das escritas da transação). `fim` = já não
+ *  há para onde ir; `bases` vazio sem `fim` = no passo 3 ainda há outras
+ *  bases por responder, não se faz nada. */
+async function proximoPasso(t, c, idAtual) {
+  const irmas = await t.get(db().collection("candidaturas").where("grupo", "==", c.grupo));
+  if (irmas.docs.some((d) => d.id !== idAtual && d.data().estado === "pendente")) {
+    return { bases: [], fim: false };
+  }
+  const recusadas = irmas.docs.filter((d) => d.id === idAtual || d.data().estado === "recusada");
+  const fora = new Set([...recusadas.map((d) => d.data().baseId), ...(c.basesAtuaisIds || [])]);
+  const recusadasNomes = [...new Set(recusadas.map((d) => d.data().baseNome))];
+  const tentativas = [];
+  const segunda = c.cascata?.[1]?.id;
+  if (c.passo === 1 && segunda && !fora.has(segunda)) tentativas.push({ passo: 2, ids: [segunda] });
+  if (c.passo < 3) tentativas.push({ passo: 3, ids: BASES_CANDIDATURA.filter((b) => !fora.has(b)) });
+  for (const { passo, ids } of tentativas) {
+    if (!ids.length) continue;
+    const snaps = await t.getAll(...ids.map((b) => db().doc(`bases/${b}`)));
+    const bases = snaps
+      .filter((x) => x.exists && x.data().ativa !== false)
+      .map((x) => ({ id: x.id, nome: x.data().nome ?? x.id }));
+    if (bases.length) return { passo, bases, recusadasNomes, fim: false };
+  }
+  return { bases: [], recusadasNomes, fim: true };
+}
+
+/* ══════════════════════════════════════════════════════════════
+ *  PELO TESTE — "Onde vais servir?" (apps/voluntario, sem login)
+ * ══════════════════════════════════════════════════════════════ */
+
+/** Teto de envios por dia, para a igreja toda — a função é pública (não
+ *  há login no teste) e cada envio avisa líderes; isto impede alguém de
+ *  encher os Inícios de pedidos falsos. Numa reunião de novos
+ *  voluntários chegam umas 10–20 pessoas. */
+const TESTES_POR_DIA = 40;
+
+export const enviarTesteVoluntario = onCall(async (req) => {
+  const d = req.data || {};
+  const nome = String(d.nome ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (nome.split(" ").length < 2) throw new HttpsError("invalid-argument", "Escreve o nome e o apelido.");
+  const tel = soDigitosTel(d.telefone);
+  if (!/^\d{9}$/.test(tel)) throw new HttpsError("invalid-argument", "O telemóvel tem de ter 9 números.");
+  const primeira = await baseValida(String(d.primeira || ""));
+  const segunda = d.segunda ? await baseValida(String(d.segunda)) : null;
+  if (segunda?.id === primeira.id) throw new HttpsError("invalid-argument", "Escolhe duas bases diferentes.");
+  const area = String(d.area ?? "").trim().slice(0, 80) || null;
+  const teste = { direto: d.direto === true, area, areaDe: area ? primeira.id : null };
+
+  const grupo = db().collection("candidaturas").doc().id;
+  const cascata = [primeira, segunda].filter(Boolean).map((b) => ({ id: b.id, nome: b.nome }));
+  const refTeste = db().doc(`testesVoluntario/${tel}`);
+  const refLimite = db().doc(`limites/testeVoluntario-${new Date().toISOString().slice(0, 10)}`);
+
+  await db().runTransaction(async (t) => {
+    const pendente = await t.get(db().collection("candidaturas")
+      .where("telefoneNorm", "==", tel).where("estado", "==", "pendente").limit(1));
+    if (!pendente.empty) {
+      throw new HttpsError("already-exists", "Já recebemos o teu pedido — agora é só aguardar que um líder fale contigo.");
+    }
+    const limite = await t.get(refLimite);
+    if ((limite.data()?.n ?? 0) >= TESTES_POR_DIA) {
+      throw new HttpsError("resource-exhausted", "Hoje já chegaram muitos pedidos. Tenta outra vez amanhã.");
+    }
+    t.set(refLimite, { n: admin.firestore.FieldValue.increment(1) }, { merge: true });
+    // o resultado do teste, por telemóvel — fica para o pastor, e é o
+    // "um teste por telemóvel" do lado do servidor
+    t.set(refTeste, {
+      nome, telefone: tel, primeira: primeira.id, segunda: segunda?.id ?? null, ...teste,
+      grupo, enviadoEm: agora(), vezes: admin.firestore.FieldValue.increment(1),
+    }, { merge: true });
+    escreverPasso(t, {
+      origem: "teste", nome, telefone: tel, telefoneNorm: tel, foto: null,
+      grupo, cascata, teste, mensagem: null,
+    }, 1, [primeira]);
+  });
+  return { ok: true, primeira: primeira.nome, segunda: segunda?.nome ?? null };
+});
+
+/* ══════════════════════════════════════════════════════════════
  *  PELO PERFIL — "Servir noutra base"
  * ══════════════════════════════════════════════════════════════ */
 
+/** A 1.ª base (`baseId`) e, opcional, a 2.ª (`segundaId`) — a cascata
+ *  (ver o topo). Só para quem está em menos de `LIMITE_BASES` bases. */
 export const pedirParaServir = onCall(async (req) => {
   const uid = exigeSessao(req);
-  const { baseId, mensagem } = req.data || {};
+  const { baseId, segundaId = null, mensagem } = req.data || {};
   const base = await baseValida(String(baseId || ""));
+  const segunda = segundaId ? await baseValida(String(segundaId)) : null;
+  if (segunda?.id === base.id) throw new HttpsError("invalid-argument", "Escolhe duas bases diferentes.");
   const texto = String(mensagem ?? "").trim().slice(0, MAX_MENSAGEM);
 
   const globalSnap = await db().doc(`pessoas/${uid}`).get();
   if (!globalSnap.exists) throw new HttpsError("permission-denied", "Só quem já é voluntário pode pedir por aqui.");
   const g = globalSnap.data();
 
-  const jaAqui = await db().doc(`bases/${base.id}/pessoas/${uid}`).get();
-  if (jaAqui.exists && jaAqui.data().ativo !== false) {
-    throw new HttpsError("already-exists", `Já serves na ${base.nome}.`);
-  }
-
   const { telefone, foto, basesAtivas } = await contactoDaPessoa(uid, g);
+  if (contamParaLimite(basesAtivas).length >= LIMITE_BASES) {
+    throw new HttpsError("failed-precondition", MSG_LIMITE);
+  }
+  for (const b of [base, segunda].filter(Boolean)) {
+    if (basesAtivas.includes(b.id)) throw new HttpsError("already-exists", `Já serves na ${b.nome}.`);
+  }
   const basesAtuais = await nomesDasBases(basesAtivas);
 
-  const ref = db().collection("candidaturas").doc();
+  const grupo = db().collection("candidaturas").doc().id;
   // numa transação: dois toques seguidos (ou dois telemóveis) não podem
   // deixar a mesma pessoa com dois pedidos à espera
   await db().runTransaction(async (t) => {
@@ -180,19 +320,20 @@ export const pedirParaServir = onCall(async (req) => {
       throw new HttpsError("failed-precondition",
         `Já tens um pedido à espera (${outra.baseNome}). Cancela-o primeiro para pedires outra base.`);
     }
-    t.set(ref, {
-      baseId: base.id, baseNome: base.nome,
-      estado: "pendente", origem: "perfil",
-      pessoaId: uid, nome: g.nome ?? "", telefone, foto, basesAtuais,
+    escreverPasso(t, {
+      origem: "perfil",
+      pessoaId: uid, nome: g.nome ?? "", telefone, telefoneNorm: soDigitosTel(telefone) || null, foto,
+      basesAtuais, basesAtuaisIds: basesAtivas,
       mensagem: texto || null,
-      criadoEm: agora(),
+      grupo, cascata: [base, segunda].filter(Boolean).map((b) => ({ id: b.id, nome: b.nome })),
       criadoPor: { uid, baseId: req.auth.token?.baseId ?? null },
-    });
+    }, 1, [base]);
   });
-  return { ok: true, id: ref.id };
+  return { ok: true, grupo };
 });
 
-/** O próprio desiste do pedido, enquanto ainda está à espera. */
+/** O próprio desiste do pedido, enquanto ainda está à espera — no passo 3
+ *  (todas as bases) cancela-o em todas de uma vez. */
 export const cancelarPedidoServir = onCall(async (req) => {
   const uid = exigeSessao(req);
   const { id } = req.data || {};
@@ -202,7 +343,15 @@ export const cancelarPedidoServir = onCall(async (req) => {
     const s = await t.get(ref);
     if (!s.exists || s.data().pessoaId !== uid) throw new HttpsError("not-found", "Pedido não encontrado.");
     if (s.data().estado !== "pendente") throw new HttpsError("failed-precondition", "Este pedido já teve resposta.");
+    const irmas = s.data().grupo
+      ? await t.get(db().collection("candidaturas").where("grupo", "==", s.data().grupo).where("estado", "==", "pendente"))
+      : null;
     t.update(ref, { estado: "cancelada", motivo: "pelo_proprio", decididoEm: agora() });
+    irmas?.forEach((d) => {
+      if (d.id !== id && d.data().pessoaId === uid) {
+        t.update(d.ref, { estado: "cancelada", motivo: "pelo_proprio", decididoEm: agora() });
+      }
+    });
   });
   return { ok: true };
 });
@@ -341,7 +490,16 @@ export const decidirCandidatura = onCall(async (req) => {
       if (s.data().estado !== "pendente") throw new HttpsError("failed-precondition", "Este pedido já não está à espera.");
       const refContacto = c.contactoId ? db().doc(`contactos/${c.contactoId}`) : null;
       const contacto = refContacto ? await t.get(refContacto) : null;
-      t.update(ref, { estado: "recusada", decididoEm: agora(), decididoPor });
+      // a cascata (teste e perfil): 1.ª → 2.ª → todas — lido antes de escrever
+      const seguinte = c.passo && c.grupo ? await proximoPasso(t, c, id) : null;
+      t.update(ref, {
+        estado: "recusada", decididoEm: agora(), decididoPor,
+        ...(seguinte ? {
+          seguiuPara: seguinte.bases.length ? (seguinte.passo === 3 ? "todas" : seguinte.bases[0].nome) : null,
+          fim: seguinte.fim,
+        } : {}),
+      });
+      if (seguinte?.bases.length) escreverPasso(t, comumDe(c), seguinte.passo, seguinte.bases, seguinte.recusadasNomes);
       if (contacto?.exists && contacto.data().servir?.grupo === c.grupo) {
         const servir = contacto.data().servir;
         const basesServir = (servir.bases || []).map((b) => (b.baseId === c.baseId ? { ...b, estado: "recusada", por: decididoPor.nome } : b));
@@ -373,6 +531,11 @@ export const decidirCandidatura = onCall(async (req) => {
   if (pessoaId) {
     const g = await db().doc(`pessoas/${pessoaId}`).get();
     herdado = { global: g.data(), ...(await contactoDaPessoa(pessoaId, g.data())) };
+    // o limite de duas bases vale também aqui: a pessoa pode ter entrado
+    // noutra base enquanto este pedido esperava
+    if (contamParaLimite(herdado.basesAtivas.filter((b) => b !== c.baseId)).length >= LIMITE_BASES) {
+      throw new HttpsError("failed-precondition", `${herdado.global.nome ?? c.nome} já serve em duas bases, que é o limite.`);
+    }
   }
   const novoId = pessoaId ?? db().collection(`bases/${c.baseId}/pessoas`).doc().id;
   const refPessoaBase = db().doc(`bases/${c.baseId}/pessoas/${novoId}`);
@@ -483,11 +646,16 @@ export const notificarCandidatura = onDocumentWritten("candidaturas/{id}", async
   try {
     if (!antes && depois.estado === "pendente") {
       const lideres = await lideresDaBase(depois.baseId);
+      const segunda = depois.passo === 2 ? " (era a 2.ª escolha)" : "";
       await notificar(lideres, {
         titulo: `🙋 Quer servir — ${depois.baseNome}`,
-        corpo: depois.origem === "pastoral"
-          ? `${depois.nome} veio do Painel Pastoral e quer servir na tua base. Fala com ele(a) e responde no Início.`
-          : `${depois.nome} pediu para servir também na tua base. Responde no Início.`,
+        corpo: depois.passo === 3
+          ? `${depois.nome} ainda não tem base: as que escolheu disseram "agora não". Se houver lugar na tua, responde no Início.`
+          : depois.origem === "pastoral"
+            ? `${depois.nome} veio do Painel Pastoral e quer servir na tua base. Fala com ele(a) e responde no Início.`
+            : depois.origem === "teste"
+              ? `${depois.nome} fez o teste "Onde vais servir?" e escolheu a tua base${segunda}. Fala com ele(a) e responde no Início.`
+              : `${depois.nome} pediu para servir também na tua base${segunda}. Responde no Início.`,
         url: urlDaBase(depois.baseId), tag,
       });
       return;
@@ -495,12 +663,29 @@ export const notificarCandidatura = onDocumentWritten("candidaturas/{id}", async
     if (antes?.estado !== "pendente" || !["aprovada", "recusada"].includes(depois.estado)) return;
     const aprovada = depois.estado === "aprovada";
 
+    // a cascata seguiu (ou ainda há bases por responder no passo 3): só
+    // um aviso curto, sem e-mail — a resposta a sério vem no fim
+    if (!aprovada && depois.passo && depois.fim !== true) {
+      if (depois.origem === "perfil" && depois.seguiuPara) {
+        await notificar([depois.pessoaId], {
+          titulo: `O teu pedido seguiu`,
+          corpo: depois.seguiuPara === "todas"
+            ? `A ${depois.baseNome} disse "agora não". Enviámos o teu pedido às outras bases — agora é só aguardar.`
+            : `A ${depois.baseNome} disse "agora não". O teu pedido seguiu para a ${depois.seguiuPara} — agora é só aguardar.`,
+          url: urlDaBase(depois.criadoPor?.baseId ?? depois.baseId), tag, email: false,
+        });
+      }
+      return;
+    }
+
     if (depois.origem === "perfil") {
       await notificar([depois.pessoaId], {
         titulo: aprovada ? `Bem-vindo(a) à ${depois.baseNome}!` : `Resposta da ${depois.baseNome}`,
         corpo: aprovada
           ? `O teu pedido foi aceite. Já podes entrar na ${depois.baseNome} com o teu código de sempre.`
-          : "Por agora não foi possível. Podes falar com o líder da base, ou pedir outra.",
+          : depois.fim
+            ? "Por agora nenhuma base tem lugar. Podes falar com o teu líder, ou tentar mais tarde."
+            : "Por agora não foi possível. Podes falar com o líder da base, ou pedir outra.",
         url: urlDaBase(depois.baseId), tag,
       });
     } else if (depois.criadoPor?.uid) {
